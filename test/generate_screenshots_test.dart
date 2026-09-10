@@ -54,7 +54,9 @@ void main() {
         ],
         child: RepaintBoundary(
           key: darkKey,
-          child: const CoveApp(),
+          child: const CoveApp(
+            homeOverride: ComponentShowcaseScreen(),
+          ),
         ),
       ),
     );
@@ -78,7 +80,9 @@ void main() {
         ],
         child: RepaintBoundary(
           key: lightKey,
-          child: const CoveApp(),
+          child: const CoveApp(
+            homeOverride: ComponentShowcaseScreen(),
+          ),
         ),
       ),
     );

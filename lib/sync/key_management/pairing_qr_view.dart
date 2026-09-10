@@ -24,13 +24,14 @@ class PairingQrView extends StatelessWidget {
     final qrData = payload.toQrString();
 
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: CoveCard(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: CoveCard(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Text(
                 'Pair with Partner',
                 style: typography.headline.copyWith(fontSize: 22),
@@ -88,6 +89,7 @@ class PairingQrView extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

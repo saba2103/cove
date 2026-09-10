@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/cove_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/widgets.dart';
+import 'features/app_shell.dart';
+import 'features/auth/auth_gate.dart';
+import 'features/home/create_home_screen.dart';
+import 'features/home/join_home_screen.dart';
+import 'features/home/onboarding_choice_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +19,9 @@ void main() {
 }
 
 class CoveApp extends ConsumerWidget {
-  const CoveApp({super.key});
+  final Widget? homeOverride;
+
+  const CoveApp({super.key, this.homeOverride});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,13 +31,33 @@ class CoveApp extends ConsumerWidget {
         ? ThemeMode.light
         : (urlTheme == 'dark' ? ThemeMode.dark : themeMode);
 
+    final isShowcase = Uri.base.queryParameters['showcase'] == 'true';
+    final preview = Uri.base.queryParameters['preview'];
+
+    Widget resolveScreen() {
+      if (homeOverride != null) return homeOverride!;
+      if (isShowcase) return const ComponentShowcaseScreen();
+      switch (preview) {
+        case 'onboarding':
+          return const OnboardingChoiceScreen();
+        case 'create_home':
+          return const CreateHomeScreen();
+        case 'join_home':
+          return const JoinHomeScreen(initialShowManualInput: true);
+        case 'app_shell':
+          return const AppShell();
+        default:
+          return const AuthGate();
+      }
+    }
+
     return MaterialApp(
       title: 'Cove',
       debugShowCheckedModeBanner: false,
       theme: CoveTheme.lightTheme,
       darkTheme: CoveTheme.darkTheme,
       themeMode: effectiveTheme,
-      home: const ComponentShowcaseScreen(),
+      home: resolveScreen(),
     );
   }
 }

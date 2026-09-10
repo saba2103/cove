@@ -9,7 +9,9 @@ void main() {
   testWidgets('CoveApp renders design system showcase', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: CoveApp(),
+        child: CoveApp(
+          homeOverride: ComponentShowcaseScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -25,7 +27,9 @@ void main() {
   testWidgets('Theme toggle switches mode', (WidgetTester tester) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: CoveApp(),
+        child: CoveApp(
+          homeOverride: ComponentShowcaseScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

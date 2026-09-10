@@ -81,11 +81,20 @@ class CovePillButton extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-        ] else if (icon != null) ...[
-          icon!,
-          const SizedBox(width: 8),
+        ] else ...[
+          if (icon != null) ...[
+            icon!,
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              style: buttonStyle,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
         ],
-        Text(label, style: buttonStyle),
       ],
     );
 
