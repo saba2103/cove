@@ -114,7 +114,9 @@ class LocalStateStoreImpl implements LocalStateStore {
                       Value((payload['billing_cycle'] as String?) ?? 'monthly'),
                   nextBillingDate: nextDate,
                   category: Value(payload['category'] as String?),
-                  isActive: const Value(true),
+                  isActive: Value((payload['is_active'] as bool?) ?? true),
+                  isPrivate: Value((payload['is_private'] as bool?) ?? false),
+                  createdBy: Value((payload['created_by'] as String?) ?? authorId),
                   createdAt: timestamp,
                 ),
               );
@@ -125,6 +127,13 @@ class LocalStateStoreImpl implements LocalStateStore {
           await (db.update(db.localSubscriptions)
                 ..where((t) => t.id.equals(subId)))
               .write(const LocalSubscriptionsCompanion(isActive: Value(false)));
+          break;
+
+        case 'subscription_reactivated':
+          final reactivateId = payload['id'] as String;
+          await (db.update(db.localSubscriptions)
+                ..where((t) => t.id.equals(reactivateId)))
+              .write(const LocalSubscriptionsCompanion(isActive: Value(true)));
           break;
 
         // --- EXPENSES ---

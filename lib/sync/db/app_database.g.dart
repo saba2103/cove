@@ -1546,6 +1546,32 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _isPrivateMeta = const VerificationMeta(
+    'isPrivate',
+  );
+  @override
+  late final GeneratedColumn<bool> isPrivate = GeneratedColumn<bool>(
+    'is_private',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_private" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1568,6 +1594,8 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
     nextBillingDate,
     category,
     isActive,
+    isPrivate,
+    createdBy,
     createdAt,
   ];
   @override
@@ -1649,6 +1677,18 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('is_private')) {
+      context.handle(
+        _isPrivateMeta,
+        isPrivate.isAcceptableOrUnknown(data['is_private']!, _isPrivateMeta),
+      );
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1702,6 +1742,14 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      isPrivate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_private'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1726,6 +1774,8 @@ class LocalSubscription extends DataClass
   final DateTime nextBillingDate;
   final String? category;
   final bool isActive;
+  final bool isPrivate;
+  final String? createdBy;
   final DateTime createdAt;
   const LocalSubscription({
     required this.id,
@@ -1737,6 +1787,8 @@ class LocalSubscription extends DataClass
     required this.nextBillingDate,
     this.category,
     required this.isActive,
+    required this.isPrivate,
+    this.createdBy,
     required this.createdAt,
   });
   @override
@@ -1753,6 +1805,10 @@ class LocalSubscription extends DataClass
       map['category'] = Variable<String>(category);
     }
     map['is_active'] = Variable<bool>(isActive);
+    map['is_private'] = Variable<bool>(isPrivate);
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<String>(createdBy);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1770,6 +1826,10 @@ class LocalSubscription extends DataClass
           ? const Value.absent()
           : Value(category),
       isActive: Value(isActive),
+      isPrivate: Value(isPrivate),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
       createdAt: Value(createdAt),
     );
   }
@@ -1789,6 +1849,8 @@ class LocalSubscription extends DataClass
       nextBillingDate: serializer.fromJson<DateTime>(json['nextBillingDate']),
       category: serializer.fromJson<String?>(json['category']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      isPrivate: serializer.fromJson<bool>(json['isPrivate']),
+      createdBy: serializer.fromJson<String?>(json['createdBy']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -1805,6 +1867,8 @@ class LocalSubscription extends DataClass
       'nextBillingDate': serializer.toJson<DateTime>(nextBillingDate),
       'category': serializer.toJson<String?>(category),
       'isActive': serializer.toJson<bool>(isActive),
+      'isPrivate': serializer.toJson<bool>(isPrivate),
+      'createdBy': serializer.toJson<String?>(createdBy),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -1819,6 +1883,8 @@ class LocalSubscription extends DataClass
     DateTime? nextBillingDate,
     Value<String?> category = const Value.absent(),
     bool? isActive,
+    bool? isPrivate,
+    Value<String?> createdBy = const Value.absent(),
     DateTime? createdAt,
   }) => LocalSubscription(
     id: id ?? this.id,
@@ -1830,6 +1896,8 @@ class LocalSubscription extends DataClass
     nextBillingDate: nextBillingDate ?? this.nextBillingDate,
     category: category.present ? category.value : this.category,
     isActive: isActive ?? this.isActive,
+    isPrivate: isPrivate ?? this.isPrivate,
+    createdBy: createdBy.present ? createdBy.value : this.createdBy,
     createdAt: createdAt ?? this.createdAt,
   );
   LocalSubscription copyWithCompanion(LocalSubscriptionsCompanion data) {
@@ -1847,6 +1915,8 @@ class LocalSubscription extends DataClass
           : this.nextBillingDate,
       category: data.category.present ? data.category.value : this.category,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      isPrivate: data.isPrivate.present ? data.isPrivate.value : this.isPrivate,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -1863,6 +1933,8 @@ class LocalSubscription extends DataClass
           ..write('nextBillingDate: $nextBillingDate, ')
           ..write('category: $category, ')
           ..write('isActive: $isActive, ')
+          ..write('isPrivate: $isPrivate, ')
+          ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1879,6 +1951,8 @@ class LocalSubscription extends DataClass
     nextBillingDate,
     category,
     isActive,
+    isPrivate,
+    createdBy,
     createdAt,
   );
   @override
@@ -1894,6 +1968,8 @@ class LocalSubscription extends DataClass
           other.nextBillingDate == this.nextBillingDate &&
           other.category == this.category &&
           other.isActive == this.isActive &&
+          other.isPrivate == this.isPrivate &&
+          other.createdBy == this.createdBy &&
           other.createdAt == this.createdAt);
 }
 
@@ -1907,6 +1983,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
   final Value<DateTime> nextBillingDate;
   final Value<String?> category;
   final Value<bool> isActive;
+  final Value<bool> isPrivate;
+  final Value<String?> createdBy;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const LocalSubscriptionsCompanion({
@@ -1919,6 +1997,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     this.nextBillingDate = const Value.absent(),
     this.category = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.isPrivate = const Value.absent(),
+    this.createdBy = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1932,6 +2012,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     required DateTime nextBillingDate,
     this.category = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.isPrivate = const Value.absent(),
+    this.createdBy = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1950,6 +2032,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     Expression<DateTime>? nextBillingDate,
     Expression<String>? category,
     Expression<bool>? isActive,
+    Expression<bool>? isPrivate,
+    Expression<String>? createdBy,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1963,6 +2047,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
       if (nextBillingDate != null) 'next_billing_date': nextBillingDate,
       if (category != null) 'category': category,
       if (isActive != null) 'is_active': isActive,
+      if (isPrivate != null) 'is_private': isPrivate,
+      if (createdBy != null) 'created_by': createdBy,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1978,6 +2064,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     Value<DateTime>? nextBillingDate,
     Value<String?>? category,
     Value<bool>? isActive,
+    Value<bool>? isPrivate,
+    Value<String?>? createdBy,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -1991,6 +2079,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
       nextBillingDate: nextBillingDate ?? this.nextBillingDate,
       category: category ?? this.category,
       isActive: isActive ?? this.isActive,
+      isPrivate: isPrivate ?? this.isPrivate,
+      createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2026,6 +2116,12 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (isPrivate.present) {
+      map['is_private'] = Variable<bool>(isPrivate.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2047,6 +2143,8 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
           ..write('nextBillingDate: $nextBillingDate, ')
           ..write('category: $category, ')
           ..write('isActive: $isActive, ')
+          ..write('isPrivate: $isPrivate, ')
+          ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5633,6 +5731,8 @@ typedef $$LocalSubscriptionsTableCreateCompanionBuilder =
       required DateTime nextBillingDate,
       Value<String?> category,
       Value<bool> isActive,
+      Value<bool> isPrivate,
+      Value<String?> createdBy,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -5647,6 +5747,8 @@ typedef $$LocalSubscriptionsTableUpdateCompanionBuilder =
       Value<DateTime> nextBillingDate,
       Value<String?> category,
       Value<bool> isActive,
+      Value<bool> isPrivate,
+      Value<String?> createdBy,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -5702,6 +5804,16 @@ class $$LocalSubscriptionsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPrivate => $composableBuilder(
+    column: $table.isPrivate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5765,6 +5877,16 @@ class $$LocalSubscriptionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isPrivate => $composableBuilder(
+    column: $table.isPrivate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5810,6 +5932,12 @@ class $$LocalSubscriptionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPrivate =>
+      $composableBuilder(column: $table.isPrivate, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5864,6 +5992,8 @@ class $$LocalSubscriptionsTableTableManager
                 Value<DateTime> nextBillingDate = const Value.absent(),
                 Value<String?> category = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isPrivate = const Value.absent(),
+                Value<String?> createdBy = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSubscriptionsCompanion(
@@ -5876,6 +6006,8 @@ class $$LocalSubscriptionsTableTableManager
                 nextBillingDate: nextBillingDate,
                 category: category,
                 isActive: isActive,
+                isPrivate: isPrivate,
+                createdBy: createdBy,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5890,6 +6022,8 @@ class $$LocalSubscriptionsTableTableManager
                 required DateTime nextBillingDate,
                 Value<String?> category = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isPrivate = const Value.absent(),
+                Value<String?> createdBy = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => LocalSubscriptionsCompanion.insert(
@@ -5902,6 +6036,8 @@ class $$LocalSubscriptionsTableTableManager
                 nextBillingDate: nextBillingDate,
                 category: category,
                 isActive: isActive,
+                isPrivate: isPrivate,
+                createdBy: createdBy,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

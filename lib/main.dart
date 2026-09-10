@@ -1,13 +1,19 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/cove_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/widgets.dart';
 import 'features/app_shell.dart';
+import 'features/auth/auth_controller.dart';
 import 'features/auth/auth_gate.dart';
 import 'features/home/create_home_screen.dart';
 import 'features/home/join_home_screen.dart';
 import 'features/home/onboarding_choice_screen.dart';
+import 'features/subscriptions/subscriptions_screen.dart';
+import 'sync/db/app_database.dart';
+import 'sync/providers/active_home_provider.dart';
+import 'sync/providers/cove_sync_providers.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +52,8 @@ class CoveApp extends ConsumerWidget {
           return const JoinHomeScreen(initialShowManualInput: true);
         case 'app_shell':
           return const AppShell();
+        case 'subscriptions':
+          return const _SubscriptionsPreviewScaffold();
         default:
           return const AuthGate();
       }
@@ -458,3 +466,205 @@ class _ComponentShowcaseScreenState
     );
   }
 }
+
+class _SubscriptionsPreviewScaffold extends ConsumerStatefulWidget {
+  const _SubscriptionsPreviewScaffold();
+
+  @override
+  ConsumerState<_SubscriptionsPreviewScaffold> createState() =>
+      _SubscriptionsPreviewScaffoldState();
+}
+
+class _SubscriptionsPreviewScaffoldState
+    extends ConsumerState<_SubscriptionsPreviewScaffold> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final db = ref.read(appDatabaseProvider);
+      // Ensure demo user & home exist
+      ref.read(authProvider.notifier).signInWithDemoUser('Alex');
+      final activeHomeNotifier = ref.read(activeHomeIdProvider.notifier);
+      activeHomeNotifier.setActiveHome('demo_home');
+
+      final existingHomes = await (db.select(db.localHomes)..where((t) => t.id.equals('demo_home'))).get();
+      if (existingHomes.isEmpty) {
+        await db.into(db.localHomes).insert(
+              LocalHomesCompanion.insert(
+                id: 'demo_home',
+                name: 'Our Sanctuary',
+                createdAt: DateTime.now(),
+                createdBy: 'demo-user-alex',
+              ),
+            );
+      }
+
+      final existingSubs = await (db.select(db.localSubscriptions)..where((t) => t.homeId.equals('demo_home'))).get();
+      if (existingSubs.isEmpty) {
+        final now = DateTime.now();
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: 'sub_1',
+                homeId: 'demo_home',
+                name: 'Spotify Family',
+                amount: 19.99,
+                billingCycle: const drift.Value('monthly'),
+                nextBillingDate: now.add(const Duration(days: 3)),
+                category: const drift.Value('streaming'),
+                isActive: const drift.Value(true),
+                isPrivate: const drift.Value(false),
+                createdBy: const drift.Value('demo-user-alex'),
+                createdAt: now,
+              ),
+            );
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: 'sub_2',
+                homeId: 'demo_home',
+                name: '1Password Families',
+                amount: 59.88,
+                billingCycle: const drift.Value('annual'),
+                nextBillingDate: now.add(const Duration(days: 6)),
+                category: const drift.Value('software'),
+                isActive: const drift.Value(true),
+                isPrivate: const drift.Value(false),
+                createdBy: const drift.Value('demo-user-alex'),
+                createdAt: now,
+              ),
+            );
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: 'sub_3',
+                homeId: 'demo_home',
+                name: 'Fiber Internet',
+                amount: 80.00,
+                billingCycle: const drift.Value('monthly'),
+                nextBillingDate: now.add(const Duration(days: 18)),
+                category: const drift.Value('utilities'),
+                isActive: const drift.Value(true),
+                isPrivate: const drift.Value(false),
+                createdBy: const drift.Value('demo-user-alex'),
+                createdAt: now,
+              ),
+            );
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: 'sub_4',
+                homeId: 'demo_home',
+                name: 'Kindle Unlimited (Private)',
+                amount: 11.99,
+                billingCycle: const drift.Value('monthly'),
+                nextBillingDate: now.add(const Duration(days: 12)),
+                category: const drift.Value('news'),
+                isActive: const drift.Value(true),
+                isPrivate: const drift.Value(true),
+                createdBy: const drift.Value('demo-user-alex'),
+                createdAt: now,
+              ),
+            );
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: 'sub_5',
+                homeId: 'demo_home',
+                name: 'NYT Games',
+                amount: 4.00,
+                billingCycle: const drift.Value('monthly'),
+                nextBillingDate: now.add(const Duration(days: 20)),
+                category: const drift.Value('news'),
+                isActive: const drift.Value(false),
+                isPrivate: const drift.Value(false),
+                createdBy: const drift.Value('demo-user-alex'),
+                createdAt: now,
+              ),
+            );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final sampleSubs = [
+      LocalSubscription(
+        id: 'sub_1',
+        homeId: 'demo_home',
+        name: 'Spotify Family',
+        amount: 19.99,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: now.add(const Duration(days: 3)),
+        category: 'streaming',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now,
+      ),
+      LocalSubscription(
+        id: 'sub_2',
+        homeId: 'demo_home',
+        name: '1Password Families',
+        amount: 59.88,
+        currency: 'USD',
+        billingCycle: 'annual',
+        nextBillingDate: now.add(const Duration(days: 6)),
+        category: 'software',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now,
+      ),
+      LocalSubscription(
+        id: 'sub_3',
+        homeId: 'demo_home',
+        name: 'Fiber Internet',
+        amount: 80.00,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: now.add(const Duration(days: 18)),
+        category: 'utilities',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now,
+      ),
+      LocalSubscription(
+        id: 'sub_4',
+        homeId: 'demo_home',
+        name: 'Kindle Unlimited',
+        amount: 11.99,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: now.add(const Duration(days: 12)),
+        category: 'news',
+        isActive: true,
+        isPrivate: true,
+        createdBy: 'demo-user-alex',
+        createdAt: now,
+      ),
+      LocalSubscription(
+        id: 'sub_5',
+        homeId: 'demo_home',
+        name: 'NYT Games',
+        amount: 4.00,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: now.add(const Duration(days: 20)),
+        category: 'news',
+        isActive: false,
+        isPrivate: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now,
+      ),
+    ];
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: SubscriptionsScreen(initialSubscriptions: sampleSubs),
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../features/auth/auth_controller.dart';
 import '../crypto/sodium_crypto_service.dart';
 import '../db/app_database.dart';
 import '../db/local_state_store_impl.dart';
@@ -110,7 +111,8 @@ final activeHomeSubscriptionsProvider =
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchSubscriptions(activeId);
+  final user = ref.watch(authProvider).value;
+  return db.watchSubscriptions(activeId, currentUserId: user?.id);
 });
 
 final activeHomeExpensesProvider = StreamProvider<List<LocalExpense>>((ref) {

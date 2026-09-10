@@ -56,6 +56,8 @@ class LocalSubscriptions extends Table {
   DateTimeColumn get nextBillingDate => dateTime()();
   TextColumn get category => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get isPrivate => boolean().withDefault(const Constant(false))();
+  TextColumn get createdBy => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -179,11 +181,38 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
-  Stream<List<LocalSubscription>> watchSubscriptions(String homeId) {
+  Stream<List<LocalSubscription>> watchSubscriptions(
+    String homeId, {
+    String? currentUserId,
+  }) {
     return (select(localSubscriptions)
-          ..where((t) => t.homeId.equals(homeId))
+          ..where((t) {
+            final inHome = t.homeId.equals(homeId);
+            if (currentUserId != null) {
+              return inHome &
+                  (t.isPrivate.equals(false) | t.createdBy.equals(currentUserId));
+            }
+            return inHome & t.isPrivate.equals(false);
+          })
           ..orderBy([(t) => OrderingTerm.asc(t.nextBillingDate)]))
         .watch();
+  }
+
+  Future<List<LocalSubscription>> getSubscriptions(
+    String homeId, {
+    String? currentUserId,
+  }) {
+    return (select(localSubscriptions)
+          ..where((t) {
+            final inHome = t.homeId.equals(homeId);
+            if (currentUserId != null) {
+              return inHome &
+                  (t.isPrivate.equals(false) | t.createdBy.equals(currentUserId));
+            }
+            return inHome & t.isPrivate.equals(false);
+          })
+          ..orderBy([(t) => OrderingTerm.asc(t.nextBillingDate)]))
+        .get();
   }
 
   Stream<List<LocalExpense>> watchExpenses(String homeId) {
