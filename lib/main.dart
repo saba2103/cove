@@ -10,6 +10,7 @@ import 'features/auth/auth_gate.dart';
 import 'features/home/create_home_screen.dart';
 import 'features/home/join_home_screen.dart';
 import 'features/home/onboarding_choice_screen.dart';
+import 'features/expenses/expenses_screen.dart';
 import 'features/lists/lists_screen.dart';
 import 'features/subscriptions/subscriptions_screen.dart';
 import 'sync/db/app_database.dart';
@@ -57,6 +58,8 @@ class CoveApp extends ConsumerWidget {
           return const _SubscriptionsPreviewScaffold();
         case 'lists':
           return const _ListsPreviewScaffold();
+        case 'expenses':
+          return const _ExpensesPreviewScaffold();
         default:
           return const AuthGate();
       }
@@ -764,6 +767,86 @@ class _ListsPreviewScaffold extends StatelessWidget {
             initialLists: sampleLists,
             initialItems: sampleItems,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpensesPreviewScaffold extends StatelessWidget {
+  const _ExpensesPreviewScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final sampleExpenses = [
+      LocalExpense(
+        id: 'exp_1',
+        homeId: 'demo_home',
+        title: 'Farmers Market Produce',
+        amount: 54.80,
+        currency: 'USD',
+        paidBy: 'demo-user-alex',
+        splitRatio: 0.5,
+        expenseDate: now.subtract(const Duration(hours: 4)),
+        category: 'Groceries',
+        createdAt: now.subtract(const Duration(hours: 4)),
+      ),
+      LocalExpense(
+        id: 'exp_2',
+        homeId: 'demo_home',
+        title: 'Home Depot Hardware & Supplies',
+        amount: 86.10,
+        currency: 'USD',
+        paidBy: 'partner-user-sarah',
+        splitRatio: 0.5,
+        expenseDate: now.subtract(const Duration(days: 2)),
+        category: 'Home & Utilities',
+        createdAt: now.subtract(const Duration(days: 2)),
+      ),
+      LocalExpense(
+        id: 'exp_3',
+        homeId: 'demo_home',
+        title: 'Osteria Mozza Dinner',
+        amount: 142.50,
+        currency: 'USD',
+        paidBy: 'demo-user-alex',
+        splitRatio: 0.5,
+        expenseDate: now.subtract(const Duration(days: 5)),
+        category: 'Dining Out',
+        createdAt: now.subtract(const Duration(days: 5)),
+      ),
+      LocalExpense(
+        id: 'exp_4',
+        homeId: 'demo_home',
+        title: 'Japanese Ceramic Planter',
+        amount: 65.00,
+        currency: 'USD',
+        paidBy: 'demo-user-alex',
+        splitRatio: 0.0, // partnerCanSee
+        expenseDate: now.subtract(const Duration(days: 7)),
+        category: 'Shopping',
+        createdAt: now.subtract(const Duration(days: 7)),
+      ),
+      LocalExpense(
+        id: 'exp_5',
+        homeId: 'demo_home',
+        title: 'Boutique Fragrance (Surprise)',
+        amount: 110.00,
+        currency: 'USD',
+        paidBy: 'demo-user-alex',
+        splitRatio: -1.0, // privateToMe
+        expenseDate: now.subtract(const Duration(days: 9)),
+        category: 'Shopping',
+        createdAt: now.subtract(const Duration(days: 9)),
+      ),
+    ];
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: ExpensesScreen(initialExpenses: sampleExpenses),
         ),
       ),
     );

@@ -148,6 +148,31 @@ class LocalStateStoreImpl implements LocalStateStore {
               ? DateTime.tryParse(dateStr) ?? timestamp
               : timestamp;
 
+          final visibility = payload['visibility'] as String? ?? 'shared';
+          // Split ratio conventions:
+          // 0.5 = shared 50/50
+          // 0.0 = partner_can_see (disclosed, but not part of joint split)
+          // -1.0 = private_to_me (only stored locally, but if encountered)
+          double defaultRatio = 0.5;
+          if (visibility == 'partner_can_see') {
+            defaultRatio = 0.0;
+          } else if (visibility == 'private_to_me') {
+            defaultRatio = -1.0;
+          }
+
+          final splitRatioVal = (payload['split_ratio'] as num?)?.toDouble() ?? defaultRatio;
+
+          // Combine category and notes if notes present: "Category • Notes" or clean category
+          String? categoryVal = payload['category'] as String?;
+          final noteVal = payload['notes'] as String?;
+          if (noteVal != null && noteVal.trim().isNotEmpty) {
+            if (categoryVal != null && categoryVal.isNotEmpty) {
+              categoryVal = '$categoryVal • ${noteVal.trim()}';
+            } else {
+              categoryVal = noteVal.trim();
+            }
+          }
+
           await db.into(db.localExpenses).insertOnConflictUpdate(
                 LocalExpensesCompanion.insert(
                   id: payload['id'] as String,
@@ -156,10 +181,9 @@ class LocalStateStoreImpl implements LocalStateStore {
                   amount: (payload['amount'] as num?)?.toDouble() ?? 0.0,
                   currency: Value((payload['currency'] as String?) ?? 'USD'),
                   paidBy: (payload['paid_by'] as String?) ?? authorId,
-                  splitRatio:
-                      Value((payload['split_ratio'] as num?)?.toDouble() ?? 0.5),
+                  splitRatio: Value(splitRatioVal),
                   expenseDate: expenseDate,
-                  category: Value(payload['category'] as String?),
+                  category: Value(categoryVal),
                   createdAt: timestamp,
                 ),
               );

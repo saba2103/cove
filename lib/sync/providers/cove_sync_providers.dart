@@ -119,7 +119,8 @@ final activeHomeExpensesProvider = StreamProvider<List<LocalExpense>>((ref) {
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchExpenses(activeId);
+  final user = ref.watch(authProvider).value;
+  return db.watchExpenses(activeId, currentUserId: user?.id);
 });
 
 final activeHomeHabitsProvider = StreamProvider<List<LocalHabit>>((ref) {

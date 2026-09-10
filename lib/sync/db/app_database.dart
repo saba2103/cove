@@ -263,11 +263,48 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Stream<List<LocalExpense>> watchExpenses(String homeId) {
+  Stream<List<LocalExpense>> watchExpenses(
+    String homeId, {
+    String? currentUserId,
+  }) {
     return (select(localExpenses)
-          ..where((t) => t.homeId.equals(homeId))
+          ..where((t) {
+            final inHome = t.homeId.equals(homeId);
+            // If expense has splitRatio == -1.0, that indicates privateToMe
+            // (or if paidBy is current user)
+            // But we also have splitRatio or notes/currency.
+            // Private expenses must only be visible to current user who paid it.
+            if (currentUserId != null) {
+              return inHome &
+                  (t.splitRatio.isBiggerThanValue(0.0) |
+                      t.paidBy.equals(currentUserId));
+            }
+            return inHome & t.splitRatio.isBiggerThanValue(0.0);
+          })
           ..orderBy([(t) => OrderingTerm.desc(t.expenseDate)]))
         .watch();
+  }
+
+  Future<List<LocalExpense>> getExpenses(
+    String homeId, {
+    String? currentUserId,
+  }) {
+    return (select(localExpenses)
+          ..where((t) {
+            final inHome = t.homeId.equals(homeId);
+            if (currentUserId != null) {
+              return inHome &
+                  (t.splitRatio.isBiggerThanValue(0.0) |
+                      t.paidBy.equals(currentUserId));
+            }
+            return inHome & t.splitRatio.isBiggerThanValue(0.0);
+          })
+          ..orderBy([(t) => OrderingTerm.desc(t.expenseDate)]))
+        .get();
+  }
+
+  Future<void> deleteExpense(String expenseId) {
+    return (delete(localExpenses)..where((t) => t.id.equals(expenseId))).go();
   }
 
   Stream<List<LocalHabit>> watchHabits(String homeId) {
