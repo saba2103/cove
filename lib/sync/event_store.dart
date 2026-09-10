@@ -56,7 +56,7 @@ class CoveEncryptedEvent {
 /// Abstract contract for storing and queuing encrypted event streams locally.
 abstract class EventStore {
   /// Appends an encrypted event to the local append-only log.
-  Future<void> appendEvent(CoveEncryptedEvent event);
+  Future<void> appendEvent(CoveEncryptedEvent event, {String payloadJson = '{}'});
 
   /// Retrieves events pending upload to the Supabase blind relay.
   Future<List<CoveEncryptedEvent>> getPendingUploadEvents({int limit = 50});

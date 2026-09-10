@@ -7,8 +7,9 @@ abstract class LocalStateStore {
   Future<void> initialize();
 
   /// Applies a decrypted event payload into the respective projected tables
-  /// (e.g. lists, list_items, subscriptions, expenses, habits).
+  /// (e.g. lists, list_items, subscriptions, expenses, habits) scoped to homeId.
   Future<void> applyEvent({
+    required String homeId,
     required String eventType,
     required Map<String, dynamic> payload,
     required DateTime timestamp,

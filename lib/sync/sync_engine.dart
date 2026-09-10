@@ -21,8 +21,8 @@ abstract class SyncEngine {
   Stream<SyncConnectionState> get connectionState;
 
   /// Starts listening to the Supabase blind relay for incoming partner events
-  /// and begins draining local pending event queues.
-  Future<void> start({required String homeId, required List<int> homeKey});
+  /// across all homes the user belongs to, and begins draining the outbox.
+  Future<void> start({String? activeHomeId, List<int>? activeHomeKey});
 
   /// Dispatches a local mutation event:
   /// 1. Updates local SQLite projections immediately for zero-latency UI.
@@ -32,6 +32,7 @@ abstract class SyncEngine {
   Future<void> dispatchLocalEvent({
     required String eventType,
     required Map<String, dynamic> payload,
+    String? homeId,
   });
 
   /// Stops sync loops and closes active relay subscriptions.
