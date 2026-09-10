@@ -10,6 +10,7 @@ import 'features/auth/auth_gate.dart';
 import 'features/home/create_home_screen.dart';
 import 'features/home/join_home_screen.dart';
 import 'features/home/onboarding_choice_screen.dart';
+import 'features/lists/lists_screen.dart';
 import 'features/subscriptions/subscriptions_screen.dart';
 import 'sync/db/app_database.dart';
 import 'sync/providers/active_home_provider.dart';
@@ -54,6 +55,8 @@ class CoveApp extends ConsumerWidget {
           return const AppShell();
         case 'subscriptions':
           return const _SubscriptionsPreviewScaffold();
+        case 'lists':
+          return const _ListsPreviewScaffold();
         default:
           return const AuthGate();
       }
@@ -662,6 +665,105 @@ class _SubscriptionsPreviewScaffoldState
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 540),
           child: SubscriptionsScreen(initialSubscriptions: sampleSubs),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListsPreviewScaffold extends StatelessWidget {
+  const _ListsPreviewScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final sampleLists = [
+      LocalList(
+        id: 'list_grocery',
+        homeId: 'demo_home',
+        name: 'Grocery',
+        isArchived: false,
+        createdAt: now,
+        createdBy: 'demo-user-alex',
+      ),
+      LocalList(
+        id: 'list_travel',
+        homeId: 'demo_home',
+        name: 'Travel',
+        isArchived: false,
+        createdAt: now,
+        createdBy: 'demo-user-alex',
+      ),
+      LocalList(
+        id: 'list_planning',
+        homeId: 'demo_home',
+        name: 'Planning',
+        isArchived: false,
+        createdAt: now,
+        createdBy: 'demo-user-alex',
+      ),
+    ];
+
+    final sampleItems = [
+      LocalListItem(
+        id: 'item_1',
+        homeId: 'demo_home',
+        listId: 'list_grocery',
+        title: 'Oat milk (barista blend)',
+        isCompleted: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now.subtract(const Duration(minutes: 42)),
+      ),
+      LocalListItem(
+        id: 'item_2',
+        homeId: 'demo_home',
+        listId: 'list_grocery',
+        title: 'Fresh rosemary & thyme',
+        isCompleted: false,
+        createdBy: 'partner-user-sarah',
+        createdAt: now.subtract(const Duration(hours: 3)),
+      ),
+      LocalListItem(
+        id: 'item_3',
+        homeId: 'demo_home',
+        listId: 'list_grocery',
+        title: 'Sourdough loaf (Tartine)',
+        isCompleted: false,
+        createdBy: 'demo-user-alex',
+        createdAt: now.subtract(const Duration(hours: 5)),
+      ),
+      LocalListItem(
+        id: 'item_4',
+        homeId: 'demo_home',
+        listId: 'list_grocery',
+        title: 'Greek whole milk yogurt',
+        isCompleted: true,
+        createdBy: 'partner-user-sarah',
+        createdAt: now.subtract(const Duration(days: 1)),
+        completedAt: now.subtract(const Duration(hours: 1)),
+        completedBy: 'demo-user-alex',
+      ),
+      LocalListItem(
+        id: 'item_5',
+        homeId: 'demo_home',
+        listId: 'list_grocery',
+        title: 'Organic olive oil',
+        isCompleted: true,
+        createdBy: 'demo-user-alex',
+        createdAt: now.subtract(const Duration(days: 2)),
+        completedAt: now.subtract(const Duration(hours: 4)),
+        completedBy: 'partner-user-sarah',
+      ),
+    ];
+
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: ListsScreen(
+            initialLists: sampleLists,
+            initialItems: sampleItems,
+          ),
         ),
       ),
     );

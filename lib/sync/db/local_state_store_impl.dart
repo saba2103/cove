@@ -95,6 +95,11 @@ class LocalStateStoreImpl implements LocalStateStore {
               .go();
           break;
 
+        case 'list_completed_cleared':
+          final targetListId = payload['list_id'] as String;
+          await db.clearCompletedListItems(homeId, targetListId);
+          break;
+
         // --- SUBSCRIPTIONS ---
         case 'subscription_added':
         case 'subscription_updated':

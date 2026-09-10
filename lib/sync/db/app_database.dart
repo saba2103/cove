@@ -171,6 +171,13 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  Future<List<LocalList>> getLists(String homeId) {
+    return (select(localLists)
+          ..where((t) => t.homeId.equals(homeId) & t.isArchived.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
   Stream<List<LocalListItem>> watchListItems(String homeId, String listId) {
     return (select(localListItems)
           ..where((t) => t.homeId.equals(homeId) & t.listId.equals(listId))
@@ -179,6 +186,47 @@ class AppDatabase extends _$AppDatabase {
             (t) => OrderingTerm.asc(t.createdAt),
           ]))
         .watch();
+  }
+
+  Future<List<LocalListItem>> getListItems(String homeId, String listId) {
+    return (select(localListItems)
+          ..where((t) => t.homeId.equals(homeId) & t.listId.equals(listId))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.isCompleted),
+            (t) => OrderingTerm.asc(t.createdAt),
+          ]))
+        .get();
+  }
+
+  Future<void> clearCompletedListItems(String homeId, String listId) {
+    return (delete(localListItems)
+          ..where((t) =>
+              t.homeId.equals(homeId) &
+              t.listId.equals(listId) &
+              t.isCompleted.equals(true)))
+        .go();
+  }
+
+  Future<void> ensureDefaultLists(String homeId, String userId) async {
+    final existing = await getLists(homeId);
+    if (existing.isNotEmpty) return;
+
+    final now = DateTime.now().toUtc();
+    final defaultNames = ['Grocery', 'Travel', 'Planning'];
+    for (int i = 0; i < defaultNames.length; i++) {
+      final name = defaultNames[i];
+      final id = 'default_${name.toLowerCase()}_$homeId';
+      await into(localLists).insertOnConflictUpdate(
+        LocalListsCompanion.insert(
+          id: id,
+          homeId: homeId,
+          name: name,
+          isArchived: const Value(false),
+          createdAt: now.add(Duration(milliseconds: i * 10)),
+          createdBy: userId,
+        ),
+      );
+    }
   }
 
   Stream<List<LocalSubscription>> watchSubscriptions(
