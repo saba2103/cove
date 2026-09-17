@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_actor_avatar.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -532,7 +533,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                     leading: Icon(Icons.payments_outlined, size: 18, color: colors.textMuted),
                     title: Text('Amount', style: typography.caption),
                     trailing: Text(
-                      '$sym${NumberFormat('#,##0.00').format(amount)}',
+                      '$sym${formatCoveAmount(amount)}',
                       style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -541,7 +542,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                     leading: Icon(Icons.history_rounded, size: 18, color: colors.accentPrimary),
                     title: Text('Prior Value', style: typography.caption),
                     trailing: Text(
-                      '${prev['title'] ?? ''}${prev['amount'] != null ? ' ($prevSym${NumberFormat('#,##0.00').format(prev['amount'])})' : ''}',
+                      '${prev['title'] ?? ''}${prev['amount'] != null ? ' ($prevSym${formatCoveAmount(prev['amount'])})' : ''}',
                       style: typography.bodyMedium.copyWith(
                         color: colors.textMuted,
                         fontStyle: FontStyle.italic,

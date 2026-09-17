@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_actor_avatar.dart';
 import '../../core/widgets/cove_card.dart';
@@ -271,10 +272,7 @@ class DashboardScreen extends ConsumerWidget {
     final colors = context.colors;
     final typography = context.typography;
     final currency = ref.watch(currencyPreferenceProvider);
-    final totalFormatted = NumberFormat.currency(
-      symbol: currency.symbol,
-      decimalDigits: total % 1 == 0 ? 0 : 2,
-    ).format(total);
+    final totalFormatted = formatCoveCurrency(total, currency.symbol, showDecimals: total % 1 != 0);
 
     return CoveCard(
       onTap: () {

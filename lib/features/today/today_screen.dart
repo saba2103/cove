@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../sync/providers/active_home_provider.dart';
@@ -301,7 +302,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             context,
             icon: Icons.account_balance_wallet_outlined,
             title: 'Spent',
-            value: '$currencySymbol${spendTotal.toStringAsFixed(0)}',
+            value: '$currencySymbol${formatCoveIntegerAmount(spendTotal)}',
             subtitle: 'today',
             color: colors.accentTint,
           ),
@@ -821,7 +822,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                '$currencySymbol${NumberFormat('#,##0.00').format(totalSpend)}',
+                '$currencySymbol${formatCoveAmount(totalSpend)}',
                 style: typography.largeNumber.copyWith(
                   fontSize: 32,
                   color: colors.accentTint,
@@ -856,7 +857,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                           ),
                         ),
                         Text(
-                          '$currencySymbol${exp.amount.toStringAsFixed(2)}',
+                          '$currencySymbol${formatCoveAmount(exp.amount)}',
                           style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ],

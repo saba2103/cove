@@ -10,6 +10,7 @@ import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../subscriptions/commitment_models.dart';
 import 'dashboard_models.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 String _formatDateBadge(DateTime date, int daysDiff) {
   if (daysDiff == 0) return 'TODAY';
@@ -78,7 +79,7 @@ final dashboardDataProvider = Provider<DashboardData>((ref) {
             .difference(startOfToday)
             .inDays;
         final badge = _formatDateBadge(billingDate, daysDiff);
-        final amt = '${currency.symbol}${sub.amount.toStringAsFixed(2)}${formatBillingCycleSuffix(sub.billingCycle)}';
+        final amt = '${currency.symbol}${formatCoveAmount(sub.amount)}${formatBillingCycleSuffix(sub.billingCycle)}';
 
         upcoming.add(DashboardUpcomingItem(
           id: sub.id,

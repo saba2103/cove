@@ -13,6 +13,7 @@ import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import 'expense_controller.dart';
 import 'expense_detail_sheet.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class CategoryDetailSheet extends ConsumerStatefulWidget {
   final String initialCategoryName;
@@ -269,7 +270,7 @@ class _CategoryDetailSheetState extends ConsumerState<CategoryDetailSheet> {
                         Text('TOTAL SPENT', style: typography.caption),
                         const SizedBox(height: 6),
                         Text(
-                          '${currency.symbol}${NumberFormat('#,##0.00').format(categorySpend)}',
+                          '${currency.symbol}${formatCoveAmount(categorySpend)}',
                           style: typography.largeNumber.copyWith(
                             fontSize: 26,
                             color: colors.accentTint,
@@ -398,7 +399,7 @@ class _CategoryDetailSheetState extends ConsumerState<CategoryDetailSheet> {
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    '${currency.symbol}${NumberFormat('#,##0.00').format(expense.amount)}',
+                                    '${currency.symbol}${formatCoveAmount(expense.amount)}',
                                     style: TextStyle(
                                       fontFamily: 'GeneralSans',
                                       fontSize: 16,

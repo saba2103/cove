@@ -23,6 +23,7 @@ import 'expense_detail_sheet.dart';
 import 'expense_form_sheet.dart';
 import 'monthly_budget_controller.dart';
 import 'monthly_budget_sheet.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class ExpensesScreen extends ConsumerStatefulWidget {
   final List<LocalExpense>? initialExpenses;
@@ -242,8 +243,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           // Bodoni Moda Editorial Number
           Text(
             _showTransfers
-                ? '${currency.symbol}${NumberFormat('#,##0.00').format(transfersMonthlyTotal)}'
-                : '${currency.symbol}${NumberFormat('#,##0.00').format(sharedMonthlyTotal)}',
+                ? '${currency.symbol}${formatCoveAmount(transfersMonthlyTotal)}'
+                : '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)}',
             style: typography.largeNumber.copyWith(
               fontSize: 38,
               height: 1.1,
@@ -254,7 +255,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
           Text(
             _showTransfers
-                ? '$transfersCount transfer${transfersCount == 1 ? "" : "s"} • You sent ${currency.symbol}${NumberFormat('#,##0.00').format(sentByMeTotal)}${sentByPartnerTotal > 0 ? " • $partnerName sent ${currency.symbol}${NumberFormat('#,##0.00').format(sentByPartnerTotal)}" : ""}'
+                ? '$transfersCount transfer${transfersCount == 1 ? "" : "s"} • You sent ${currency.symbol}${formatCoveAmount(sentByMeTotal)}${sentByPartnerTotal > 0 ? " • $partnerName sent ${currency.symbol}${formatCoveAmount(sentByPartnerTotal)}" : ""}'
                 : '$sharedCount shared item${sharedCount == 1 ? "" : "s"}${personalCount > 0 ? " • $personalCount personal" : ""}',
             style: typography.caption.copyWith(
               color: colors.textMuted,
@@ -327,8 +328,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                     children: [
                                       Text(
                                         isOverBudget
-                                            ? 'Shot up by ${currency.symbol}${NumberFormat('#,##0.00').format(overshoot)}'
-                                            : '${currency.symbol}${NumberFormat('#,##0.00').format(remaining)} remaining',
+                                            ? 'Shot up by ${currency.symbol}${formatCoveAmount(overshoot)}'
+                                            : '${currency.symbol}${formatCoveAmount(remaining)} remaining',
                                         style: typography.caption.copyWith(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w700,
@@ -374,14 +375,14 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '${currency.symbol}${NumberFormat('#,##0.00').format(sharedMonthlyTotal)} spent',
+                                    '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
                                     style: typography.caption.copyWith(
                                       fontSize: 11,
                                       color: colors.textMuted,
                                     ),
                                   ),
                                   Text(
-                                    'Target: ${currency.symbol}${NumberFormat('#,##0.00').format(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
+                                    'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
                                     style: typography.caption.copyWith(
                                       fontSize: 11,
                                       color: colors.textMuted,
@@ -480,7 +481,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${currency.symbol}${NumberFormat('#,##0.00').format(entry.value)}',
+                      '${currency.symbol}${formatCoveAmount(entry.value)}',
                       style: TextStyle(
                         fontFamily: 'GeneralSans',
                         fontSize: 15,
@@ -761,7 +762,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              '${currency.symbol}${NumberFormat('#,##0.00').format(expense.amount)}',
+              '${currency.symbol}${formatCoveAmount(expense.amount)}',
               style: TextStyle(
                 fontFamily: 'GeneralSans',
                 fontSize: 15,

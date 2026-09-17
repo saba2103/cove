@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -70,7 +71,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
     if (sub.isActive && !sub.isPrivate) {
       final billing = sub.nextBillingDate;
       if (billing.year == now.year && billing.month == now.month && billing.day == now.day) {
-        final amt = '${currency.symbol}${sub.amount.toStringAsFixed(2)}';
+        final amt = '${currency.symbol}${formatCoveAmount(sub.amount)}';
         events.add(TodayEventItem(
           id: sub.id,
           title: sub.name,

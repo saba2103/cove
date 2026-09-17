@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/cove_theme.dart';
+import '../../../core/utils/cove_currency_formatter.dart';
 import '../../../core/widgets/cove_grouped_list.dart';
 import '../../../core/widgets/cove_sync_tick.dart';
 import '../../../sync/db/app_database.dart';
@@ -461,7 +462,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           ),
           const SizedBox(width: 12),
           Text(
-            '$sym${NumberFormat('#,##0.00').format(sub.amount)}',
+            '$sym${formatCoveAmount(sub.amount)}',
             style: typography.headline.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w500,

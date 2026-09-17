@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/db/app_database.dart';
 import 'activity_models.dart';
@@ -379,7 +380,7 @@ class ActivityFormatter {
         final amount = (payload['amount'] as num?)?.toDouble() ?? 0.0;
         final currencyCode = payload['currency'] as String?;
         final sym = getCurrencySymbol(currencyCode, fallbackSymbol: preferredCurrencySymbol);
-        final formattedAmt = '$sym${NumberFormat('#,##0.00').format(amount)}';
+        final formattedAmt = '$sym${formatCoveAmount(amount)}';
         final category = payload['category'] as String?;
         final title = payload['title'] as String?;
 
@@ -437,7 +438,7 @@ class ActivityFormatter {
         final amount = (payload['amount'] as num?)?.toDouble() ?? 0.0;
         final currencyCode = payload['currency'] as String?;
         final sym = getCurrencySymbol(currencyCode, fallbackSymbol: preferredCurrencySymbol);
-        final formattedAmt = '$sym${NumberFormat('#,##0.00').format(amount)}';
+        final formattedAmt = '$sym${formatCoveAmount(amount)}';
         final category = payload['category'] as String?;
         final title = payload['title'] as String?;
         return FormattedActivityItem(
@@ -465,7 +466,7 @@ class ActivityFormatter {
         final amount = (payload['amount'] as num?)?.toDouble();
         final sym = getCurrencySymbol(payload['currency'] as String?, fallbackSymbol: preferredCurrencySymbol);
         final amtStr =
-            amount != null ? ' ($sym${NumberFormat('#,##0.00').format(amount)})' : '';
+            amount != null ? ' ($sym${formatCoveAmount(amount)})' : '';
         return FormattedActivityItem(
           id: rawEvent.id,
           homeId: rawEvent.homeId,
@@ -495,7 +496,7 @@ class ActivityFormatter {
         final cycle = payload['billing_cycle'] ?? 'monthly';
         final sym = getCurrencySymbol(payload['currency'] as String?, fallbackSymbol: preferredCurrencySymbol);
         final costStr =
-            amount != null ? ' ($sym${NumberFormat('#,##0.00').format(amount)}/$cycle)' : '';
+            amount != null ? ' ($sym${formatCoveAmount(amount)}/$cycle)' : '';
         return FormattedActivityItem(
           id: rawEvent.id,
           homeId: rawEvent.homeId,
@@ -514,7 +515,7 @@ class ActivityFormatter {
           entityId: payload['id'] as String?,
           targetTitle: name.toString(),
           detailSubtitle:
-              amount != null ? '$sym${NumberFormat('#,##0.00').format(amount)}/$cycle' : null,
+              amount != null ? '$sym${formatCoveAmount(amount)}/$cycle' : null,
         );
 
       case 'subscription_updated':

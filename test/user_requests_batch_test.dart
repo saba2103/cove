@@ -5,6 +5,7 @@ import 'package:cove/sync/db/local_state_store_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   group('HabitSchedule Unit Tests', () {
@@ -200,6 +201,19 @@ void main() {
 
       final usd = supportedCurrencies.firstWhere((c) => c.code == 'USD');
       expect(usd.symbol, '\$');
+    });
+
+    test('Formats amounts using 1,00,00,000 Indian comma system', () {
+      final f1 = NumberFormat('#,##,##0.00', 'en_IN');
+      expect(f1.format(10000000), equals('1,00,00,000.00'));
+      expect(f1.format(1234567.89), equals('12,34,567.89'));
+      expect(f1.format(15400), equals('15,400.00'));
+      expect(f1.format(500), equals('500.00'));
+      expect(f1.format(0), equals('0.00'));
+
+      final fNoDec = NumberFormat('#,##,##0', 'en_IN');
+      expect(fNoDec.format(10000000), equals('1,00,00,000'));
+      expect(fNoDec.format(15400), equals('15,400'));
     });
   });
 

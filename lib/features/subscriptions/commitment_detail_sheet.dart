@@ -16,6 +16,7 @@ import '../profile/preferences_controller.dart';
 import 'commitment_models.dart';
 import 'subscription_controller.dart';
 import 'subscription_form_sheet.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class CommitmentDetailSheet extends ConsumerWidget {
   final LocalSubscription subscription;
@@ -268,7 +269,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
                         children: [
                           Text('Amount', style: typography.caption.copyWith(color: colors.textMuted)),
                           Text(
-                            '${currency.symbol}${NumberFormat('#,##0.00').format(subscription.amount)}',
+                            '${currency.symbol}${formatCoveAmount(subscription.amount)}',
                             style: typography.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
                               color: colors.accentTint,
@@ -448,7 +449,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
     }
 
     // Currency & amount formatting
-    final formattedAmount = '${currency.symbol}${NumberFormat('#,##0.00').format(subscription.amount)}';
+    final formattedAmount = '${currency.symbol}${formatCoveAmount(subscription.amount)}';
     final cycleSuffix = isEmi ? ' / month' : ' ${formatBillingCycleSuffix(subscription.billingCycle)}';
 
     // Dates formatting
@@ -742,7 +743,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              '${currency.symbol}${NumberFormat('#,##0.00').format(subscription.amount * emiProgress.totalInstallments)}',
+                              '${currency.symbol}${formatCoveAmount(subscription.amount * emiProgress.totalInstallments)}',
                               style: typography.bodyRegular.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colors.accentTint,

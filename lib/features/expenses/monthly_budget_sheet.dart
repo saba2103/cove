@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../profile/preferences_controller.dart';
 import 'monthly_budget_controller.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class MonthlyBudgetSheet extends ConsumerStatefulWidget {
   const MonthlyBudgetSheet({super.key});
@@ -173,7 +173,7 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
               spacing: 8,
               runSpacing: 8,
               children: presets.map((val) {
-                final formatted = NumberFormat('#,###').format(val);
+                final formatted = formatCoveIntegerAmount(val);
                 return InkWell(
                   onTap: () {
                     setState(() {

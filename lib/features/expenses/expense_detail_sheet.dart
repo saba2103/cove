@@ -15,6 +15,7 @@ import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import 'expense_controller.dart';
 import 'expense_form_sheet.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class ExpenseDetailSheet extends ConsumerWidget {
   final LocalExpense expense;
@@ -139,9 +140,9 @@ class ExpenseDetailSheet extends ConsumerWidget {
     }
 
     // Amount formatted
-    final amountFormatted = '${currency.symbol}${NumberFormat('#,##0.00').format(expense.amount)}';
+    final amountFormatted = '${currency.symbol}${formatCoveAmount(expense.amount)}';
     final yourShare = isShared ? expense.amount / 2 : (isMe ? expense.amount : 0.0);
-    final yourShareFormatted = '${currency.symbol}${NumberFormat('#,##0.00').format(yourShare)}';
+    final yourShareFormatted = '${currency.symbol}${formatCoveAmount(yourShare)}';
 
     return Container(
       decoration: BoxDecoration(

@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 import '../activity/activity_formatter.dart';
 import 'notification_models.dart';
 
@@ -8,10 +9,10 @@ class NotificationFormatter {
     return ActivityFormatter.getCurrencySymbol(code, fallbackSymbol: fallbackSymbol);
   }
 
-  /// Formats currency with commas and 2 decimals: e.g. ₹1,250.00
+  /// Formats currency with Indian commas and 2 decimals: e.g. ₹1,25,000.00
   static String formatAmount(double amount, String? currencyCode, {String? fallbackSymbol}) {
     final sym = getCurrencySymbol(currencyCode, fallbackSymbol: fallbackSymbol);
-    final formattedNum = NumberFormat('#,##0.00').format(amount);
+    final formattedNum = formatCoveAmount(amount);
     return '$sym$formattedNum';
   }
 

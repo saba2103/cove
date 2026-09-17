@@ -22,6 +22,7 @@ import '../../core/widgets/cove_tab_row.dart';
 import 'commitment_models.dart';
 import 'commitment_detail_sheet.dart';
 import 'subscription_form_sheet.dart';
+import '../../core/utils/cove_currency_formatter.dart';
 
 class SubscriptionsScreen extends ConsumerStatefulWidget {
   final List<LocalSubscription>? initialSubscriptions;
@@ -167,10 +168,9 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           }
         }
 
-        final numberFormat = NumberFormat('#,##0.00');
-        final displayedAmountStr = numberFormat.format(displayedAmount);
-        final displayedSubsStr = numberFormat.format(displayedSubs);
-        final displayedEmisStr = numberFormat.format(displayedEmis);
+        final displayedAmountStr = formatCoveAmount(displayedAmount);
+        final displayedSubsStr = formatCoveAmount(displayedSubs);
+        final displayedEmisStr = formatCoveAmount(displayedEmis);
 
         final myUserId = ref.watch(authProvider).value?.id ?? 'local_user';
         final userProfile = ref.watch(userProfileProvider);
@@ -921,8 +921,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     required CoveTypography typography,
     required CoveColors colors,
   }) {
-    final format = NumberFormat('#,##0.00');
-    final formattedAmt = format.format(amount);
+    final formattedAmt = formatCoveAmount(amount);
 
     final String countLabel;
     if (isSplitDistributed && (splitSubsCount > 0 || splitEmisCount > 0)) {
@@ -1209,7 +1208,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${currency.symbol}${sub.amount.toStringAsFixed(2)}$cycleSuffix',
+            '${currency.symbol}${formatCoveAmount(sub.amount)}$cycleSuffix',
             style: typography.bodyMedium.copyWith(
               fontWeight: FontWeight.w600,
               color: isPaused ? colors.textMuted : colors.textPrimary,
