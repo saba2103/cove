@@ -329,4 +329,54 @@ void main() {
       expect(effectiveMineAmount + effectivePartnerAmount, mineAmount + partnerAmount + splitAmount); // 1330.0
     });
   });
+
+  group('Commitments Strict Calendar and Overdue Classification', () {
+    test('Correctly classifies overdue, this week, this month, next month, and later', () {
+      // Reference simulated "today": September 18, 2026
+      final today = DateTime(2026, 9, 18);
+      final in7Days = today.add(const Duration(days: 7)); // September 25, 2026
+      final nextMonthYear = today.month == 12 ? today.year + 1 : today.year;
+      final nextMonthValue = today.month == 12 ? 1 : today.month + 1; // October 2026
+
+      String classify(DateTime nextBillingDate) {
+        final ren = DateTime(nextBillingDate.year, nextBillingDate.month, nextBillingDate.day);
+        if (ren.isBefore(today)) {
+          return 'overdue';
+        } else if (ren.year == today.year && ren.month == today.month) {
+          if (ren.isBefore(in7Days) || ren.isAtSameMomentAs(in7Days)) {
+            return 'this_week';
+          } else {
+            return 'this_month';
+          }
+        } else if (ren.year == nextMonthYear && ren.month == nextMonthValue) {
+          return 'next_month';
+        } else {
+          return 'later';
+        }
+      }
+
+      // 1. Past due date not marked as paid -> overdue
+      expect(classify(DateTime(2026, 9, 10)), 'overdue');
+      expect(classify(DateTime(2026, 8, 31)), 'overdue');
+      expect(classify(DateTime(2026, 9, 17)), 'overdue');
+
+      // 2. Due today or within 7 days in current month -> this_week
+      expect(classify(DateTime(2026, 9, 18)), 'this_week'); // today
+      expect(classify(DateTime(2026, 9, 21)), 'this_week'); // in 3 days
+      expect(classify(DateTime(2026, 9, 25)), 'this_week'); // exactly in 7 days
+
+      // 3. Later in the current month -> this_month
+      expect(classify(DateTime(2026, 9, 26)), 'this_month');
+      expect(classify(DateTime(2026, 9, 30)), 'this_month');
+
+      // 4. Next month 5th -> MUST be next_month, NOT this_month!
+      expect(classify(DateTime(2026, 10, 5)), 'next_month');
+      expect(classify(DateTime(2026, 10, 20)), 'next_month');
+
+      // 5. Beyond next month -> later
+      expect(classify(DateTime(2026, 11, 1)), 'later');
+      expect(classify(DateTime(2026, 12, 15)), 'later');
+      expect(classify(DateTime(2027, 3, 1)), 'later');
+    });
+  });
 }

@@ -295,15 +295,19 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         final filteredActive = filterByTab(activeSubs);
         final filteredInactive = filterByTab(inactiveSubs);
 
-        // 4. Group by Renewal / Payment Date
+        // 4. Group by Renewal / Payment Date (Strict Calendar Classification)
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
         final in7Days = today.add(const Duration(days: 7));
-        final in30Days = today.add(const Duration(days: 30));
 
-        final renewingSoon7 = <LocalSubscription>[];
-        final renewingSoon30 = <LocalSubscription>[];
+        final overdue = <LocalSubscription>[];
+        final renewingThisWeek = <LocalSubscription>[];
+        final renewingThisMonth = <LocalSubscription>[];
+        final nextMonth = <LocalSubscription>[];
         final later = <LocalSubscription>[];
+
+        final nextMonthYear = today.month == 12 ? today.year + 1 : today.year;
+        final nextMonthValue = today.month == 12 ? 1 : today.month + 1;
 
         for (final sub in filteredActive) {
           final ren = DateTime(
@@ -311,14 +315,31 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             sub.nextBillingDate.month,
             sub.nextBillingDate.day,
           );
-          if (ren.isBefore(in7Days) || ren.isAtSameMomentAs(in7Days)) {
-            renewingSoon7.add(sub);
-          } else if (ren.isBefore(in30Days) || ren.isAtSameMomentAs(in30Days)) {
-            renewingSoon30.add(sub);
+
+          if (ren.isBefore(today)) {
+            // Past due date and not marked as paid / renewed
+            overdue.add(sub);
+          } else if (ren.year == today.year && ren.month == today.month) {
+            // Strictly within the current calendar month
+            if (ren.isBefore(in7Days) || ren.isAtSameMomentAs(in7Days)) {
+              renewingThisWeek.add(sub);
+            } else {
+              renewingThisMonth.add(sub);
+            }
+          } else if (ren.year == nextMonthYear && ren.month == nextMonthValue) {
+            // Strictly within the next calendar month
+            nextMonth.add(sub);
           } else {
+            // Anything beyond next month
             later.add(sub);
           }
         }
+
+        overdue.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+        renewingThisWeek.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+        renewingThisMonth.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+        nextMonth.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+        later.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
 
         final currency = ref.watch(currencyPreferenceProvider);
 
@@ -508,33 +529,85 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Section: Renewing Soon (Next 7 Days)
-            if (renewingSoon7.isNotEmpty) ...[
+            // Section: Overdue
+            if (overdue.isNotEmpty) ...[
               _buildSectionHeader(
-                title: 'Renewing this week',
-                count: renewingSoon7.length,
+                title: 'Overdue',
+                count: overdue.length,
                 highlight: true,
+                isWarning: true,
               ),
               const SizedBox(height: 8),
               CoveGroupedCard(
-                children: renewingSoon7
-                    .map((sub) => _buildSubscriptionRow(sub, outboxEvents, hasPartner: hasPartner, isUrgent: true))
+                children: overdue
+                    .map((sub) => _buildSubscriptionRow(
+                          sub,
+                          outboxEvents,
+                          hasPartner: hasPartner,
+                          isUrgent: true,
+                          isOverdue: true,
+                        ))
                     .toList(),
               ),
               const SizedBox(height: 20),
             ],
 
-            // Section: Renewing in 30 Days
-            if (renewingSoon30.isNotEmpty) ...[
+            // Section: Renewing this week (strictly current month)
+            if (renewingThisWeek.isNotEmpty) ...[
+              _buildSectionHeader(
+                title: 'Renewing this week',
+                count: renewingThisWeek.length,
+                highlight: true,
+              ),
+              const SizedBox(height: 8),
+              CoveGroupedCard(
+                children: renewingThisWeek
+                    .map((sub) => _buildSubscriptionRow(
+                          sub,
+                          outboxEvents,
+                          hasPartner: hasPartner,
+                          isUrgent: true,
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // Section: Renewing this month (strictly current month)
+            if (renewingThisMonth.isNotEmpty) ...[
               _buildSectionHeader(
                 title: 'Renewing this month',
-                count: renewingSoon30.length,
+                count: renewingThisMonth.length,
                 highlight: false,
               ),
               const SizedBox(height: 8),
               CoveGroupedCard(
-                children: renewingSoon30
-                    .map((sub) => _buildSubscriptionRow(sub, outboxEvents, hasPartner: hasPartner))
+                children: renewingThisMonth
+                    .map((sub) => _buildSubscriptionRow(
+                          sub,
+                          outboxEvents,
+                          hasPartner: hasPartner,
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // Section: Next month
+            if (nextMonth.isNotEmpty) ...[
+              _buildSectionHeader(
+                title: 'Next month',
+                count: nextMonth.length,
+                highlight: false,
+              ),
+              const SizedBox(height: 8),
+              CoveGroupedCard(
+                children: nextMonth
+                    .map((sub) => _buildSubscriptionRow(
+                          sub,
+                          outboxEvents,
+                          hasPartner: hasPartner,
+                        ))
                     .toList(),
               ),
               const SizedBox(height: 20),
@@ -550,7 +623,11 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
               const SizedBox(height: 8),
               CoveGroupedCard(
                 children: later
-                    .map((sub) => _buildSubscriptionRow(sub, outboxEvents, hasPartner: hasPartner))
+                    .map((sub) => _buildSubscriptionRow(
+                          sub,
+                          outboxEvents,
+                          hasPartner: hasPartner,
+                        ))
                     .toList(),
               ),
               const SizedBox(height: 20),
@@ -1001,18 +1078,23 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     required String title,
     required int count,
     required bool highlight,
+    bool isWarning = false,
   }) {
     final colors = context.colors;
     final typography = context.typography;
+    final dotColor = isWarning ? colors.accentSecondary : colors.accentPrimary;
+    final textColor = isWarning
+        ? colors.accentSecondary
+        : (highlight ? colors.accentPrimary : colors.textPrimary);
 
     return Row(
       children: [
-        if (highlight) ...[
+        if (highlight || isWarning) ...[
           Container(
             width: 6,
             height: 6,
             decoration: BoxDecoration(
-              color: colors.accentPrimary,
+              color: dotColor,
               shape: BoxShape.circle,
             ),
           ),
@@ -1022,13 +1104,15 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           title,
           style: typography.bodyMedium.copyWith(
             fontWeight: FontWeight.w600,
-            color: highlight ? colors.accentPrimary : colors.textPrimary,
+            color: textColor,
           ),
         ),
         const SizedBox(width: 6),
         Text(
           '($count)',
-          style: typography.caption.copyWith(color: colors.textMuted),
+          style: typography.caption.copyWith(
+            color: isWarning ? colors.accentSecondary.withValues(alpha: 0.7) : colors.textMuted,
+          ),
         ),
       ],
     );
@@ -1039,6 +1123,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     List<LocalOutboxEvent> outbox, {
     bool hasPartner = true,
     bool isUrgent = false,
+    bool isOverdue = false,
     bool isPaused = false,
   }) {
     final colors = context.colors;
@@ -1063,13 +1148,26 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
       sub.nextBillingDate.day,
     ).difference(today).inDays;
 
-    final nextTiming = daysUntilNext == 0
-        ? 'next today'
-        : (daysUntilNext == 1
-            ? 'next tomorrow'
-            : (daysUntilNext > 1 && daysUntilNext <= 30
-                ? 'next in $daysUntilNext days'
-                : 'next $renewalFormatted'));
+    final String nextTiming;
+    final String renewsText;
+    if (daysUntilNext < 0) {
+      final daysOverdue = -daysUntilNext;
+      final overdueStr = daysOverdue == 1 ? 'overdue by 1 day' : 'overdue by $daysOverdue days';
+      nextTiming = overdueStr;
+      renewsText = overdueStr;
+    } else if (daysUntilNext == 0) {
+      nextTiming = 'next today';
+      renewsText = 'renews today';
+    } else if (daysUntilNext == 1) {
+      nextTiming = 'next tomorrow';
+      renewsText = 'renews tomorrow';
+    } else if (daysUntilNext <= 30) {
+      nextTiming = 'next in $daysUntilNext days';
+      renewsText = 'renews in $daysUntilNext days';
+    } else {
+      nextTiming = 'next $renewalFormatted';
+      renewsText = 'renews $renewalFormatted';
+    }
 
     // Payer attribution
     final currentUser = ref.watch(authProvider).value;
@@ -1099,13 +1197,6 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           : '$paidText$viaText · EMI · $nextTiming';
     } else {
       final cycleLabel = formatBillingCycleLabel(sub.billingCycle);
-      final renewsText = daysUntilNext == 0
-          ? 'renews today'
-          : (daysUntilNext == 1
-              ? 'renews tomorrow'
-              : (daysUntilNext > 1 && daysUntilNext <= 30
-                  ? 'renews in $daysUntilNext days'
-                  : 'renews $renewalFormatted'));
       subtitleText = '$paidText · $renewsText · $cycleLabel';
     }
 
@@ -1118,9 +1209,11 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           color: colors.surfaceRow,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isUrgent
-                ? colors.accentPrimary.withValues(alpha: 0.4)
-                : colors.borderHairline,
+            color: isOverdue
+                ? colors.accentSecondary.withValues(alpha: 0.5)
+                : (isUrgent
+                    ? colors.accentPrimary.withValues(alpha: 0.4)
+                    : colors.borderHairline),
             width: 1,
           ),
         ),
@@ -1128,7 +1221,9 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         child: Icon(
           _getCategoryIcon(sub.category),
           size: 18,
-          color: isUrgent ? colors.accentPrimary : colors.textMuted,
+          color: isOverdue
+              ? colors.accentSecondary
+              : (isUrgent ? colors.accentPrimary : colors.textMuted),
         ),
       ),
       title: Row(
@@ -1137,13 +1232,36 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             child: Text(
               sub.name,
               style: typography.bodyMedium.copyWith(
-                color: isPaused ? colors.textMuted : colors.textPrimary,
+                color: isPaused
+                    ? colors.textMuted
+                    : (isOverdue ? colors.accentSecondary : colors.textPrimary),
                 decoration: isPaused ? TextDecoration.lineThrough : null,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 6),
+          if (isOverdue) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.accentSecondary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.3), width: 1),
+              ),
+              child: Text(
+                'OVERDUE',
+                style: TextStyle(
+                  fontFamily: 'GeneralSans',
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: colors.accentSecondary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
           // "Sub" or "EMI" Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -1200,8 +1318,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: typography.caption.copyWith(
-          color: isUrgent ? colors.accentPrimary : colors.textMuted,
-          fontWeight: isUrgent ? FontWeight.w500 : FontWeight.w400,
+          color: isOverdue
+              ? colors.accentSecondary
+              : (isUrgent ? colors.accentPrimary : colors.textMuted),
+          fontWeight: (isUrgent || isOverdue) ? FontWeight.w500 : FontWeight.w400,
         ),
       ),
       trailing: Row(
@@ -1211,7 +1331,9 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             '${currency.symbol}${formatCoveAmount(sub.amount)}$cycleSuffix',
             style: typography.bodyMedium.copyWith(
               fontWeight: FontWeight.w600,
-              color: isPaused ? colors.textMuted : colors.textPrimary,
+              color: isPaused
+                  ? colors.textMuted
+                  : (isOverdue ? colors.accentSecondary : colors.textPrimary),
             ),
           ),
           const SizedBox(width: 8),
