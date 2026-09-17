@@ -77,7 +77,11 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     final item = widget.existing;
     _nameController = TextEditingController(text: item?.name ?? '');
     _amountController = TextEditingController(
-      text: item != null ? item.amount.toStringAsFixed(2) : '',
+      text: item != null
+          ? ((item.amount * 100).round() % 100 == 0
+              ? item.amount.toInt().toString()
+              : item.amount.toString())
+          : '',
     );
     _currency = item?.currency ?? ref.read(currencyPreferenceProvider).code;
     

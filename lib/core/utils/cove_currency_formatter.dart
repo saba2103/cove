@@ -1,12 +1,17 @@
 import 'package:intl/intl.dart';
 
 /// Centralized Indian numbering system formatter (e.g. 1,00,00,000 format).
-final NumberFormat _coveAmountFormat = NumberFormat('#,##,##0.00', 'en_IN');
+final NumberFormat _coveDecimalAmountFormat = NumberFormat('#,##,##0.##', 'en_IN');
 final NumberFormat _coveIntegerAmountFormat = NumberFormat('#,##,##0', 'en_IN');
 
-/// Formats a numeric amount string using the 1,00,00,000 Indian comma pattern with 2 decimal places.
+/// Formats a numeric amount string using the 1,00,00,000 Indian comma pattern.
+/// If decimal value is .00 then omits decimals; only shows decimals (up to 2 places) if non-zero.
 String formatCoveAmount(num amount) {
-  return _coveAmountFormat.format(amount);
+  final roundedCents = (amount * 100).round();
+  if (roundedCents % 100 == 0) {
+    return _coveIntegerAmountFormat.format(roundedCents ~/ 100);
+  }
+  return _coveDecimalAmountFormat.format(roundedCents / 100.0);
 }
 
 /// Formats an integer amount string using the 1,00,00,000 Indian comma pattern without decimals.
@@ -14,17 +19,15 @@ String formatCoveIntegerAmount(num amount) {
   return _coveIntegerAmountFormat.format(amount);
 }
 
-/// Formats an amount with optional decimals: omits decimals if exactly whole, else 2 decimal places.
+/// Formats an amount with optional decimals: omits decimals if .00, else up to 2 decimal places.
 String formatCoveAmountAuto(num amount) {
-  if (amount % 1 == 0) {
-    return _coveIntegerAmountFormat.format(amount);
-  }
-  return _coveAmountFormat.format(amount);
+  return formatCoveAmount(amount);
 }
 
 /// Formats an amount prefixed by the given currency symbol using the 1,00,00,000 Indian comma pattern.
 String formatCoveCurrency(num amount, String symbol, {bool? showDecimals}) {
-  final bool withDecimals = showDecimals ?? (amount % 1 != 0);
-  final formatted = withDecimals ? _coveAmountFormat.format(amount) : _coveIntegerAmountFormat.format(amount);
-  return '$symbol$formatted';
+  if (showDecimals == false) {
+    return '$symbol${formatCoveIntegerAmount(amount)}';
+  }
+  return '$symbol${formatCoveAmount(amount)}';
 }

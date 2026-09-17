@@ -1,3 +1,4 @@
+import 'package:cove/core/utils/cove_currency_formatter.dart';
 import 'package:cove/features/habits/habit_schedule.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
@@ -6,7 +7,6 @@ import 'package:cove/sync/db/local_state_store_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/intl.dart';
 
 void main() {
   group('HabitSchedule Unit Tests', () {
@@ -204,17 +204,23 @@ void main() {
       expect(usd.symbol, '\$');
     });
 
-    test('Formats amounts using 1,00,00,000 Indian comma system', () {
-      final f1 = NumberFormat('#,##,##0.00', 'en_IN');
-      expect(f1.format(10000000), equals('1,00,00,000.00'));
-      expect(f1.format(1234567.89), equals('12,34,567.89'));
-      expect(f1.format(15400), equals('15,400.00'));
-      expect(f1.format(500), equals('500.00'));
-      expect(f1.format(0), equals('0.00'));
+    test('Formats amounts using 1,00,00,000 Indian comma system without .00 and with decimals up to 2 places when non-zero', () {
+      // Whole numbers or numbers ending in .00: NO decimals
+      expect(formatCoveAmount(10000000), equals('1,00,00,000'));
+      expect(formatCoveAmount(10000000.00), equals('1,00,00,000'));
+      expect(formatCoveAmount(15400), equals('15,400'));
+      expect(formatCoveAmount(15400.0), equals('15,400'));
+      expect(formatCoveAmount(500), equals('500'));
+      expect(formatCoveAmount(500.00), equals('500'));
+      expect(formatCoveAmount(0), equals('0'));
+      expect(formatCoveAmount(0.00), equals('0'));
 
-      final fNoDec = NumberFormat('#,##,##0', 'en_IN');
-      expect(fNoDec.format(10000000), equals('1,00,00,000'));
-      expect(fNoDec.format(15400), equals('15,400'));
+      // Non-zero decimals: show up to 2 decimal places
+      expect(formatCoveAmount(1234567.89), equals('12,34,567.89'));
+      expect(formatCoveAmount(12.5), equals('12.5'));
+      expect(formatCoveAmount(12.50), equals('12.5'));
+      expect(formatCoveAmount(100.25), equals('100.25'));
+      expect(formatCoveAmount(100 / 3), equals('33.33')); // 33.333333333333336 rounded to 2 places
     });
   });
 
