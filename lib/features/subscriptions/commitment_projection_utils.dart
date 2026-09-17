@@ -111,6 +111,24 @@ class MonthCommitmentSummary {
   double allocationSplit() {
     return items.where((i) => isSplit(i.subscription)).fold(0.0, (sum, i) => sum + i.amount);
   }
+
+  int mineSubsCount(String? currentUserId, String? partnerUserId) =>
+      items.where((i) => !i.isEmi && isMine(i.subscription, currentUserId, partnerUserId)).length;
+
+  int mineEmisCount(String? currentUserId, String? partnerUserId) =>
+      items.where((i) => i.isEmi && isMine(i.subscription, currentUserId, partnerUserId)).length;
+
+  int partnerSubsCount(String? currentUserId, String? partnerUserId) =>
+      items.where((i) => !i.isEmi && isPartner(i.subscription, currentUserId, partnerUserId)).length;
+
+  int partnerEmisCount(String? currentUserId, String? partnerUserId) =>
+      items.where((i) => i.isEmi && isPartner(i.subscription, currentUserId, partnerUserId)).length;
+
+  int splitSubsCount() =>
+      items.where((i) => !i.isEmi && isSplit(i.subscription)).length;
+
+  int splitEmisCount() =>
+      items.where((i) => i.isEmi && isSplit(i.subscription)).length;
 }
 
 class CommitmentProjectionUtils {

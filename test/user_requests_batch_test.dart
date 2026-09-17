@@ -489,6 +489,40 @@ void main() {
       final splitSept = sept.filterByAttribution(tabIndex: 3, currentUserId: 'user_me', partnerUserId: 'user_partner');
       expect(splitSept.length, 1);
       expect(splitSept.first.name, 'iPhone EMI');
+
+      // Breakdown counts and amounts in September:
+      // Netflix (649, Mine, 1 sub, 0 emi)
+      // iPhone EMI (5000, Split, 0 sub, 1 emi)
+      expect(sept.mineSubsCount('user_me', 'user_partner'), 1);
+      expect(sept.mineEmisCount('user_me', 'user_partner'), 0);
+      expect(sept.allocationMine('user_me', 'user_partner'), 649.0);
+
+      expect(sept.partnerSubsCount('user_me', 'user_partner'), 0);
+      expect(sept.partnerEmisCount('user_me', 'user_partner'), 0);
+      expect(sept.allocationPartner('user_me', 'user_partner'), 0.0);
+
+      expect(sept.splitSubsCount(), 0);
+      expect(sept.splitEmisCount(), 1);
+      expect(sept.allocationSplit(), 5000.0);
+
+      // When 50/50 Separate toggle is ON:
+      // Mine shows 649.0 (1 sub · 0 EMIs)
+      // Partner shows 0.0 (0 subs · 0 EMIs)
+      // 50/50 shows 5000.0 (0 subs · 1 EMI)
+      final pureMine = sept.allocationMine('user_me', 'user_partner');
+      final purePartner = sept.allocationPartner('user_me', 'user_partner');
+      final split = sept.allocationSplit();
+      expect(pureMine, 649.0);
+      expect(purePartner, 0.0);
+      expect(split, 5000.0);
+
+      // When 50/50 Separate toggle is OFF:
+      // Split is absorbed 50/50 into Mine and Partner:
+      final absorbedMine = pureMine + (split / 2.0);
+      final absorbedPartner = purePartner + (split / 2.0);
+      expect(absorbedMine, 649.0 + 2500.0); // 3149.0
+      expect(absorbedPartner, 0.0 + 2500.0); // 2500.0
+      expect(absorbedMine + absorbedPartner, sept.totalAmount);
     });
   });
 }
