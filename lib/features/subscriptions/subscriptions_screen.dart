@@ -346,7 +346,6 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
         final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
         final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 960;
-        final canPop = ModalRoute.of(context)?.canPop ?? false;
 
         final heroCard = CoveCard(
           padding: const EdgeInsets.all(22),
@@ -369,7 +368,14 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     spacing: 6,
                     runSpacing: 4,
                     alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      // + Add Commitment Button
+                      CovePillButton(
+                        label: '+ Add',
+                        isCompact: true,
+                        onPressed: () => SubscriptionFormSheet.show(context),
+                      ),
                       // Helicopter View Button
                       InkWell(
                         onTap: () {
@@ -913,7 +919,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
         return Scaffold(
           backgroundColor: colors.background,
-          appBar: (canPop && !isDesktop)
+          appBar: !isDesktop
               ? AppBar(
                   title: Text(
                     'Commitments',
@@ -933,12 +939,15 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                         );
                       },
                     ),
-                    IconButton(
-                      tooltip: 'Add Commitment',
-                      icon: const Icon(Icons.add, size: 20),
-                      onPressed: () => SubscriptionFormSheet.show(context),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: CovePillButton(
+                        label: '+ Add',
+                        variant: CoveButtonVariant.secondary,
+                        isCompact: true,
+                        onPressed: () => SubscriptionFormSheet.show(context),
+                      ),
                     ),
-                    const SizedBox(width: 8),
                   ],
                 )
               : null,
@@ -1417,6 +1426,17 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           'Commitments',
           style: context.typography.headline.copyWith(fontSize: 20),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: CovePillButton(
+              label: '+ Add',
+              variant: CoveButtonVariant.secondary,
+              isCompact: true,
+              onPressed: () => SubscriptionFormSheet.show(context),
+            ),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: colors.accentPrimary,
