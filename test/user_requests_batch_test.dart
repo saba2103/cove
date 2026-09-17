@@ -1,5 +1,6 @@
 import 'package:cove/features/habits/habit_schedule.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
+import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/db/local_state_store_impl.dart';
 import 'package:drift/native.dart';
@@ -377,6 +378,111 @@ void main() {
       expect(classify(DateTime(2026, 11, 1)), 'later');
       expect(classify(DateTime(2026, 12, 15)), 'later');
       expect(classify(DateTime(2027, 3, 1)), 'later');
+    });
+  });
+
+  group('Commitments Helicopter Projection Tests', () {
+    test('Projects monthly and annual commitments correctly across 12 months', () {
+      final subs = [
+        // 1. Monthly subscription (Netflix, 649, renews 15th)
+        LocalSubscription(
+          id: 'sub_netflix',
+          homeId: 'home_1',
+          name: 'Netflix',
+          amount: 649.0,
+          currency: 'INR',
+          billingCycle: 'monthly',
+          nextBillingDate: DateTime(2026, 9, 15),
+          isActive: true,
+          isPrivate: false,
+          createdAt: DateTime(2026, 1, 1),
+          paidBy: 'me',
+        ),
+        // 2. Annual subscription (Disney+, 1499, renews Nov 20)
+        LocalSubscription(
+          id: 'sub_disney',
+          homeId: 'home_1',
+          name: 'Disney+ Hotstar',
+          amount: 1499.0,
+          currency: 'INR',
+          billingCycle: 'annual',
+          nextBillingDate: DateTime(2026, 11, 20),
+          isActive: true,
+          isPrivate: false,
+          createdAt: DateTime(2025, 11, 20),
+          paidBy: 'partner',
+        ),
+        // 3. EMI with 6 installments ending in October 2026 (5000/mo)
+        LocalSubscription(
+          id: 'emi_phone',
+          homeId: 'home_1',
+          name: 'iPhone EMI',
+          amount: 5000.0,
+          currency: 'INR',
+          billingCycle: 'monthly',
+          nextBillingDate: DateTime(2026, 9, 10),
+          endDate: DateTime(2026, 10, 10),
+          totalInstallments: 6,
+          paidInstallments: 4,
+          isActive: true,
+          isPrivate: false,
+          createdAt: DateTime(2026, 5, 10),
+          paidBy: 'split',
+        ),
+      ];
+
+      final projections = CommitmentProjectionUtils.projectYear(
+        subscriptions: subs,
+        year: 2026,
+      );
+
+      // Verify all 12 months are projected
+      expect(projections.length, 12);
+
+      // September 2026:
+      // Netflix (649, sub) + iPhone EMI (5000, emi). Disney+ is NOT in Sept!
+      final sept = projections[9]!;
+      expect(sept.subsCount, 1);
+      expect(sept.emisCount, 1);
+      expect(sept.totalAmount, 649.0 + 5000.0);
+
+      // October 2026:
+      // Netflix (649, sub) + iPhone EMI (5000, emi, final installment).
+      final oct = projections[10]!;
+      expect(oct.subsCount, 1);
+      expect(oct.emisCount, 1);
+      expect(oct.totalAmount, 649.0 + 5000.0);
+
+      // November 2026:
+      // Netflix (649, sub) + Disney+ (1499, annual sub). iPhone EMI has ended (0 EMIs)!
+      final nov = projections[11]!;
+      expect(nov.subsCount, 2); // Netflix + Disney+
+      expect(nov.emisCount, 0); // iPhone EMI ended
+      expect(nov.totalAmount, 649.0 + 1499.0);
+
+      // December 2026:
+      // Netflix (649, sub) only. Disney+ is NOT in Dec, iPhone EMI is finished.
+      final dec = projections[12]!;
+      expect(dec.subsCount, 1);
+      expect(dec.emisCount, 0);
+      expect(dec.totalAmount, 649.0);
+
+      // Attribution filtering in November
+      final allNov = nov.filterByAttribution(tabIndex: 0, currentUserId: 'user_me', partnerUserId: 'user_partner');
+      expect(allNov.length, 2);
+
+      final mineNov = nov.filterByAttribution(tabIndex: 1, currentUserId: 'user_me', partnerUserId: 'user_partner');
+      expect(mineNov.length, 1);
+      expect(mineNov.first.name, 'Netflix');
+
+      final partnerNov = nov.filterByAttribution(tabIndex: 2, currentUserId: 'user_me', partnerUserId: 'user_partner');
+      expect(partnerNov.length, 1);
+      expect(partnerNov.first.name, 'Disney+ Hotstar');
+
+      // Split filtering in September
+      final splitSept = sept.filterByAttribution(tabIndex: 3, currentUserId: 'user_me', partnerUserId: 'user_partner');
+      expect(splitSept.length, 1);
+      expect(splitSept.first.name, 'iPhone EMI');
     });
   });
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
+import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import 'user_profile_controller.dart';
 
@@ -30,6 +33,59 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
   late String? _pendingAvatarUrl;
   bool _showAvatarInput = false;
   bool _isSaving = false;
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      setState(() => _isUploading = true);
+
+      final bytes = await picked.readAsBytes();
+      final user = ref.read(authProvider).value;
+      final userId = user?.id ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
+      final ext = picked.name.split('.').lastOrNull?.toLowerCase() ?? 'jpg';
+      final mime = (ext == 'png')
+          ? 'image/png'
+          : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+      final supabase = ref.read(supabaseClientProvider);
+      if (supabase != null) {
+        await supabase.storage.from('avatars').uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(contentType: mime, upsert: true),
+        );
+        final publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
+        if (mounted) {
+          setState(() {
+            _pendingAvatarUrl = publicUrl;
+            _pendingUseInitials = false;
+            _avatarUrlController.text = publicUrl;
+            _showAvatarInput = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -89,38 +145,91 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
             const SizedBox(height: 20),
 
-            // Live Preview Avatar
+            // Live Preview Avatar with Camera Tap & Upload Overlay
             Center(
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 38,
-                    backgroundColor: hasPhoto ? colors.surfaceRow : colors.accentPrimary,
-                    backgroundImage: hasPhoto ? NetworkImage(_pendingAvatarUrl!.trim()) : null,
-                    child: !hasPhoto
-                        ? Text(
-                            initialLetter,
-                            style: typography.headline.copyWith(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                              color: colors.surfaceRow,
-                            ),
-                          )
-                        : null,
+                  GestureDetector(
+                    onTap: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                    child: CircleAvatar(
+                      radius: 42,
+                      backgroundColor: hasPhoto ? colors.surfaceRow : colors.accentPrimary,
+                      backgroundImage: hasPhoto ? NetworkImage(_pendingAvatarUrl!.trim()) : null,
+                      child: _isUploading
+                          ? SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: colors.accentPrimary,
+                              ),
+                            )
+                          : (!hasPhoto
+                              ? Text(
+                                  initialLetter,
+                                  style: typography.headline.copyWith(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.surfaceRow,
+                                  ),
+                                )
+                              : null),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: colors.accentPrimary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: colors.surfaceCard, width: 2),
+                        ),
+                        child: Icon(
+                          Icons.camera_alt,
+                          size: 15,
+                          color: colors.surfaceRow,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // Toggle Initials / Photo URL (Buffered locally)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // Image Source Options: Upload Photo | Camera | Use Initials
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
+                ActionChip(
+                  avatar: Icon(Icons.photo_library_outlined, size: 16, color: colors.accentPrimary),
+                  label: Text('Upload Photo', style: typography.caption.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w500)),
+                  backgroundColor: colors.surfaceRow,
+                  side: BorderSide(color: colors.borderHairline),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  onPressed: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                ),
+                ActionChip(
+                  avatar: Icon(Icons.camera_alt_outlined, size: 16, color: colors.accentPrimary),
+                  label: Text('Camera', style: typography.caption.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w500)),
+                  backgroundColor: colors.surfaceRow,
+                  side: BorderSide(color: colors.borderHairline),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  onPressed: _isUploading ? null : () => _pickAndUploadImage(ImageSource.camera),
+                ),
                 if (hasPhoto)
-                  TextButton.icon(
-                    icon: Icon(Icons.account_circle_outlined, size: 16, color: colors.accentPrimary),
-                    label: Text('Use Initials Avatar', style: typography.caption.copyWith(color: colors.accentPrimary)),
+                  ActionChip(
+                    avatar: Icon(Icons.account_circle_outlined, size: 16, color: colors.textMuted),
+                    label: Text('Use Initials', style: typography.caption.copyWith(color: colors.textMuted)),
+                    backgroundColor: colors.surfaceRow,
+                    side: BorderSide(color: colors.borderHairline),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     onPressed: () {
                       setState(() {
                         _pendingUseInitials = true;
@@ -129,20 +238,26 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                         _showAvatarInput = false;
                       });
                     },
-                  )
-                else
-                  TextButton.icon(
-                    icon: Icon(Icons.add_photo_alternate_outlined, size: 16, color: colors.accentPrimary),
-                    label: Text('Add Photo URL', style: typography.caption.copyWith(color: colors.accentPrimary)),
-                    onPressed: () {
-                      setState(() {
-                        _showAvatarInput = !_showAvatarInput;
-                      });
-                    },
                   ),
-                if (profile.hasCustomName || profile.hasCustomAvatar) ...[
-                  const SizedBox(width: 8),
-                  TextButton(
+                ActionChip(
+                  avatar: Icon(Icons.link, size: 16, color: colors.textMuted),
+                  label: Text(_showAvatarInput ? 'Hide URL' : 'Link URL', style: typography.caption.copyWith(color: colors.textMuted)),
+                  backgroundColor: colors.surfaceRow,
+                  side: BorderSide(color: colors.borderHairline),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  onPressed: () {
+                    setState(() {
+                      _showAvatarInput = !_showAvatarInput;
+                    });
+                  },
+                ),
+                if (profile.hasCustomName || profile.hasCustomAvatar)
+                  ActionChip(
+                    avatar: Icon(Icons.restore, size: 16, color: colors.accentSecondary),
+                    label: Text('Reset', style: typography.caption.copyWith(color: colors.accentSecondary)),
+                    backgroundColor: colors.surfaceRow,
+                    side: BorderSide(color: colors.borderHairline),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     onPressed: () {
                       final user = ref.read(authProvider).value;
                       setState(() {
@@ -153,9 +268,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                         _showAvatarInput = false;
                       });
                     },
-                    child: Text('Reset to Defaults', style: typography.caption.copyWith(color: colors.textMuted)),
                   ),
-                ],
               ],
             ),
 

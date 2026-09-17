@@ -619,8 +619,19 @@ class AppDatabase extends _$AppDatabase {
     final query = select(localActivityEvents)
       ..where((t) {
         Expression<bool> predicate = t.homeId.equals(homeId) &
-            t.eventType.isNotValue('member_profile_updated') &
-            t.eventType.isNotValue('profile_updated');
+            t.eventType.isNotIn(const [
+              'member_profile_updated',
+              'profile_updated',
+              'user_profile_updated',
+              'avatar_updated',
+              'avatar_changed',
+              'name_updated',
+              'display_name_updated',
+              'home_currency_updated',
+              'home_updated',
+              'preferences_updated',
+              'settings_updated',
+            ]);
         if (currentUserId != null) {
           predicate = predicate &
               (t.isPrivate.equals(false) | t.actorId.equals(currentUserId));
@@ -648,8 +659,19 @@ class AppDatabase extends _$AppDatabase {
     final query = select(localActivityEvents)
       ..where((t) {
         Expression<bool> predicate = t.homeId.equals(homeId) &
-            t.eventType.isNotValue('member_profile_updated') &
-            t.eventType.isNotValue('profile_updated');
+            t.eventType.isNotIn(const [
+              'member_profile_updated',
+              'profile_updated',
+              'user_profile_updated',
+              'avatar_updated',
+              'avatar_changed',
+              'name_updated',
+              'display_name_updated',
+              'home_currency_updated',
+              'home_updated',
+              'preferences_updated',
+              'settings_updated',
+            ]);
         if (currentUserId != null) {
           predicate = predicate &
               (t.isPrivate.equals(false) | t.actorId.equals(currentUserId));
@@ -669,9 +691,19 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> clearProfileActivityEvents() async {
     return (delete(localActivityEvents)
-          ..where((t) =>
-              t.eventType.equals('member_profile_updated') |
-              t.eventType.equals('profile_updated')))
+          ..where((t) => t.eventType.isIn(const [
+                'member_profile_updated',
+                'profile_updated',
+                'user_profile_updated',
+                'avatar_updated',
+                'avatar_changed',
+                'name_updated',
+                'display_name_updated',
+                'home_currency_updated',
+                'home_updated',
+                'preferences_updated',
+                'settings_updated',
+              ])))
         .go();
   }
 

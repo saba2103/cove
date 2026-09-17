@@ -41,9 +41,22 @@ class LocalStateStoreImpl implements LocalStateStore {
     required String authorId,
   }) async {
     await db.transaction(() async {
-      // Record in local activity log (excluding silent profile updates)
-      if (eventType != 'member_profile_updated' &&
-          eventType != 'profile_updated') {
+      // Record in local activity log (excluding silent profile/avatar/settings updates)
+      const silentActivityEvents = {
+        'member_profile_updated',
+        'profile_updated',
+        'user_profile_updated',
+        'avatar_updated',
+        'avatar_changed',
+        'name_updated',
+        'display_name_updated',
+        'home_currency_updated',
+        'home_updated',
+        'preferences_updated',
+        'settings_updated',
+      };
+
+      if (!silentActivityEvents.contains(eventType)) {
         final activityEventId = eventId ??
             (payload['event_id'] as String?) ??
             '${eventType}_${payload['id'] ?? ''}_${timestamp.millisecondsSinceEpoch}';

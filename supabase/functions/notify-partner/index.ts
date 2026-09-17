@@ -85,8 +85,6 @@ function resolveNotificationContent(
       return { module: "home", title: "Cove • Home", body: `${actorName} joined ${homeName || "your Home"}!` };
     case "home_created":
       return { module: "home", title: "Cove • Home", body: `${actorName} created ${homeName || "a new Home"}` };
-    case "home_currency_updated":
-      return { module: "home", title: `${actorName} • Home`, body: `${actorName} updated the home currency settings` };
 
     default:
       return { module: "activity", title: `${actorName} • Activity`, body: `${actorName} updated household activity${homeContext}` };
@@ -164,9 +162,23 @@ serve(async (req: Request) => {
       });
     }
 
-    // Skip silent sync events like profile/avatar updates (no notifications)
-    if (record.event_type === "member_profile_updated" || record.event_type === "profile_updated") {
-      return new Response(JSON.stringify({ message: "Silent profile update ignored for push notifications" }), {
+    // Skip silent sync events like profile, display name, avatar, and settings updates (no notifications)
+    const SILENT_SYNC_EVENTS = new Set([
+      "member_profile_updated",
+      "profile_updated",
+      "user_profile_updated",
+      "avatar_updated",
+      "avatar_changed",
+      "name_updated",
+      "display_name_updated",
+      "home_currency_updated",
+      "home_updated",
+      "preferences_updated",
+      "settings_updated",
+    ]);
+
+    if (SILENT_SYNC_EVENTS.has(record.event_type)) {
+      return new Response(JSON.stringify({ message: `Silent sync event '${record.event_type}' ignored for push notifications` }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });

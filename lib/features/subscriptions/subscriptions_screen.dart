@@ -21,6 +21,7 @@ import '../profile/user_profile_controller.dart';
 import '../../core/widgets/cove_tab_row.dart';
 import 'commitment_models.dart';
 import 'commitment_detail_sheet.dart';
+import 'commitments_helicopter_screen.dart';
 import 'subscription_form_sheet.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 
@@ -355,43 +356,91 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _showAnnual ? 'ANNUAL COMMITMENTS' : 'MONTHLY COMMITMENTS',
-                    style: typography.caption.copyWith(
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      _showAnnual ? 'ANNUAL COMMITMENTS' : 'MONTHLY COMMITMENTS',
+                      style: typography.caption.copyWith(
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  // Toggle Monthly / Annual
-                  InkWell(
-                    onTap: () => setState(() => _showAnnual = !_showAnnual),
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceRow,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: colors.borderHairline, width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _showAnnual ? 'Annual' : 'Monthly',
-                            style: typography.caption.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.accentPrimary,
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      // Helicopter View Button
+                      InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CommitmentsHelicopterScreen(
+                                subscriptions: subscriptions,
+                              ),
                             ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceRow,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: colors.borderHairline, width: 1),
                           ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.swap_horiz,
-                            size: 14,
-                            color: colors.accentPrimary,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.grid_view_rounded,
+                                size: 13,
+                                color: colors.accentPrimary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Helicopter View',
+                                style: typography.caption.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.accentPrimary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      // Toggle Monthly / Annual
+                      InkWell(
+                        onTap: () => setState(() => _showAnnual = !_showAnnual),
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceRow,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: colors.borderHairline, width: 1),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _showAnnual ? 'Annual' : 'Monthly',
+                                style: typography.caption.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.accentPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.swap_horiz,
+                                size: 14,
+                                color: colors.accentPrimary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -871,6 +920,19 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     style: typography.headline.copyWith(fontSize: 20),
                   ),
                   actions: [
+                    IconButton(
+                      tooltip: 'Helicopter View',
+                      icon: const Icon(Icons.grid_view_rounded, size: 20),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CommitmentsHelicopterScreen(
+                              subscriptions: subscriptions,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       tooltip: 'Add Commitment',
                       icon: const Icon(Icons.add, size: 20),

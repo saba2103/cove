@@ -205,9 +205,22 @@ class NotificationService {
       }
     }
 
-    // Profile updates are internal sync operations and must NOT generate notifications
-    if (payload.eventType == 'member_profile_updated' ||
-        payload.eventType == 'profile_updated') {
+    // Profile, avatar, and settings updates are internal sync operations and must NOT generate notifications
+    const silentSyncEvents = {
+      'member_profile_updated',
+      'profile_updated',
+      'user_profile_updated',
+      'avatar_updated',
+      'avatar_changed',
+      'name_updated',
+      'display_name_updated',
+      'home_currency_updated',
+      'home_updated',
+      'preferences_updated',
+      'settings_updated',
+    };
+
+    if (silentSyncEvents.contains(payload.eventType)) {
       return null;
     }
 
