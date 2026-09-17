@@ -17,6 +17,7 @@ import 'lists/lists_screen.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/notification_models.dart';
 import 'auth/auth_controller.dart';
+import 'changelog/whats_fresh_modal.dart';
 import 'profile/profile_screen.dart';
 import 'profile/user_profile_controller.dart';
 import 'routines/routine_screen.dart';
@@ -74,6 +75,9 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           ref.read(userProfileProvider.notifier).announceProfile();
         });
       }
+
+      // Check and present What's Fresh modal once per new release
+      WhatsFreshModal.checkAndShow(context);
     });
   }
 

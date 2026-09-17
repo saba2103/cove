@@ -18,6 +18,8 @@ import '../notifications/notification_controller.dart';
 import '../notifications/notification_models.dart';
 import '../reminders/reminders_screen.dart';
 import '../roadmap/roadmap_screen.dart';
+import '../changelog/changelog_models.dart';
+import '../changelog/changelog_screen.dart';
 import 'currency_selector_sheet.dart';
 import 'delete_data_dialog.dart';
 import 'edit_home_dialog.dart';
@@ -572,10 +574,52 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            // ==========================================
+            // 7. ABOUT COVE & UPDATES
+            // ==========================================
+            Text('ABOUT COVE', style: typography.caption),
+            const SizedBox(height: 8),
+            CoveGroupedCard(
+              children: [
+                CoveGroupedRow(
+                  leading: Icon(Icons.auto_awesome_rounded, size: 20, color: colors.accentPrimary),
+                  title: Text('Changelog & Updates', style: typography.bodyMedium),
+                  subtitle: Text('What\'s fresh in Cove v$kCoveCurrentAppVersion', style: typography.caption),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colors.accentPrimary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'v$kCoveCurrentAppVersion',
+                          style: TextStyle(
+                            fontFamily: 'GeneralSans',
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: colors.accentPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_right, size: 18),
+                    ],
+                  ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ChangelogScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 28),
 
             // ==========================================
-            // 7. ACCOUNT & DANGER ZONE
+            // 8. ACCOUNT & DANGER ZONE
             // ==========================================
             Text('ACCOUNT', style: typography.caption),
             const SizedBox(height: 8),
