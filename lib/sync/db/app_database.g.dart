@@ -7843,6 +7843,490 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
   }
 }
 
+class $LocalAppliedEventsTable extends LocalAppliedEvents
+    with TableInfo<$LocalAppliedEventsTable, LocalAppliedEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalAppliedEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _appliedAtMeta = const VerificationMeta(
+    'appliedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> appliedAt = GeneratedColumn<DateTime>(
+    'applied_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, appliedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_applied_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalAppliedEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(
+        _appliedAtMeta,
+        appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_appliedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalAppliedEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalAppliedEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      appliedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}applied_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalAppliedEventsTable createAlias(String alias) {
+    return $LocalAppliedEventsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalAppliedEvent extends DataClass
+    implements Insertable<LocalAppliedEvent> {
+  final String id;
+  final DateTime appliedAt;
+  const LocalAppliedEvent({required this.id, required this.appliedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['applied_at'] = Variable<DateTime>(appliedAt);
+    return map;
+  }
+
+  LocalAppliedEventsCompanion toCompanion(bool nullToAbsent) {
+    return LocalAppliedEventsCompanion(
+      id: Value(id),
+      appliedAt: Value(appliedAt),
+    );
+  }
+
+  factory LocalAppliedEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalAppliedEvent(
+      id: serializer.fromJson<String>(json['id']),
+      appliedAt: serializer.fromJson<DateTime>(json['appliedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'appliedAt': serializer.toJson<DateTime>(appliedAt),
+    };
+  }
+
+  LocalAppliedEvent copyWith({String? id, DateTime? appliedAt}) =>
+      LocalAppliedEvent(
+        id: id ?? this.id,
+        appliedAt: appliedAt ?? this.appliedAt,
+      );
+  LocalAppliedEvent copyWithCompanion(LocalAppliedEventsCompanion data) {
+    return LocalAppliedEvent(
+      id: data.id.present ? data.id.value : this.id,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalAppliedEvent(')
+          ..write('id: $id, ')
+          ..write('appliedAt: $appliedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, appliedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalAppliedEvent &&
+          other.id == this.id &&
+          other.appliedAt == this.appliedAt);
+}
+
+class LocalAppliedEventsCompanion extends UpdateCompanion<LocalAppliedEvent> {
+  final Value<String> id;
+  final Value<DateTime> appliedAt;
+  final Value<int> rowid;
+  const LocalAppliedEventsCompanion({
+    this.id = const Value.absent(),
+    this.appliedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalAppliedEventsCompanion.insert({
+    required String id,
+    required DateTime appliedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       appliedAt = Value(appliedAt);
+  static Insertable<LocalAppliedEvent> custom({
+    Expression<String>? id,
+    Expression<DateTime>? appliedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (appliedAt != null) 'applied_at': appliedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalAppliedEventsCompanion copyWith({
+    Value<String>? id,
+    Value<DateTime>? appliedAt,
+    Value<int>? rowid,
+  }) {
+    return LocalAppliedEventsCompanion(
+      id: id ?? this.id,
+      appliedAt: appliedAt ?? this.appliedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<DateTime>(appliedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalAppliedEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('appliedAt: $appliedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalDeletedTombstonesTable extends LocalDeletedTombstones
+    with TableInfo<$LocalDeletedTombstonesTable, LocalDeletedTombstone> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalDeletedTombstonesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, entityType, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_deleted_tombstones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalDeletedTombstone> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalDeletedTombstone map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalDeletedTombstone(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalDeletedTombstonesTable createAlias(String alias) {
+    return $LocalDeletedTombstonesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalDeletedTombstone extends DataClass
+    implements Insertable<LocalDeletedTombstone> {
+  final String id;
+  final String entityType;
+  final DateTime deletedAt;
+  const LocalDeletedTombstone({
+    required this.id,
+    required this.entityType,
+    required this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_type'] = Variable<String>(entityType);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  LocalDeletedTombstonesCompanion toCompanion(bool nullToAbsent) {
+    return LocalDeletedTombstonesCompanion(
+      id: Value(id),
+      entityType: Value(entityType),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory LocalDeletedTombstone.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalDeletedTombstone(
+      id: serializer.fromJson<String>(json['id']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityType': serializer.toJson<String>(entityType),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  LocalDeletedTombstone copyWith({
+    String? id,
+    String? entityType,
+    DateTime? deletedAt,
+  }) => LocalDeletedTombstone(
+    id: id ?? this.id,
+    entityType: entityType ?? this.entityType,
+    deletedAt: deletedAt ?? this.deletedAt,
+  );
+  LocalDeletedTombstone copyWithCompanion(
+    LocalDeletedTombstonesCompanion data,
+  ) {
+    return LocalDeletedTombstone(
+      id: data.id.present ? data.id.value : this.id,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalDeletedTombstone(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, entityType, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalDeletedTombstone &&
+          other.id == this.id &&
+          other.entityType == this.entityType &&
+          other.deletedAt == this.deletedAt);
+}
+
+class LocalDeletedTombstonesCompanion
+    extends UpdateCompanion<LocalDeletedTombstone> {
+  final Value<String> id;
+  final Value<String> entityType;
+  final Value<DateTime> deletedAt;
+  final Value<int> rowid;
+  const LocalDeletedTombstonesCompanion({
+    this.id = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalDeletedTombstonesCompanion.insert({
+    required String id,
+    required String entityType,
+    required DateTime deletedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityType = Value(entityType),
+       deletedAt = Value(deletedAt);
+  static Insertable<LocalDeletedTombstone> custom({
+    Expression<String>? id,
+    Expression<String>? entityType,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityType != null) 'entity_type': entityType,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalDeletedTombstonesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityType,
+    Value<DateTime>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return LocalDeletedTombstonesCompanion(
+      id: id ?? this.id,
+      entityType: entityType ?? this.entityType,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalDeletedTombstonesCompanion(')
+          ..write('id: $id, ')
+          ..write('entityType: $entityType, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7868,6 +8352,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalRoutinesTable localRoutines = $LocalRoutinesTable(this);
   late final $LocalRoutineEventsTable localRoutineEvents =
       $LocalRoutineEventsTable(this);
+  late final $LocalAppliedEventsTable localAppliedEvents =
+      $LocalAppliedEventsTable(this);
+  late final $LocalDeletedTombstonesTable localDeletedTombstones =
+      $LocalDeletedTombstonesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7887,6 +8375,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localRoadmapItems,
     localRoutines,
     localRoutineEvents,
+    localAppliedEvents,
+    localDeletedTombstones,
   ];
 }
 
@@ -12037,6 +12527,368 @@ typedef $$LocalRoutineEventsTableProcessedTableManager =
       LocalRoutineEvent,
       PrefetchHooks Function()
     >;
+typedef $$LocalAppliedEventsTableCreateCompanionBuilder =
+    LocalAppliedEventsCompanion Function({
+      required String id,
+      required DateTime appliedAt,
+      Value<int> rowid,
+    });
+typedef $$LocalAppliedEventsTableUpdateCompanionBuilder =
+    LocalAppliedEventsCompanion Function({
+      Value<String> id,
+      Value<DateTime> appliedAt,
+      Value<int> rowid,
+    });
+
+class $$LocalAppliedEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalAppliedEventsTable> {
+  $$LocalAppliedEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalAppliedEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalAppliedEventsTable> {
+  $$LocalAppliedEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalAppliedEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalAppliedEventsTable> {
+  $$LocalAppliedEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
+}
+
+class $$LocalAppliedEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalAppliedEventsTable,
+          LocalAppliedEvent,
+          $$LocalAppliedEventsTableFilterComposer,
+          $$LocalAppliedEventsTableOrderingComposer,
+          $$LocalAppliedEventsTableAnnotationComposer,
+          $$LocalAppliedEventsTableCreateCompanionBuilder,
+          $$LocalAppliedEventsTableUpdateCompanionBuilder,
+          (
+            LocalAppliedEvent,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalAppliedEventsTable,
+              LocalAppliedEvent
+            >,
+          ),
+          LocalAppliedEvent,
+          PrefetchHooks Function()
+        > {
+  $$LocalAppliedEventsTableTableManager(
+    _$AppDatabase db,
+    $LocalAppliedEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalAppliedEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalAppliedEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalAppliedEventsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<DateTime> appliedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalAppliedEventsCompanion(
+                id: id,
+                appliedAt: appliedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required DateTime appliedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalAppliedEventsCompanion.insert(
+                id: id,
+                appliedAt: appliedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalAppliedEventsTable, LocalAppliedEvent>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalAppliedEventsTable,
+                    LocalAppliedEvent
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalAppliedEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalAppliedEventsTable,
+      LocalAppliedEvent,
+      $$LocalAppliedEventsTableFilterComposer,
+      $$LocalAppliedEventsTableOrderingComposer,
+      $$LocalAppliedEventsTableAnnotationComposer,
+      $$LocalAppliedEventsTableCreateCompanionBuilder,
+      $$LocalAppliedEventsTableUpdateCompanionBuilder,
+      (
+        LocalAppliedEvent,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalAppliedEventsTable,
+          LocalAppliedEvent
+        >,
+      ),
+      LocalAppliedEvent,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalDeletedTombstonesTableCreateCompanionBuilder =
+    LocalDeletedTombstonesCompanion Function({
+      required String id,
+      required String entityType,
+      required DateTime deletedAt,
+      Value<int> rowid,
+    });
+typedef $$LocalDeletedTombstonesTableUpdateCompanionBuilder =
+    LocalDeletedTombstonesCompanion Function({
+      Value<String> id,
+      Value<String> entityType,
+      Value<DateTime> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$LocalDeletedTombstonesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalDeletedTombstonesTable> {
+  $$LocalDeletedTombstonesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalDeletedTombstonesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalDeletedTombstonesTable> {
+  $$LocalDeletedTombstonesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalDeletedTombstonesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalDeletedTombstonesTable> {
+  $$LocalDeletedTombstonesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$LocalDeletedTombstonesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalDeletedTombstonesTable,
+          LocalDeletedTombstone,
+          $$LocalDeletedTombstonesTableFilterComposer,
+          $$LocalDeletedTombstonesTableOrderingComposer,
+          $$LocalDeletedTombstonesTableAnnotationComposer,
+          $$LocalDeletedTombstonesTableCreateCompanionBuilder,
+          $$LocalDeletedTombstonesTableUpdateCompanionBuilder,
+          (
+            LocalDeletedTombstone,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalDeletedTombstonesTable,
+              LocalDeletedTombstone
+            >,
+          ),
+          LocalDeletedTombstone,
+          PrefetchHooks Function()
+        > {
+  $$LocalDeletedTombstonesTableTableManager(
+    _$AppDatabase db,
+    $LocalDeletedTombstonesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalDeletedTombstonesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$LocalDeletedTombstonesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LocalDeletedTombstonesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalDeletedTombstonesCompanion(
+                id: id,
+                entityType: entityType,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityType,
+                required DateTime deletedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalDeletedTombstonesCompanion.insert(
+                id: id,
+                entityType: entityType,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $LocalDeletedTombstonesTable,
+                    LocalDeletedTombstone
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalDeletedTombstonesTable,
+                    LocalDeletedTombstone
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalDeletedTombstonesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalDeletedTombstonesTable,
+      LocalDeletedTombstone,
+      $$LocalDeletedTombstonesTableFilterComposer,
+      $$LocalDeletedTombstonesTableOrderingComposer,
+      $$LocalDeletedTombstonesTableAnnotationComposer,
+      $$LocalDeletedTombstonesTableCreateCompanionBuilder,
+      $$LocalDeletedTombstonesTableUpdateCompanionBuilder,
+      (
+        LocalDeletedTombstone,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalDeletedTombstonesTable,
+          LocalDeletedTombstone
+        >,
+      ),
+      LocalDeletedTombstone,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12073,4 +12925,11 @@ class $AppDatabaseManager {
       $$LocalRoutinesTableTableManager(_db, _db.localRoutines);
   $$LocalRoutineEventsTableTableManager get localRoutineEvents =>
       $$LocalRoutineEventsTableTableManager(_db, _db.localRoutineEvents);
+  $$LocalAppliedEventsTableTableManager get localAppliedEvents =>
+      $$LocalAppliedEventsTableTableManager(_db, _db.localAppliedEvents);
+  $$LocalDeletedTombstonesTableTableManager get localDeletedTombstones =>
+      $$LocalDeletedTombstonesTableTableManager(
+        _db,
+        _db.localDeletedTombstones,
+      );
 }

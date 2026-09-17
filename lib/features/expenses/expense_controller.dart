@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../sync/db/app_database.dart';
@@ -173,27 +174,34 @@ class ExpenseController {
 
     final expense = await (_db.select(_db.localExpenses)..where((t) => t.id.equals(id))).getSingleOrNull();
 
-    if (visibility == ExpenseVisibility.privateToMe) {
-      await _db.deleteExpense(id);
-    } else {
-      final emit = ref.read(coveEmitActionProvider);
-      await emit(
-        eventType: 'expense_deleted',
-        payload: {
-          'id': id,
-          'home_id': homeId,
-          if (expense != null) ...{
-            'title': expense.title,
-            'amount': expense.amount,
-            'currency': expense.currency,
-            if (expense.category != null) 'category': expense.category,
-            if (expense.paymentMethod != null) 'payment_method': expense.paymentMethod,
-            'paid_by': expense.paidBy,
-            'expense_date': expense.expenseDate.toIso8601String(),
-            'visibility': ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio).wireName,
+    // 1. Immediately delete from local database and record tombstone to prevent resurrection on pull-to-refresh
+    await _db.deleteExpense(id);
+    await _db.recordTombstone(id, 'expense');
+
+    // 2. Broadcast deletion to partner if not private
+    if (visibility != ExpenseVisibility.privateToMe) {
+      try {
+        final emit = ref.read(coveEmitActionProvider);
+        await emit(
+          eventType: 'expense_deleted',
+          payload: {
+            'id': id,
+            'home_id': homeId,
+            if (expense != null) ...{
+              'title': expense.title,
+              'amount': expense.amount,
+              'currency': expense.currency,
+              if (expense.category != null) 'category': expense.category,
+              if (expense.paymentMethod != null) 'payment_method': expense.paymentMethod,
+              'paid_by': expense.paidBy,
+              'expense_date': expense.expenseDate.toIso8601String(),
+              'visibility': ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio).wireName,
+            },
           },
-        },
-      );
+        );
+      } catch (e) {
+        debugPrint('[ExpenseController] Failed to emit expense_deleted: $e');
+      }
     }
   }
 

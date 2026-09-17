@@ -208,7 +208,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
     final nextPaid = isEmi ? (currentPaid + 1).clamp(0, total) : null;
     final willComplete = isEmi && nextPaid != null && nextPaid >= total;
 
-    bool logExpense = true;
+    bool logExpense = false;
 
     final confirmed = await showDialog<bool>(
       context: context,

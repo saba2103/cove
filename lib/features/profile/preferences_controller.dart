@@ -39,6 +39,16 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
 
   @override
   CurrencyOption build() {
+    // 1. User's explicit local preference is authoritative
+    if (cachedInitialCurrency != null && cachedInitialCurrency!.isNotEmpty) {
+      final match = supportedCurrencies.firstWhere(
+        (c) => c.code == cachedInitialCurrency,
+        orElse: () => supportedCurrencies.first,
+      );
+      return match;
+    }
+
+    // 2. Fallback to active home's currency from database
     final activeHomeAsync = ref.watch(activeHomeProvider);
     final activeHome = activeHomeAsync.value;
     if (activeHome != null && activeHome.currency.isNotEmpty) {
@@ -47,17 +57,7 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
         orElse: () => supportedCurrencies.first,
       );
       cachedInitialCurrency = match.code;
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setString(_currencyKey, match.code);
-      }).catchError((_) {});
       return match;
-    }
-
-    if (cachedInitialCurrency != null && cachedInitialCurrency!.isNotEmpty) {
-      return supportedCurrencies.firstWhere(
-        (c) => c.code == cachedInitialCurrency,
-        orElse: () => supportedCurrencies.first,
-      );
     }
 
     final activeHomeId = ref.watch(activeHomeIdProvider);

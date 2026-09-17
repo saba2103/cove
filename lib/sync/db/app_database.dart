@@ -219,6 +219,23 @@ class LocalRoutineEvents extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class LocalAppliedEvents extends Table {
+  TextColumn get id => text()();
+  DateTimeColumn get appliedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class LocalDeletedTombstones extends Table {
+  TextColumn get id => text()();
+  TextColumn get entityType => text()(); // e.g. 'expense', 'subscription'
+  DateTimeColumn get deletedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(tables: [
   LocalHomes,
   LocalLists,
@@ -234,6 +251,8 @@ class LocalRoutineEvents extends Table {
   LocalRoadmapItems,
   LocalRoutines,
   LocalRoutineEvents,
+  LocalAppliedEvents,
+  LocalDeletedTombstones,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
@@ -247,7 +266,7 @@ class AppDatabase extends _$AppDatabase {
             ));
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -280,6 +299,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(localSubscriptions, localSubscriptions.financedThrough);
             await m.addColumn(localSubscriptions, localSubscriptions.totalInstallments);
             await m.addColumn(localSubscriptions, localSubscriptions.paidInstallments);
+          }
+          if (from < 9) {
+            await m.createTable(localAppliedEvents);
+            await m.createTable(localDeletedTombstones);
           }
         },
       );
@@ -807,6 +830,41 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.routineId.equals(routineId))
           ..orderBy([(t) => OrderingTerm.asc(t.startMinutes)]))
         .get();
+  }
+
+  // --- IDEMPOTENT SYNC LEDGER & DELETION TOMBSTONES ---
+
+  Future<void> recordAppliedEvent(String eventId) async {
+    await into(localAppliedEvents).insertOnConflictUpdate(
+      LocalAppliedEventsCompanion.insert(
+        id: eventId,
+        appliedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<bool> hasAppliedEvent(String eventId) async {
+    final row = await (select(localAppliedEvents)
+          ..where((t) => t.id.equals(eventId)))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<void> recordTombstone(String entityId, String entityType) async {
+    await into(localDeletedTombstones).insertOnConflictUpdate(
+      LocalDeletedTombstonesCompanion.insert(
+        id: entityId,
+        entityType: entityType,
+        deletedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<bool> isTombstoned(String entityId) async {
+    final row = await (select(localDeletedTombstones)
+          ..where((t) => t.id.equals(entityId)))
+        .getSingleOrNull();
+    return row != null;
   }
 }
 

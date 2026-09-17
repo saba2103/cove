@@ -665,18 +665,24 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         color: colors.accentSecondary.withValues(alpha: 0.15),
         child: Icon(Icons.delete_outline, color: colors.accentSecondary, size: 20),
       ),
-      onDismissed: (_) {
-        ref.read(expenseControllerProvider).deleteExpense(
-              expense.id,
-              visibility: visibility,
-            );
-        CoveUndoToast.show(
-          context,
-          message: 'Deleted "${expense.title}"',
-          onUndo: () async {
-            await ref.read(expenseControllerProvider).restoreExpense(expense);
-          },
-        );
+      onDismissed: (_) async {
+        try {
+          await ref.read(expenseControllerProvider).deleteExpense(
+                expense.id,
+                visibility: visibility,
+              );
+        } catch (e) {
+          debugPrint('[ExpensesScreen] Error deleting expense: $e');
+        }
+        if (context.mounted) {
+          CoveUndoToast.show(
+            context,
+            message: 'Deleted "${expense.title}"',
+            onUndo: () async {
+              await ref.read(expenseControllerProvider).restoreExpense(expense);
+            },
+          );
+        }
       },
       child: CoveGroupedRow(
         title: Row(

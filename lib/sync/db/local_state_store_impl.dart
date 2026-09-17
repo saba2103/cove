@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/expenses/monthly_budget_controller.dart';
 import '../../features/profile/partner_profile_controller.dart';
+import '../../features/profile/preferences_controller.dart';
 import '../../features/profile/user_profile_controller.dart';
 import '../local_state_store.dart';
 import 'app_database.dart';
@@ -41,6 +42,11 @@ class LocalStateStoreImpl implements LocalStateStore {
     required String authorId,
   }) async {
     await db.transaction(() async {
+      // 1. Idempotently record event in applied events ledger
+      if (eventId != null && eventId.isNotEmpty) {
+        await db.recordAppliedEvent(eventId);
+      }
+
       // Record in local activity log (excluding silent profile/avatar/settings updates)
       const silentActivityEvents = {
         'member_profile_updated',
@@ -85,9 +91,12 @@ class LocalStateStoreImpl implements LocalStateStore {
           final id = (payload['id'] as String?) ?? homeId;
           final existing = await (db.select(db.localHomes)..where((t) => t.id.equals(id))).getSingleOrNull();
           final rawPayloadCurrency = payload['currency'] as String?;
-          final currencyVal = (existing != null && existing.currency.isNotEmpty && existing.currency != 'USD')
-              ? (rawPayloadCurrency != null && rawPayloadCurrency != 'USD' ? rawPayloadCurrency : existing.currency)
-              : (rawPayloadCurrency ?? existing?.currency ?? 'USD');
+          final userPreferred = CurrencyNotifier.cachedInitialCurrency;
+          final currencyVal = (userPreferred != null && userPreferred.isNotEmpty)
+              ? userPreferred
+              : ((existing != null && existing.currency.isNotEmpty && existing.currency != 'USD')
+                  ? (rawPayloadCurrency != null && rawPayloadCurrency != 'USD' ? rawPayloadCurrency : existing.currency)
+                  : (rawPayloadCurrency ?? existing?.currency ?? 'USD'));
           await db.into(db.localHomes).insertOnConflictUpdate(
                 LocalHomesCompanion(
                   id: Value(id),
@@ -104,9 +113,14 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'home_currency_updated':
           final id = (payload['id'] as String?) ?? homeId;
           final currency = (payload['currency'] as String?) ?? 'USD';
+          final userPreferred = CurrencyNotifier.cachedInitialCurrency;
+          // Protect user's explicit local currency choice (e.g. INR) from stale remote overwrites (e.g. EUR)
+          final effectiveCurrency = (userPreferred != null && userPreferred.isNotEmpty)
+              ? userPreferred
+              : currency;
           await (db.update(db.localHomes)..where((t) => t.id.equals(id))).write(
             LocalHomesCompanion(
-              currency: Value(currency),
+              currency: Value(effectiveCurrency),
             ),
           );
           break;
@@ -327,10 +341,16 @@ class LocalStateStoreImpl implements LocalStateStore {
           }
 
           final isTransfer = (payload['is_transfer'] as bool?) ?? false;
+          final expenseId = payload['id'] as String;
+
+          // Drop replayed or out-of-order inserts for expenses that have already been deleted
+          if (await db.isTombstoned(expenseId)) {
+            break;
+          }
 
           await db.into(db.localExpenses).insertOnConflictUpdate(
                 LocalExpensesCompanion.insert(
-                  id: payload['id'] as String,
+                  id: expenseId,
                   homeId: homeId,
                   title: (payload['title'] as String?) ?? '',
                   amount: (payload['amount'] as num?)?.toDouble() ?? 0.0,
@@ -351,6 +371,7 @@ class LocalStateStoreImpl implements LocalStateStore {
           await (db.delete(db.localExpenses)
                 ..where((t) => t.id.equals(expenseId)))
               .go();
+          await db.recordTombstone(expenseId, 'expense');
           break;
 
         // --- HABITS ---
@@ -703,11 +724,15 @@ class LocalStateStoreImpl implements LocalStateStore {
       await db.delete(db.localHomes).go();
       await db.delete(db.localOutboxEvents).go();
       await db.delete(db.localActivityEvents).go();
+      await db.delete(db.localAppliedEvents).go();
+      await db.delete(db.localDeletedTombstones).go();
     });
   }
 
   @override
   Future<bool> hasEvent(String eventId) async {
+    final hasApplied = await db.hasAppliedEvent(eventId);
+    if (hasApplied) return true;
     return db.hasActivityEvent(eventId);
   }
 
