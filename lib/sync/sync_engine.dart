@@ -35,6 +35,10 @@ abstract class SyncEngine {
     String? homeId,
   });
 
+  /// Pulls, decrypts, and applies latest unread partner events from the blind relay.
+  /// Used during app resume or silent push notification wake.
+  Future<void> pullLatestEvents({String? homeId});
+
   /// Stops sync loops and closes active relay subscriptions.
   Future<void> stop();
 }

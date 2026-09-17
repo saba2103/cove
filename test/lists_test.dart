@@ -8,6 +8,7 @@ import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/lists/create_list_dialog.dart';
 import 'package:cove/features/lists/list_controller.dart';
 import 'package:cove/features/lists/lists_screen.dart';
+import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/db/local_state_store_impl.dart';
@@ -111,6 +112,10 @@ void main() {
     displayName: 'Alex',
   );
 
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     fakeStorage = FakeSecureStorage();
@@ -181,6 +186,10 @@ void main() {
       syncEngineProvider.overrideWithValue(fakeEngine),
       authProvider.overrideWith(() => FakeAuthNotifier(AsyncData(user ?? testUser))),
       activeHomeIdProvider.overrideWith(() => FakeActiveHomeNotifier('home_1')),
+      activeHomeProvider.overrideWith((ref) => Stream.value(
+        LocalHome(id: 'home_1', name: 'Our Home', createdAt: DateTime.now(), createdBy: 'user_alex', currency: 'USD'),
+      )),
+      partnerProfileProvider.overrideWith(() => FakePartnerProfileNotifier()),
       coveEmitActionProvider.overrideWithValue(
         ({required String eventType, required Map<String, dynamic> payload, String? targetHomeId}) async {
           await fakeEngine.dispatchLocalEvent(
@@ -505,11 +514,56 @@ void main() {
 
       // Alex is viewing
       expect(find.text('Almond Flour'), findsOneWidget);
-      expect(find.text('Added by Partner'), findsOneWidget);
+      expect(find.text('Added by Sarah'), findsOneWidget);
 
       // Strictly NO assignment fields anywhere in the tree
       expect(find.textContaining('Assign'), findsNothing);
       expect(find.textContaining('Assigned to'), findsNothing);
+    });
+
+    testWidgets('Long press and reorder tabs (lists) in lists page', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: createOverrides(),
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: const ListsScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify default tabs exist: Grocery, Travel, Planning
+      expect(find.text('Grocery'), findsOneWidget);
+      expect(find.text('Travel'), findsOneWidget);
+      expect(find.text('Planning'), findsOneWidget);
+
+      final groceryTab = find.text('Grocery');
+      final travelTab = find.text('Travel');
+
+      // Verify Grocery is to the left of Travel initially
+      expect(tester.getCenter(groceryTab).dx, lessThan(tester.getCenter(travelTab).dx));
+
+      final planningTab = find.text('Planning');
+
+      // Long press Grocery to initiate drag, then move past Travel towards Planning
+      final gesture = await tester.startGesture(tester.getCenter(groceryTab));
+      await tester.pump(const Duration(milliseconds: 700));
+      await gesture.moveTo(tester.getCenter(planningTab) + const Offset(20, 0));
+      await tester.pump(const Duration(milliseconds: 100));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Verify tabs have been reordered: Travel is now before Grocery!
+      final groceryAfter = find.text('Grocery');
+      final travelAfter = find.text('Travel');
+      expect(tester.getCenter(travelAfter).dx, lessThan(tester.getCenter(groceryAfter).dx));
+
+      // Verify lists_reordered sync event was dispatched
+      expect(
+        fakeEngine.dispatchedEvents.any((e) => e['eventType'] == 'lists_reordered'),
+        isTrue,
+      );
     });
   });
 }
@@ -571,8 +625,9 @@ class _TestListController extends ListController {
     required String listId,
     required String title,
     String? notes,
+    String? listName,
   }) async {
-    final res = await super.addItem(listId: listId, title: title, notes: notes);
+    final res = await super.addItem(listId: listId, title: title, notes: notes, listName: listName);
     await onMutate();
     return res;
   }
@@ -581,14 +636,20 @@ class _TestListController extends ListController {
   Future<void> toggleItem({
     required String itemId,
     required bool isCompleted,
+    String? itemTitle,
+    String? listName,
   }) async {
-    await super.toggleItem(itemId: itemId, isCompleted: isCompleted);
+    await super.toggleItem(itemId: itemId, isCompleted: isCompleted, itemTitle: itemTitle, listName: listName);
     await onMutate();
   }
 
   @override
-  Future<void> deleteItem({required String itemId}) async {
-    await super.deleteItem(itemId: itemId);
+  Future<void> deleteItem({
+    required String itemId,
+    String? itemTitle,
+    String? listName,
+  }) async {
+    await super.deleteItem(itemId: itemId, itemTitle: itemTitle, listName: listName);
     await onMutate();
   }
 
@@ -596,5 +657,12 @@ class _TestListController extends ListController {
   Future<void> clearCompleted({required String listId}) async {
     await super.clearCompleted(listId: listId);
     await onMutate();
+  }
+}
+
+class FakePartnerProfileNotifier extends PartnerProfileNotifier {
+  @override
+  PartnerProfileState build() {
+    return const PartnerProfileState(displayName: 'Sarah');
   }
 }

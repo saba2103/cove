@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 enum EventSyncStatus {
   savedLocally,
+  uploadedToCloud,
   syncedToPartner,
 }
 
@@ -58,8 +59,14 @@ abstract class EventStore {
   /// Appends an encrypted event to the local append-only log.
   Future<void> appendEvent(CoveEncryptedEvent event, {String payloadJson = '{}'});
 
+  /// Checks if an event is already stored in the local outbox.
+  Future<bool> hasEvent(String eventId);
+
   /// Retrieves events pending upload to the Supabase blind relay.
   Future<List<CoveEncryptedEvent>> getPendingUploadEvents({int limit = 50});
+
+  /// Marks an event as uploaded to the Supabase blind relay.
+  Future<void> markEventUploaded(String eventId);
 
   /// Marks an event as synced after acknowledgment from the partner or relay.
   Future<void> markEventSynced(String eventId);

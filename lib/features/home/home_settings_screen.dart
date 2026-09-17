@@ -8,6 +8,9 @@ import '../../sync/crypto/deterministic_home_icon.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
+import '../profile/edit_partner_profile_dialog.dart';
+import '../profile/partner_profile_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'home_controller.dart';
 
 /// Home Settings screen stub (fully built out in the Settings mission).
@@ -21,6 +24,8 @@ class HomeSettingsScreen extends ConsumerWidget {
     final typography = context.typography;
     final activeHome = ref.watch(activeHomeProvider).value;
     final user = ref.watch(authProvider).value;
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
     final homeController = ref.read(homeControllerProvider);
 
     if (activeHome == null) {
@@ -72,21 +77,27 @@ class HomeSettingsScreen extends ConsumerWidget {
                 CoveGroupedRow(
                   leading: CircleAvatar(
                     radius: 14,
-                    backgroundColor: colors.surfaceRow,
-                    child: Text(
-                      user?.displayName?.isNotEmpty == true
-                          ? user!.displayName![0].toUpperCase()
-                          : 'U',
-                      style: TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
+                    backgroundColor: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
+                        ? colors.surfaceRow
+                        : colors.accentPrimary,
+                    backgroundImage: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
+                        ? NetworkImage(userProfile.avatarUrl!)
+                        : null,
+                    child: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
+                        ? null
+                        : Text(
+                            userProfile.displayName.isNotEmpty
+                                ? userProfile.displayName[0].toUpperCase()
+                                : 'U',
+                            style: typography.headline.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors.surfaceRow,
+                            ),
+                          ),
                   ),
                   title: Text(
-                    '${user?.displayName ?? "You"} (You)',
+                    '${userProfile.displayName} (You)',
                     style: typography.bodyMedium,
                   ),
                   subtitle: Text(user?.email ?? '', style: typography.caption),
@@ -94,24 +105,45 @@ class HomeSettingsScreen extends ConsumerWidget {
                 CoveGroupedRow(
                   leading: CircleAvatar(
                     radius: 14,
-                    backgroundColor: colors.surfaceRow,
-                    child: Text(
-                      'P',
-                      style: TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
+                    backgroundColor: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
+                        ? colors.surfaceRow
+                        : colors.accentPrimary,
+                    backgroundImage: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
+                        ? NetworkImage(partnerProfile.avatarUrl!)
+                        : null,
+                    child: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
+                        ? null
+                        : Text(
+                            partnerProfile.displayName.isNotEmpty
+                                ? partnerProfile.displayName[0].toUpperCase()
+                                : 'P',
+                            style: typography.headline.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors.surfaceRow,
+                            ),
+                          ),
                   ),
-                  title: Text('Partner', style: typography.bodyMedium),
+                  title: Text(partnerProfile.displayName, style: typography.bodyMedium),
                   subtitle: Text('Connected via direct pairing', style: typography.caption),
-                  trailing: Icon(
-                    Icons.check_circle_outline,
-                    size: 16,
-                    color: colors.accentPrimary,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit_outlined, size: 16, color: colors.textMuted),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => EditPartnerProfileDialog.show(context),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 16,
+                        color: colors.accentPrimary,
+                      ),
+                    ],
                   ),
+                  onTap: () => EditPartnerProfileDialog.show(context),
                 ),
               ],
             ),

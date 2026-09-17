@@ -32,3 +32,20 @@ final activeHomeProvider = StreamProvider<LocalHome?>((ref) {
         ..where((t) => t.id.equals(activeId)))
       .watchSingleOrNull();
 });
+
+/// Tracks whether the active home has a partner connected.
+/// When false (e.g. newly created home waiting for partner), sync ticks remain 1-tick
+/// and dashboard surfaces a gentle "waiting for partner" status.
+class ActiveHomePartnerNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void setHasPartner(bool hasPartner) {
+    state = hasPartner;
+  }
+}
+
+final activeHomeHasPartnerProvider =
+    NotifierProvider<ActiveHomePartnerNotifier, bool>(
+        ActiveHomePartnerNotifier.new);
+

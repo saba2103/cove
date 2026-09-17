@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:cove/sync/crypto/deterministic_home_icon.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
@@ -394,6 +395,49 @@ void main() {
       final outboxRows = await db.watchOutbox('home-alpha').first;
       expect(outboxRows.first.syncStatus, equals('syncedToPartner'));
     });
+
+    test('Cloud upload marks status uploadedToCloud and removes from pending outbox',
+        () async {
+      final key = crypto.generateHomeKey();
+      final now = DateTime.now().toUtc();
+      final encrypted = await crypto.encrypt(
+        plaintextJson: '{"habit":"Morning meditation"}',
+        homeKey: key,
+      );
+
+      final event = CoveEncryptedEvent(
+        id: 'event-003',
+        homeId: 'home-alpha',
+        eventType: 'habit_created',
+        authorId: 'alex',
+        createdAt: now,
+        ciphertext: encrypted.ciphertext,
+        nonce: encrypted.nonce,
+      );
+
+      await eventStore.appendEvent(event);
+
+      // Verify initially pending
+      var pending = await eventStore.getPendingUploadEvents();
+      expect(pending.length, equals(1));
+      expect(pending.first.syncStatus, equals(EventSyncStatus.savedLocally));
+
+      // Mark uploaded to cloud relay
+      await eventStore.markEventUploaded('event-003');
+
+      // Crucial: Pending outbox must now be empty so it never enters an infinite re-upload loop!
+      pending = await eventStore.getPendingUploadEvents();
+      expect(pending.isEmpty, isTrue);
+
+      final outboxRows = await db.watchOutbox('home-alpha').first;
+      expect(outboxRows.length, equals(1));
+      expect(outboxRows.first.syncStatus, equals('uploadedToCloud'));
+
+      // When partner later acknowledges receipt, it transitions to syncedToPartner
+      await eventStore.markEventSynced('event-003');
+      final updatedRows = await db.watchOutbox('home-alpha').first;
+      expect(updatedRows.first.syncStatus, equals('syncedToPartner'));
+    });
   });
 
   group('SyncEngine End-to-End Orchestration Tests', () {
@@ -454,6 +498,57 @@ void main() {
       expect(outbox.first.eventType, equals('list_item_added'));
       expect(outbox.first.syncStatus, equals('savedLocally'));
       expect(outbox.first.actorId, equals('alex_user_id'));
+    });
+
+    test('Multi-device sync: Client B receives and projects events authored by same user on Client A',
+        () async {
+      final homeKey = (await keyStore.getKey('home_alpha'))!;
+
+      // Simulate Client A (Phone) creating an expense
+      final expensePayload = {
+        'id': 'exp-phone-1',
+        'title': 'Coffee with Client',
+        'amount': 18.50,
+        'currency': 'USD',
+        'paid_by': 'alex_user_id',
+        'split_ratio': 0.5,
+        'category': 'Dining Out',
+        'expense_date': DateTime.now().toUtc().toIso8601String(),
+        'is_transfer': false,
+      };
+
+      final encrypted = await crypto.encrypt(
+        plaintextJson: jsonEncode(expensePayload),
+        homeKey: homeKey,
+      );
+
+      final transportPayload = crypto.serializeToTransportString(
+        EncryptedPayload(ciphertext: encrypted.ciphertext, nonce: encrypted.nonce),
+      );
+
+      final inboundRecordFromPhone = {
+        'id': 'event-exp-phone-001',
+        'home_id': 'home_alpha',
+        'actor_id': 'alex_user_id', // Same user ID!
+        'event_type': 'expense_logged',
+        'encrypted_payload': transportPayload,
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      // Client B (Web) receives this inbound record
+      await syncEngine.handleInboundEvent(inboundRecordFromPhone);
+
+      // Verify Client B projected the event into its local SQLite database
+      final expenses = await db.watchExpenses('home_alpha').first;
+      expect(expenses.length, equals(1));
+      expect(expenses.first.id, equals('exp-phone-1'));
+      expect(expenses.first.title, equals('Coffee with Client'));
+      expect(expenses.first.amount, equals(18.50));
+
+      // Re-delivering the same record should be deduplicated cleanly
+      await syncEngine.handleInboundEvent(inboundRecordFromPhone);
+      final expensesAfterDup = await db.watchExpenses('home_alpha').first;
+      expect(expensesAfterDup.length, equals(1));
     });
   });
 

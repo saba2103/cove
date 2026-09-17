@@ -17,6 +17,8 @@ class HomeKeyStore {
               mOptions: MacOsOptions(accessibility: KeychainAccessibility.first_unlock),
             );
 
+  FlutterSecureStorage get storage => _storage;
+
   /// Saves a symmetric key for a specific home.
   Future<void> saveKey(String homeId, Uint8List key) async {
     final base64Key = base64UrlEncode(key);

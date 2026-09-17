@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/auth_controller.dart';
+import '../../features/profile/user_profile_controller.dart';
 import '../crypto/sodium_crypto_service.dart';
 import '../db/app_database.dart';
 import '../db/local_state_store_impl.dart';
@@ -57,6 +58,10 @@ final syncEngineProvider = Provider<SyncEngineImpl>((ref) {
     encryptionService: crypto,
     keyStore: keyStore,
     supabaseClient: supabase,
+    getCurrentUserId: () =>
+        ref.read(authProvider).value?.id ??
+        supabase?.auth.currentUser?.id ??
+        'local_user',
     getActiveHomeId: () => ref.read(activeHomeIdProvider),
   );
 
@@ -81,9 +86,16 @@ final coveEmitActionProvider = Provider<CoveEventEmitter>((ref) {
     required Map<String, dynamic> payload,
     String? targetHomeId,
   }) async {
+    final userProfile = ref.read(userProfileProvider);
+    final enrichedPayload = Map<String, dynamic>.from(payload);
+    if (!enrichedPayload.containsKey('actor_name') &&
+        userProfile.displayName.isNotEmpty &&
+        userProfile.displayName != 'You') {
+      enrichedPayload['actor_name'] = userProfile.displayName;
+    }
     await engine.dispatchLocalEvent(
       eventType: eventType,
-      payload: payload,
+      payload: enrichedPayload,
       homeId: targetHomeId,
     );
   };
@@ -106,6 +118,14 @@ final activeHomeListItemsProvider =
   return db.watchListItems(activeId, listId);
 });
 
+final activeHomeAllListItemsProvider = StreamProvider<List<LocalListItem>>((ref) {
+  final activeId = ref.watch(activeHomeIdProvider);
+  if (activeId == null) return Stream.value([]);
+  final db = ref.watch(appDatabaseProvider);
+  return db.watchAllHomeListItems(activeId);
+});
+
+
 final activeHomeSubscriptionsProvider =
     StreamProvider<List<LocalSubscription>>((ref) {
   final activeId = ref.watch(activeHomeIdProvider);
@@ -127,7 +147,8 @@ final activeHomeHabitsProvider = StreamProvider<List<LocalHabit>>((ref) {
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchHabits(activeId);
+  final user = ref.watch(authProvider).value;
+  return db.watchHabits(activeId, currentUserId: user?.id);
 });
 
 final activeHomeHabitCheckinsProvider =
@@ -136,6 +157,14 @@ final activeHomeHabitCheckinsProvider =
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
   return db.watchHabitCheckins(activeId, habitId);
+});
+
+final activeHomeAllHabitCheckinsProvider =
+    StreamProvider<List<LocalHabitCheckin>>((ref) {
+  final activeId = ref.watch(activeHomeIdProvider);
+  if (activeId == null) return Stream.value([]);
+  final db = ref.watch(appDatabaseProvider);
+  return db.watchAllHabitCheckins(activeId);
 });
 
 final activeHomeCalendarEventsProvider =

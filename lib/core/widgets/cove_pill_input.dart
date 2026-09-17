@@ -10,6 +10,8 @@ class CovePillInput extends StatelessWidget {
   final Widget? suffix;
   final FocusNode? focusNode;
   final TextInputAction textInputAction;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
   final bool autofocus;
 
   const CovePillInput({
@@ -22,6 +24,8 @@ class CovePillInput extends StatelessWidget {
     this.suffix,
     this.focusNode,
     this.textInputAction = TextInputAction.done,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.sentences,
     this.autofocus = false,
   });
 
@@ -51,6 +55,8 @@ class CovePillInput extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               autofocus: autofocus,
+              keyboardType: keyboardType,
+              textCapitalization: textCapitalization,
               textInputAction: textInputAction,
               onChanged: onChanged,
               onSubmitted: onSubmitted,

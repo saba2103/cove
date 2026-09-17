@@ -9,6 +9,7 @@ import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/home/home_switcher_sheet.dart';
 import 'package:cove/features/home/join_home_screen.dart';
 import 'package:cove/features/home/onboarding_choice_screen.dart';
+import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/sync/crypto/deterministic_home_icon.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
@@ -99,11 +100,13 @@ void main() {
   late FakeSyncEngineImpl fakeEngine;
 
   setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
     db = AppDatabase(NativeDatabase.memory());
     fakeStorage = FakeSecureStorage();
+    PartnerProfileNotifier.storage = fakeStorage;
     keyStore = HomeKeyStore(storage: fakeStorage);
     crypto = SodiumCryptoService();
-    final localStore = LocalStateStoreImpl(db);
+    final localStore = LocalStateStoreImpl(db, storage: fakeStorage);
     final eventStore = EventStoreImpl(db: db, cryptoService: crypto);
     fakeEngine = FakeSyncEngineImpl(
       eventStore: eventStore,
@@ -114,6 +117,7 @@ void main() {
   });
 
   tearDown(() async {
+    PartnerProfileNotifier.storage = const FlutterSecureStorage();
     await db.close();
   });
 
@@ -245,6 +249,7 @@ void main() {
       final home = LocalHome(
         id: 'home_1',
         name: 'Our Cozy Cove',
+        currency: 'USD',
         createdAt: DateTime.now(),
         createdBy: 'user_1',
       );
@@ -267,6 +272,9 @@ void main() {
       expect(find.byType(SignInScreen), findsNothing);
       expect(find.byType(OnboardingChoiceScreen), findsNothing);
       expect(find.byType(AppShell), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 
@@ -363,7 +371,7 @@ void main() {
       await tester.pump();
 
       // Scroll and tap Join button
-      final joinButton = find.widgetWithText(CovePillButton, 'Join with Code');
+      final joinButton = find.widgetWithText(CovePillButton, 'Join Home');
       await tester.ensureVisible(joinButton);
       await tester.tap(joinButton);
       await tester.pump();
@@ -378,6 +386,9 @@ void main() {
       // Verify encryption key was safely imported
       final importedKey = await keyStore.getKey('home_partner_456');
       expect(importedKey, equals(key));
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 
@@ -387,6 +398,7 @@ void main() {
       final singleHome = LocalHome(
         id: 'home_single',
         name: 'Our Sanctuary',
+        currency: 'USD',
         createdAt: DateTime.now(),
         createdBy: 'user_1',
       );
@@ -421,6 +433,9 @@ void main() {
       await tester.tap(find.text('Our Sanctuary'));
       await tester.pumpAndSettle();
       expect(find.byType(HomeSwitcherSheet), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
 
     testWidgets('When user has MORE than 1 home: Switcher affordance appears and switches active home',
@@ -428,12 +443,14 @@ void main() {
       final home1 = LocalHome(
         id: 'home_primary',
         name: 'Primary Haven',
+        currency: 'USD',
         createdAt: DateTime.now(),
         createdBy: 'user_1',
       );
       final home2 = LocalHome(
         id: 'home_cabin',
         name: 'Mountain Cabin',
+        currency: 'USD',
         createdAt: DateTime.now(),
         createdBy: 'user_1',
       );
@@ -468,8 +485,8 @@ void main() {
       // Verified dropdown chevron is visible when multiple homes exist
       expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
 
-      // Tapping title opens bottom sheet
-      await tester.tap(find.text('Primary Haven'));
+      // Tapping dropdown chevron opens bottom sheet
+      await tester.tap(find.byIcon(Icons.keyboard_arrow_down_rounded));
       await tester.pumpAndSettle();
 
       expect(find.byType(HomeSwitcherSheet), findsOneWidget);
@@ -481,6 +498,9 @@ void main() {
 
       // Verified active home was switched
       expect(activeNotifier.state, equals('home_cabin'));
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 
@@ -489,6 +509,7 @@ void main() {
       final home = LocalHome(
         id: 'home_123',
         name: 'Sweet Home',
+        currency: 'USD',
         createdAt: DateTime.now(),
         createdBy: 'user_alex',
       );
@@ -522,6 +543,9 @@ void main() {
       expect(find.text('MEMBERS'), findsOneWidget);
       expect(find.text('View / Regenerate Invite QR'), findsOneWidget);
       expect(find.text('Leave Home'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../sync/db/app_database.dart';
 import '../theme/cove_theme.dart';
 
 enum CoveSyncStatus {
@@ -94,4 +95,37 @@ class _TickPainter extends CustomPainter {
         oldDelegate.isDouble != isDouble ||
         oldDelegate.strokeWidth != strokeWidth;
   }
+}
+
+/// Resolves the sync tick status for an entity based on privacy, partner presence,
+/// and local outbox status.
+///
+/// Rules:
+/// 1. If item is private, it NEVER syncs to partner -> savedLocally (1 tick).
+/// 2. If no partner has joined the home yet -> savedLocally (1 tick).
+/// 3. If an outbox event exists for this entity and has not yet completed delivery
+///    confirmation (i.e. syncStatus != 'syncedToPartner') -> savedLocally (1 tick).
+/// 4. Only when item is shared, a partner exists, and the outbox event is confirmed
+///    synced (or cleared from outbox upon confirmed delivery) -> syncedToPartner (2 ticks).
+CoveSyncStatus resolveCoveSyncStatus({
+  required String entityId,
+  required List<LocalOutboxEvent> outbox,
+  bool isPrivate = false,
+  bool hasPartner = true,
+}) {
+  if (isPrivate || !hasPartner) {
+    return CoveSyncStatus.savedLocally;
+  }
+
+  for (final o in outbox) {
+    if (o.payloadJson.contains(entityId) || o.id == entityId) {
+      if (o.syncStatus == 'syncedToPartner') {
+        return CoveSyncStatus.syncedToPartner;
+      } else {
+        return CoveSyncStatus.savedLocally;
+      }
+    }
+  }
+
+  return CoveSyncStatus.syncedToPartner;
 }

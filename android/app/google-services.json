@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "633452066662",
+    "project_id": "cove-home-app",
+    "storage_bucket": "cove-home-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:633452066662:android:406f9a0fa75a2545307aa7",
+        "android_client_info": {
+          "package_name": "com.app.cove"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAH_fKPWgz1TG2uV6T-PM1bgGIkCznZRh8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

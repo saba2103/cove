@@ -4,18 +4,24 @@ import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
+import '../../sync/db/app_database.dart';
 import '../auth/auth_controller.dart';
+import '../profile/partner_profile_controller.dart';
+import '../profile/preferences_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'expense_controller.dart';
 
 class ExpenseFormSheet extends ConsumerStatefulWidget {
-  const ExpenseFormSheet({super.key});
+  final LocalExpense? initialExpense;
 
-  static Future<String?> show(BuildContext context) {
+  const ExpenseFormSheet({super.key, this.initialExpense});
+
+  static Future<String?> show(BuildContext context, {LocalExpense? initialExpense}) {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const ExpenseFormSheet(),
+      builder: (_) => ExpenseFormSheet(initialExpense: initialExpense),
     );
   }
 
@@ -30,11 +36,13 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
   final _customCategoryController = TextEditingController();
 
   DateTime _expenseDate = DateTime.now();
-  final String _currency = 'USD';
+  late String _currency;
   String _selectedCategory = 'Groceries';
   bool _isCustomCategory = false;
   String _paidBy = 'user_alex'; // user id
   ExpenseVisibility _visibility = ExpenseVisibility.shared;
+  String? _paymentMethod; // 'card' | 'upi' | 'cash'
+  bool _isTransfer = false;
 
   bool _isSaving = false;
   String? _errorMessage;
@@ -52,9 +60,32 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
   @override
   void initState() {
     super.initState();
-    final user = ref.read(authProvider).value;
-    if (user != null) {
-      _paidBy = user.id;
+    if (widget.initialExpense != null) {
+      final exp = widget.initialExpense!;
+      _titleController.text = exp.title;
+      _amountController.text =
+          exp.amount % 1 == 0 ? exp.amount.toInt().toString() : exp.amount.toStringAsFixed(2);
+      _expenseDate = exp.expenseDate;
+      _currency = exp.currency;
+      _paidBy = exp.paidBy;
+      _visibility = ExpenseVisibilityExtension.fromSplitRatio(exp.splitRatio);
+      _paymentMethod = exp.paymentMethod;
+      _isTransfer = exp.isTransfer;
+
+      String cat = exp.category ?? (_isTransfer ? 'Transfer' : 'Groceries');
+      if (cat.contains(' • ')) {
+        final parts = cat.split(' • ');
+        cat = parts.first;
+        _notesController.text = parts.sublist(1).join(' • ');
+      }
+      _selectedCategory = cat;
+      _isCustomCategory = false;
+    } else {
+      _currency = ref.read(currencyPreferenceProvider).code;
+      final user = ref.read(authProvider).value;
+      if (user != null) {
+        _paidBy = user.id;
+      }
     }
   }
 
@@ -107,9 +138,11 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
       return;
     }
 
-    final category = _isCustomCategory
-        ? _customCategoryController.text.trim()
-        : _selectedCategory;
+    final category = _isTransfer
+        ? 'Transfer'
+        : (_isCustomCategory
+            ? _customCategoryController.text.trim()
+            : _selectedCategory);
 
     setState(() {
       _isSaving = true;
@@ -118,18 +151,48 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
 
     try {
       final controller = ref.read(expenseControllerProvider);
-      final id = await controller.logExpense(
-        title: title,
-        amount: amount,
-        currency: _currency,
-        expenseDate: _expenseDate,
-        paidBy: _paidBy,
-        category: category.isNotEmpty ? category : 'General',
-        notes: _notesController.text.trim().isNotEmpty
-            ? _notesController.text.trim()
-            : null,
-        visibility: _visibility,
-      );
+      final finalCategory = category.isNotEmpty ? category : 'General';
+
+      if (!_isTransfer && category.isNotEmpty && !_fixedCategories.contains(category)) {
+        await ref.read(customCategoriesProvider.notifier).addCategory(category);
+      }
+
+      final String id;
+      if (widget.initialExpense != null) {
+        final oldVis =
+            ExpenseVisibilityExtension.fromSplitRatio(widget.initialExpense!.splitRatio);
+        id = await controller.updateExpense(
+          id: widget.initialExpense!.id,
+          title: title,
+          amount: amount,
+          currency: _currency,
+          expenseDate: _expenseDate,
+          paidBy: _paidBy,
+          category: finalCategory,
+          notes: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
+          paymentMethod: _paymentMethod,
+          isTransfer: _isTransfer,
+          oldVisibility: oldVis,
+          visibility: _isTransfer ? ExpenseVisibility.shared : _visibility,
+        );
+      } else {
+        id = await controller.logExpense(
+          title: title,
+          amount: amount,
+          currency: _currency,
+          expenseDate: _expenseDate,
+          paidBy: _paidBy,
+          category: finalCategory,
+          notes: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
+          paymentMethod: _paymentMethod,
+          isTransfer: _isTransfer,
+          visibility: _isTransfer ? ExpenseVisibility.shared : _visibility,
+        );
+      }
 
       if (mounted) {
         Navigator.of(context).pop(id);
@@ -149,9 +212,13 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     final colors = context.colors;
     final typography = context.typography;
     final mediaQuery = MediaQuery.of(context);
+    final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
     final myId = currentUser?.id ?? 'user_alex';
-    final myName = currentUser?.displayName ?? 'You';
+    final myName = userProfile.displayName;
+    final partnerName = partnerProfile.displayName;
 
     return Container(
       decoration: BoxDecoration(
@@ -178,7 +245,9 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Log Expense',
+                    widget.initialExpense != null
+                        ? (_isTransfer ? 'Edit Transfer' : 'Edit Expense')
+                        : (_isTransfer ? 'Record Transfer' : 'Log Expense'),
                     style: typography.title.copyWith(fontSize: 18),
                   ),
                   IconButton(
@@ -187,16 +256,63 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Entry Type Segment Switcher (Expense vs Transfer)
+              Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.surfaceRow,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: colors.borderHairline, width: 1),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSegmentPill(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Expense',
+                        isSelected: !_isTransfer,
+                        onTap: () => setState(() => _isTransfer = false),
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSegmentPill(
+                        icon: Icons.swap_horiz,
+                        label: 'Transfer',
+                        isSelected: _isTransfer,
+                        onTap: () {
+                          setState(() {
+                            _isTransfer = true;
+                            if (_titleController.text.trim().isEmpty) {
+                              _titleController.text = 'Transfer';
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
 
               // Title / Merchant
-              Text('MERCHANT / DESCRIPTION', style: typography.caption),
+              Text(
+                _isTransfer ? 'TRANSFER REASON / TITLE' : 'MERCHANT / DESCRIPTION',
+                style: typography.caption,
+              ),
               const SizedBox(height: 8),
               CovePillInput(
                 controller: _titleController,
-                hintText: 'e.g. Farmers Market, Target, Utilities',
-                prefixIcon: Icon(Icons.receipt_long_outlined,
-                    size: 18, color: colors.textMuted),
+                hintText: _isTransfer
+                    ? 'e.g. Rent share, Dinner reimbursement, Monthly settle'
+                    : 'e.g. Farmers Market, Target, Utilities',
+                prefixIcon: Icon(
+                  _isTransfer ? Icons.swap_horiz : Icons.receipt_long_outlined,
+                  size: 18,
+                  color: colors.textMuted,
+                ),
               ),
               const SizedBox(height: 18),
 
@@ -213,10 +329,11 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                         CovePillInput(
                           controller: _amountController,
                           hintText: '0.00',
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           prefixIcon: Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: Text(
-                              '\$',
+                              currency.symbol,
                               style: TextStyle(
                                 fontFamily: 'GeneralSans',
                                 fontSize: 16,
@@ -278,7 +395,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               const SizedBox(height: 18),
 
               // Paid By Selector
-              Text('PAID BY', style: typography.caption),
+              Text(
+                _isTransfer ? 'TRANSFERRED BY (SENDER)' : 'PAID BY',
+                style: typography.caption,
+              ),
               const SizedBox(height: 8),
               Container(
                 height: 48,
@@ -293,15 +413,19 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                     Expanded(
                       child: _buildSelectorPill(
                         label: myName,
-                        isSelected: _paidBy == myId,
+                        isSelected: _paidBy == myId ||
+                            (_paidBy != (partnerProfile.userId ?? 'partner_user') &&
+                                _paidBy != 'partner_user'),
                         onTap: () => setState(() => _paidBy = myId),
                       ),
                     ),
                     Expanded(
                       child: _buildSelectorPill(
-                        label: 'Partner',
-                        isSelected: _paidBy != myId,
-                        onTap: () => setState(() => _paidBy = 'partner_user'),
+                        label: partnerName,
+                        isSelected: _paidBy == (partnerProfile.userId ?? 'partner_user') ||
+                            _paidBy == 'partner_user',
+                        onTap: () => setState(() =>
+                            _paidBy = partnerProfile.userId ?? 'partner_user'),
                       ),
                     ),
                   ],
@@ -309,95 +433,27 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Category Selector
+              // Payment Method Selector
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('CATEGORY', style: typography.caption),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isCustomCategory = !_isCustomCategory;
-                      });
-                    },
-                    child: Text(
-                      _isCustomCategory ? 'Use standard list' : '+ Custom category',
-                      style: typography.caption.copyWith(
-                        color: colors.accentPrimary,
-                        fontWeight: FontWeight.w600,
+                  Text(
+                    _isTransfer ? 'HOW WAS THIS SENT?' : 'HOW WAS THIS PAID?',
+                    style: typography.caption,
+                  ),
+                  if (_paymentMethod != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _paymentMethod = null),
+                      child: Text(
+                        'Clear',
+                        style: typography.caption.copyWith(
+                          color: colors.textMuted,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (_isCustomCategory)
-                CovePillInput(
-                  controller: _customCategoryController,
-                  hintText: 'e.g. Pet Care, Gardening, Home Renovation',
-                  prefixIcon: Icon(Icons.label_outline,
-                      size: 18, color: colors.textMuted),
-                )
-              else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _fixedCategories.map((cat) {
-                      final isSelected = _selectedCategory == cat;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: InkWell(
-                          onTap: () => setState(() => _selectedCategory = cat),
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? colors.accentPrimary.withValues(alpha: 0.18)
-                                  : colors.surfaceRow,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: isSelected
-                                    ? colors.accentPrimary
-                                    : colors.borderHairline,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              cat,
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 13,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: isSelected
-                                    ? colors.accentPrimary
-                                    : colors.textMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              const SizedBox(height: 18),
-
-              // Optional Note
-              Text('OPTIONAL NOTE', style: typography.caption),
-              const SizedBox(height: 8),
-              CovePillInput(
-                controller: _notesController,
-                hintText: 'e.g. Split for dinner, bought on road trip',
-                prefixIcon: Icon(Icons.notes_outlined,
-                    size: 18, color: colors.textMuted),
-              ),
-              const SizedBox(height: 22),
-
-              // Three-Tier Visibility & Privacy
-              Text('VISIBILITY & PRIVACY', style: typography.caption),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
@@ -406,57 +462,241 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   border: Border.all(color: colors.borderHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(4),
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildVisibilityPill(
-                            icon: Icons.people_outline,
-                            label: 'Shared',
-                            isSelected:
-                                _visibility == ExpenseVisibility.shared,
-                            onTap: () => setState(() =>
-                                _visibility = ExpenseVisibility.shared),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildVisibilityPill(
-                            icon: Icons.visibility_outlined,
-                            label: 'Partner sees',
-                            isSelected: _visibility ==
-                                ExpenseVisibility.partnerCanSee,
-                            onTap: () => setState(() => _visibility =
-                                ExpenseVisibility.partnerCanSee),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: _buildVisibilityPill(
-                            icon: Icons.visibility_off_outlined,
-                            label: 'Private',
-                            isSelected:
-                                _visibility == ExpenseVisibility.privateToMe,
-                            onTap: () => setState(() =>
-                                _visibility = ExpenseVisibility.privateToMe),
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: _buildPaymentMethodPill(
+                        icon: Icons.credit_card_outlined,
+                        label: 'Card',
+                        isSelected: _paymentMethod == 'card',
+                        onTap: () => setState(() =>
+                            _paymentMethod = _paymentMethod == 'card' ? null : 'card'),
+                      ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-                      child: Text(
-                        _getVisibilityExplainer(),
-                        style: typography.caption.copyWith(
-                          fontSize: 11,
-                          color: colors.textMuted,
-                        ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _buildPaymentMethodPill(
+                        icon: Icons.qr_code_2_rounded,
+                        label: 'UPI',
+                        isSelected: _paymentMethod == 'upi',
+                        onTap: () => setState(() =>
+                            _paymentMethod = _paymentMethod == 'upi' ? null : 'upi'),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: _buildPaymentMethodPill(
+                        icon: Icons.payments_outlined,
+                        label: 'Cash',
+                        isSelected: _paymentMethod == 'cash',
+                        onTap: () => setState(() =>
+                            _paymentMethod = _paymentMethod == 'cash' ? null : 'cash'),
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 18),
+
+              if (_isTransfer) ...[
+                // Transfer Notice Banner
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceRow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.borderHairline, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.swap_horiz, size: 20, color: colors.accentPrimary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Transfers between you and $partnerName are tracked in the ledger and transfers total, but are separate from household expenditures.',
+                          style: typography.caption.copyWith(
+                            fontSize: 12,
+                            height: 1.4,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Optional Note for Transfer
+                Text('OPTIONAL NOTE', style: typography.caption),
+                const SizedBox(height: 8),
+                CovePillInput(
+                  controller: _notesController,
+                  hintText: 'e.g. Split for dinner, monthly settlement',
+                  prefixIcon: Icon(Icons.notes_outlined,
+                      size: 18, color: colors.textMuted),
+                ),
+              ] else ...[
+                // Category Selector
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('CATEGORY', style: typography.caption),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isCustomCategory = !_isCustomCategory;
+                        });
+                      },
+                      child: Text(
+                        _isCustomCategory ? 'Use standard list' : '+ Custom category',
+                        style: typography.caption.copyWith(
+                          color: colors.accentPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_isCustomCategory)
+                  CovePillInput(
+                    controller: _customCategoryController,
+                    hintText: 'e.g. Pet Care, Gardening, Home Renovation',
+                    prefixIcon: Icon(Icons.label_outline,
+                        size: 18, color: colors.textMuted),
+                  )
+                else
+                  Builder(
+                    builder: (context) {
+                      final savedCustomCats = ref.watch(customCategoriesProvider);
+                      final allCategoryPills = [
+                        ..._fixedCategories,
+                        ...savedCustomCats.where((c) => !_fixedCategories.contains(c)),
+                      ];
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: allCategoryPills.map((cat) {
+                            final isSelected = !_isCustomCategory && _selectedCategory == cat;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: InkWell(
+                                onTap: () => setState(() {
+                                  _selectedCategory = cat;
+                                  _isCustomCategory = false;
+                                }),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? colors.accentPrimary.withValues(alpha: 0.18)
+                                        : colors.surfaceRow,
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? colors.accentPrimary
+                                          : colors.borderHairline,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    cat,
+                                    style: TextStyle(
+                                      fontFamily: 'GeneralSans',
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: isSelected
+                                          ? colors.accentPrimary
+                                          : colors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 18),
+
+                // Optional Note
+                Text('OPTIONAL NOTE', style: typography.caption),
+                const SizedBox(height: 8),
+                CovePillInput(
+                  controller: _notesController,
+                  hintText: 'e.g. Split for dinner, bought on road trip',
+                  prefixIcon: Icon(Icons.notes_outlined,
+                      size: 18, color: colors.textMuted),
+                ),
+                const SizedBox(height: 22),
+
+                // Three-Tier Visibility & Privacy
+                Text('VISIBILITY & PRIVACY', style: typography.caption),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceRow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.borderHairline, width: 1),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.people_outline,
+                              label: 'Shared',
+                              isSelected:
+                                  _visibility == ExpenseVisibility.shared,
+                              onTap: () => setState(() =>
+                                  _visibility = ExpenseVisibility.shared),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.visibility_outlined,
+                              label: '$partnerName sees',
+                              isSelected: _visibility ==
+                                  ExpenseVisibility.partnerCanSee,
+                              onTap: () => setState(() => _visibility =
+                                  ExpenseVisibility.partnerCanSee),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.visibility_off_outlined,
+                              label: 'Private',
+                              isSelected:
+                                  _visibility == ExpenseVisibility.privateToMe,
+                              onTap: () => setState(() =>
+                                  _visibility = ExpenseVisibility.privateToMe),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                        child: Text(
+                          _getVisibilityExplainer(partnerName),
+                          style: typography.caption.copyWith(
+                            fontSize: 11,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               if (_errorMessage != null) ...[
                 const SizedBox(height: 14),
@@ -474,7 +714,9 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
 
               // Submit Button
               CovePillButton(
-                label: 'Log Expense',
+                label: widget.initialExpense != null
+                    ? (_isTransfer ? 'Update Transfer' : 'Update Expense')
+                    : (_isTransfer ? 'Record Transfer' : 'Log Expense'),
                 isLoading: _isSaving,
                 onPressed: _handleSave,
                 isFullWidth: true,
@@ -486,14 +728,14 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     );
   }
 
-  String _getVisibilityExplainer() {
+  String _getVisibilityExplainer(String partnerName) {
     switch (_visibility) {
       case ExpenseVisibility.shared:
         return 'Included in joint household monthly totals and 50/50 balance. End-to-end encrypted and synced.';
       case ExpenseVisibility.partnerCanSee:
-        return 'Visible to your partner in the ledger for transparency, but kept outside the joint split pool.';
+        return 'Visible to $partnerName in the ledger for transparency, but kept outside the joint split pool.';
       case ExpenseVisibility.privateToMe:
-        return 'Private expenses stay strictly on this device only. 0 bytes are sent to cloud or partner.';
+        return 'Private expenses stay strictly on this device only. 0 bytes are sent to cloud or $partnerName.';
     }
   }
 
@@ -567,6 +809,95 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   color: isSelected ? colors.accentPrimary : colors.textMuted,
                 ),
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodPill({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? colors.surfaceCard : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(
+                  color: colors.accentPrimary.withValues(alpha: 0.5), width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? colors.accentPrimary : colors.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'GeneralSans',
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? colors.accentPrimary : colors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentPill({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final colors = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? colors.accentPrimary : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected
+                  ? (context.isDark ? const Color(0xFF0B1F1E) : Colors.white)
+                  : colors.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'GeneralSans',
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? (context.isDark ? const Color(0xFF0B1F1E) : Colors.white)
+                    : colors.textMuted,
               ),
             ),
           ],

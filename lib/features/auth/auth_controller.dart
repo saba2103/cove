@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../notifications/notification_controller.dart';
 
 class CoveUser {
   final String id;
@@ -18,14 +21,30 @@ class CoveUser {
 
   factory CoveUser.fromSupabase(User user) {
     final meta = user.userMetadata ?? {};
+    final bool useInitials = meta['use_initials'] == true;
+    final String? rawAvatar = (meta['avatar_url'] as String?)?.trim();
+    final String? googlePicture = (meta['picture'] as String?)?.trim();
+
+    String? resolvedAvatar;
+    if (!useInitials) {
+      if (rawAvatar != null && rawAvatar.isNotEmpty) {
+        resolvedAvatar = rawAvatar;
+      } else if (googlePicture != null && googlePicture.isNotEmpty) {
+        resolvedAvatar = googlePicture;
+      }
+    }
+
+    final String resolvedName = (meta['display_name'] as String?)?.trim() ??
+        (meta['full_name'] as String?)?.trim() ??
+        (meta['name'] as String?)?.trim() ??
+        user.email?.split('@').first ??
+        'Partner';
+
     return CoveUser(
       id: user.id,
       email: user.email ?? 'user@cove.local',
-      displayName: (meta['full_name'] as String?) ??
-          (meta['name'] as String?) ??
-          user.email?.split('@').first ??
-          'Partner',
-      avatarUrl: meta['avatar_url'] as String?,
+      displayName: resolvedName,
+      avatarUrl: resolvedAvatar,
     );
   }
 
@@ -56,6 +75,7 @@ class AuthNotifier extends Notifier<AsyncValue<CoveUser?>> {
       ref.onDispose(() => _sub?.cancel());
 
       if (current != null) {
+        _refreshUserFromSupabase(supabase);
         return AsyncValue.data(CoveUser.fromSupabase(current));
       }
     }
@@ -63,32 +83,53 @@ class AuthNotifier extends Notifier<AsyncValue<CoveUser?>> {
     return const AsyncValue.data(null);
   }
 
-  /// Initiates Google Sign-In linked to Supabase Auth.
+  Future<void> _refreshUserFromSupabase(SupabaseClient supabase) async {
+    try {
+      final res = await supabase.auth.getUser();
+      if (res.user != null) {
+        state = AsyncValue.data(CoveUser.fromSupabase(res.user!));
+      }
+    } catch (_) {}
+  }
+
+  /// Initiates real Google Sign-In linked to Supabase Auth.
   Future<void> signInWithGoogle() async {
     state = const AsyncValue.loading();
     final supabase = ref.read(supabaseClientProvider);
 
     if (supabase == null) {
-      // Offline / demo fallback when Supabase credentials are not configured
-      await Future.delayed(const Duration(milliseconds: 300));
-      state = AsyncValue.data(CoveUser.demo());
+      state = AsyncValue.error(
+        'Authentication service is not configured. Please check connection.',
+        StackTrace.current,
+      );
       return;
     }
 
     try {
-      await supabase.auth.signInWithOAuth(OAuthProvider.google);
+      final redirectUrl = kIsWeb
+          ? Uri.base.origin
+          : 'io.supabase.cove://login-callback';
+
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirectUrl,
+      );
       final current = supabase.auth.currentUser;
       if (current != null) {
         state = AsyncValue.data(CoveUser.fromSupabase(current));
+      } else if (!kIsWeb) {
+        state = const AsyncValue.data(null);
       }
-    } catch (_) {
-      // In development / demo environments where Google Sign-In isn't configured,
-      // fallback to demo session so the user can continue exploring the app.
-      state = AsyncValue.data(CoveUser.demo());
+    } on AuthException catch (e, st) {
+      state = AsyncValue.error(e.message, st);
+    } catch (e, st) {
+      state = AsyncValue.error(e.toString(), st);
     }
   }
 
-  /// Developer / demo bypass sign-in for testing
+
+
+  /// Developer / demo bypass sign-in for tests
   void signInWithDemoUser([String name = 'Alex', String email = 'alex@cove.local']) {
     state = AsyncValue.data(CoveUser(
       id: 'demo-user-${name.toLowerCase()}',
@@ -99,6 +140,16 @@ class AuthNotifier extends Notifier<AsyncValue<CoveUser?>> {
 
   Future<void> signOut() async {
     state = const AsyncValue.loading();
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        final notifService = ref.read(notificationServiceProvider);
+        await notifService.unregisterDeviceToken(token);
+      }
+    } catch (e) {
+      debugPrint('[AuthController] Error unregistering token on signOut: $e');
+    }
+
     final supabase = ref.read(supabaseClientProvider);
     try {
       await supabase?.auth.signOut();

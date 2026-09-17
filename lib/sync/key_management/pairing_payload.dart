@@ -12,6 +12,8 @@ class PairingPayload {
   final String homeName;
   final Uint8List symmetricKey;
   final String inviterId;
+  final String? inviterName;
+  final String? inviterAvatar;
   final DateTime createdAt;
 
   const PairingPayload({
@@ -20,6 +22,8 @@ class PairingPayload {
     required this.homeName,
     required this.symmetricKey,
     required this.inviterId,
+    this.inviterName,
+    this.inviterAvatar,
     required this.createdAt,
   });
 
@@ -33,6 +37,12 @@ class PairingPayload {
       'i': inviterId,
       't': createdAt.millisecondsSinceEpoch,
     };
+    if (inviterName != null && inviterName!.isNotEmpty) {
+      map['in'] = inviterName;
+    }
+    if (inviterAvatar != null && inviterAvatar!.isNotEmpty) {
+      map['ia'] = inviterAvatar;
+    }
     return jsonEncode(map);
   }
 
@@ -45,6 +55,8 @@ class PairingPayload {
       final homeName = map['n'] as String;
       final keyBase64 = map['k'] as String;
       final inviterId = map['i'] as String;
+      final inviterName = map['in'] as String?;
+      final inviterAvatar = map['ia'] as String?;
       final timestamp = (map['t'] as num).toInt();
 
       return PairingPayload(
@@ -53,6 +65,8 @@ class PairingPayload {
         homeName: homeName,
         symmetricKey: base64Url.decode(keyBase64),
         inviterId: inviterId,
+        inviterName: inviterName,
+        inviterAvatar: inviterAvatar,
         createdAt: DateTime.fromMillisecondsSinceEpoch(timestamp),
       );
     } catch (e) {

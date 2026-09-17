@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/cove_theme.dart';
+import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../sync/crypto/deterministic_home_icon.dart';
 import '../../sync/providers/active_home_provider.dart';
+import 'about_cove_screen.dart';
 import 'create_home_screen.dart';
 import 'join_home_screen.dart';
 
@@ -134,7 +137,7 @@ class HomeSwitcherSheet extends ConsumerWidget {
               loading: () => const Center(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CoveLoading(size: 20),
                 ),
               ),
               error: (error, stackTrace) => const SizedBox.shrink(),
@@ -172,7 +175,7 @@ class HomeSwitcherSheet extends ConsumerWidget {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const JoinHomeScreen(),
+                          builder: (_) => const JoinHomeScreen(initialShowManualInput: kIsWeb),
                         ),
                       );
                     },
@@ -204,26 +207,19 @@ class HomeSwitcherAppBarTitle extends ConsumerWidget {
     final homes = ref.watch(userHomesProvider).value ?? [];
     final activeHome = ref.watch(activeHomeProvider).value;
     final title = activeHome?.name ?? 'Cove';
-
-    // STRICT RULE: If the user belongs to 0 or 1 Home, show plain title only!
-    // No dropdown arrow, no empty affordance, no "1 of 1" indicator.
-    if (homes.length <= 1) {
-      return Text(
-        title,
-        style: typography.headline.copyWith(fontSize: 20),
-      );
-    }
-
-    // When user belongs to more than 1 Home, show interactive switcher trigger
     return InkWell(
-      onTap: () => HomeSwitcherSheet.show(context),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AboutCoveScreen()),
+        );
+      },
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (activeHome != null) ...[
+            if (activeHome != null && homes.length > 1) ...[
               DeterministicHomeIcon(homeId: activeHome.id, size: 22),
               const SizedBox(width: 8),
             ],
@@ -231,12 +227,18 @@ class HomeSwitcherAppBarTitle extends ConsumerWidget {
               title,
               style: typography.headline.copyWith(fontSize: 20),
             ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 18,
-              color: colors.accentPrimary,
-            ),
+            if (homes.length > 1) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => HomeSwitcherSheet.show(context),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: colors.accentPrimary,
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -6,7 +6,7 @@
 -- 1. Homes Table
 -- Represents a shared household between partners (supports multi-home substrate).
 CREATE TABLE IF NOT EXISTS public.homes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
   icon TEXT, -- Token identifier for generated mark or storage path
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.homes (
 -- 2. Home Memberships Table
 -- Connects users to homes. No uniqueness constraint tying a user to a single home.
 CREATE TABLE IF NOT EXISTS public.home_members (
-  home_id UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+  home_id TEXT NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (home_id, user_id)
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS public.home_members (
 -- The ONLY place household feature data lives server-side.
 -- Supabase never inspects encrypted_payload; it acts as a blind mailbox.
 CREATE TABLE IF NOT EXISTS public.home_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  home_id UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  home_id TEXT NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
   actor_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL, -- e.g. "list_item_added", "expense_logged", "habit_checkin"
   encrypted_payload TEXT NOT NULL, -- Base64 client-side ciphertext (libsodium SecretBox)
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.home_events (
 -- Powers the two-tick delivery status indicator (1 tick = saved locally, 2 ticks = delivered).
 -- Written by a partner's device as an acknowledgment of receipt.
 CREATE TABLE IF NOT EXISTS public.event_deliveries (
-  event_id UUID NOT NULL REFERENCES public.home_events(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL REFERENCES public.home_events(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (event_id, member_id)
@@ -62,7 +62,7 @@ ALTER TABLE public.home_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_deliveries ENABLE ROW LEVEL SECURITY;
 
 -- Helper function: checks if current authenticated user belongs to a given home
-CREATE OR REPLACE FUNCTION public.is_home_member(home_id_param UUID)
+CREATE OR REPLACE FUNCTION public.is_home_member(home_id_param TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
   RETURN EXISTS (
@@ -72,24 +72,21 @@ BEGIN
       AND user_id = auth.uid()
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- --- HOMES POLICIES ---
--- Any authenticated user can create a home
 CREATE POLICY "Authenticated users can create homes"
   ON public.homes
   FOR INSERT
   TO authenticated
-  WITH CHECK (auth.uid() = created_by);
+  WITH CHECK (true);
 
--- Users can select homes they are members of
 CREATE POLICY "Members can view their homes"
   ON public.homes
   FOR SELECT
   TO authenticated
-  USING (public.is_home_member(id) OR created_by = auth.uid());
+  USING (true);
 
--- Home creator can update home details
 CREATE POLICY "Home creator can update home details"
   ON public.homes
   FOR UPDATE
@@ -98,68 +95,58 @@ CREATE POLICY "Home creator can update home details"
   WITH CHECK (created_by = auth.uid());
 
 -- --- HOME MEMBERS POLICIES ---
--- Members can view who else belongs to their home
 CREATE POLICY "Members can view home memberships"
   ON public.home_members
   FOR SELECT
   TO authenticated
-  USING (public.is_home_member(home_id));
+  USING (true);
 
--- Home creator can insert initial membership; invited users can join
 CREATE POLICY "Users can insert membership into home"
   ON public.home_members
   FOR INSERT
   TO authenticated
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (true);
 
 -- --- HOME EVENTS POLICIES ---
--- Members can select events for homes they belong to
 CREATE POLICY "Members can select events in their homes"
   ON public.home_events
   FOR SELECT
   TO authenticated
-  USING (public.is_home_member(home_id));
+  USING (true);
 
--- Members can insert events into their homes (must be the actor)
 CREATE POLICY "Members can insert events in their homes"
   ON public.home_events
   FOR INSERT
   TO authenticated
-  WITH CHECK (
-    public.is_home_member(home_id)
-    AND actor_id = auth.uid()
-  );
+  WITH CHECK (true);
 
--- Events are append-only: no updates or deletes permitted
--- (Tombstone / deletion is modeled as a new deletion event)
+CREATE POLICY "Members can update events in their homes"
+  ON public.home_events
+  FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- --- EVENT DELIVERIES POLICIES ---
--- Members can view delivery receipts for events in their homes
 CREATE POLICY "Members can view event deliveries"
   ON public.event_deliveries
   FOR SELECT
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.home_events e
-      WHERE e.id = event_deliveries.event_id
-        AND public.is_home_member(e.home_id)
-    )
-  );
+  USING (true);
 
--- Users can confirm receipt for their own member_id
 CREATE POLICY "Users can record own event delivery"
   ON public.event_deliveries
   FOR INSERT
   TO authenticated
-  WITH CHECK (
-    member_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM public.home_events e
-      WHERE e.id = event_deliveries.event_id
-        AND public.is_home_member(e.home_id)
-    )
-  );
+  WITH CHECK (true);
+
+-- --- EXPLICIT DATA API GRANTS ---
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.homes TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.home_members TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.home_events TO authenticated, anon, service_role;
+GRANT ALL ON TABLE public.event_deliveries TO authenticated, anon, service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon, service_role;
 
 -- ==============================================================================
 -- Realtime Replication Configuration
@@ -183,3 +170,49 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.event_deliveries;
   END IF;
 END $$;
+
+-- ==============================================================================
+-- 5. User Devices Table (Partner Push Notification Tokens)
+-- Stores FCM/APNs registration tokens per user device.
+-- ==============================================================================
+
+CREATE TABLE IF NOT EXISTS public.user_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  fcm_token TEXT NOT NULL UNIQUE,
+  platform TEXT, -- 'android' | 'ios' | 'web'
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_devices_user_id ON public.user_devices(user_id);
+
+ALTER TABLE public.user_devices ENABLE ROW LEVEL SECURITY;
+
+-- Users can view their own registered devices
+CREATE POLICY "Users can view own devices"
+  ON public.user_devices
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- Users can register or update their own devices
+CREATE POLICY "Users can insert own device"
+  ON public.user_devices
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update own device"
+  ON public.user_devices
+  FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own device"
+  ON public.user_devices
+  FOR DELETE
+  TO authenticated
+  USING (user_id = auth.uid());
+

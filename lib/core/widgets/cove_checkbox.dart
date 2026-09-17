@@ -59,14 +59,18 @@ class CoveChecklistRow extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? trailing;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const CoveChecklistRow({
     super.key,
     required this.value,
     required this.onChanged,
+    this.onTap,
     required this.title,
     this.subtitle,
     this.trailing,
+    this.onLongPress,
   });
 
   @override
@@ -74,7 +78,8 @@ class CoveChecklistRow extends StatelessWidget {
     final colors = context.colors;
 
     return InkWell(
-      onTap: onChanged != null ? () => onChanged!(!value) : null,
+      onTap: onTap ?? (onChanged != null ? () => onChanged!(!value) : null),
+      onLongPress: onLongPress,
       splashColor: colors.accentPrimary.withValues(alpha: 0.05),
       highlightColor: Colors.transparent,
       child: Padding(

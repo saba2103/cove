@@ -1,46 +1,130 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="A calm, shared home operating system built with local-first end-to-end encrypted sync.">
+  <meta name="theme-color" content="#0B1F1E">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="cove">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cove">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>cove</title>
+  <title>Cove — A quiet operating system for two</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <link rel="manifest" href="manifest.json">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0B1F1E;
+      color: #F3ECE2;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+    #loading-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #0B1F1E;
+      z-index: 99999;
+      pointer-events: none;
+      transition: opacity 0.3s ease-out;
+    }
+    .brand-mark {
+      width: 64px;
+      height: 64px;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .circle {
+      position: absolute;
+      top: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid #D8B98C;
+      background-color: rgba(216, 185, 140, 0.12);
+    }
+    .circle.left {
+      left: 6px;
+    }
+    .circle.right {
+      right: 6px;
+    }
+    .brand-title {
+      font-family: 'Bodoni Moda', Georgia, serif;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      color: #F3ECE2;
+      margin-bottom: 8px;
+    }
+    .brand-subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      color: #8C9E9D;
+      letter-spacing: 0.2px;
+      margin-bottom: 32px;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 1.5px solid rgba(216, 185, 140, 0.2);
+      border-top-color: #D8B98C;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <div id="loading-splash">
+    <div class="brand-mark">
+      <div class="circle left"></div>
+      <div class="circle right"></div>
+    </div>
+    <div class="brand-title">Cove</div>
+    <div class="brand-subtitle">A quiet operating system for two</div>
+    <div class="spinner"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('loading-splash');
+      if (splash) splash.remove();
+    });
+    setTimeout(function () {
+      var splash = document.getElementById('loading-splash');
+      if (splash) splash.remove();
+    }, 2000);
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

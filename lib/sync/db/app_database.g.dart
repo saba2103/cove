@@ -47,6 +47,18 @@ class $LocalHomesTable extends LocalHomes
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _currencyMeta = const VerificationMeta(
+    'currency',
+  );
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+    'currency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('USD'),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -75,6 +87,7 @@ class $LocalHomesTable extends LocalHomes
     name,
     description,
     icon,
+    currency,
     createdAt,
     createdBy,
   ];
@@ -118,6 +131,12 @@ class $LocalHomesTable extends LocalHomes
         icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
       );
     }
+    if (data.containsKey('currency')) {
+      context.handle(
+        _currencyMeta,
+        currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -159,6 +178,10 @@ class $LocalHomesTable extends LocalHomes
         DriftSqlType.string,
         data['${effectivePrefix}icon'],
       ),
+      currency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -181,6 +204,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
   final String name;
   final String? description;
   final String? icon;
+  final String currency;
   final DateTime createdAt;
   final String createdBy;
   const LocalHome({
@@ -188,6 +212,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     required this.name,
     this.description,
     this.icon,
+    required this.currency,
     required this.createdAt,
     required this.createdBy,
   });
@@ -202,6 +227,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     if (!nullToAbsent || icon != null) {
       map['icon'] = Variable<String>(icon);
     }
+    map['currency'] = Variable<String>(currency);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['created_by'] = Variable<String>(createdBy);
     return map;
@@ -215,6 +241,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           ? const Value.absent()
           : Value(description),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
+      currency: Value(currency),
       createdAt: Value(createdAt),
       createdBy: Value(createdBy),
     );
@@ -230,6 +257,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String?>(json['description']),
       icon: serializer.fromJson<String?>(json['icon']),
+      currency: serializer.fromJson<String>(json['currency']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
     );
@@ -242,6 +270,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String?>(description),
       'icon': serializer.toJson<String?>(icon),
+      'currency': serializer.toJson<String>(currency),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'createdBy': serializer.toJson<String>(createdBy),
     };
@@ -252,6 +281,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     String? name,
     Value<String?> description = const Value.absent(),
     Value<String?> icon = const Value.absent(),
+    String? currency,
     DateTime? createdAt,
     String? createdBy,
   }) => LocalHome(
@@ -259,6 +289,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     name: name ?? this.name,
     description: description.present ? description.value : this.description,
     icon: icon.present ? icon.value : this.icon,
+    currency: currency ?? this.currency,
     createdAt: createdAt ?? this.createdAt,
     createdBy: createdBy ?? this.createdBy,
   );
@@ -270,6 +301,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           ? data.description.value
           : this.description,
       icon: data.icon.present ? data.icon.value : this.icon,
+      currency: data.currency.present ? data.currency.value : this.currency,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
     );
@@ -282,6 +314,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('icon: $icon, ')
+          ..write('currency: $currency, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy')
           ..write(')'))
@@ -290,7 +323,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
 
   @override
   int get hashCode =>
-      Object.hash(id, name, description, icon, createdAt, createdBy);
+      Object.hash(id, name, description, icon, currency, createdAt, createdBy);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -299,6 +332,7 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           other.name == this.name &&
           other.description == this.description &&
           other.icon == this.icon &&
+          other.currency == this.currency &&
           other.createdAt == this.createdAt &&
           other.createdBy == this.createdBy);
 }
@@ -308,6 +342,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
   final Value<String> name;
   final Value<String?> description;
   final Value<String?> icon;
+  final Value<String> currency;
   final Value<DateTime> createdAt;
   final Value<String> createdBy;
   final Value<int> rowid;
@@ -316,6 +351,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
+    this.currency = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -325,6 +361,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     required String name,
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
+    this.currency = const Value.absent(),
     required DateTime createdAt,
     required String createdBy,
     this.rowid = const Value.absent(),
@@ -337,6 +374,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? icon,
+    Expression<String>? currency,
     Expression<DateTime>? createdAt,
     Expression<String>? createdBy,
     Expression<int>? rowid,
@@ -346,6 +384,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (icon != null) 'icon': icon,
+      if (currency != null) 'currency': currency,
       if (createdAt != null) 'created_at': createdAt,
       if (createdBy != null) 'created_by': createdBy,
       if (rowid != null) 'rowid': rowid,
@@ -357,6 +396,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     Value<String>? name,
     Value<String?>? description,
     Value<String?>? icon,
+    Value<String>? currency,
     Value<DateTime>? createdAt,
     Value<String>? createdBy,
     Value<int>? rowid,
@@ -366,6 +406,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
       name: name ?? this.name,
       description: description ?? this.description,
       icon: icon ?? this.icon,
+      currency: currency ?? this.currency,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
       rowid: rowid ?? this.rowid,
@@ -387,6 +428,9 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     if (icon.present) {
       map['icon'] = Variable<String>(icon.value);
     }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -406,6 +450,7 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('icon: $icon, ')
+          ..write('currency: $currency, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
           ..write('rowid: $rowid')
@@ -1583,6 +1628,59 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paidByMeta = const VerificationMeta('paidBy');
+  @override
+  late final GeneratedColumn<String> paidBy = GeneratedColumn<String>(
+    'paid_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _financedThroughMeta = const VerificationMeta(
+    'financedThrough',
+  );
+  @override
+  late final GeneratedColumn<String> financedThrough = GeneratedColumn<String>(
+    'financed_through',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalInstallmentsMeta = const VerificationMeta(
+    'totalInstallments',
+  );
+  @override
+  late final GeneratedColumn<int> totalInstallments = GeneratedColumn<int>(
+    'total_installments',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paidInstallmentsMeta = const VerificationMeta(
+    'paidInstallments',
+  );
+  @override
+  late final GeneratedColumn<int> paidInstallments = GeneratedColumn<int>(
+    'paid_installments',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1597,6 +1695,11 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
     isPrivate,
     createdBy,
     createdAt,
+    endDate,
+    paidBy,
+    financedThrough,
+    totalInstallments,
+    paidInstallments,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1697,6 +1800,45 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('paid_by')) {
+      context.handle(
+        _paidByMeta,
+        paidBy.isAcceptableOrUnknown(data['paid_by']!, _paidByMeta),
+      );
+    }
+    if (data.containsKey('financed_through')) {
+      context.handle(
+        _financedThroughMeta,
+        financedThrough.isAcceptableOrUnknown(
+          data['financed_through']!,
+          _financedThroughMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_installments')) {
+      context.handle(
+        _totalInstallmentsMeta,
+        totalInstallments.isAcceptableOrUnknown(
+          data['total_installments']!,
+          _totalInstallmentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('paid_installments')) {
+      context.handle(
+        _paidInstallmentsMeta,
+        paidInstallments.isAcceptableOrUnknown(
+          data['paid_installments']!,
+          _paidInstallmentsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1754,6 +1896,26 @@ class $LocalSubscriptionsTable extends LocalSubscriptions
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      paidBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}paid_by'],
+      ),
+      financedThrough: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}financed_through'],
+      ),
+      totalInstallments: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_installments'],
+      ),
+      paidInstallments: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}paid_installments'],
+      ),
     );
   }
 
@@ -1777,6 +1939,11 @@ class LocalSubscription extends DataClass
   final bool isPrivate;
   final String? createdBy;
   final DateTime createdAt;
+  final DateTime? endDate;
+  final String? paidBy;
+  final String? financedThrough;
+  final int? totalInstallments;
+  final int? paidInstallments;
   const LocalSubscription({
     required this.id,
     required this.homeId,
@@ -1790,6 +1957,11 @@ class LocalSubscription extends DataClass
     required this.isPrivate,
     this.createdBy,
     required this.createdAt,
+    this.endDate,
+    this.paidBy,
+    this.financedThrough,
+    this.totalInstallments,
+    this.paidInstallments,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1810,6 +1982,21 @@ class LocalSubscription extends DataClass
       map['created_by'] = Variable<String>(createdBy);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || paidBy != null) {
+      map['paid_by'] = Variable<String>(paidBy);
+    }
+    if (!nullToAbsent || financedThrough != null) {
+      map['financed_through'] = Variable<String>(financedThrough);
+    }
+    if (!nullToAbsent || totalInstallments != null) {
+      map['total_installments'] = Variable<int>(totalInstallments);
+    }
+    if (!nullToAbsent || paidInstallments != null) {
+      map['paid_installments'] = Variable<int>(paidInstallments);
+    }
     return map;
   }
 
@@ -1831,6 +2018,21 @@ class LocalSubscription extends DataClass
           ? const Value.absent()
           : Value(createdBy),
       createdAt: Value(createdAt),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      paidBy: paidBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paidBy),
+      financedThrough: financedThrough == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financedThrough),
+      totalInstallments: totalInstallments == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalInstallments),
+      paidInstallments: paidInstallments == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paidInstallments),
     );
   }
 
@@ -1852,6 +2054,11 @@ class LocalSubscription extends DataClass
       isPrivate: serializer.fromJson<bool>(json['isPrivate']),
       createdBy: serializer.fromJson<String?>(json['createdBy']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      paidBy: serializer.fromJson<String?>(json['paidBy']),
+      financedThrough: serializer.fromJson<String?>(json['financedThrough']),
+      totalInstallments: serializer.fromJson<int?>(json['totalInstallments']),
+      paidInstallments: serializer.fromJson<int?>(json['paidInstallments']),
     );
   }
   @override
@@ -1870,6 +2077,11 @@ class LocalSubscription extends DataClass
       'isPrivate': serializer.toJson<bool>(isPrivate),
       'createdBy': serializer.toJson<String?>(createdBy),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'paidBy': serializer.toJson<String?>(paidBy),
+      'financedThrough': serializer.toJson<String?>(financedThrough),
+      'totalInstallments': serializer.toJson<int?>(totalInstallments),
+      'paidInstallments': serializer.toJson<int?>(paidInstallments),
     };
   }
 
@@ -1886,6 +2098,11 @@ class LocalSubscription extends DataClass
     bool? isPrivate,
     Value<String?> createdBy = const Value.absent(),
     DateTime? createdAt,
+    Value<DateTime?> endDate = const Value.absent(),
+    Value<String?> paidBy = const Value.absent(),
+    Value<String?> financedThrough = const Value.absent(),
+    Value<int?> totalInstallments = const Value.absent(),
+    Value<int?> paidInstallments = const Value.absent(),
   }) => LocalSubscription(
     id: id ?? this.id,
     homeId: homeId ?? this.homeId,
@@ -1899,6 +2116,17 @@ class LocalSubscription extends DataClass
     isPrivate: isPrivate ?? this.isPrivate,
     createdBy: createdBy.present ? createdBy.value : this.createdBy,
     createdAt: createdAt ?? this.createdAt,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    paidBy: paidBy.present ? paidBy.value : this.paidBy,
+    financedThrough: financedThrough.present
+        ? financedThrough.value
+        : this.financedThrough,
+    totalInstallments: totalInstallments.present
+        ? totalInstallments.value
+        : this.totalInstallments,
+    paidInstallments: paidInstallments.present
+        ? paidInstallments.value
+        : this.paidInstallments,
   );
   LocalSubscription copyWithCompanion(LocalSubscriptionsCompanion data) {
     return LocalSubscription(
@@ -1918,6 +2146,17 @@ class LocalSubscription extends DataClass
       isPrivate: data.isPrivate.present ? data.isPrivate.value : this.isPrivate,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      paidBy: data.paidBy.present ? data.paidBy.value : this.paidBy,
+      financedThrough: data.financedThrough.present
+          ? data.financedThrough.value
+          : this.financedThrough,
+      totalInstallments: data.totalInstallments.present
+          ? data.totalInstallments.value
+          : this.totalInstallments,
+      paidInstallments: data.paidInstallments.present
+          ? data.paidInstallments.value
+          : this.paidInstallments,
     );
   }
 
@@ -1935,7 +2174,12 @@ class LocalSubscription extends DataClass
           ..write('isActive: $isActive, ')
           ..write('isPrivate: $isPrivate, ')
           ..write('createdBy: $createdBy, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('endDate: $endDate, ')
+          ..write('paidBy: $paidBy, ')
+          ..write('financedThrough: $financedThrough, ')
+          ..write('totalInstallments: $totalInstallments, ')
+          ..write('paidInstallments: $paidInstallments')
           ..write(')'))
         .toString();
   }
@@ -1954,6 +2198,11 @@ class LocalSubscription extends DataClass
     isPrivate,
     createdBy,
     createdAt,
+    endDate,
+    paidBy,
+    financedThrough,
+    totalInstallments,
+    paidInstallments,
   );
   @override
   bool operator ==(Object other) =>
@@ -1970,7 +2219,12 @@ class LocalSubscription extends DataClass
           other.isActive == this.isActive &&
           other.isPrivate == this.isPrivate &&
           other.createdBy == this.createdBy &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.endDate == this.endDate &&
+          other.paidBy == this.paidBy &&
+          other.financedThrough == this.financedThrough &&
+          other.totalInstallments == this.totalInstallments &&
+          other.paidInstallments == this.paidInstallments);
 }
 
 class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
@@ -1986,6 +2240,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
   final Value<bool> isPrivate;
   final Value<String?> createdBy;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> endDate;
+  final Value<String?> paidBy;
+  final Value<String?> financedThrough;
+  final Value<int?> totalInstallments;
+  final Value<int?> paidInstallments;
   final Value<int> rowid;
   const LocalSubscriptionsCompanion({
     this.id = const Value.absent(),
@@ -2000,6 +2259,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     this.isPrivate = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.paidBy = const Value.absent(),
+    this.financedThrough = const Value.absent(),
+    this.totalInstallments = const Value.absent(),
+    this.paidInstallments = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalSubscriptionsCompanion.insert({
@@ -2015,6 +2279,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     this.isPrivate = const Value.absent(),
     this.createdBy = const Value.absent(),
     required DateTime createdAt,
+    this.endDate = const Value.absent(),
+    this.paidBy = const Value.absent(),
+    this.financedThrough = const Value.absent(),
+    this.totalInstallments = const Value.absent(),
+    this.paidInstallments = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        homeId = Value(homeId),
@@ -2035,6 +2304,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     Expression<bool>? isPrivate,
     Expression<String>? createdBy,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? endDate,
+    Expression<String>? paidBy,
+    Expression<String>? financedThrough,
+    Expression<int>? totalInstallments,
+    Expression<int>? paidInstallments,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2050,6 +2324,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
       if (isPrivate != null) 'is_private': isPrivate,
       if (createdBy != null) 'created_by': createdBy,
       if (createdAt != null) 'created_at': createdAt,
+      if (endDate != null) 'end_date': endDate,
+      if (paidBy != null) 'paid_by': paidBy,
+      if (financedThrough != null) 'financed_through': financedThrough,
+      if (totalInstallments != null) 'total_installments': totalInstallments,
+      if (paidInstallments != null) 'paid_installments': paidInstallments,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2067,6 +2346,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     Value<bool>? isPrivate,
     Value<String?>? createdBy,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? endDate,
+    Value<String?>? paidBy,
+    Value<String?>? financedThrough,
+    Value<int?>? totalInstallments,
+    Value<int?>? paidInstallments,
     Value<int>? rowid,
   }) {
     return LocalSubscriptionsCompanion(
@@ -2082,6 +2366,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
       isPrivate: isPrivate ?? this.isPrivate,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
+      endDate: endDate ?? this.endDate,
+      paidBy: paidBy ?? this.paidBy,
+      financedThrough: financedThrough ?? this.financedThrough,
+      totalInstallments: totalInstallments ?? this.totalInstallments,
+      paidInstallments: paidInstallments ?? this.paidInstallments,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2125,6 +2414,21 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (paidBy.present) {
+      map['paid_by'] = Variable<String>(paidBy.value);
+    }
+    if (financedThrough.present) {
+      map['financed_through'] = Variable<String>(financedThrough.value);
+    }
+    if (totalInstallments.present) {
+      map['total_installments'] = Variable<int>(totalInstallments.value);
+    }
+    if (paidInstallments.present) {
+      map['paid_installments'] = Variable<int>(paidInstallments.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2146,6 +2450,11 @@ class LocalSubscriptionsCompanion extends UpdateCompanion<LocalSubscription> {
           ..write('isPrivate: $isPrivate, ')
           ..write('createdBy: $createdBy, ')
           ..write('createdAt: $createdAt, ')
+          ..write('endDate: $endDate, ')
+          ..write('paidBy: $paidBy, ')
+          ..write('financedThrough: $financedThrough, ')
+          ..write('totalInstallments: $totalInstallments, ')
+          ..write('paidInstallments: $paidInstallments, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2249,6 +2558,32 @@ class $LocalExpensesTable extends LocalExpenses
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _paymentMethodMeta = const VerificationMeta(
+    'paymentMethod',
+  );
+  @override
+  late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
+    'payment_method',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isTransferMeta = const VerificationMeta(
+    'isTransfer',
+  );
+  @override
+  late final GeneratedColumn<bool> isTransfer = GeneratedColumn<bool>(
+    'is_transfer',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_transfer" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2271,6 +2606,8 @@ class $LocalExpensesTable extends LocalExpenses
     splitRatio,
     expenseDate,
     category,
+    paymentMethod,
+    isTransfer,
     createdAt,
   ];
   @override
@@ -2351,6 +2688,21 @@ class $LocalExpensesTable extends LocalExpenses
         category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
       );
     }
+    if (data.containsKey('payment_method')) {
+      context.handle(
+        _paymentMethodMeta,
+        paymentMethod.isAcceptableOrUnknown(
+          data['payment_method']!,
+          _paymentMethodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_transfer')) {
+      context.handle(
+        _isTransferMeta,
+        isTransfer.isAcceptableOrUnknown(data['is_transfer']!, _isTransferMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2404,6 +2756,14 @@ class $LocalExpensesTable extends LocalExpenses
         DriftSqlType.string,
         data['${effectivePrefix}category'],
       ),
+      paymentMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_method'],
+      ),
+      isTransfer: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_transfer'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2427,6 +2787,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
   final double splitRatio;
   final DateTime expenseDate;
   final String? category;
+  final String? paymentMethod;
+  final bool isTransfer;
   final DateTime createdAt;
   const LocalExpense({
     required this.id,
@@ -2438,6 +2800,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     required this.splitRatio,
     required this.expenseDate,
     this.category,
+    this.paymentMethod,
+    required this.isTransfer,
     required this.createdAt,
   });
   @override
@@ -2454,6 +2818,10 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
     }
+    if (!nullToAbsent || paymentMethod != null) {
+      map['payment_method'] = Variable<String>(paymentMethod);
+    }
+    map['is_transfer'] = Variable<bool>(isTransfer);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -2471,6 +2839,10 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
+      paymentMethod: paymentMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentMethod),
+      isTransfer: Value(isTransfer),
       createdAt: Value(createdAt),
     );
   }
@@ -2490,6 +2862,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       splitRatio: serializer.fromJson<double>(json['splitRatio']),
       expenseDate: serializer.fromJson<DateTime>(json['expenseDate']),
       category: serializer.fromJson<String?>(json['category']),
+      paymentMethod: serializer.fromJson<String?>(json['paymentMethod']),
+      isTransfer: serializer.fromJson<bool>(json['isTransfer']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2506,6 +2880,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
       'splitRatio': serializer.toJson<double>(splitRatio),
       'expenseDate': serializer.toJson<DateTime>(expenseDate),
       'category': serializer.toJson<String?>(category),
+      'paymentMethod': serializer.toJson<String?>(paymentMethod),
+      'isTransfer': serializer.toJson<bool>(isTransfer),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -2520,6 +2896,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     double? splitRatio,
     DateTime? expenseDate,
     Value<String?> category = const Value.absent(),
+    Value<String?> paymentMethod = const Value.absent(),
+    bool? isTransfer,
     DateTime? createdAt,
   }) => LocalExpense(
     id: id ?? this.id,
@@ -2531,6 +2909,10 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     splitRatio: splitRatio ?? this.splitRatio,
     expenseDate: expenseDate ?? this.expenseDate,
     category: category.present ? category.value : this.category,
+    paymentMethod: paymentMethod.present
+        ? paymentMethod.value
+        : this.paymentMethod,
+    isTransfer: isTransfer ?? this.isTransfer,
     createdAt: createdAt ?? this.createdAt,
   );
   LocalExpense copyWithCompanion(LocalExpensesCompanion data) {
@@ -2548,6 +2930,12 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
           ? data.expenseDate.value
           : this.expenseDate,
       category: data.category.present ? data.category.value : this.category,
+      paymentMethod: data.paymentMethod.present
+          ? data.paymentMethod.value
+          : this.paymentMethod,
+      isTransfer: data.isTransfer.present
+          ? data.isTransfer.value
+          : this.isTransfer,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -2564,6 +2952,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
           ..write('splitRatio: $splitRatio, ')
           ..write('expenseDate: $expenseDate, ')
           ..write('category: $category, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('isTransfer: $isTransfer, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -2580,6 +2970,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
     splitRatio,
     expenseDate,
     category,
+    paymentMethod,
+    isTransfer,
     createdAt,
   );
   @override
@@ -2595,6 +2987,8 @@ class LocalExpense extends DataClass implements Insertable<LocalExpense> {
           other.splitRatio == this.splitRatio &&
           other.expenseDate == this.expenseDate &&
           other.category == this.category &&
+          other.paymentMethod == this.paymentMethod &&
+          other.isTransfer == this.isTransfer &&
           other.createdAt == this.createdAt);
 }
 
@@ -2608,6 +3002,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
   final Value<double> splitRatio;
   final Value<DateTime> expenseDate;
   final Value<String?> category;
+  final Value<String?> paymentMethod;
+  final Value<bool> isTransfer;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const LocalExpensesCompanion({
@@ -2620,6 +3016,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     this.splitRatio = const Value.absent(),
     this.expenseDate = const Value.absent(),
     this.category = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.isTransfer = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2633,6 +3031,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     this.splitRatio = const Value.absent(),
     required DateTime expenseDate,
     this.category = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.isTransfer = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -2652,6 +3052,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     Expression<double>? splitRatio,
     Expression<DateTime>? expenseDate,
     Expression<String>? category,
+    Expression<String>? paymentMethod,
+    Expression<bool>? isTransfer,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -2665,6 +3067,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
       if (splitRatio != null) 'split_ratio': splitRatio,
       if (expenseDate != null) 'expense_date': expenseDate,
       if (category != null) 'category': category,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (isTransfer != null) 'is_transfer': isTransfer,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2680,6 +3084,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     Value<double>? splitRatio,
     Value<DateTime>? expenseDate,
     Value<String?>? category,
+    Value<String?>? paymentMethod,
+    Value<bool>? isTransfer,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -2693,6 +3099,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
       splitRatio: splitRatio ?? this.splitRatio,
       expenseDate: expenseDate ?? this.expenseDate,
       category: category ?? this.category,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      isTransfer: isTransfer ?? this.isTransfer,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -2728,6 +3136,12 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (paymentMethod.present) {
+      map['payment_method'] = Variable<String>(paymentMethod.value);
+    }
+    if (isTransfer.present) {
+      map['is_transfer'] = Variable<bool>(isTransfer.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2749,6 +3163,8 @@ class LocalExpensesCompanion extends UpdateCompanion<LocalExpense> {
           ..write('splitRatio: $splitRatio, ')
           ..write('expenseDate: $expenseDate, ')
           ..write('category: $category, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('isTransfer: $isTransfer, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3796,6 +4212,17 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _recurrenceMeta = const VerificationMeta(
+    'recurrence',
+  );
+  @override
+  late final GeneratedColumn<String> recurrence = GeneratedColumn<String>(
+    'recurrence',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3808,6 +4235,7 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
     location,
     createdAt,
     createdBy,
+    recurrence,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3895,6 +4323,12 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
     } else if (isInserting) {
       context.missing(_createdByMeta);
     }
+    if (data.containsKey('recurrence')) {
+      context.handle(
+        _recurrenceMeta,
+        recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
+      );
+    }
     return context;
   }
 
@@ -3944,6 +4378,10 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      recurrence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence'],
+      ),
     );
   }
 
@@ -3965,6 +4403,7 @@ class LocalCalendarEvent extends DataClass
   final String? location;
   final DateTime createdAt;
   final String createdBy;
+  final String? recurrence;
   const LocalCalendarEvent({
     required this.id,
     required this.homeId,
@@ -3976,6 +4415,7 @@ class LocalCalendarEvent extends DataClass
     this.location,
     required this.createdAt,
     required this.createdBy,
+    this.recurrence,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3994,6 +4434,9 @@ class LocalCalendarEvent extends DataClass
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['created_by'] = Variable<String>(createdBy);
+    if (!nullToAbsent || recurrence != null) {
+      map['recurrence'] = Variable<String>(recurrence);
+    }
     return map;
   }
 
@@ -4013,6 +4456,9 @@ class LocalCalendarEvent extends DataClass
           : Value(location),
       createdAt: Value(createdAt),
       createdBy: Value(createdBy),
+      recurrence: recurrence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrence),
     );
   }
 
@@ -4032,6 +4478,7 @@ class LocalCalendarEvent extends DataClass
       location: serializer.fromJson<String?>(json['location']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      recurrence: serializer.fromJson<String?>(json['recurrence']),
     );
   }
   @override
@@ -4048,6 +4495,7 @@ class LocalCalendarEvent extends DataClass
       'location': serializer.toJson<String?>(location),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'createdBy': serializer.toJson<String>(createdBy),
+      'recurrence': serializer.toJson<String?>(recurrence),
     };
   }
 
@@ -4062,6 +4510,7 @@ class LocalCalendarEvent extends DataClass
     Value<String?> location = const Value.absent(),
     DateTime? createdAt,
     String? createdBy,
+    Value<String?> recurrence = const Value.absent(),
   }) => LocalCalendarEvent(
     id: id ?? this.id,
     homeId: homeId ?? this.homeId,
@@ -4073,6 +4522,7 @@ class LocalCalendarEvent extends DataClass
     location: location.present ? location.value : this.location,
     createdAt: createdAt ?? this.createdAt,
     createdBy: createdBy ?? this.createdBy,
+    recurrence: recurrence.present ? recurrence.value : this.recurrence,
   );
   LocalCalendarEvent copyWithCompanion(LocalCalendarEventsCompanion data) {
     return LocalCalendarEvent(
@@ -4088,6 +4538,9 @@ class LocalCalendarEvent extends DataClass
       location: data.location.present ? data.location.value : this.location,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      recurrence: data.recurrence.present
+          ? data.recurrence.value
+          : this.recurrence,
     );
   }
 
@@ -4103,7 +4556,8 @@ class LocalCalendarEvent extends DataClass
           ..write('isAllDay: $isAllDay, ')
           ..write('location: $location, ')
           ..write('createdAt: $createdAt, ')
-          ..write('createdBy: $createdBy')
+          ..write('createdBy: $createdBy, ')
+          ..write('recurrence: $recurrence')
           ..write(')'))
         .toString();
   }
@@ -4120,6 +4574,7 @@ class LocalCalendarEvent extends DataClass
     location,
     createdAt,
     createdBy,
+    recurrence,
   );
   @override
   bool operator ==(Object other) =>
@@ -4134,7 +4589,8 @@ class LocalCalendarEvent extends DataClass
           other.isAllDay == this.isAllDay &&
           other.location == this.location &&
           other.createdAt == this.createdAt &&
-          other.createdBy == this.createdBy);
+          other.createdBy == this.createdBy &&
+          other.recurrence == this.recurrence);
 }
 
 class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
@@ -4148,6 +4604,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
   final Value<String?> location;
   final Value<DateTime> createdAt;
   final Value<String> createdBy;
+  final Value<String?> recurrence;
   final Value<int> rowid;
   const LocalCalendarEventsCompanion({
     this.id = const Value.absent(),
@@ -4160,6 +4617,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     this.location = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.recurrence = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalCalendarEventsCompanion.insert({
@@ -4173,6 +4631,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     this.location = const Value.absent(),
     required DateTime createdAt,
     required String createdBy,
+    this.recurrence = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        homeId = Value(homeId),
@@ -4192,6 +4651,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     Expression<String>? location,
     Expression<DateTime>? createdAt,
     Expression<String>? createdBy,
+    Expression<String>? recurrence,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4205,6 +4665,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
       if (location != null) 'location': location,
       if (createdAt != null) 'created_at': createdAt,
       if (createdBy != null) 'created_by': createdBy,
+      if (recurrence != null) 'recurrence': recurrence,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4220,6 +4681,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     Value<String?>? location,
     Value<DateTime>? createdAt,
     Value<String>? createdBy,
+    Value<String?>? recurrence,
     Value<int>? rowid,
   }) {
     return LocalCalendarEventsCompanion(
@@ -4233,6 +4695,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
       location: location ?? this.location,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
+      recurrence: recurrence ?? this.recurrence,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4270,6 +4733,9 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (recurrence.present) {
+      map['recurrence'] = Variable<String>(recurrence.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4289,6 +4755,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
           ..write('location: $location, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
+          ..write('recurrence: $recurrence, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4921,6 +5388,2461 @@ class LocalOutboxEventsCompanion extends UpdateCompanion<LocalOutboxEvent> {
   }
 }
 
+class $LocalActivityEventsTable extends LocalActivityEvents
+    with TableInfo<$LocalActivityEventsTable, LocalActivityEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalActivityEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actorIdMeta = const VerificationMeta(
+    'actorId',
+  );
+  @override
+  late final GeneratedColumn<String> actorId = GeneratedColumn<String>(
+    'actor_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _syncStatusMeta = const VerificationMeta(
+    'syncStatus',
+  );
+  @override
+  late final GeneratedColumn<String> syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('savedLocally'),
+  );
+  static const VerificationMeta _isPrivateMeta = const VerificationMeta(
+    'isPrivate',
+  );
+  @override
+  late final GeneratedColumn<bool> isPrivate = GeneratedColumn<bool>(
+    'is_private',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_private" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    homeId,
+    actorId,
+    eventType,
+    payloadJson,
+    createdAt,
+    syncStatus,
+    isPrivate,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_activity_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalActivityEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('actor_id')) {
+      context.handle(
+        _actorIdMeta,
+        actorId.isAcceptableOrUnknown(data['actor_id']!, _actorIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actorIdMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('sync_status')) {
+      context.handle(
+        _syncStatusMeta,
+        syncStatus.isAcceptableOrUnknown(data['sync_status']!, _syncStatusMeta),
+      );
+    }
+    if (data.containsKey('is_private')) {
+      context.handle(
+        _isPrivateMeta,
+        isPrivate.isAcceptableOrUnknown(data['is_private']!, _isPrivateMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalActivityEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalActivityEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      actorId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}actor_id'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      syncStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_status'],
+      )!,
+      isPrivate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_private'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalActivityEventsTable createAlias(String alias) {
+    return $LocalActivityEventsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalActivityEvent extends DataClass
+    implements Insertable<LocalActivityEvent> {
+  final String id;
+  final String homeId;
+  final String actorId;
+  final String eventType;
+  final String payloadJson;
+  final DateTime createdAt;
+  final String syncStatus;
+  final bool isPrivate;
+  const LocalActivityEvent({
+    required this.id,
+    required this.homeId,
+    required this.actorId,
+    required this.eventType,
+    required this.payloadJson,
+    required this.createdAt,
+    required this.syncStatus,
+    required this.isPrivate,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['actor_id'] = Variable<String>(actorId);
+    map['event_type'] = Variable<String>(eventType);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['sync_status'] = Variable<String>(syncStatus);
+    map['is_private'] = Variable<bool>(isPrivate);
+    return map;
+  }
+
+  LocalActivityEventsCompanion toCompanion(bool nullToAbsent) {
+    return LocalActivityEventsCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      actorId: Value(actorId),
+      eventType: Value(eventType),
+      payloadJson: Value(payloadJson),
+      createdAt: Value(createdAt),
+      syncStatus: Value(syncStatus),
+      isPrivate: Value(isPrivate),
+    );
+  }
+
+  factory LocalActivityEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalActivityEvent(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      actorId: serializer.fromJson<String>(json['actorId']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      syncStatus: serializer.fromJson<String>(json['syncStatus']),
+      isPrivate: serializer.fromJson<bool>(json['isPrivate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'actorId': serializer.toJson<String>(actorId),
+      'eventType': serializer.toJson<String>(eventType),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'syncStatus': serializer.toJson<String>(syncStatus),
+      'isPrivate': serializer.toJson<bool>(isPrivate),
+    };
+  }
+
+  LocalActivityEvent copyWith({
+    String? id,
+    String? homeId,
+    String? actorId,
+    String? eventType,
+    String? payloadJson,
+    DateTime? createdAt,
+    String? syncStatus,
+    bool? isPrivate,
+  }) => LocalActivityEvent(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    actorId: actorId ?? this.actorId,
+    eventType: eventType ?? this.eventType,
+    payloadJson: payloadJson ?? this.payloadJson,
+    createdAt: createdAt ?? this.createdAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+    isPrivate: isPrivate ?? this.isPrivate,
+  );
+  LocalActivityEvent copyWithCompanion(LocalActivityEventsCompanion data) {
+    return LocalActivityEvent(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      actorId: data.actorId.present ? data.actorId.value : this.actorId,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      isPrivate: data.isPrivate.present ? data.isPrivate.value : this.isPrivate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalActivityEvent(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('actorId: $actorId, ')
+          ..write('eventType: $eventType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isPrivate: $isPrivate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    homeId,
+    actorId,
+    eventType,
+    payloadJson,
+    createdAt,
+    syncStatus,
+    isPrivate,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalActivityEvent &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.actorId == this.actorId &&
+          other.eventType == this.eventType &&
+          other.payloadJson == this.payloadJson &&
+          other.createdAt == this.createdAt &&
+          other.syncStatus == this.syncStatus &&
+          other.isPrivate == this.isPrivate);
+}
+
+class LocalActivityEventsCompanion extends UpdateCompanion<LocalActivityEvent> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<String> actorId;
+  final Value<String> eventType;
+  final Value<String> payloadJson;
+  final Value<DateTime> createdAt;
+  final Value<String> syncStatus;
+  final Value<bool> isPrivate;
+  final Value<int> rowid;
+  const LocalActivityEventsCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.actorId = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.isPrivate = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalActivityEventsCompanion.insert({
+    required String id,
+    required String homeId,
+    required String actorId,
+    required String eventType,
+    required String payloadJson,
+    required DateTime createdAt,
+    this.syncStatus = const Value.absent(),
+    this.isPrivate = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       actorId = Value(actorId),
+       eventType = Value(eventType),
+       payloadJson = Value(payloadJson),
+       createdAt = Value(createdAt);
+  static Insertable<LocalActivityEvent> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<String>? actorId,
+    Expression<String>? eventType,
+    Expression<String>? payloadJson,
+    Expression<DateTime>? createdAt,
+    Expression<String>? syncStatus,
+    Expression<bool>? isPrivate,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (actorId != null) 'actor_id': actorId,
+      if (eventType != null) 'event_type': eventType,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (isPrivate != null) 'is_private': isPrivate,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalActivityEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<String>? actorId,
+    Value<String>? eventType,
+    Value<String>? payloadJson,
+    Value<DateTime>? createdAt,
+    Value<String>? syncStatus,
+    Value<bool>? isPrivate,
+    Value<int>? rowid,
+  }) {
+    return LocalActivityEventsCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      actorId: actorId ?? this.actorId,
+      eventType: eventType ?? this.eventType,
+      payloadJson: payloadJson ?? this.payloadJson,
+      createdAt: createdAt ?? this.createdAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      isPrivate: isPrivate ?? this.isPrivate,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (actorId.present) {
+      map['actor_id'] = Variable<String>(actorId.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(syncStatus.value);
+    }
+    if (isPrivate.present) {
+      map['is_private'] = Variable<bool>(isPrivate.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalActivityEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('actorId: $actorId, ')
+          ..write('eventType: $eventType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('isPrivate: $isPrivate, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalNotificationPreferencesTable extends LocalNotificationPreferences
+    with
+        TableInfo<
+          $LocalNotificationPreferencesTable,
+          LocalNotificationPreference
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalNotificationPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('default'),
+  );
+  static const VerificationMeta _muteSubscriptionsMeta = const VerificationMeta(
+    'muteSubscriptions',
+  );
+  @override
+  late final GeneratedColumn<bool> muteSubscriptions = GeneratedColumn<bool>(
+    'mute_subscriptions',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mute_subscriptions" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _muteListsMeta = const VerificationMeta(
+    'muteLists',
+  );
+  @override
+  late final GeneratedColumn<bool> muteLists = GeneratedColumn<bool>(
+    'mute_lists',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mute_lists" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _muteExpensesMeta = const VerificationMeta(
+    'muteExpenses',
+  );
+  @override
+  late final GeneratedColumn<bool> muteExpenses = GeneratedColumn<bool>(
+    'mute_expenses',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mute_expenses" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _muteHabitsMeta = const VerificationMeta(
+    'muteHabits',
+  );
+  @override
+  late final GeneratedColumn<bool> muteHabits = GeneratedColumn<bool>(
+    'mute_habits',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mute_habits" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _muteCalendarMeta = const VerificationMeta(
+    'muteCalendar',
+  );
+  @override
+  late final GeneratedColumn<bool> muteCalendar = GeneratedColumn<bool>(
+    'mute_calendar',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mute_calendar" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    muteSubscriptions,
+    muteLists,
+    muteExpenses,
+    muteHabits,
+    muteCalendar,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_notification_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalNotificationPreference> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('mute_subscriptions')) {
+      context.handle(
+        _muteSubscriptionsMeta,
+        muteSubscriptions.isAcceptableOrUnknown(
+          data['mute_subscriptions']!,
+          _muteSubscriptionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mute_lists')) {
+      context.handle(
+        _muteListsMeta,
+        muteLists.isAcceptableOrUnknown(data['mute_lists']!, _muteListsMeta),
+      );
+    }
+    if (data.containsKey('mute_expenses')) {
+      context.handle(
+        _muteExpensesMeta,
+        muteExpenses.isAcceptableOrUnknown(
+          data['mute_expenses']!,
+          _muteExpensesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mute_habits')) {
+      context.handle(
+        _muteHabitsMeta,
+        muteHabits.isAcceptableOrUnknown(data['mute_habits']!, _muteHabitsMeta),
+      );
+    }
+    if (data.containsKey('mute_calendar')) {
+      context.handle(
+        _muteCalendarMeta,
+        muteCalendar.isAcceptableOrUnknown(
+          data['mute_calendar']!,
+          _muteCalendarMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalNotificationPreference map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalNotificationPreference(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      muteSubscriptions: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mute_subscriptions'],
+      )!,
+      muteLists: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mute_lists'],
+      )!,
+      muteExpenses: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mute_expenses'],
+      )!,
+      muteHabits: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mute_habits'],
+      )!,
+      muteCalendar: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mute_calendar'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalNotificationPreferencesTable createAlias(String alias) {
+    return $LocalNotificationPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalNotificationPreference extends DataClass
+    implements Insertable<LocalNotificationPreference> {
+  final String id;
+  final bool muteSubscriptions;
+  final bool muteLists;
+  final bool muteExpenses;
+  final bool muteHabits;
+  final bool muteCalendar;
+  final DateTime updatedAt;
+  const LocalNotificationPreference({
+    required this.id,
+    required this.muteSubscriptions,
+    required this.muteLists,
+    required this.muteExpenses,
+    required this.muteHabits,
+    required this.muteCalendar,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['mute_subscriptions'] = Variable<bool>(muteSubscriptions);
+    map['mute_lists'] = Variable<bool>(muteLists);
+    map['mute_expenses'] = Variable<bool>(muteExpenses);
+    map['mute_habits'] = Variable<bool>(muteHabits);
+    map['mute_calendar'] = Variable<bool>(muteCalendar);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LocalNotificationPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return LocalNotificationPreferencesCompanion(
+      id: Value(id),
+      muteSubscriptions: Value(muteSubscriptions),
+      muteLists: Value(muteLists),
+      muteExpenses: Value(muteExpenses),
+      muteHabits: Value(muteHabits),
+      muteCalendar: Value(muteCalendar),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LocalNotificationPreference.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalNotificationPreference(
+      id: serializer.fromJson<String>(json['id']),
+      muteSubscriptions: serializer.fromJson<bool>(json['muteSubscriptions']),
+      muteLists: serializer.fromJson<bool>(json['muteLists']),
+      muteExpenses: serializer.fromJson<bool>(json['muteExpenses']),
+      muteHabits: serializer.fromJson<bool>(json['muteHabits']),
+      muteCalendar: serializer.fromJson<bool>(json['muteCalendar']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'muteSubscriptions': serializer.toJson<bool>(muteSubscriptions),
+      'muteLists': serializer.toJson<bool>(muteLists),
+      'muteExpenses': serializer.toJson<bool>(muteExpenses),
+      'muteHabits': serializer.toJson<bool>(muteHabits),
+      'muteCalendar': serializer.toJson<bool>(muteCalendar),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LocalNotificationPreference copyWith({
+    String? id,
+    bool? muteSubscriptions,
+    bool? muteLists,
+    bool? muteExpenses,
+    bool? muteHabits,
+    bool? muteCalendar,
+    DateTime? updatedAt,
+  }) => LocalNotificationPreference(
+    id: id ?? this.id,
+    muteSubscriptions: muteSubscriptions ?? this.muteSubscriptions,
+    muteLists: muteLists ?? this.muteLists,
+    muteExpenses: muteExpenses ?? this.muteExpenses,
+    muteHabits: muteHabits ?? this.muteHabits,
+    muteCalendar: muteCalendar ?? this.muteCalendar,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LocalNotificationPreference copyWithCompanion(
+    LocalNotificationPreferencesCompanion data,
+  ) {
+    return LocalNotificationPreference(
+      id: data.id.present ? data.id.value : this.id,
+      muteSubscriptions: data.muteSubscriptions.present
+          ? data.muteSubscriptions.value
+          : this.muteSubscriptions,
+      muteLists: data.muteLists.present ? data.muteLists.value : this.muteLists,
+      muteExpenses: data.muteExpenses.present
+          ? data.muteExpenses.value
+          : this.muteExpenses,
+      muteHabits: data.muteHabits.present
+          ? data.muteHabits.value
+          : this.muteHabits,
+      muteCalendar: data.muteCalendar.present
+          ? data.muteCalendar.value
+          : this.muteCalendar,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalNotificationPreference(')
+          ..write('id: $id, ')
+          ..write('muteSubscriptions: $muteSubscriptions, ')
+          ..write('muteLists: $muteLists, ')
+          ..write('muteExpenses: $muteExpenses, ')
+          ..write('muteHabits: $muteHabits, ')
+          ..write('muteCalendar: $muteCalendar, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    muteSubscriptions,
+    muteLists,
+    muteExpenses,
+    muteHabits,
+    muteCalendar,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalNotificationPreference &&
+          other.id == this.id &&
+          other.muteSubscriptions == this.muteSubscriptions &&
+          other.muteLists == this.muteLists &&
+          other.muteExpenses == this.muteExpenses &&
+          other.muteHabits == this.muteHabits &&
+          other.muteCalendar == this.muteCalendar &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LocalNotificationPreferencesCompanion
+    extends UpdateCompanion<LocalNotificationPreference> {
+  final Value<String> id;
+  final Value<bool> muteSubscriptions;
+  final Value<bool> muteLists;
+  final Value<bool> muteExpenses;
+  final Value<bool> muteHabits;
+  final Value<bool> muteCalendar;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LocalNotificationPreferencesCompanion({
+    this.id = const Value.absent(),
+    this.muteSubscriptions = const Value.absent(),
+    this.muteLists = const Value.absent(),
+    this.muteExpenses = const Value.absent(),
+    this.muteHabits = const Value.absent(),
+    this.muteCalendar = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalNotificationPreferencesCompanion.insert({
+    this.id = const Value.absent(),
+    this.muteSubscriptions = const Value.absent(),
+    this.muteLists = const Value.absent(),
+    this.muteExpenses = const Value.absent(),
+    this.muteHabits = const Value.absent(),
+    this.muteCalendar = const Value.absent(),
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : updatedAt = Value(updatedAt);
+  static Insertable<LocalNotificationPreference> custom({
+    Expression<String>? id,
+    Expression<bool>? muteSubscriptions,
+    Expression<bool>? muteLists,
+    Expression<bool>? muteExpenses,
+    Expression<bool>? muteHabits,
+    Expression<bool>? muteCalendar,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (muteSubscriptions != null) 'mute_subscriptions': muteSubscriptions,
+      if (muteLists != null) 'mute_lists': muteLists,
+      if (muteExpenses != null) 'mute_expenses': muteExpenses,
+      if (muteHabits != null) 'mute_habits': muteHabits,
+      if (muteCalendar != null) 'mute_calendar': muteCalendar,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalNotificationPreferencesCompanion copyWith({
+    Value<String>? id,
+    Value<bool>? muteSubscriptions,
+    Value<bool>? muteLists,
+    Value<bool>? muteExpenses,
+    Value<bool>? muteHabits,
+    Value<bool>? muteCalendar,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return LocalNotificationPreferencesCompanion(
+      id: id ?? this.id,
+      muteSubscriptions: muteSubscriptions ?? this.muteSubscriptions,
+      muteLists: muteLists ?? this.muteLists,
+      muteExpenses: muteExpenses ?? this.muteExpenses,
+      muteHabits: muteHabits ?? this.muteHabits,
+      muteCalendar: muteCalendar ?? this.muteCalendar,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (muteSubscriptions.present) {
+      map['mute_subscriptions'] = Variable<bool>(muteSubscriptions.value);
+    }
+    if (muteLists.present) {
+      map['mute_lists'] = Variable<bool>(muteLists.value);
+    }
+    if (muteExpenses.present) {
+      map['mute_expenses'] = Variable<bool>(muteExpenses.value);
+    }
+    if (muteHabits.present) {
+      map['mute_habits'] = Variable<bool>(muteHabits.value);
+    }
+    if (muteCalendar.present) {
+      map['mute_calendar'] = Variable<bool>(muteCalendar.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalNotificationPreferencesCompanion(')
+          ..write('id: $id, ')
+          ..write('muteSubscriptions: $muteSubscriptions, ')
+          ..write('muteLists: $muteLists, ')
+          ..write('muteExpenses: $muteExpenses, ')
+          ..write('muteHabits: $muteHabits, ')
+          ..write('muteCalendar: $muteCalendar, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRoadmapItemsTable extends LocalRoadmapItems
+    with TableInfo<$LocalRoadmapItemsTable, LocalRoadmapItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRoadmapItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isCompletedMeta = const VerificationMeta(
+    'isCompleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isCompleted = GeneratedColumn<bool>(
+    'is_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    homeId,
+    title,
+    description,
+    isCompleted,
+    createdAt,
+    createdBy,
+    completedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_roadmap_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalRoadmapItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_completed')) {
+      context.handle(
+        _isCompletedMeta,
+        isCompleted.isAcceptableOrUnknown(
+          data['is_completed']!,
+          _isCompletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdByMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRoadmapItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRoadmapItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      isCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_completed'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+    );
+  }
+
+  @override
+  $LocalRoadmapItemsTable createAlias(String alias) {
+    return $LocalRoadmapItemsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRoadmapItem extends DataClass
+    implements Insertable<LocalRoadmapItem> {
+  final String id;
+  final String homeId;
+  final String title;
+  final String? description;
+  final bool isCompleted;
+  final DateTime createdAt;
+  final String createdBy;
+  final DateTime? completedAt;
+  const LocalRoadmapItem({
+    required this.id,
+    required this.homeId,
+    required this.title,
+    this.description,
+    required this.isCompleted,
+    required this.createdAt,
+    required this.createdBy,
+    this.completedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['is_completed'] = Variable<bool>(isCompleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['created_by'] = Variable<String>(createdBy);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    return map;
+  }
+
+  LocalRoadmapItemsCompanion toCompanion(bool nullToAbsent) {
+    return LocalRoadmapItemsCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      isCompleted: Value(isCompleted),
+      createdAt: Value(createdAt),
+      createdBy: Value(createdBy),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+    );
+  }
+
+  factory LocalRoadmapItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRoadmapItem(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      isCompleted: serializer.fromJson<bool>(json['isCompleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      createdBy: serializer.fromJson<String>(json['createdBy']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+      'isCompleted': serializer.toJson<bool>(isCompleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'createdBy': serializer.toJson<String>(createdBy),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+    };
+  }
+
+  LocalRoadmapItem copyWith({
+    String? id,
+    String? homeId,
+    String? title,
+    Value<String?> description = const Value.absent(),
+    bool? isCompleted,
+    DateTime? createdAt,
+    String? createdBy,
+    Value<DateTime?> completedAt = const Value.absent(),
+  }) => LocalRoadmapItem(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+    isCompleted: isCompleted ?? this.isCompleted,
+    createdAt: createdAt ?? this.createdAt,
+    createdBy: createdBy ?? this.createdBy,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+  );
+  LocalRoadmapItem copyWithCompanion(LocalRoadmapItemsCompanion data) {
+    return LocalRoadmapItem(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      isCompleted: data.isCompleted.present
+          ? data.isCompleted.value
+          : this.isCompleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoadmapItem(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('isCompleted: $isCompleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    homeId,
+    title,
+    description,
+    isCompleted,
+    createdAt,
+    createdBy,
+    completedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRoadmapItem &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.isCompleted == this.isCompleted &&
+          other.createdAt == this.createdAt &&
+          other.createdBy == this.createdBy &&
+          other.completedAt == this.completedAt);
+}
+
+class LocalRoadmapItemsCompanion extends UpdateCompanion<LocalRoadmapItem> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<bool> isCompleted;
+  final Value<DateTime> createdAt;
+  final Value<String> createdBy;
+  final Value<DateTime?> completedAt;
+  final Value<int> rowid;
+  const LocalRoadmapItemsCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.isCompleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRoadmapItemsCompanion.insert({
+    required String id,
+    required String homeId,
+    required String title,
+    this.description = const Value.absent(),
+    this.isCompleted = const Value.absent(),
+    required DateTime createdAt,
+    required String createdBy,
+    this.completedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       title = Value(title),
+       createdAt = Value(createdAt),
+       createdBy = Value(createdBy);
+  static Insertable<LocalRoadmapItem> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<bool>? isCompleted,
+    Expression<DateTime>? createdAt,
+    Expression<String>? createdBy,
+    Expression<DateTime>? completedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (isCompleted != null) 'is_completed': isCompleted,
+      if (createdAt != null) 'created_at': createdAt,
+      if (createdBy != null) 'created_by': createdBy,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRoadmapItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<bool>? isCompleted,
+    Value<DateTime>? createdAt,
+    Value<String>? createdBy,
+    Value<DateTime?>? completedAt,
+    Value<int>? rowid,
+  }) {
+    return LocalRoadmapItemsCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt ?? this.createdAt,
+      createdBy: createdBy ?? this.createdBy,
+      completedAt: completedAt ?? this.completedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (isCompleted.present) {
+      map['is_completed'] = Variable<bool>(isCompleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoadmapItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('isCompleted: $isCompleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRoutinesTable extends LocalRoutines
+    with TableInfo<$LocalRoutinesTable, LocalRoutine> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRoutinesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _daysJsonMeta = const VerificationMeta(
+    'daysJson',
+  );
+  @override
+  late final GeneratedColumn<String> daysJson = GeneratedColumn<String>(
+    'days_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, homeId, name, daysJson, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_routines';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalRoutine> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('days_json')) {
+      context.handle(
+        _daysJsonMeta,
+        daysJson.isAcceptableOrUnknown(data['days_json']!, _daysJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_daysJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRoutine map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRoutine(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      daysJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}days_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalRoutinesTable createAlias(String alias) {
+    return $LocalRoutinesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRoutine extends DataClass implements Insertable<LocalRoutine> {
+  final String id;
+  final String homeId;
+  final String name;
+  final String daysJson;
+  final DateTime createdAt;
+  const LocalRoutine({
+    required this.id,
+    required this.homeId,
+    required this.name,
+    required this.daysJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['name'] = Variable<String>(name);
+    map['days_json'] = Variable<String>(daysJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalRoutinesCompanion toCompanion(bool nullToAbsent) {
+    return LocalRoutinesCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      name: Value(name),
+      daysJson: Value(daysJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalRoutine.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRoutine(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      name: serializer.fromJson<String>(json['name']),
+      daysJson: serializer.fromJson<String>(json['daysJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'name': serializer.toJson<String>(name),
+      'daysJson': serializer.toJson<String>(daysJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalRoutine copyWith({
+    String? id,
+    String? homeId,
+    String? name,
+    String? daysJson,
+    DateTime? createdAt,
+  }) => LocalRoutine(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    name: name ?? this.name,
+    daysJson: daysJson ?? this.daysJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LocalRoutine copyWithCompanion(LocalRoutinesCompanion data) {
+    return LocalRoutine(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      name: data.name.present ? data.name.value : this.name,
+      daysJson: data.daysJson.present ? data.daysJson.value : this.daysJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoutine(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('name: $name, ')
+          ..write('daysJson: $daysJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, homeId, name, daysJson, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRoutine &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.name == this.name &&
+          other.daysJson == this.daysJson &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalRoutinesCompanion extends UpdateCompanion<LocalRoutine> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<String> name;
+  final Value<String> daysJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const LocalRoutinesCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.daysJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRoutinesCompanion.insert({
+    required String id,
+    required String homeId,
+    required String name,
+    required String daysJson,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       name = Value(name),
+       daysJson = Value(daysJson),
+       createdAt = Value(createdAt);
+  static Insertable<LocalRoutine> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<String>? name,
+    Expression<String>? daysJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (name != null) 'name': name,
+      if (daysJson != null) 'days_json': daysJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRoutinesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<String>? name,
+    Value<String>? daysJson,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LocalRoutinesCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      name: name ?? this.name,
+      daysJson: daysJson ?? this.daysJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (daysJson.present) {
+      map['days_json'] = Variable<String>(daysJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoutinesCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('name: $name, ')
+          ..write('daysJson: $daysJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRoutineEventsTable extends LocalRoutineEvents
+    with TableInfo<$LocalRoutineEventsTable, LocalRoutineEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRoutineEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _routineIdMeta = const VerificationMeta(
+    'routineId',
+  );
+  @override
+  late final GeneratedColumn<String> routineId = GeneratedColumn<String>(
+    'routine_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startMinutesMeta = const VerificationMeta(
+    'startMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> startMinutes = GeneratedColumn<int>(
+    'start_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endMinutesMeta = const VerificationMeta(
+    'endMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> endMinutes = GeneratedColumn<int>(
+    'end_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    routineId,
+    homeId,
+    title,
+    startMinutes,
+    endMinutes,
+    category,
+    notes,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_routine_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalRoutineEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('routine_id')) {
+      context.handle(
+        _routineIdMeta,
+        routineId.isAcceptableOrUnknown(data['routine_id']!, _routineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_routineIdMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('start_minutes')) {
+      context.handle(
+        _startMinutesMeta,
+        startMinutes.isAcceptableOrUnknown(
+          data['start_minutes']!,
+          _startMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startMinutesMeta);
+    }
+    if (data.containsKey('end_minutes')) {
+      context.handle(
+        _endMinutesMeta,
+        endMinutes.isAcceptableOrUnknown(data['end_minutes']!, _endMinutesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endMinutesMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRoutineEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRoutineEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      routineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}routine_id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      startMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_minutes'],
+      )!,
+      endMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_minutes'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalRoutineEventsTable createAlias(String alias) {
+    return $LocalRoutineEventsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRoutineEvent extends DataClass
+    implements Insertable<LocalRoutineEvent> {
+  final String id;
+  final String routineId;
+  final String homeId;
+  final String title;
+  final int startMinutes;
+  final int endMinutes;
+  final String? category;
+  final String? notes;
+  final DateTime createdAt;
+  const LocalRoutineEvent({
+    required this.id,
+    required this.routineId,
+    required this.homeId,
+    required this.title,
+    required this.startMinutes,
+    required this.endMinutes,
+    this.category,
+    this.notes,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['routine_id'] = Variable<String>(routineId);
+    map['home_id'] = Variable<String>(homeId);
+    map['title'] = Variable<String>(title);
+    map['start_minutes'] = Variable<int>(startMinutes);
+    map['end_minutes'] = Variable<int>(endMinutes);
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalRoutineEventsCompanion toCompanion(bool nullToAbsent) {
+    return LocalRoutineEventsCompanion(
+      id: Value(id),
+      routineId: Value(routineId),
+      homeId: Value(homeId),
+      title: Value(title),
+      startMinutes: Value(startMinutes),
+      endMinutes: Value(endMinutes),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalRoutineEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRoutineEvent(
+      id: serializer.fromJson<String>(json['id']),
+      routineId: serializer.fromJson<String>(json['routineId']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      title: serializer.fromJson<String>(json['title']),
+      startMinutes: serializer.fromJson<int>(json['startMinutes']),
+      endMinutes: serializer.fromJson<int>(json['endMinutes']),
+      category: serializer.fromJson<String?>(json['category']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'routineId': serializer.toJson<String>(routineId),
+      'homeId': serializer.toJson<String>(homeId),
+      'title': serializer.toJson<String>(title),
+      'startMinutes': serializer.toJson<int>(startMinutes),
+      'endMinutes': serializer.toJson<int>(endMinutes),
+      'category': serializer.toJson<String?>(category),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalRoutineEvent copyWith({
+    String? id,
+    String? routineId,
+    String? homeId,
+    String? title,
+    int? startMinutes,
+    int? endMinutes,
+    Value<String?> category = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+  }) => LocalRoutineEvent(
+    id: id ?? this.id,
+    routineId: routineId ?? this.routineId,
+    homeId: homeId ?? this.homeId,
+    title: title ?? this.title,
+    startMinutes: startMinutes ?? this.startMinutes,
+    endMinutes: endMinutes ?? this.endMinutes,
+    category: category.present ? category.value : this.category,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LocalRoutineEvent copyWithCompanion(LocalRoutineEventsCompanion data) {
+    return LocalRoutineEvent(
+      id: data.id.present ? data.id.value : this.id,
+      routineId: data.routineId.present ? data.routineId.value : this.routineId,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      title: data.title.present ? data.title.value : this.title,
+      startMinutes: data.startMinutes.present
+          ? data.startMinutes.value
+          : this.startMinutes,
+      endMinutes: data.endMinutes.present
+          ? data.endMinutes.value
+          : this.endMinutes,
+      category: data.category.present ? data.category.value : this.category,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoutineEvent(')
+          ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
+          ..write('homeId: $homeId, ')
+          ..write('title: $title, ')
+          ..write('startMinutes: $startMinutes, ')
+          ..write('endMinutes: $endMinutes, ')
+          ..write('category: $category, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    routineId,
+    homeId,
+    title,
+    startMinutes,
+    endMinutes,
+    category,
+    notes,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRoutineEvent &&
+          other.id == this.id &&
+          other.routineId == this.routineId &&
+          other.homeId == this.homeId &&
+          other.title == this.title &&
+          other.startMinutes == this.startMinutes &&
+          other.endMinutes == this.endMinutes &&
+          other.category == this.category &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
+  final Value<String> id;
+  final Value<String> routineId;
+  final Value<String> homeId;
+  final Value<String> title;
+  final Value<int> startMinutes;
+  final Value<int> endMinutes;
+  final Value<String?> category;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const LocalRoutineEventsCompanion({
+    this.id = const Value.absent(),
+    this.routineId = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.startMinutes = const Value.absent(),
+    this.endMinutes = const Value.absent(),
+    this.category = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRoutineEventsCompanion.insert({
+    required String id,
+    required String routineId,
+    required String homeId,
+    required String title,
+    required int startMinutes,
+    required int endMinutes,
+    this.category = const Value.absent(),
+    this.notes = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       routineId = Value(routineId),
+       homeId = Value(homeId),
+       title = Value(title),
+       startMinutes = Value(startMinutes),
+       endMinutes = Value(endMinutes),
+       createdAt = Value(createdAt);
+  static Insertable<LocalRoutineEvent> custom({
+    Expression<String>? id,
+    Expression<String>? routineId,
+    Expression<String>? homeId,
+    Expression<String>? title,
+    Expression<int>? startMinutes,
+    Expression<int>? endMinutes,
+    Expression<String>? category,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (routineId != null) 'routine_id': routineId,
+      if (homeId != null) 'home_id': homeId,
+      if (title != null) 'title': title,
+      if (startMinutes != null) 'start_minutes': startMinutes,
+      if (endMinutes != null) 'end_minutes': endMinutes,
+      if (category != null) 'category': category,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRoutineEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? routineId,
+    Value<String>? homeId,
+    Value<String>? title,
+    Value<int>? startMinutes,
+    Value<int>? endMinutes,
+    Value<String?>? category,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LocalRoutineEventsCompanion(
+      id: id ?? this.id,
+      routineId: routineId ?? this.routineId,
+      homeId: homeId ?? this.homeId,
+      title: title ?? this.title,
+      startMinutes: startMinutes ?? this.startMinutes,
+      endMinutes: endMinutes ?? this.endMinutes,
+      category: category ?? this.category,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (routineId.present) {
+      map['routine_id'] = Variable<String>(routineId.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (startMinutes.present) {
+      map['start_minutes'] = Variable<int>(startMinutes.value);
+    }
+    if (endMinutes.present) {
+      map['end_minutes'] = Variable<int>(endMinutes.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRoutineEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
+          ..write('homeId: $homeId, ')
+          ..write('title: $title, ')
+          ..write('startMinutes: $startMinutes, ')
+          ..write('endMinutes: $endMinutes, ')
+          ..write('category: $category, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4937,6 +7859,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalCalendarEventsTable(this);
   late final $LocalOutboxEventsTable localOutboxEvents =
       $LocalOutboxEventsTable(this);
+  late final $LocalActivityEventsTable localActivityEvents =
+      $LocalActivityEventsTable(this);
+  late final $LocalNotificationPreferencesTable localNotificationPreferences =
+      $LocalNotificationPreferencesTable(this);
+  late final $LocalRoadmapItemsTable localRoadmapItems =
+      $LocalRoadmapItemsTable(this);
+  late final $LocalRoutinesTable localRoutines = $LocalRoutinesTable(this);
+  late final $LocalRoutineEventsTable localRoutineEvents =
+      $LocalRoutineEventsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4951,6 +7882,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localHabitCheckins,
     localCalendarEvents,
     localOutboxEvents,
+    localActivityEvents,
+    localNotificationPreferences,
+    localRoadmapItems,
+    localRoutines,
+    localRoutineEvents,
   ];
 }
 
@@ -4960,6 +7896,7 @@ typedef $$LocalHomesTableCreateCompanionBuilder =
       required String name,
       Value<String?> description,
       Value<String?> icon,
+      Value<String> currency,
       required DateTime createdAt,
       required String createdBy,
       Value<int> rowid,
@@ -4970,6 +7907,7 @@ typedef $$LocalHomesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> description,
       Value<String?> icon,
+      Value<String> currency,
       Value<DateTime> createdAt,
       Value<String> createdBy,
       Value<int> rowid,
@@ -5001,6 +7939,11 @@ class $$LocalHomesTableFilterComposer
 
   ColumnFilters<String> get icon => $composableBuilder(
     column: $table.icon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currency => $composableBuilder(
+    column: $table.currency,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5044,6 +7987,11 @@ class $$LocalHomesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get currency => $composableBuilder(
+    column: $table.currency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -5077,6 +8025,9 @@ class $$LocalHomesTableAnnotationComposer
 
   GeneratedColumn<String> get icon =>
       $composableBuilder(column: $table.icon, builder: (column) => column);
+
+  GeneratedColumn<String> get currency =>
+      $composableBuilder(column: $table.currency, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5120,6 +8071,7 @@ class $$LocalHomesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<String> currency = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5128,6 +8080,7 @@ class $$LocalHomesTableTableManager
                 name: name,
                 description: description,
                 icon: icon,
+                currency: currency,
                 createdAt: createdAt,
                 createdBy: createdBy,
                 rowid: rowid,
@@ -5138,6 +8091,7 @@ class $$LocalHomesTableTableManager
                 required String name,
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
+                Value<String> currency = const Value.absent(),
                 required DateTime createdAt,
                 required String createdBy,
                 Value<int> rowid = const Value.absent(),
@@ -5146,6 +8100,7 @@ class $$LocalHomesTableTableManager
                 name: name,
                 description: description,
                 icon: icon,
+                currency: currency,
                 createdAt: createdAt,
                 createdBy: createdBy,
                 rowid: rowid,
@@ -5734,6 +8689,11 @@ typedef $$LocalSubscriptionsTableCreateCompanionBuilder =
       Value<bool> isPrivate,
       Value<String?> createdBy,
       required DateTime createdAt,
+      Value<DateTime?> endDate,
+      Value<String?> paidBy,
+      Value<String?> financedThrough,
+      Value<int?> totalInstallments,
+      Value<int?> paidInstallments,
       Value<int> rowid,
     });
 typedef $$LocalSubscriptionsTableUpdateCompanionBuilder =
@@ -5750,6 +8710,11 @@ typedef $$LocalSubscriptionsTableUpdateCompanionBuilder =
       Value<bool> isPrivate,
       Value<String?> createdBy,
       Value<DateTime> createdAt,
+      Value<DateTime?> endDate,
+      Value<String?> paidBy,
+      Value<String?> financedThrough,
+      Value<int?> totalInstallments,
+      Value<int?> paidInstallments,
       Value<int> rowid,
     });
 
@@ -5819,6 +8784,31 @@ class $$LocalSubscriptionsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paidBy => $composableBuilder(
+    column: $table.paidBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get financedThrough => $composableBuilder(
+    column: $table.financedThrough,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalInstallments => $composableBuilder(
+    column: $table.totalInstallments,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get paidInstallments => $composableBuilder(
+    column: $table.paidInstallments,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5891,6 +8881,31 @@ class $$LocalSubscriptionsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paidBy => $composableBuilder(
+    column: $table.paidBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get financedThrough => $composableBuilder(
+    column: $table.financedThrough,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalInstallments => $composableBuilder(
+    column: $table.totalInstallments,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get paidInstallments => $composableBuilder(
+    column: $table.paidInstallments,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalSubscriptionsTableAnnotationComposer
@@ -5941,6 +8956,27 @@ class $$LocalSubscriptionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<String> get paidBy =>
+      $composableBuilder(column: $table.paidBy, builder: (column) => column);
+
+  GeneratedColumn<String> get financedThrough => $composableBuilder(
+    column: $table.financedThrough,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalInstallments => $composableBuilder(
+    column: $table.totalInstallments,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get paidInstallments => $composableBuilder(
+    column: $table.paidInstallments,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalSubscriptionsTableTableManager
@@ -5995,6 +9031,11 @@ class $$LocalSubscriptionsTableTableManager
                 Value<bool> isPrivate = const Value.absent(),
                 Value<String?> createdBy = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<String?> paidBy = const Value.absent(),
+                Value<String?> financedThrough = const Value.absent(),
+                Value<int?> totalInstallments = const Value.absent(),
+                Value<int?> paidInstallments = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSubscriptionsCompanion(
                 id: id,
@@ -6009,6 +9050,11 @@ class $$LocalSubscriptionsTableTableManager
                 isPrivate: isPrivate,
                 createdBy: createdBy,
                 createdAt: createdAt,
+                endDate: endDate,
+                paidBy: paidBy,
+                financedThrough: financedThrough,
+                totalInstallments: totalInstallments,
+                paidInstallments: paidInstallments,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6025,6 +9071,11 @@ class $$LocalSubscriptionsTableTableManager
                 Value<bool> isPrivate = const Value.absent(),
                 Value<String?> createdBy = const Value.absent(),
                 required DateTime createdAt,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<String?> paidBy = const Value.absent(),
+                Value<String?> financedThrough = const Value.absent(),
+                Value<int?> totalInstallments = const Value.absent(),
+                Value<int?> paidInstallments = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalSubscriptionsCompanion.insert(
                 id: id,
@@ -6039,6 +9090,11 @@ class $$LocalSubscriptionsTableTableManager
                 isPrivate: isPrivate,
                 createdBy: createdBy,
                 createdAt: createdAt,
+                endDate: endDate,
+                paidBy: paidBy,
+                financedThrough: financedThrough,
+                totalInstallments: totalInstallments,
+                paidInstallments: paidInstallments,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6092,6 +9148,8 @@ typedef $$LocalExpensesTableCreateCompanionBuilder =
       Value<double> splitRatio,
       required DateTime expenseDate,
       Value<String?> category,
+      Value<String?> paymentMethod,
+      Value<bool> isTransfer,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -6106,6 +9164,8 @@ typedef $$LocalExpensesTableUpdateCompanionBuilder =
       Value<double> splitRatio,
       Value<DateTime> expenseDate,
       Value<String?> category,
+      Value<String?> paymentMethod,
+      Value<bool> isTransfer,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -6161,6 +9221,16 @@ class $$LocalExpensesTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
     column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isTransfer => $composableBuilder(
+    column: $table.isTransfer,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6224,6 +9294,16 @@ class $$LocalExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isTransfer => $composableBuilder(
+    column: $table.isTransfer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6270,6 +9350,16 @@ class $$LocalExpensesTableAnnotationComposer
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
 
+  GeneratedColumn<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isTransfer => $composableBuilder(
+    column: $table.isTransfer,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -6314,6 +9404,8 @@ class $$LocalExpensesTableTableManager
                 Value<double> splitRatio = const Value.absent(),
                 Value<DateTime> expenseDate = const Value.absent(),
                 Value<String?> category = const Value.absent(),
+                Value<String?> paymentMethod = const Value.absent(),
+                Value<bool> isTransfer = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalExpensesCompanion(
@@ -6326,6 +9418,8 @@ class $$LocalExpensesTableTableManager
                 splitRatio: splitRatio,
                 expenseDate: expenseDate,
                 category: category,
+                paymentMethod: paymentMethod,
+                isTransfer: isTransfer,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -6340,6 +9434,8 @@ class $$LocalExpensesTableTableManager
                 Value<double> splitRatio = const Value.absent(),
                 required DateTime expenseDate,
                 Value<String?> category = const Value.absent(),
+                Value<String?> paymentMethod = const Value.absent(),
+                Value<bool> isTransfer = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => LocalExpensesCompanion.insert(
@@ -6352,6 +9448,8 @@ class $$LocalExpensesTableTableManager
                 splitRatio: splitRatio,
                 expenseDate: expenseDate,
                 category: category,
+                paymentMethod: paymentMethod,
+                isTransfer: isTransfer,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -6916,6 +10014,7 @@ typedef $$LocalCalendarEventsTableCreateCompanionBuilder =
       Value<String?> location,
       required DateTime createdAt,
       required String createdBy,
+      Value<String?> recurrence,
       Value<int> rowid,
     });
 typedef $$LocalCalendarEventsTableUpdateCompanionBuilder =
@@ -6930,6 +10029,7 @@ typedef $$LocalCalendarEventsTableUpdateCompanionBuilder =
       Value<String?> location,
       Value<DateTime> createdAt,
       Value<String> createdBy,
+      Value<String?> recurrence,
       Value<int> rowid,
     });
 
@@ -6989,6 +10089,11 @@ class $$LocalCalendarEventsTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7051,6 +10156,11 @@ class $$LocalCalendarEventsTableOrderingComposer
     column: $table.createdBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalCalendarEventsTableAnnotationComposer
@@ -7093,6 +10203,11 @@ class $$LocalCalendarEventsTableAnnotationComposer
 
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalCalendarEventsTableTableManager
@@ -7148,6 +10263,7 @@ class $$LocalCalendarEventsTableTableManager
                 Value<String?> location = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String?> recurrence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCalendarEventsCompanion(
                 id: id,
@@ -7160,6 +10276,7 @@ class $$LocalCalendarEventsTableTableManager
                 location: location,
                 createdAt: createdAt,
                 createdBy: createdBy,
+                recurrence: recurrence,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7174,6 +10291,7 @@ class $$LocalCalendarEventsTableTableManager
                 Value<String?> location = const Value.absent(),
                 required DateTime createdAt,
                 required String createdBy,
+                Value<String?> recurrence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCalendarEventsCompanion.insert(
                 id: id,
@@ -7186,6 +10304,7 @@ class $$LocalCalendarEventsTableTableManager
                 location: location,
                 createdAt: createdAt,
                 createdBy: createdBy,
+                recurrence: recurrence,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7555,6 +10674,1369 @@ typedef $$LocalOutboxEventsTableProcessedTableManager =
       LocalOutboxEvent,
       PrefetchHooks Function()
     >;
+typedef $$LocalActivityEventsTableCreateCompanionBuilder =
+    LocalActivityEventsCompanion Function({
+      required String id,
+      required String homeId,
+      required String actorId,
+      required String eventType,
+      required String payloadJson,
+      required DateTime createdAt,
+      Value<String> syncStatus,
+      Value<bool> isPrivate,
+      Value<int> rowid,
+    });
+typedef $$LocalActivityEventsTableUpdateCompanionBuilder =
+    LocalActivityEventsCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<String> actorId,
+      Value<String> eventType,
+      Value<String> payloadJson,
+      Value<DateTime> createdAt,
+      Value<String> syncStatus,
+      Value<bool> isPrivate,
+      Value<int> rowid,
+    });
+
+class $$LocalActivityEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalActivityEventsTable> {
+  $$LocalActivityEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get actorId => $composableBuilder(
+    column: $table.actorId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPrivate => $composableBuilder(
+    column: $table.isPrivate,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalActivityEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalActivityEventsTable> {
+  $$LocalActivityEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get actorId => $composableBuilder(
+    column: $table.actorId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPrivate => $composableBuilder(
+    column: $table.isPrivate,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalActivityEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalActivityEventsTable> {
+  $$LocalActivityEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get actorId =>
+      $composableBuilder(column: $table.actorId, builder: (column) => column);
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isPrivate =>
+      $composableBuilder(column: $table.isPrivate, builder: (column) => column);
+}
+
+class $$LocalActivityEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalActivityEventsTable,
+          LocalActivityEvent,
+          $$LocalActivityEventsTableFilterComposer,
+          $$LocalActivityEventsTableOrderingComposer,
+          $$LocalActivityEventsTableAnnotationComposer,
+          $$LocalActivityEventsTableCreateCompanionBuilder,
+          $$LocalActivityEventsTableUpdateCompanionBuilder,
+          (
+            LocalActivityEvent,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalActivityEventsTable,
+              LocalActivityEvent
+            >,
+          ),
+          LocalActivityEvent,
+          PrefetchHooks Function()
+        > {
+  $$LocalActivityEventsTableTableManager(
+    _$AppDatabase db,
+    $LocalActivityEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalActivityEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalActivityEventsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LocalActivityEventsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> actorId = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> syncStatus = const Value.absent(),
+                Value<bool> isPrivate = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalActivityEventsCompanion(
+                id: id,
+                homeId: homeId,
+                actorId: actorId,
+                eventType: eventType,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+                syncStatus: syncStatus,
+                isPrivate: isPrivate,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required String actorId,
+                required String eventType,
+                required String payloadJson,
+                required DateTime createdAt,
+                Value<String> syncStatus = const Value.absent(),
+                Value<bool> isPrivate = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalActivityEventsCompanion.insert(
+                id: id,
+                homeId: homeId,
+                actorId: actorId,
+                eventType: eventType,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+                syncStatus: syncStatus,
+                isPrivate: isPrivate,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalActivityEventsTable, LocalActivityEvent>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalActivityEventsTable,
+                    LocalActivityEvent
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalActivityEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalActivityEventsTable,
+      LocalActivityEvent,
+      $$LocalActivityEventsTableFilterComposer,
+      $$LocalActivityEventsTableOrderingComposer,
+      $$LocalActivityEventsTableAnnotationComposer,
+      $$LocalActivityEventsTableCreateCompanionBuilder,
+      $$LocalActivityEventsTableUpdateCompanionBuilder,
+      (
+        LocalActivityEvent,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalActivityEventsTable,
+          LocalActivityEvent
+        >,
+      ),
+      LocalActivityEvent,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalNotificationPreferencesTableCreateCompanionBuilder =
+    LocalNotificationPreferencesCompanion Function({
+      Value<String> id,
+      Value<bool> muteSubscriptions,
+      Value<bool> muteLists,
+      Value<bool> muteExpenses,
+      Value<bool> muteHabits,
+      Value<bool> muteCalendar,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$LocalNotificationPreferencesTableUpdateCompanionBuilder =
+    LocalNotificationPreferencesCompanion Function({
+      Value<String> id,
+      Value<bool> muteSubscriptions,
+      Value<bool> muteLists,
+      Value<bool> muteExpenses,
+      Value<bool> muteHabits,
+      Value<bool> muteCalendar,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$LocalNotificationPreferencesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalNotificationPreferencesTable> {
+  $$LocalNotificationPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get muteSubscriptions => $composableBuilder(
+    column: $table.muteSubscriptions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get muteLists => $composableBuilder(
+    column: $table.muteLists,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get muteExpenses => $composableBuilder(
+    column: $table.muteExpenses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get muteHabits => $composableBuilder(
+    column: $table.muteHabits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get muteCalendar => $composableBuilder(
+    column: $table.muteCalendar,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalNotificationPreferencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalNotificationPreferencesTable> {
+  $$LocalNotificationPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get muteSubscriptions => $composableBuilder(
+    column: $table.muteSubscriptions,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get muteLists => $composableBuilder(
+    column: $table.muteLists,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get muteExpenses => $composableBuilder(
+    column: $table.muteExpenses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get muteHabits => $composableBuilder(
+    column: $table.muteHabits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get muteCalendar => $composableBuilder(
+    column: $table.muteCalendar,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalNotificationPreferencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalNotificationPreferencesTable> {
+  $$LocalNotificationPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get muteSubscriptions => $composableBuilder(
+    column: $table.muteSubscriptions,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get muteLists =>
+      $composableBuilder(column: $table.muteLists, builder: (column) => column);
+
+  GeneratedColumn<bool> get muteExpenses => $composableBuilder(
+    column: $table.muteExpenses,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get muteHabits => $composableBuilder(
+    column: $table.muteHabits,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get muteCalendar => $composableBuilder(
+    column: $table.muteCalendar,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LocalNotificationPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalNotificationPreferencesTable,
+          LocalNotificationPreference,
+          $$LocalNotificationPreferencesTableFilterComposer,
+          $$LocalNotificationPreferencesTableOrderingComposer,
+          $$LocalNotificationPreferencesTableAnnotationComposer,
+          $$LocalNotificationPreferencesTableCreateCompanionBuilder,
+          $$LocalNotificationPreferencesTableUpdateCompanionBuilder,
+          (
+            LocalNotificationPreference,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalNotificationPreferencesTable,
+              LocalNotificationPreference
+            >,
+          ),
+          LocalNotificationPreference,
+          PrefetchHooks Function()
+        > {
+  $$LocalNotificationPreferencesTableTableManager(
+    _$AppDatabase db,
+    $LocalNotificationPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalNotificationPreferencesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$LocalNotificationPreferencesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LocalNotificationPreferencesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> muteSubscriptions = const Value.absent(),
+                Value<bool> muteLists = const Value.absent(),
+                Value<bool> muteExpenses = const Value.absent(),
+                Value<bool> muteHabits = const Value.absent(),
+                Value<bool> muteCalendar = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalNotificationPreferencesCompanion(
+                id: id,
+                muteSubscriptions: muteSubscriptions,
+                muteLists: muteLists,
+                muteExpenses: muteExpenses,
+                muteHabits: muteHabits,
+                muteCalendar: muteCalendar,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<bool> muteSubscriptions = const Value.absent(),
+                Value<bool> muteLists = const Value.absent(),
+                Value<bool> muteExpenses = const Value.absent(),
+                Value<bool> muteHabits = const Value.absent(),
+                Value<bool> muteCalendar = const Value.absent(),
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalNotificationPreferencesCompanion.insert(
+                id: id,
+                muteSubscriptions: muteSubscriptions,
+                muteLists: muteLists,
+                muteExpenses: muteExpenses,
+                muteHabits: muteHabits,
+                muteCalendar: muteCalendar,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $LocalNotificationPreferencesTable,
+                    LocalNotificationPreference
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalNotificationPreferencesTable,
+                    LocalNotificationPreference
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalNotificationPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalNotificationPreferencesTable,
+      LocalNotificationPreference,
+      $$LocalNotificationPreferencesTableFilterComposer,
+      $$LocalNotificationPreferencesTableOrderingComposer,
+      $$LocalNotificationPreferencesTableAnnotationComposer,
+      $$LocalNotificationPreferencesTableCreateCompanionBuilder,
+      $$LocalNotificationPreferencesTableUpdateCompanionBuilder,
+      (
+        LocalNotificationPreference,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalNotificationPreferencesTable,
+          LocalNotificationPreference
+        >,
+      ),
+      LocalNotificationPreference,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalRoadmapItemsTableCreateCompanionBuilder =
+    LocalRoadmapItemsCompanion Function({
+      required String id,
+      required String homeId,
+      required String title,
+      Value<String?> description,
+      Value<bool> isCompleted,
+      required DateTime createdAt,
+      required String createdBy,
+      Value<DateTime?> completedAt,
+      Value<int> rowid,
+    });
+typedef $$LocalRoadmapItemsTableUpdateCompanionBuilder =
+    LocalRoadmapItemsCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<String> title,
+      Value<String?> description,
+      Value<bool> isCompleted,
+      Value<DateTime> createdAt,
+      Value<String> createdBy,
+      Value<DateTime?> completedAt,
+      Value<int> rowid,
+    });
+
+class $$LocalRoadmapItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRoadmapItemsTable> {
+  $$LocalRoadmapItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalRoadmapItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRoadmapItemsTable> {
+  $$LocalRoadmapItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalRoadmapItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRoadmapItemsTable> {
+  $$LocalRoadmapItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isCompleted => $composableBuilder(
+    column: $table.isCompleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$LocalRoadmapItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalRoadmapItemsTable,
+          LocalRoadmapItem,
+          $$LocalRoadmapItemsTableFilterComposer,
+          $$LocalRoadmapItemsTableOrderingComposer,
+          $$LocalRoadmapItemsTableAnnotationComposer,
+          $$LocalRoadmapItemsTableCreateCompanionBuilder,
+          $$LocalRoadmapItemsTableUpdateCompanionBuilder,
+          (
+            LocalRoadmapItem,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalRoadmapItemsTable,
+              LocalRoadmapItem
+            >,
+          ),
+          LocalRoadmapItem,
+          PrefetchHooks Function()
+        > {
+  $$LocalRoadmapItemsTableTableManager(
+    _$AppDatabase db,
+    $LocalRoadmapItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRoadmapItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRoadmapItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRoadmapItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<bool> isCompleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoadmapItemsCompanion(
+                id: id,
+                homeId: homeId,
+                title: title,
+                description: description,
+                isCompleted: isCompleted,
+                createdAt: createdAt,
+                createdBy: createdBy,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required String title,
+                Value<String?> description = const Value.absent(),
+                Value<bool> isCompleted = const Value.absent(),
+                required DateTime createdAt,
+                required String createdBy,
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoadmapItemsCompanion.insert(
+                id: id,
+                homeId: homeId,
+                title: title,
+                description: description,
+                isCompleted: isCompleted,
+                createdAt: createdAt,
+                createdBy: createdBy,
+                completedAt: completedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalRoadmapItemsTable, LocalRoadmapItem>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalRoadmapItemsTable,
+                    LocalRoadmapItem
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalRoadmapItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalRoadmapItemsTable,
+      LocalRoadmapItem,
+      $$LocalRoadmapItemsTableFilterComposer,
+      $$LocalRoadmapItemsTableOrderingComposer,
+      $$LocalRoadmapItemsTableAnnotationComposer,
+      $$LocalRoadmapItemsTableCreateCompanionBuilder,
+      $$LocalRoadmapItemsTableUpdateCompanionBuilder,
+      (
+        LocalRoadmapItem,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalRoadmapItemsTable,
+          LocalRoadmapItem
+        >,
+      ),
+      LocalRoadmapItem,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalRoutinesTableCreateCompanionBuilder =
+    LocalRoutinesCompanion Function({
+      required String id,
+      required String homeId,
+      required String name,
+      required String daysJson,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$LocalRoutinesTableUpdateCompanionBuilder =
+    LocalRoutinesCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<String> name,
+      Value<String> daysJson,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$LocalRoutinesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRoutinesTable> {
+  $$LocalRoutinesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get daysJson => $composableBuilder(
+    column: $table.daysJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalRoutinesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRoutinesTable> {
+  $$LocalRoutinesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get daysJson => $composableBuilder(
+    column: $table.daysJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalRoutinesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRoutinesTable> {
+  $$LocalRoutinesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get daysJson =>
+      $composableBuilder(column: $table.daysJson, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalRoutinesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalRoutinesTable,
+          LocalRoutine,
+          $$LocalRoutinesTableFilterComposer,
+          $$LocalRoutinesTableOrderingComposer,
+          $$LocalRoutinesTableAnnotationComposer,
+          $$LocalRoutinesTableCreateCompanionBuilder,
+          $$LocalRoutinesTableUpdateCompanionBuilder,
+          (
+            LocalRoutine,
+            BaseReferences<_$AppDatabase, $LocalRoutinesTable, LocalRoutine>,
+          ),
+          LocalRoutine,
+          PrefetchHooks Function()
+        > {
+  $$LocalRoutinesTableTableManager(_$AppDatabase db, $LocalRoutinesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRoutinesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRoutinesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRoutinesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> daysJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoutinesCompanion(
+                id: id,
+                homeId: homeId,
+                name: name,
+                daysJson: daysJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required String name,
+                required String daysJson,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoutinesCompanion.insert(
+                id: id,
+                homeId: homeId,
+                name: name,
+                daysJson: daysJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalRoutinesTable, LocalRoutine>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalRoutinesTable,
+                    LocalRoutine
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalRoutinesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalRoutinesTable,
+      LocalRoutine,
+      $$LocalRoutinesTableFilterComposer,
+      $$LocalRoutinesTableOrderingComposer,
+      $$LocalRoutinesTableAnnotationComposer,
+      $$LocalRoutinesTableCreateCompanionBuilder,
+      $$LocalRoutinesTableUpdateCompanionBuilder,
+      (
+        LocalRoutine,
+        BaseReferences<_$AppDatabase, $LocalRoutinesTable, LocalRoutine>,
+      ),
+      LocalRoutine,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalRoutineEventsTableCreateCompanionBuilder =
+    LocalRoutineEventsCompanion Function({
+      required String id,
+      required String routineId,
+      required String homeId,
+      required String title,
+      required int startMinutes,
+      required int endMinutes,
+      Value<String?> category,
+      Value<String?> notes,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$LocalRoutineEventsTableUpdateCompanionBuilder =
+    LocalRoutineEventsCompanion Function({
+      Value<String> id,
+      Value<String> routineId,
+      Value<String> homeId,
+      Value<String> title,
+      Value<int> startMinutes,
+      Value<int> endMinutes,
+      Value<String?> category,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$LocalRoutineEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRoutineEventsTable> {
+  $$LocalRoutineEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get routineId => $composableBuilder(
+    column: $table.routineId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMinutes => $composableBuilder(
+    column: $table.startMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endMinutes => $composableBuilder(
+    column: $table.endMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalRoutineEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRoutineEventsTable> {
+  $$LocalRoutineEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get routineId => $composableBuilder(
+    column: $table.routineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startMinutes => $composableBuilder(
+    column: $table.startMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endMinutes => $composableBuilder(
+    column: $table.endMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalRoutineEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRoutineEventsTable> {
+  $$LocalRoutineEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get routineId =>
+      $composableBuilder(column: $table.routineId, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get startMinutes => $composableBuilder(
+    column: $table.startMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endMinutes => $composableBuilder(
+    column: $table.endMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalRoutineEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalRoutineEventsTable,
+          LocalRoutineEvent,
+          $$LocalRoutineEventsTableFilterComposer,
+          $$LocalRoutineEventsTableOrderingComposer,
+          $$LocalRoutineEventsTableAnnotationComposer,
+          $$LocalRoutineEventsTableCreateCompanionBuilder,
+          $$LocalRoutineEventsTableUpdateCompanionBuilder,
+          (
+            LocalRoutineEvent,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalRoutineEventsTable,
+              LocalRoutineEvent
+            >,
+          ),
+          LocalRoutineEvent,
+          PrefetchHooks Function()
+        > {
+  $$LocalRoutineEventsTableTableManager(
+    _$AppDatabase db,
+    $LocalRoutineEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRoutineEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRoutineEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRoutineEventsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> routineId = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<int> startMinutes = const Value.absent(),
+                Value<int> endMinutes = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoutineEventsCompanion(
+                id: id,
+                routineId: routineId,
+                homeId: homeId,
+                title: title,
+                startMinutes: startMinutes,
+                endMinutes: endMinutes,
+                category: category,
+                notes: notes,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String routineId,
+                required String homeId,
+                required String title,
+                required int startMinutes,
+                required int endMinutes,
+                Value<String?> category = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalRoutineEventsCompanion.insert(
+                id: id,
+                routineId: routineId,
+                homeId: homeId,
+                title: title,
+                startMinutes: startMinutes,
+                endMinutes: endMinutes,
+                category: category,
+                notes: notes,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalRoutineEventsTable, LocalRoutineEvent>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalRoutineEventsTable,
+                    LocalRoutineEvent
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalRoutineEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalRoutineEventsTable,
+      LocalRoutineEvent,
+      $$LocalRoutineEventsTableFilterComposer,
+      $$LocalRoutineEventsTableOrderingComposer,
+      $$LocalRoutineEventsTableAnnotationComposer,
+      $$LocalRoutineEventsTableCreateCompanionBuilder,
+      $$LocalRoutineEventsTableUpdateCompanionBuilder,
+      (
+        LocalRoutineEvent,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalRoutineEventsTable,
+          LocalRoutineEvent
+        >,
+      ),
+      LocalRoutineEvent,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7577,4 +12059,18 @@ class $AppDatabaseManager {
       $$LocalCalendarEventsTableTableManager(_db, _db.localCalendarEvents);
   $$LocalOutboxEventsTableTableManager get localOutboxEvents =>
       $$LocalOutboxEventsTableTableManager(_db, _db.localOutboxEvents);
+  $$LocalActivityEventsTableTableManager get localActivityEvents =>
+      $$LocalActivityEventsTableTableManager(_db, _db.localActivityEvents);
+  $$LocalNotificationPreferencesTableTableManager
+  get localNotificationPreferences =>
+      $$LocalNotificationPreferencesTableTableManager(
+        _db,
+        _db.localNotificationPreferences,
+      );
+  $$LocalRoadmapItemsTableTableManager get localRoadmapItems =>
+      $$LocalRoadmapItemsTableTableManager(_db, _db.localRoadmapItems);
+  $$LocalRoutinesTableTableManager get localRoutines =>
+      $$LocalRoutinesTableTableManager(_db, _db.localRoutines);
+  $$LocalRoutineEventsTableTableManager get localRoutineEvents =>
+      $$LocalRoutineEventsTableTableManager(_db, _db.localRoutineEvents);
 }

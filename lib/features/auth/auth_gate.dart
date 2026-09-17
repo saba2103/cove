@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
-import '../../core/widgets/cove_loading.dart';
+import '../../core/widgets/cove_splash_screen.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../app_shell.dart';
 import '../home/onboarding_choice_screen.dart';
@@ -18,13 +17,12 @@ class AuthGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
     final authState = ref.watch(authProvider);
 
-    return authState.when(
+    final content = authState.when(
       data: (user) {
         if (user == null) {
-          return const SignInScreen();
+          return const SignInScreen(key: ValueKey('sign_in'));
         }
 
         final homesAsync = ref.watch(userHomesProvider);
@@ -32,7 +30,7 @@ class AuthGate extends ConsumerWidget {
         return homesAsync.when(
           data: (homes) {
             if (homes.isEmpty) {
-              return const OnboardingChoiceScreen();
+              return const OnboardingChoiceScreen(key: ValueKey('onboarding'));
             }
 
             // Ensure an active home is selected if not already
@@ -45,20 +43,25 @@ class AuthGate extends ConsumerWidget {
               });
             }
 
-            return const AppShell();
+            return const AppShell(key: ValueKey('app_shell'));
           },
-          loading: () => Scaffold(
-            backgroundColor: colors.background,
-            body: const Center(child: CoveLoading()),
+          loading: () => const CoveSplashScreen(
+            key: ValueKey('splash_homes'),
+            message: 'Opening your home...',
+            showProgress: true,
           ),
-          error: (e, st) => const OnboardingChoiceScreen(),
+          error: (e, st) => const OnboardingChoiceScreen(key: ValueKey('onboarding_error')),
         );
       },
-      loading: () => Scaffold(
-        backgroundColor: colors.background,
-        body: const Center(child: CoveLoading()),
-      ),
-      error: (e, st) => const SignInScreen(),
+      loading: () => const CoveSplashScreen(key: ValueKey('splash_auth')),
+      error: (e, st) => const SignInScreen(key: ValueKey('sign_in_error')),
+    );
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: content,
     );
   }
 }

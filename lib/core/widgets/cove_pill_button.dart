@@ -60,12 +60,35 @@ class CovePillButton extends StatelessWidget {
         break;
     }
 
+    final effectiveTextColor = onPressed == null ? textColor.withValues(alpha: 0.38) : textColor;
     final buttonStyle = TextStyle(
       fontFamily: 'GeneralSans',
       fontSize: isCompact ? 14 : 15,
       fontWeight: FontWeight.w600,
-      color: onPressed == null ? textColor.withValues(alpha: 0.38) : textColor,
+      color: effectiveTextColor,
     );
+
+    Widget? themedIcon = icon;
+    if (themedIcon != null) {
+      if (themedIcon is Icon) {
+        themedIcon = Icon(
+          themedIcon.icon,
+          size: themedIcon.size ?? (isCompact ? 16 : 18),
+          color: effectiveTextColor,
+          semanticLabel: themedIcon.semanticLabel,
+          textDirection: themedIcon.textDirection,
+          shadows: themedIcon.shadows,
+        );
+      } else {
+        themedIcon = IconTheme.merge(
+          data: IconThemeData(
+            color: effectiveTextColor,
+            size: isCompact ? 16 : 18,
+          ),
+          child: themedIcon,
+        );
+      }
+    }
 
     Widget content = Row(
       mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
@@ -77,13 +100,13 @@ class CovePillButton extends StatelessWidget {
             height: isCompact ? 16 : 18,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(textColor),
+              valueColor: AlwaysStoppedAnimation<Color>(effectiveTextColor),
             ),
           ),
           const SizedBox(width: 10),
         ] else ...[
-          if (icon != null) ...[
-            icon!,
+          if (themedIcon != null) ...[
+            themedIcon,
             const SizedBox(width: 8),
           ],
           Flexible(

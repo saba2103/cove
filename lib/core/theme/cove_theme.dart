@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'cove_colors.dart';
 import 'cove_typography.dart';
 
+export 'cove_colors.dart';
+export 'cove_typography.dart';
+
 class CoveTheme {
   static ThemeData get darkTheme => _buildTheme(Brightness.dark);
   static ThemeData get lightTheme => _buildTheme(Brightness.light);
@@ -62,6 +65,24 @@ class CoveTheme {
                 statusBarColor: Colors.transparent,
                 systemNavigationBarColor: colors.background,
               ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.surfaceCard,
+        surfaceTintColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: 580),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(false),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        interactive: true,
+        thickness: const WidgetStatePropertyAll(6),
+        radius: const Radius.circular(3),
+        thumbColor: WidgetStatePropertyAll(
+          colors.textSubtle.withValues(alpha: 0.3),
+        ),
       ),
       extensions: [
         colors,

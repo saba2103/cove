@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/cove_theme.dart';
@@ -180,7 +181,9 @@ class OnboardingChoiceScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          'Scan the pairing QR code displayed on your partner\'s device to import the Home encryption key.',
+                          kIsWeb
+                              ? 'Enter the 6-digit pairing code displayed on your partner\'s device to securely join this Home.'
+                              : 'Scan the pairing QR code displayed on your partner\'s device to import the Home encryption key.',
                           style: typography.bodyRegular.copyWith(
                             color: colors.textMuted,
                             fontSize: 13,
@@ -188,13 +191,13 @@ class OnboardingChoiceScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 20),
                         CovePillButton(
-                          label: 'Scan QR Code to Join',
+                          label: kIsWeb ? 'Enter 6-Digit Code to Join' : 'Scan QR Code to Join',
                           variant: CoveButtonVariant.secondary,
                           isFullWidth: true,
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const JoinHomeScreen(),
+                                builder: (_) => const JoinHomeScreen(initialShowManualInput: kIsWeb),
                               ),
                             );
                           },

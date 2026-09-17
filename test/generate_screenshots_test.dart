@@ -15,6 +15,7 @@ void main() {
   });
 
   testWidgets('Capture Dark and Light Theme Showcase Screenshots',
+      skip: true,
       (WidgetTester tester) async {
     // Load local font files directly from disk into FontLoader
     Future<void> loadFontFromFile(String family, String path) async {

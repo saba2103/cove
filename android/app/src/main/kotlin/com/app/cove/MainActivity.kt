@@ -1,4 +1,4 @@
-package com.cove.cove
+package com.app.cove
 
 import io.flutter.embedding.android.FlutterActivity
 

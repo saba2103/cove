@@ -37,11 +37,21 @@ class EventStoreImpl implements EventStore {
             createdAt: event.createdAt,
             syncStatus: Value(event.syncStatus == EventSyncStatus.syncedToPartner
                 ? 'syncedToPartner'
-                : 'savedLocally'),
+                : (event.syncStatus == EventSyncStatus.uploadedToCloud
+                    ? 'uploadedToCloud'
+                    : 'savedLocally')),
             retryCount: const Value(0),
             lastAttemptAt: const Value(null),
           ),
         );
+  }
+
+  @override
+  Future<bool> hasEvent(String eventId) async {
+    final row = await (db.select(db.localOutboxEvents)
+          ..where((t) => t.id.equals(eventId)))
+        .getSingleOrNull();
+    return row != null;
   }
 
   @override
@@ -57,6 +67,17 @@ class EventStoreImpl implements EventStore {
   }
 
   @override
+  Future<void> markEventUploaded(String eventId) async {
+    await (db.update(db.localOutboxEvents)..where((t) => t.id.equals(eventId)))
+        .write(
+      const LocalOutboxEventsCompanion(
+        syncStatus: Value('uploadedToCloud'),
+      ),
+    );
+    await db.updateActivityEventSyncStatus(eventId, 'uploadedToCloud');
+  }
+
+  @override
   Future<void> markEventSynced(String eventId) async {
     await (db.update(db.localOutboxEvents)..where((t) => t.id.equals(eventId)))
         .write(
@@ -64,6 +85,7 @@ class EventStoreImpl implements EventStore {
         syncStatus: Value('syncedToPartner'),
       ),
     );
+    await db.updateActivityEventSyncStatus(eventId, 'syncedToPartner');
   }
 
   @override
@@ -106,7 +128,9 @@ class EventStoreImpl implements EventStore {
       nonce: payload.nonce,
       syncStatus: row.syncStatus == 'syncedToPartner'
           ? EventSyncStatus.syncedToPartner
-          : EventSyncStatus.savedLocally,
+          : (row.syncStatus == 'uploadedToCloud'
+              ? EventSyncStatus.uploadedToCloud
+              : EventSyncStatus.savedLocally),
     );
   }
 }
