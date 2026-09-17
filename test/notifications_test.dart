@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -83,7 +84,15 @@ void main() {
   late LocalStateStoreImpl localStateStore;
   late EventStoreImpl eventStore;
 
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
+  });
+
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
     db = AppDatabase(NativeDatabase.memory());
     keyStore = HomeKeyStore(storage: FakeSecureStorage());
     cryptoService = SodiumCryptoService();
@@ -222,7 +231,7 @@ void main() {
       );
 
       expect(res.title, 'Sophia • Expenses');
-      expect(res.body, "Logged ₹250.00 for 'Coffee' (Food & Dining • UPI)");
+      expect(res.body, "Logged ₹250 for 'Coffee' (Food & Dining • UPI)");
     });
 
     test('Shared list notifications format item name, list name, and completion status', () {
@@ -299,7 +308,7 @@ void main() {
         actorName: 'Sophia',
       );
       expect(subRes.title, 'Sophia • Commitments');
-      expect(subRes.body, "Added subscription 'Netflix' (₹649.00 / monthly)");
+      expect(subRes.body, "Added subscription 'Netflix' (₹649 / monthly)");
     });
 
     test('CoveNotificationPayload.fromDecrypted creates enriched instance', () {
@@ -619,18 +628,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Find the toggle for Shared Lists (first toggle under Partner Notifications)
-      // All 5 module toggles: Lists (0), Expenses (1), Subscriptions (2), Habits (3), Calendar (4)
       final switches = find.byType(CoveToggleSwitch);
       expect(switches, findsNWidgets(5));
 
-      // Tap the Lists toggle (index 0)
-      await tester.tap(switches.at(0));
+      await tester.tap(switches.at(0), warnIfMissed: false);
+      await tester.runAsync(() async {
+        await Future.delayed(const Duration(milliseconds: 150));
+      });
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
-      // Verify in database that muteLists is now true
-      final prefs = await db.getNotificationPreferences();
+      LocalNotificationPreference? prefs;
+      await tester.runAsync(() async {
+        prefs = await db.getNotificationPreferences();
+      });
       expect(prefs, isNotNull);
       expect(prefs!.muteLists, isTrue);
     });

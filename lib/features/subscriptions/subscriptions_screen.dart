@@ -370,51 +370,6 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     alignment: WrapAlignment.end,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // + Add Commitment Button
-                      CovePillButton(
-                        label: '+ Add',
-                        isCompact: true,
-                        onPressed: () => SubscriptionFormSheet.show(context),
-                      ),
-                      // Helicopter View Button
-                      InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => CommitmentsHelicopterScreen(
-                                subscriptions: subscriptions,
-                              ),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: colors.borderHairline, width: 1),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.grid_view_rounded,
-                                size: 13,
-                                color: colors.accentPrimary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Helicopter View',
-                                style: typography.caption.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.accentPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                       // Toggle Monthly / Annual
                       InkWell(
                         onTap: () => setState(() => _showAnnual = !_showAnnual),
@@ -1426,17 +1381,6 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           'Commitments',
           style: context.typography.headline.copyWith(fontSize: 20),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CovePillButton(
-              label: '+ Add',
-              variant: CoveButtonVariant.secondary,
-              isCompact: true,
-              onPressed: () => SubscriptionFormSheet.show(context),
-            ),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         color: colors.accentPrimary,

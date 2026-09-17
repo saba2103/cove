@@ -22,14 +22,15 @@ class CoveUser {
   factory CoveUser.fromSupabase(User user) {
     final meta = user.userMetadata ?? {};
     final bool useInitials = meta['use_initials'] == true;
+    final bool avatarRemoved = meta['avatar_removed'] == true;
     final String? rawAvatar = (meta['avatar_url'] as String?)?.trim();
     final String? googlePicture = (meta['picture'] as String?)?.trim();
 
     String? resolvedAvatar;
-    if (!useInitials) {
+    if (!useInitials && !avatarRemoved) {
       if (rawAvatar != null && rawAvatar.isNotEmpty) {
         resolvedAvatar = rawAvatar;
-      } else if (googlePicture != null && googlePicture.isNotEmpty) {
+      } else if (googlePicture != null && googlePicture.isNotEmpty && meta['use_custom_avatar'] != true) {
         resolvedAvatar = googlePicture;
       }
     }

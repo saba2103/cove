@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -29,17 +30,32 @@ const supportedCurrencies = [
 ];
 
 class CurrencyNotifier extends Notifier<CurrencyOption> {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   static const _currencyKey = 'cove_preferred_currency';
   static const _homeCurrencyKeyPrefix = 'cove_home_currency_';
+  static String? cachedInitialCurrency;
 
   @override
   CurrencyOption build() {
     final activeHomeAsync = ref.watch(activeHomeProvider);
     final activeHome = activeHomeAsync.value;
-    if (activeHome != null) {
-      return supportedCurrencies.firstWhere(
+    if (activeHome != null && activeHome.currency.isNotEmpty) {
+      final match = supportedCurrencies.firstWhere(
         (c) => c.code == activeHome.currency,
+        orElse: () => supportedCurrencies.first,
+      );
+      cachedInitialCurrency = match.code;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString(_currencyKey, match.code);
+      }).catchError((_) {});
+      return match;
+    }
+
+    if (cachedInitialCurrency != null && cachedInitialCurrency!.isNotEmpty) {
+      return supportedCurrencies.firstWhere(
+        (c) => c.code == cachedInitialCurrency,
         orElse: () => supportedCurrencies.first,
       );
     }
@@ -55,6 +71,16 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
 
   Future<void> _loadHomeCurrency(String homeId) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final pCode = prefs.getString('$_homeCurrencyKeyPrefix$homeId') ?? prefs.getString(_currencyKey);
+      if (pCode != null) {
+        cachedInitialCurrency = pCode;
+        state = supportedCurrencies.firstWhere(
+          (c) => c.code == pCode,
+          orElse: () => supportedCurrencies.first,
+        );
+        return;
+      }
       final code = await _storage.read(key: '$_homeCurrencyKeyPrefix$homeId');
       if (code != null) {
         final match = supportedCurrencies.firstWhere(
@@ -70,6 +96,16 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
 
   Future<void> _loadLegacyCurrency() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final pCode = prefs.getString(_currencyKey);
+      if (pCode != null) {
+        cachedInitialCurrency = pCode;
+        state = supportedCurrencies.firstWhere(
+          (c) => c.code == pCode,
+          orElse: () => supportedCurrencies.first,
+        );
+        return;
+      }
       final code = await _storage.read(key: _currencyKey);
       if (code != null) {
         final match = supportedCurrencies.firstWhere(
@@ -83,9 +119,19 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
 
   Future<void> setCurrency(CurrencyOption option) async {
     state = option;
+    cachedInitialCurrency = option.code;
     final activeHomeId = ref.read(activeHomeIdProvider);
 
-    // 1. Persist to active home in local database
+    // 1. Synchronously persist to SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currencyKey, option.code);
+      if (activeHomeId != null) {
+        await prefs.setString('$_homeCurrencyKeyPrefix$activeHomeId', option.code);
+      }
+    } catch (_) {}
+
+    // 2. Persist to active home in local database
     if (activeHomeId != null) {
       try {
         final db = ref.read(appDatabaseProvider);
@@ -95,7 +141,7 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
         await _storage.write(key: '$_homeCurrencyKeyPrefix$activeHomeId', value: option.code);
       } catch (_) {}
 
-      // 2. Emit home_currency_updated sync event so partner's device updates instantly
+      // 3. Emit home_currency_updated sync event so partner's device updates instantly
       try {
         final emitAction = ref.read(coveEmitActionProvider);
         await emitAction(
@@ -107,9 +153,17 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
           targetHomeId: activeHomeId,
         );
       } catch (_) {}
+
+      // 4. Update homes table in Supabase if online
+      final supabase = ref.read(supabaseClientProvider);
+      if (supabase != null) {
+        try {
+          await supabase.from('homes').update({'currency': option.code}).eq('id', activeHomeId);
+        } catch (_) {}
+      }
     }
 
-    // 3. Fallback device cache
+    // 5. Fallback device cache
     try {
       await _storage.write(key: _currencyKey, value: option.code);
     } catch (_) {}

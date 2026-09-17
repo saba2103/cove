@@ -84,7 +84,10 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'home_updated':
           final id = (payload['id'] as String?) ?? homeId;
           final existing = await (db.select(db.localHomes)..where((t) => t.id.equals(id))).getSingleOrNull();
-          final currencyVal = payload['currency'] as String? ?? existing?.currency ?? 'USD';
+          final rawPayloadCurrency = payload['currency'] as String?;
+          final currencyVal = (existing != null && existing.currency.isNotEmpty && existing.currency != 'USD')
+              ? (rawPayloadCurrency != null && rawPayloadCurrency != 'USD' ? rawPayloadCurrency : existing.currency)
+              : (rawPayloadCurrency ?? existing?.currency ?? 'USD');
           await db.into(db.localHomes).insertOnConflictUpdate(
                 LocalHomesCompanion(
                   id: Value(id),

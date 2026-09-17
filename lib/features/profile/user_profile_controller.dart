@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -41,10 +42,16 @@ class UserProfileState {
 
 class UserProfileNotifier extends Notifier<UserProfileState> {
   static final Set<UserProfileNotifier> _activeNotifiers = {};
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   static const _customNameKeyPrefix = 'cove_custom_name_';
   static const _customAvatarKeyPrefix = 'cove_custom_avatar_';
   static const _removedAvatarKeyPrefix = 'cove_removed_avatar_';
+
+  static String? cachedDisplayName;
+  static String? cachedAvatarUrl;
+  static bool? cachedUseInitials;
 
   @override
   UserProfileState build() {
@@ -54,9 +61,18 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     final user = ref.watch(authProvider).value;
     final homeId = ref.watch(activeHomeIdProvider);
     final userId = user?.id ?? '';
-    final defaultName = user?.displayName ?? 'You';
-    final defaultAvatar = user?.avatarUrl;
+
+    final defaultName = (cachedDisplayName != null && cachedDisplayName!.isNotEmpty)
+        ? cachedDisplayName!
+        : (user?.displayName ?? 'You');
+    final defaultAvatar = (cachedUseInitials == true)
+        ? null
+        : ((cachedAvatarUrl != null && cachedAvatarUrl!.isNotEmpty)
+            ? cachedAvatarUrl
+            : user?.avatarUrl);
     final email = user?.email ?? '';
+    final hasName = cachedDisplayName != null && cachedDisplayName!.isNotEmpty;
+    final hasAvatar = cachedUseInitials == true || (cachedAvatarUrl != null && cachedAvatarUrl!.isNotEmpty);
 
     // Load initial synchronous state from defaults, async load overrides
     _loadCustomOverrides(userId, defaultName, defaultAvatar, email, homeId);
@@ -65,6 +81,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       displayName: defaultName,
       avatarUrl: defaultAvatar,
       email: email,
+      hasCustomName: hasName,
+      hasCustomAvatar: hasAvatar,
     );
   }
 
@@ -96,11 +114,19 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   ) async {
     if (userId.isEmpty) return;
     try {
-      // 1. Fast local cache read
-      final customName = await _storage.read(key: '$_customNameKeyPrefix$userId');
-      final isAvatarRemoved =
+      // 1. Fast local cache read (SharedPreferences + SecureStorage)
+      final prefs = await SharedPreferences.getInstance();
+      final pName = prefs.getString('cove_user_display_name') ??
+          prefs.getString('$_customNameKeyPrefix$userId');
+      final pAvatar = prefs.getString('cove_user_avatar_url') ??
+          prefs.getString('$_customAvatarKeyPrefix$userId');
+      final pInitials = prefs.getBool('cove_user_use_initials') ??
+          (prefs.getBool('$_removedAvatarKeyPrefix$userId') ?? false);
+
+      final customName = pName ?? await _storage.read(key: '$_customNameKeyPrefix$userId');
+      final isAvatarRemoved = pInitials ||
           await _storage.read(key: '$_removedAvatarKeyPrefix$userId') == 'true';
-      final customAvatar =
+      final customAvatar = pAvatar ??
           await _storage.read(key: '$_customAvatarKeyPrefix$userId');
 
       String activeName = (customName != null && customName.trim().isNotEmpty)
@@ -109,6 +135,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       String? activeAvatar = isAvatarRemoved ? null : (customAvatar ?? defaultAvatar);
       bool hasName = customName != null && customName.trim().isNotEmpty;
       bool hasAvatar = isAvatarRemoved || customAvatar != null;
+
+      cachedDisplayName = activeName;
+      cachedAvatarUrl = activeAvatar;
+      cachedUseInitials = isAvatarRemoved;
 
       state = UserProfileState(
         displayName: activeName,
@@ -214,6 +244,10 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         ? avatarUrl.trim()
         : null;
 
+    cachedDisplayName = trimmedName;
+    cachedAvatarUrl = trimmedAvatar;
+    cachedUseInitials = useInitials;
+
     state = UserProfileState(
       displayName: trimmedName,
       avatarUrl: trimmedAvatar,
@@ -221,6 +255,29 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       hasCustomName: true,
       hasCustomAvatar: useInitials || trimmedAvatar != null,
     );
+
+    // Persist to SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cove_user_display_name', trimmedName);
+      if (useInitials) {
+        await prefs.setBool('cove_user_use_initials', true);
+        await prefs.remove('cove_user_avatar_url');
+      } else if (trimmedAvatar != null) {
+        await prefs.setBool('cove_user_use_initials', false);
+        await prefs.setString('cove_user_avatar_url', trimmedAvatar);
+      }
+      if (user != null) {
+        await prefs.setString('$_customNameKeyPrefix${user.id}', trimmedName);
+        if (useInitials) {
+          await prefs.setBool('$_removedAvatarKeyPrefix${user.id}', true);
+          await prefs.remove('$_customAvatarKeyPrefix${user.id}');
+        } else if (trimmedAvatar != null) {
+          await prefs.setBool('$_removedAvatarKeyPrefix${user.id}', false);
+          await prefs.setString('$_customAvatarKeyPrefix${user.id}', trimmedAvatar);
+        }
+      }
+    } catch (_) {}
 
     if (user != null) {
       await _storage.write(
@@ -246,12 +303,28 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
               'full_name': trimmedName,
               'name': trimmedName,
               'avatar_url': trimmedAvatar ?? '',
+              'picture': trimmedAvatar ?? '',
               'use_initials': useInitials,
+              'avatar_removed': useInitials,
+              'use_custom_avatar': !useInitials && trimmedAvatar != null,
             },
           ),
         );
       } catch (e) {
         debugPrint('[UserProfile] Error updating user attributes in Supabase: $e');
+      }
+
+      final homeId = ref.read(activeHomeIdProvider);
+      if (homeId != null && homeId.isNotEmpty) {
+        try {
+          await supabase.from('home_members').upsert({
+            'home_id': homeId,
+            'user_id': user.id,
+            'joined_at': DateTime.now().toUtc().toIso8601String(),
+            'display_name': trimmedName,
+            'avatar_url': trimmedAvatar,
+          });
+        } catch (_) {}
       }
     }
 

@@ -13,6 +13,7 @@ import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'commitment_models.dart';
 import 'subscription_controller.dart';
 import 'subscription_form_sheet.dart';
@@ -433,18 +434,53 @@ class CommitmentDetailSheet extends ConsumerWidget {
       hasPartner: hasPartner,
     );
 
+    final userProfile = ref.watch(userProfileProvider);
+    final currentUserId = currentUser?.id.toLowerCase();
+    final partnerUserId = partnerProfile.userId?.toLowerCase();
+    final myDisplayName = userProfile.displayName.trim().toLowerCase();
+    final partnerDisplayName = partnerProfile.displayName.trim();
+    final pDisplayName = partnerDisplayName.isNotEmpty ? partnerDisplayName : 'Partner';
+
     // Paid by resolution
     String paidByLabel = 'You';
-    final pBy = subscription.paidBy?.trim().toLowerCase();
-    if (pBy == 'split' || pBy == 'split_50_50' || pBy == 'split (50/50)') {
+    final rawPaidBy = subscription.paidBy?.trim();
+    final pBy = rawPaidBy?.toLowerCase();
+
+    if (pBy == 'split' || pBy == 'split_50_50' || pBy == 'split (50/50)' || pBy == '50/50') {
       paidByLabel = 'Split (50/50)';
     } else if (pBy != null && pBy.isNotEmpty) {
-      if (pBy == currentUser?.id.toLowerCase() || pBy == 'me' || pBy == 'user_alex') {
+      if (pBy == 'me' ||
+          pBy == 'you' ||
+          pBy == 'user_alex' ||
+          (currentUserId != null && currentUserId.isNotEmpty && pBy == currentUserId) ||
+          (myDisplayName.isNotEmpty && myDisplayName != 'you' && pBy == myDisplayName)) {
         paidByLabel = 'You';
-      } else if (pBy == 'partner' || pBy == partnerProfile.displayName.toLowerCase()) {
-        paidByLabel = partnerProfile.displayName;
+      } else if (pBy == 'partner' ||
+          pBy == 'partner_user' ||
+          pBy == 'partner-user-sarah' ||
+          (partnerUserId != null && partnerUserId.isNotEmpty && pBy == partnerUserId) ||
+          (pDisplayName.isNotEmpty && pBy == pDisplayName.toLowerCase())) {
+        paidByLabel = pDisplayName;
+      } else if (pBy.contains('-') || (pBy.length >= 16 && !pBy.contains(' '))) {
+        // Any long UUID or ID token in a two-person home that doesn't match current user belongs to partner!
+        if (currentUserId != null && pBy == currentUserId) {
+          paidByLabel = 'You';
+        } else {
+          paidByLabel = pDisplayName;
+        }
       } else {
-        paidByLabel = subscription.paidBy!;
+        paidByLabel = rawPaidBy!;
+      }
+    } else {
+      final creator = subscription.createdBy?.trim().toLowerCase();
+      if (creator != null && creator.isNotEmpty) {
+        if (currentUserId != null && creator == currentUserId) {
+          paidByLabel = 'You';
+        } else if (partnerUserId != null && creator == partnerUserId) {
+          paidByLabel = pDisplayName;
+        } else if (creator.contains('-') || creator.length >= 16) {
+          paidByLabel = pDisplayName;
+        }
       }
     }
 

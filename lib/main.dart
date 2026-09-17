@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/cove_theme.dart';
 import 'core/theme/theme_provider.dart';
@@ -84,6 +85,28 @@ Future<void> main() async {
     } catch (e) {
       debugPrint('Supabase initialization failed: $e');
     }
+  }
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final prefCurrency = prefs.getString('cove_preferred_currency');
+    if (prefCurrency != null && prefCurrency.isNotEmpty) {
+      CurrencyNotifier.cachedInitialCurrency = prefCurrency;
+    }
+    final prefName = prefs.getString('cove_user_display_name');
+    if (prefName != null && prefName.isNotEmpty) {
+      UserProfileNotifier.cachedDisplayName = prefName;
+    }
+    final prefAvatar = prefs.getString('cove_user_avatar_url');
+    if (prefAvatar != null && prefAvatar.isNotEmpty) {
+      UserProfileNotifier.cachedAvatarUrl = prefAvatar;
+    }
+    final prefInitials = prefs.getBool('cove_user_use_initials');
+    if (prefInitials != null) {
+      UserProfileNotifier.cachedUseInitials = prefInitials;
+    }
+  } catch (e) {
+    debugPrint('Failed to preload preferences: $e');
   }
 
   runApp(
