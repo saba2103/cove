@@ -11,13 +11,15 @@ import '../../sync/providers/cove_sync_providers.dart';
 import 'calendar_event_form_sheet.dart';
 import 'views/calendar_agenda_view.dart';
 import 'views/calendar_month_view.dart';
-import 'views/calendar_year_view.dart';
 
 enum CalendarViewMode {
-  week,
-  agenda,
-  month,
-  year,
+  day,
+  month;
+
+  // Backwards compatibility aliases
+  static const CalendarViewMode week = CalendarViewMode.day;
+  static const CalendarViewMode agenda = CalendarViewMode.day;
+  static const CalendarViewMode year = CalendarViewMode.month;
 }
 
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -30,7 +32,7 @@ class CalendarScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialEvents,
     this.initialSubscriptions,
-    this.initialMode = CalendarViewMode.week,
+    this.initialMode = CalendarViewMode.day,
     this.initialSelectedDate,
   });
 
@@ -176,9 +178,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final typography = context.typography;
 
     final modes = [
-      (CalendarViewMode.week, 'Week'),
+      (CalendarViewMode.day, 'Day'),
       (CalendarViewMode.month, 'Month'),
-      (CalendarViewMode.year, 'Year'),
     ];
 
     return Container(
@@ -230,8 +231,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     bool hasPartner = true,
   }) {
     switch (_viewMode) {
-      case CalendarViewMode.week:
-      case CalendarViewMode.agenda:
+      case CalendarViewMode.day:
         return CalendarAgendaView(
           events: events,
           subscriptions: subscriptions,
@@ -257,24 +257,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             initialDate: _selectedDate,
           ),
           hasPartner: hasPartner,
-        );
-
-      case CalendarViewMode.year:
-        return CalendarYearView(
-          events: events,
-          subscriptions: subscriptions,
-          year: _selectedDate.year,
-          onMonthSelected: (d) {
-            setState(() {
-              _selectedDate = d;
-              _viewMode = CalendarViewMode.month;
-            });
-          },
-          onYearChanged: (newYear) {
-            setState(() {
-              _selectedDate = DateTime(newYear, _selectedDate.month, _selectedDate.day);
-            });
-          },
         );
     }
   }
