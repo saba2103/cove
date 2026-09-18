@@ -49,7 +49,7 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
       if (mounted) {
         setState(() {
           _isCreating = false;
-          _error = e.toString();
+          _error = e.toString().replaceFirst('Bad state: ', '').replaceFirst('Exception: ', '');
         });
       }
     }

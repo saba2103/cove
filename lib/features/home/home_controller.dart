@@ -227,6 +227,13 @@ class HomeController {
   /// Ensures a locally stored home and current user membership exist in Supabase.
   /// Self-heals any connection dropouts or delayed initial inserts.
   Future<void> ensureHomeSyncedToSupabase(String homeId) async {
+    // Ensure symmetric key exists on device
+    if (!await _keyStore.hasKey(homeId)) {
+      debugPrint('[HomeController] Home $homeId missing symmetric key on device. Auto-generating key.');
+      final newKey = _crypto.generateHomeKey();
+      await _keyStore.saveKey(homeId, newKey);
+    }
+
     final supabase = ref.read(supabaseClientProvider);
     if (supabase == null) return;
 

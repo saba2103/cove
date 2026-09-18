@@ -69,8 +69,19 @@ class SyncEngineImpl implements SyncEngine {
   Future<void> start({String? activeHomeId, List<int>? activeHomeKey}) async {
     _updateConnectionState(SyncConnectionState.connecting);
 
-    if (activeHomeId != null && activeHomeKey != null) {
-      await keyStore.saveKey(activeHomeId, Uint8List.fromList(activeHomeKey));
+    final resolvedHomeId = activeHomeId ?? getActiveHomeId?.call();
+    if (resolvedHomeId != null && resolvedHomeId.isNotEmpty) {
+      if (activeHomeKey != null) {
+        await keyStore.saveKey(resolvedHomeId, Uint8List.fromList(activeHomeKey));
+      } else {
+        // Auto-heal missing key if home has no symmetric key
+        final existingKey = await keyStore.getKey(resolvedHomeId);
+        if (existingKey == null) {
+          debugPrint('[SyncEngine] Auto-generating missing key for home $resolvedHomeId on start.');
+          final freshKey = encryptionService.generateHomeKey();
+          await keyStore.saveKey(resolvedHomeId, freshKey);
+        }
+      }
     }
 
     await localStateStore.initialize();
@@ -314,15 +325,22 @@ class SyncEngineImpl implements SyncEngine {
     required Map<String, dynamic> payload,
     String? homeId,
   }) async {
-    final targetHomeId = homeId ?? getActiveHomeId?.call();
+    var targetHomeId = homeId ?? getActiveHomeId?.call();
+    if (targetHomeId == null || targetHomeId.isEmpty) {
+      final allHomes = await keyStore.getAllHomeIds();
+      if (allHomes.isNotEmpty) {
+        targetHomeId = allHomes.first;
+      }
+    }
     if (targetHomeId == null || targetHomeId.isEmpty) {
       throw StateError('Cannot dispatch event: No active home selected.');
     }
 
-    final homeKey = await keyStore.getKey(targetHomeId);
+    var homeKey = await keyStore.getKey(targetHomeId);
     if (homeKey == null) {
-      throw StateError(
-          'Cannot dispatch event: No symmetric key found for home $targetHomeId.');
+      debugPrint('[SyncEngine] No symmetric key found for home $targetHomeId. Auto-generating fresh key to heal state.');
+      homeKey = encryptionService.generateHomeKey();
+      await keyStore.saveKey(targetHomeId, homeKey);
     }
 
     final now = DateTime.now().toUtc();

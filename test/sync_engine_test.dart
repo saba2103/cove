@@ -550,6 +550,68 @@ void main() {
       final expensesAfterDup = await db.watchExpenses('home_alpha').first;
       expect(expensesAfterDup.length, equals(1));
     });
+
+    test('dispatchLocalEvent auto-heals missing symmetric key and succeeds without throwing',
+        () async {
+      // Create an engine scoped to a home that has NO key in storage
+      final keylessEngine = SyncEngineImpl(
+        eventStore: eventStore,
+        localStateStore: localStore,
+        encryptionService: crypto,
+        keyStore: keyStore,
+        getCurrentUserId: () => 'alex_user_id',
+        getActiveHomeId: () => 'home_without_key_123',
+      );
+
+      // Verify home has no key before dispatch
+      expect(await keyStore.hasKey('home_without_key_123'), isFalse);
+
+      // Dispatching local event should self-heal and NOT throw StateError
+      await keylessEngine.dispatchLocalEvent(
+        eventType: 'list_created',
+        payload: {
+          'id': 'test_list_healed',
+          'home_id': 'home_without_key_123',
+          'name': 'Groceries Healed',
+        },
+      );
+
+      // Key should now be generated and persisted
+      expect(await keyStore.hasKey('home_without_key_123'), isTrue);
+
+      // The list should be created locally in Drift
+      final lists = await (db.select(db.localLists)
+            ..where((t) => t.id.equals('test_list_healed')))
+          .get();
+      expect(lists.length, equals(1));
+      expect(lists.first.name, equals('Groceries Healed'));
+
+      await keylessEngine.stop();
+    });
+
+    test('HomeKeyStore migrates key from fallback storage to primary storage', () async {
+      final primary = FakeSecureStorage();
+      final fallback = FakeSecureStorage();
+
+      // Store key only in fallback
+      final homeKey = crypto.generateHomeKey();
+      final testHomeId = 'home_migrated_789';
+      await fallback.write(
+        key: 'cove_home_key_$testHomeId',
+        value: base64UrlEncode(homeKey),
+      );
+
+      final store = HomeKeyStore(storage: primary, fallbackStorage: fallback);
+
+      // getKey should find it in fallback, migrate to primary, and return key
+      final retrievedKey = await store.getKey(testHomeId);
+      expect(retrievedKey, isNotNull);
+      expect(retrievedKey, equals(homeKey));
+
+      // Primary storage should now have the migrated key
+      final primaryVal = await primary.read(key: 'cove_home_key_$testHomeId');
+      expect(primaryVal, equals(base64UrlEncode(homeKey)));
+    });
   });
 
   group('Deterministic Home Icon Mark Tests', () {
