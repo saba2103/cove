@@ -332,6 +332,15 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       _selectedListId = null;
       if (_customListOrder != null) {
         _customListOrder!.remove(list.id);
+        final homeId = ref.read(activeHomeIdProvider);
+        if (homeId != null) {
+          try {
+            await _storage.write(
+              key: 'cove_lists_tab_order_$homeId',
+              value: _customListOrder!.join(','),
+            );
+          } catch (_) {}
+        }
       }
       await ref.read(listControllerProvider).deleteList(listId: list.id);
     }

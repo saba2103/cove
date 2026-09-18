@@ -127,9 +127,13 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         // --- LISTS ---
         case 'list_created':
+          final listId = payload['id'] as String;
+          if (await db.isTombstoned(listId)) {
+            break;
+          }
           await db.into(db.localLists).insertOnConflictUpdate(
                 LocalListsCompanion.insert(
-                  id: payload['id'] as String,
+                  id: listId,
                   homeId: homeId,
                   name: (payload['name'] as String?) ?? 'List',
                   isArchived: const Value(false),
@@ -143,13 +147,32 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'list_deleted':
           final listId = (payload['id'] ?? payload['list_id']) as String?;
           if (listId != null && listId.isNotEmpty) {
+            await db.recordTombstone(listId, 'list');
+            final list = await (db.select(db.localLists)..where((t) => t.id.equals(listId))).getSingleOrNull();
+            if (list != null) {
+              final normName = list.name.trim().toLowerCase();
+              await db.recordTombstone('default_${normName}_$homeId', 'list');
+              await db.recordTombstone('default_name_${normName}_$homeId', 'list');
+            }
+            final items = await (db.select(db.localListItems)..where((t) => t.listId.equals(listId))).get();
+            for (final item in items) {
+              await db.recordTombstone(item.id, 'list_item');
+            }
             await (db.delete(db.localListItems)..where((t) => t.listId.equals(listId))).go();
             await (db.delete(db.localLists)..where((t) => t.id.equals(listId))).go();
+            try {
+              final rawOrder = await storage.read(key: 'cove_lists_tab_order_$homeId');
+              if (rawOrder != null && rawOrder.contains(listId)) {
+                final updated = rawOrder.split(',').where((id) => id.isNotEmpty && id != listId).join(',');
+                await storage.write(key: 'cove_lists_tab_order_$homeId', value: updated);
+              }
+            } catch (_) {}
           }
           break;
 
         case 'list_renamed':
           final listId = (payload['id'] ?? payload['list_id']) as String;
+          if (await db.isTombstoned(listId)) break;
           final newName = payload['name'] as String? ?? 'List';
           await (db.update(db.localLists)..where((t) => t.id.equals(listId)))
               .write(LocalListsCompanion(name: Value(newName)));
@@ -172,9 +195,16 @@ class LocalStateStoreImpl implements LocalStateStore {
           final itemId = (payload['id'] as String?) ?? 'item_${timestamp.millisecondsSinceEpoch}';
           final listId = (payload['list_id'] as String?) ?? 'default_list';
 
-          // Auto-heal: Ensure the parent list exists in localLists and is unarchived!
+          if (await db.isTombstoned(itemId) || await db.isTombstoned(listId)) {
+            break;
+          }
+
+          // Auto-heal: Ensure the parent list exists in localLists and is unarchived ONLY IF NOT TOMBSTONED!
           final existingParent = await (db.select(db.localLists)..where((t) => t.id.equals(listId))).getSingleOrNull();
           if (existingParent == null) {
+            if (await db.isTombstoned(listId)) {
+              break;
+            }
             final listName = (payload['list_name'] as String?) ??
                 (listId.toLowerCase().contains('grocery')
                     ? 'Grocery'
@@ -183,6 +213,9 @@ class LocalStateStoreImpl implements LocalStateStore {
                         : (listId.toLowerCase().contains('planning')
                             ? 'Planning'
                             : 'List')));
+            if (await db.isTombstoned('default_name_${listName.toLowerCase()}_$homeId')) {
+              break;
+            }
             await db.into(db.localLists).insertOnConflictUpdate(
               LocalListsCompanion.insert(
                 id: listId,
@@ -214,6 +247,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'list_item_updated':
           final itemId = payload['id'] as String;
+          if (await db.isTombstoned(itemId)) break;
           final title = payload['title'] as String?;
           final notes = payload['notes'] as String?;
           await (db.update(db.localListItems)..where((t) => t.id.equals(itemId))).write(
@@ -226,6 +260,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'list_item_toggled':
           final itemId = payload['id'] as String;
+          if (await db.isTombstoned(itemId)) break;
           final isCompleted = payload['is_completed'] as bool? ?? true;
           await (db.update(db.localListItems)
                 ..where((t) => t.id.equals(itemId)))
@@ -240,6 +275,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'list_item_deleted':
           final itemId = payload['id'] as String;
+          await db.recordTombstone(itemId, 'list_item');
           await (db.delete(db.localListItems)
                 ..where((t) => t.id.equals(itemId)))
               .go();
@@ -247,12 +283,21 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'list_completed_cleared':
           final targetListId = payload['list_id'] as String;
+          final completedItems = await (db.select(db.localListItems)
+                ..where((t) => t.homeId.equals(homeId) & t.listId.equals(targetListId) & t.isCompleted.equals(true)))
+              .get();
+          for (final item in completedItems) {
+            await db.recordTombstone(item.id, 'list_item');
+          }
           await db.clearCompletedListItems(homeId, targetListId);
           break;
 
         // --- SUBSCRIPTIONS ---
         case 'subscription_added':
         case 'subscription_updated':
+          final subId = payload['id'] as String;
+          if (await db.isTombstoned(subId)) break;
+
           final nextDateStr = payload['next_billing_date'] as String?;
           final nextDate = nextDateStr != null
               ? DateTime.tryParse(nextDateStr) ?? timestamp
@@ -262,7 +307,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
           await db.into(db.localSubscriptions).insertOnConflictUpdate(
                 LocalSubscriptionsCompanion.insert(
-                  id: payload['id'] as String,
+                  id: subId,
                   homeId: homeId,
                   name: (payload['name'] as String?) ?? '',
                   amount: (payload['amount'] as num?)?.toDouble() ?? 0.0,
@@ -288,6 +333,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'subscription_cancelled':
           final subId = payload['id'] as String;
+          if (await db.isTombstoned(subId)) break;
           await (db.update(db.localSubscriptions)
                 ..where((t) => t.id.equals(subId)))
               .write(const LocalSubscriptionsCompanion(isActive: Value(false)));
@@ -295,6 +341,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'subscription_reactivated':
           final reactivateId = payload['id'] as String;
+          if (await db.isTombstoned(reactivateId)) break;
           await (db.update(db.localSubscriptions)
                 ..where((t) => t.id.equals(reactivateId)))
               .write(const LocalSubscriptionsCompanion(isActive: Value(true)));
@@ -302,6 +349,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'subscription_deleted':
           final deleteId = payload['id'] as String;
+          await db.recordTombstone(deleteId, 'subscription');
           await (db.delete(db.localSubscriptions)
                 ..where((t) => t.id.equals(deleteId)))
               .go();
@@ -376,6 +424,8 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         // --- HABITS ---
         case 'habit_created':
+          final habitId = payload['id'] as String;
+          if (await db.isTombstoned(habitId)) break;
           final rawDays = (payload['target_days_per_week'] as num?)?.toInt() ?? 7;
           final isPrivate = payload['is_private'] as bool? ?? false;
           // Negative target days signifies privateToMe locally
@@ -383,7 +433,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
           await db.into(db.localHabits).insertOnConflictUpdate(
                 LocalHabitsCompanion.insert(
-                  id: payload['id'] as String,
+                  id: habitId,
                   homeId: homeId,
                   name: (payload['name'] as String?) ?? '',
                   cadence: Value((payload['cadence'] as String?) ?? 'daily'),
@@ -397,6 +447,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'habit_updated':
           final habitId = payload['id'] as String;
+          if (await db.isTombstoned(habitId)) break;
           final name = payload['name'] as String?;
           final cadence = payload['cadence'] as String?;
           final rawDays = (payload['target_days_per_week'] as num?)?.toInt();
@@ -419,6 +470,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'habit_checkin_toggled':
           final habitId = payload['habit_id'] as String;
+          if (await db.isTombstoned(habitId)) break;
           final checkinDate = payload['checkin_date'] as String; // YYYY-MM-DD
           final checked = payload['checked'] as bool? ?? true;
 
@@ -461,6 +513,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'habit_checkin_acknowledged':
           final habitId = payload['habit_id'] as String;
+          if (await db.isTombstoned(habitId)) break;
           final checkinDate = payload['checkin_date'] as String;
           final ownerId = payload['owner_id'] as String? ?? '';
 
@@ -486,12 +539,16 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'habit_archived':
         case 'habit_deleted':
           final habitId = payload['id'] as String;
+          await db.recordTombstone(habitId, 'habit');
           await db.deleteHabit(habitId);
           break;
 
         // --- CALENDAR EVENTS ---
         case 'calendar_event_added':
         case 'calendar_event_updated':
+          final eventId = payload['id'] as String;
+          if (await db.isTombstoned(eventId)) break;
+
           final startStr = payload['start_time'] as String?;
           final endStr = payload['end_time'] as String?;
           final start = startStr != null
@@ -503,7 +560,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
           await db.into(db.localCalendarEvents).insertOnConflictUpdate(
                 LocalCalendarEventsCompanion.insert(
-                  id: payload['id'] as String,
+                  id: eventId,
                   homeId: homeId,
                   title: (payload['title'] as String?) ?? '',
                   description: Value(payload['description'] as String?),
@@ -520,6 +577,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'calendar_event_deleted':
           final eventId = payload['id'] as String;
+          await db.recordTombstone(eventId, 'calendar_event');
           await (db.delete(db.localCalendarEvents)
                 ..where((t) => t.id.equals(eventId)))
               .go();
@@ -527,9 +585,11 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         // --- ROADMAP ITEMS ---
         case 'roadmap_item_added':
+          final rAddId = payload['id'] as String;
+          if (await db.isTombstoned(rAddId)) break;
           await db.into(db.localRoadmapItems).insertOnConflictUpdate(
                 LocalRoadmapItemsCompanion.insert(
-                  id: payload['id'] as String,
+                  id: rAddId,
                   homeId: homeId,
                   title: (payload['title'] as String?) ?? '',
                   description: Value(payload['description'] as String?),
@@ -544,13 +604,15 @@ class LocalStateStoreImpl implements LocalStateStore {
           break;
 
         case 'roadmap_item_toggled':
+          final rTogId = payload['id'] as String;
+          if (await db.isTombstoned(rTogId)) break;
           final isCompleted = payload['is_completed'] as bool? ?? false;
           final completedAtStr = payload['completed_at'] as String?;
           final completedAt = isCompleted
               ? (completedAtStr != null ? DateTime.tryParse(completedAtStr) : timestamp)
               : null;
           await (db.update(db.localRoadmapItems)
-                ..where((t) => t.id.equals(payload['id'] as String)))
+                ..where((t) => t.id.equals(rTogId)))
               .write(
             LocalRoadmapItemsCompanion(
               isCompleted: Value(isCompleted),
@@ -561,11 +623,13 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'roadmap_item_deleted':
           final rId = payload['id'] as String;
+          await db.recordTombstone(rId, 'roadmap_item');
           await db.deleteRoadmapItem(rId);
           break;
 
         case 'roadmap_item_updated':
           final updateId = payload['id'] as String;
+          if (await db.isTombstoned(updateId)) break;
           final updateTitle = payload['title'] as String?;
           final updateDesc = payload['description'] as String?;
           await (db.update(db.localRoadmapItems)..where((t) => t.id.equals(updateId))).write(
@@ -593,6 +657,7 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'routine_created':
         case 'routine_updated':
           final rId = payload['id'] as String;
+          if (await db.isTombstoned(rId)) break;
           final rName = (payload['name'] as String?) ?? 'Routine';
           final rDaysJson = (payload['days_json'] as String?) ?? jsonEncode([1, 2, 3, 4, 5]);
           await db.into(db.localRoutines).insertOnConflictUpdate(
@@ -608,6 +673,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'routine_deleted':
           final delRoutineId = payload['id'] as String;
+          await db.recordTombstone(delRoutineId, 'routine');
           await (db.delete(db.localRoutineEvents)..where((t) => t.routineId.equals(delRoutineId))).go();
           await (db.delete(db.localRoutines)..where((t) => t.id.equals(delRoutineId))).go();
           break;

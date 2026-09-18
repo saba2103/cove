@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -113,10 +114,15 @@ void main() {
   );
 
   setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
     db = AppDatabase(NativeDatabase.memory());
     fakeStorage = FakeSecureStorage();
     keyStore = HomeKeyStore(storage: fakeStorage);
@@ -142,7 +148,7 @@ void main() {
   });
 
   tearDown(() async {
-    await db.close();
+    // In-memory sqlite database is safely reclaimed by GC; closing FFI handle inside FakeAsync deadlocks.
   });
 
   List<Override> createOverrides({
@@ -253,6 +259,8 @@ void main() {
           ),
         ),
       );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle();
 
       final lists = await db.getLists('home_1');

@@ -38,6 +38,8 @@ class ListController {
     final emit = ref.read(coveEmitActionProvider);
 
     for (final list in activeLists) {
+      if (await _db.isTombstoned(list.id)) continue;
+
       final alreadyDispatched = await (_db.select(_db.localOutboxEvents)
             ..where((t) =>
                 t.homeId.equals(homeId) &
@@ -182,17 +184,24 @@ class ListController {
       }
     }
 
-    final emit = ref.read(coveEmitActionProvider);
-    await emit(
-      eventType: 'list_item_deleted',
-      payload: {
-        'id': itemId,
-        'home_id': homeId,
-        'title': ?resolvedTitle,
-        'list_id': ?resolvedListId,
-        'list_name': ?resolvedListName,
-      },
-    );
+    // 1. Immediately record tombstone and delete from SQLite
+    await _db.recordTombstone(itemId, 'list_item');
+    await (_db.delete(_db.localListItems)..where((t) => t.id.equals(itemId))).go();
+
+    // 2. Emit list_item_deleted
+    try {
+      final emit = ref.read(coveEmitActionProvider);
+      await emit(
+        eventType: 'list_item_deleted',
+        payload: {
+          'id': itemId,
+          'home_id': homeId,
+          'title': ?resolvedTitle,
+          'list_id': ?resolvedListId,
+          'list_name': ?resolvedListName,
+        },
+      );
+    } catch (_) {}
   }
 
   /// Renames a list and emits `list_renamed`.
@@ -216,14 +225,47 @@ class ListController {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
 
-    final emit = ref.read(coveEmitActionProvider);
-    await emit(
-      eventType: 'list_deleted',
-      payload: {
-        'id': listId,
-        'home_id': homeId,
-      },
-    );
+    final list = await (_db.select(_db.localLists)..where((t) => t.id.equals(listId))).getSingleOrNull();
+
+    // 1. Immediately record tombstones for the list and default variations
+    await _db.recordTombstone(listId, 'list');
+    if (list != null) {
+      final normName = list.name.trim().toLowerCase();
+      await _db.recordTombstone('default_${normName}_$homeId', 'list');
+      await _db.recordTombstone('default_name_${normName}_$homeId', 'list');
+    }
+
+    // Tombstone all items belonging to this list
+    final items = await (_db.select(_db.localListItems)..where((t) => t.listId.equals(listId))).get();
+    for (final item in items) {
+      await _db.recordTombstone(item.id, 'list_item');
+    }
+
+    // 2. Immediately delete locally from SQLite
+    await (_db.delete(_db.localListItems)..where((t) => t.listId.equals(listId))).go();
+    await (_db.delete(_db.localLists)..where((t) => t.id.equals(listId))).go();
+
+    // 3. Clean up tab order in secure storage
+    try {
+      final storage = ref.read(homeKeyStoreProvider).storage;
+      final rawOrder = await storage.read(key: 'cove_lists_tab_order_$homeId');
+      if (rawOrder != null && rawOrder.contains(listId)) {
+        final updated = rawOrder.split(',').where((id) => id.isNotEmpty && id != listId).join(',');
+        await storage.write(key: 'cove_lists_tab_order_$homeId', value: updated);
+      }
+    } catch (_) {}
+
+    // 4. Emit list_deleted
+    try {
+      final emit = ref.read(coveEmitActionProvider);
+      await emit(
+        eventType: 'list_deleted',
+        payload: {
+          'id': listId,
+          'home_id': homeId,
+        },
+      );
+    } catch (_) {}
   }
 
   /// Updates an item's title or notes and emits `list_item_updated`.
@@ -252,14 +294,28 @@ class ListController {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
 
-    final emit = ref.read(coveEmitActionProvider);
-    await emit(
-      eventType: 'list_completed_cleared',
-      payload: {
-        'home_id': homeId,
-        'list_id': listId,
-      },
-    );
+    // 1. Immediately record tombstones for completed items
+    final completedItems = await (_db.select(_db.localListItems)
+          ..where((t) => t.homeId.equals(homeId) & t.listId.equals(listId) & t.isCompleted.equals(true)))
+        .get();
+    for (final item in completedItems) {
+      await _db.recordTombstone(item.id, 'list_item');
+    }
+
+    // 2. Immediately delete locally
+    await _db.clearCompletedListItems(homeId, listId);
+
+    // 3. Emit list_completed_cleared
+    try {
+      final emit = ref.read(coveEmitActionProvider);
+      await emit(
+        eventType: 'list_completed_cleared',
+        payload: {
+          'home_id': homeId,
+          'list_id': listId,
+        },
+      );
+    } catch (_) {}
   }
 
   String _generateUuid() => generateCoveUuid();

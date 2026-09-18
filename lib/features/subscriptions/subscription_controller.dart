@@ -356,17 +356,21 @@ class SubscriptionController {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
 
-    if (isPrivate) {
-      await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
-    } else {
-      final emit = ref.read(coveEmitActionProvider);
-      await emit(
-        eventType: 'subscription_deleted',
-        payload: {
-          'id': id,
-          'home_id': homeId,
-        },
-      );
+    // 1. Immediately record tombstone and delete locally
+    await _db.recordTombstone(id, 'subscription');
+    await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
+
+    if (!isPrivate) {
+      try {
+        final emit = ref.read(coveEmitActionProvider);
+        await emit(
+          eventType: 'subscription_deleted',
+          payload: {
+            'id': id,
+            'home_id': homeId,
+          },
+        );
+      } catch (_) {}
     }
   }
 

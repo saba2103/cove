@@ -451,6 +451,10 @@ class AppDatabase extends _$AppDatabase {
       if (existingNames.contains(name.toLowerCase())) continue;
 
       final id = 'default_${name.toLowerCase()}_$homeId';
+      if (await isTombstoned(id) || await isTombstoned('default_name_${name.toLowerCase()}_$homeId')) {
+        continue;
+      }
+
       await into(localLists).insertOnConflictUpdate(
         LocalListsCompanion.insert(
           id: id,

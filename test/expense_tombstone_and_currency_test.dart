@@ -102,6 +102,163 @@ void main() {
       expenses = await db.getExpenses(homeId);
       expect(expenses, isEmpty);
     });
+
+    test('LocalStateStore drops replayed list_created and list_item_added when tombstone exists', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final store = LocalStateStoreImpl(db);
+      const homeId = 'home_test_lists';
+      const listId = 'list_groceries_1';
+      const itemId = 'item_milk_1';
+
+      // 1. Create list and add item
+      await store.applyEvent(
+        eventId: 'evt_list_create_1',
+        homeId: homeId,
+        eventType: 'list_created',
+        payload: {'id': listId, 'name': 'Grocery'},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+      await store.applyEvent(
+        eventId: 'evt_item_add_1',
+        homeId: homeId,
+        eventType: 'list_item_added',
+        payload: {'id': itemId, 'list_id': listId, 'title': 'Organic Milk'},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+
+      var lists = await db.getLists(homeId);
+      expect(lists.length, 1);
+      expect(lists.first.id, listId);
+
+      // 2. Delete list
+      await store.applyEvent(
+        eventId: 'evt_list_del_1',
+        homeId: homeId,
+        eventType: 'list_deleted',
+        payload: {'id': listId},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+
+      lists = await db.getLists(homeId);
+      expect(lists, isEmpty);
+      expect(await db.isTombstoned(listId), isTrue);
+      expect(await db.isTombstoned(itemId), isTrue);
+
+      // 3. Historical replay of list_created must NOT resurrect list
+      await store.applyEvent(
+        eventId: 'evt_list_create_replay',
+        homeId: homeId,
+        eventType: 'list_created',
+        payload: {'id': listId, 'name': 'Grocery'},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+      lists = await db.getLists(homeId);
+      expect(lists, isEmpty);
+
+      // 4. Historical replay of list_item_added must NOT auto-heal/resurrect parent list or insert item
+      await store.applyEvent(
+        eventId: 'evt_item_add_replay',
+        homeId: homeId,
+        eventType: 'list_item_added',
+        payload: {'id': itemId, 'list_id': listId, 'title': 'Organic Milk', 'list_name': 'Grocery'},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+      lists = await db.getLists(homeId);
+      expect(lists, isEmpty);
+      final items = await (db.select(db.localListItems)..where((t) => t.id.equals(itemId))).get();
+      expect(items, isEmpty);
+    });
+
+    test('ensureDefaultLists does not resurrect tombstoned default lists', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      const homeId = 'home_test_defaults';
+      const userId = 'user_1';
+
+      // 1. Initial creation of default lists
+      await db.ensureDefaultLists(homeId, userId);
+      var lists = await db.getLists(homeId);
+      expect(lists.map((l) => l.name), containsAll(['Grocery', 'Travel', 'Planning']));
+
+      // 2. Tombstone 'Travel' list
+      final travelList = lists.firstWhere((l) => l.name == 'Travel');
+      await db.recordTombstone(travelList.id, 'list');
+      await db.recordTombstone('default_travel_$homeId', 'list');
+      await db.recordTombstone('default_name_travel_$homeId', 'list');
+      await (db.delete(db.localLists)..where((t) => t.id.equals(travelList.id))).go();
+
+      lists = await db.getLists(homeId);
+      expect(lists.any((l) => l.name == 'Travel'), isFalse);
+
+      // 3. ensureDefaultLists runs (e.g. on pull-to-refresh or app launch)
+      await db.ensureDefaultLists(homeId, userId);
+      lists = await db.getLists(homeId);
+
+      // Travel must NOT be resurrected!
+      expect(lists.any((l) => l.name == 'Travel'), isFalse);
+      expect(lists.any((l) => l.name == 'Grocery'), isTrue);
+      expect(lists.any((l) => l.name == 'Planning'), isTrue);
+    });
+
+    test('LocalStateStore drops replayed subscription_added when tombstoned', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      final store = LocalStateStoreImpl(db);
+      const homeId = 'home_test_subs';
+      const subId = 'sub_netflix_1';
+
+      await store.applyEvent(
+        eventId: 'evt_sub_add_1',
+        homeId: homeId,
+        eventType: 'subscription_added',
+        payload: {
+          'id': subId,
+          'name': 'Netflix',
+          'amount': 15.99,
+          'currency': 'USD',
+        },
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+
+      var subs = await (db.select(db.localSubscriptions)..where((t) => t.homeId.equals(homeId))).get();
+      expect(subs.length, 1);
+
+      // Delete subscription
+      await store.applyEvent(
+        eventId: 'evt_sub_del_1',
+        homeId: homeId,
+        eventType: 'subscription_deleted',
+        payload: {'id': subId},
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+
+      subs = await (db.select(db.localSubscriptions)..where((t) => t.homeId.equals(homeId))).get();
+      expect(subs, isEmpty);
+      expect(await db.isTombstoned(subId), isTrue);
+
+      // Replay subscription_added
+      await store.applyEvent(
+        eventId: 'evt_sub_add_replay',
+        homeId: homeId,
+        eventType: 'subscription_added',
+        payload: {
+          'id': subId,
+          'name': 'Netflix',
+          'amount': 15.99,
+          'currency': 'USD',
+        },
+        timestamp: DateTime.now(),
+        authorId: 'user_1',
+      );
+
+      subs = await (db.select(db.localSubscriptions)..where((t) => t.homeId.equals(homeId))).get();
+      expect(subs, isEmpty);
+    });
   });
 
   group('Currency Retention & Protection Tests', () {
