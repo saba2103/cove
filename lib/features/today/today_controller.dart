@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../activity/activity_formatter.dart';
+import '../activity/activity_models.dart';
 import '../auth/auth_controller.dart';
 import '../habits/habit_streak_calculator.dart';
 import '../profile/partner_profile_controller.dart';
@@ -149,12 +151,27 @@ final todayDataProvider = Provider<TodayData>((ref) {
     ));
   }
 
-  // --- 4. Today's Expenses ---
+  // --- 4. Lists Summary (Pills) ---
+  final listsSummary = <TodayListSummary>[];
+  for (final list in validLists) {
+    final openCount = allListItems.where((i) => i.listId == list.id && !i.isCompleted).length;
+    listsSummary.add(TodayListSummary(
+      listId: list.id,
+      name: list.name,
+      openCount: openCount,
+    ));
+  }
+
+  // --- 5. Today's & Month's Expenses ---
   final todayExpensesList = <TodayExpenseItem>[];
   double spendTotal = 0.0;
+  double monthSpendTotal = 0.0;
 
   for (final exp in expenses) {
     final expDate = exp.expenseDate;
+    if (expDate.year == now.year && expDate.month == now.month) {
+      monthSpendTotal += exp.amount;
+    }
     if (expDate.year == now.year && expDate.month == now.month && expDate.day == now.day) {
       final isMine = exp.paidBy == currentUserId;
       final payer = isMine ? 'You' : partnerName;
@@ -175,7 +192,9 @@ final todayDataProvider = Provider<TodayData>((ref) {
 
   todayExpensesList.sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
 
-  // --- 5. Serene Morning Quote ---
+  final eventsOnlyCount = events.where((e) => !e.isSubscription).length;
+
+  // --- 6. Serene Morning Quote ---
   final quotes = const [
     'Two lives. One calm rhythm.',
     'A quiet start, a steady step together.',
@@ -189,13 +208,43 @@ final todayDataProvider = Provider<TodayData>((ref) {
 
   return TodayData(
     events: events,
+    eventsOnlyCount: eventsOnlyCount,
     habits: todayHabits,
     focusTasks: focusTasks,
+    listsSummary: listsSummary,
     todayExpenses: todayExpensesList,
     todaySpendTotal: spendTotal,
+    sharedMonthExpensesTotal: monthSpendTotal,
     userName: firstName,
     partnerName: partnerName,
     hasPartner: hasPartner,
     morningQuote: quotes[quoteIndex],
   );
+});
+
+final todayRecentActivityProvider =
+    StreamProvider<List<FormattedActivityItem>>((ref) {
+  final homeId = ref.watch(activeHomeIdProvider);
+  if (homeId == null) return Stream.value([]);
+  final db = ref.watch(appDatabaseProvider);
+  final user = ref.watch(authProvider).value;
+  final partnerName = ref.watch(partnerProfileProvider).displayName;
+  final currency = ref.watch(currencyPreferenceProvider);
+
+  return db
+      .watchActivityEvents(
+        homeId,
+        currentUserId: user?.id,
+        limit: 3,
+      )
+      .map((rows) {
+        return rows.map((r) {
+          return ActivityFormatter.format(
+            rawEvent: r,
+            currentUserId: user?.id,
+            partnerName: partnerName,
+            preferredCurrencySymbol: currency.symbol,
+          );
+        }).toList();
+      });
 });

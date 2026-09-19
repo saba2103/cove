@@ -8,7 +8,7 @@ import '../../core/widgets/cove_pill_button.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
-import 'calendar_event_form_sheet.dart';
+import 'calendar_create_sheet.dart';
 import 'views/calendar_agenda_view.dart';
 import 'views/calendar_month_view.dart';
 
@@ -133,12 +133,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: CovePillButton(
-              label: '+ Event',
+              label: '+ Add',
+              icon: const Icon(Icons.add, size: 16),
               variant: CoveButtonVariant.secondary,
               isCompact: true,
-              onPressed: () => CalendarEventFormSheet.show(
+              onPressed: () => CalendarCreateSheet.show(
                 context,
-                initialDate: _selectedDate,
+                selectedDate: _selectedDate,
               ),
             ),
           ),
@@ -238,9 +239,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           outboxEvents: outboxEvents,
           selectedDate: _selectedDate,
           onSelectDate: (d) => setState(() => _selectedDate = d),
-          onAddEvent: () => CalendarEventFormSheet.show(
+          onAddEvent: () => CalendarCreateSheet.show(
             context,
-            initialDate: _selectedDate,
+            selectedDate: _selectedDate,
           ),
           hasPartner: hasPartner,
         );
@@ -251,10 +252,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           subscriptions: subscriptions,
           outboxEvents: outboxEvents,
           selectedDate: _selectedDate,
-          onSelectDate: (d) => setState(() => _selectedDate = d),
-          onAddEvent: () => CalendarEventFormSheet.show(
+          onSelectDate: (d) => setState(() {
+            _selectedDate = d;
+            _viewMode = CalendarViewMode.day;
+          }),
+          onAddEvent: () => CalendarCreateSheet.show(
             context,
-            initialDate: _selectedDate,
+            selectedDate: _selectedDate,
           ),
           hasPartner: hasPartner,
         );

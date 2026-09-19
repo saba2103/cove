@@ -94,12 +94,28 @@ class TodayExpenseItem {
 }
 
 @immutable
+class TodayListSummary {
+  final String listId;
+  final String name;
+  final int openCount;
+
+  const TodayListSummary({
+    required this.listId,
+    required this.name,
+    required this.openCount,
+  });
+}
+
+@immutable
 class TodayData {
   final List<TodayEventItem> events;
+  final int eventsOnlyCount;
   final List<TodayHabitItem> habits;
   final List<TodayListItem> focusTasks;
+  final List<TodayListSummary> listsSummary;
   final List<TodayExpenseItem> todayExpenses;
   final double todaySpendTotal;
+  final double sharedMonthExpensesTotal;
   final String userName;
   final String partnerName;
   final bool hasPartner;
@@ -107,10 +123,13 @@ class TodayData {
 
   const TodayData({
     required this.events,
+    required this.eventsOnlyCount,
     required this.habits,
     required this.focusTasks,
+    required this.listsSummary,
     required this.todayExpenses,
     required this.todaySpendTotal,
+    required this.sharedMonthExpensesTotal,
     required this.userName,
     required this.partnerName,
     required this.hasPartner,
@@ -120,10 +139,13 @@ class TodayData {
   factory TodayData.empty() {
     return const TodayData(
       events: [],
+      eventsOnlyCount: 0,
       habits: [],
       focusTasks: [],
+      listsSummary: [],
       todayExpenses: [],
       todaySpendTotal: 0.0,
+      sharedMonthExpensesTotal: 0.0,
       userName: '',
       partnerName: 'Partner',
       hasPartner: false,

@@ -1,8 +1,27 @@
 import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
+import '../habits/habit_schedule.dart';
+import '../habits/habit_streak_calculator.dart';
+import '../reminders/reminder_models.dart';
+import '../routines/routine_models.dart';
 import '../subscriptions/commitment_models.dart';
 
-/// Unified model representing either an actual calendar event or a surfaced subscription renewal.
+/// The 5 layers carrying dated household information on the calendar.
+enum CalendarLayer {
+  all('All', 'ALL'),
+  events('Events', 'EVENT'),
+  commitments('Commitments', 'RENEWAL'),
+  money('Money', 'EXPENSE'),
+  rhythms('Rhythms', 'RHYTHM'),
+  tasks('Tasks', 'TASK');
+
+  final String label;
+  final String microLabel;
+
+  const CalendarLayer(this.label, this.microLabel);
+}
+
+/// Unified model representing any dated entity on the shared calendar.
 sealed class CalendarEntry {
   final DateTime date;
 
@@ -10,6 +29,9 @@ sealed class CalendarEntry {
 
   String get id;
   String get title;
+  CalendarLayer get layer;
+  bool get isAllDay;
+  DateTime get startTime;
 }
 
 /// A calendar event created by either partner.
@@ -34,8 +56,15 @@ class CalendarEventEntry extends CalendarEntry {
   @override
   String get title => event.title;
 
+  @override
+  CalendarLayer get layer => CalendarLayer.events;
+
+  @override
   bool get isAllDay => event.isAllDay;
+
+  @override
   DateTime get startTime => occurrenceStartTime;
+
   DateTime get endTime => occurrenceEndTime;
   String? get location => event.location;
   String? get description => event.description;
@@ -62,9 +91,187 @@ class CalendarSubscriptionEntry extends CalendarEntry {
   @override
   String get title => subscription.name;
 
+  @override
+  CalendarLayer get layer => CalendarLayer.commitments;
+
+  @override
+  bool get isAllDay => true;
+
+  @override
+  DateTime get startTime => date;
+
   double get amount => subscription.amount;
   String get currency => subscription.currency;
   String? get category => subscription.category;
+}
+
+/// A logged expense entry on the calendar.
+class CalendarExpenseEntry extends CalendarEntry {
+  final LocalExpense expense;
+  final String payerName;
+  final bool isCurrentUser;
+
+  CalendarExpenseEntry({
+    required this.expense,
+    required this.payerName,
+    this.isCurrentUser = false,
+  }) : super(CalendarDateUtils.dateOnly(expense.expenseDate));
+
+  @override
+  String get id => 'expense_${expense.id}';
+
+  @override
+  String get title => expense.title;
+
+  @override
+  CalendarLayer get layer => CalendarLayer.money;
+
+  @override
+  bool get isAllDay => true;
+
+  @override
+  DateTime get startTime => expense.expenseDate;
+
+  double get amount => expense.amount;
+  String? get category => expense.category;
+  String? get paymentMethod => expense.paymentMethod;
+  String get paidBy => expense.paidBy;
+}
+
+/// A habit due on this date.
+class CalendarHabitEntry extends CalendarEntry {
+  final LocalHabit habit;
+  final bool isDue;
+  final int streak;
+  final bool userCheckedIn;
+  final bool partnerCheckedIn;
+  final bool isPrivate;
+
+  CalendarHabitEntry({
+    required this.habit,
+    required DateTime date,
+    required this.isDue,
+    required this.streak,
+    required this.userCheckedIn,
+    required this.partnerCheckedIn,
+    required this.isPrivate,
+  }) : super(CalendarDateUtils.dateOnly(date));
+
+  @override
+  String get id => 'habit_${habit.id}_${DateFormat('yyyyMMdd').format(date)}';
+
+  @override
+  String get title => habit.name;
+
+  @override
+  CalendarLayer get layer => CalendarLayer.rhythms;
+
+  @override
+  bool get isAllDay => true;
+
+  @override
+  DateTime get startTime => date;
+}
+
+/// A task / list item with a due date.
+class CalendarTaskEntry extends CalendarEntry {
+  final LocalListItem item;
+  final String listName;
+  final DateTime dueDate;
+
+  CalendarTaskEntry({
+    required this.item,
+    required this.listName,
+    required this.dueDate,
+  }) : super(CalendarDateUtils.dateOnly(dueDate));
+
+  @override
+  String get id => 'task_${item.id}';
+
+  @override
+  String get title => item.title;
+
+  @override
+  CalendarLayer get layer => CalendarLayer.tasks;
+
+  @override
+  bool get isAllDay => true;
+
+  @override
+  DateTime get startTime => dueDate;
+
+  bool get isCompleted => item.isCompleted;
+  String get listId => item.listId;
+  String? get notes => item.notes;
+}
+
+/// A routine block occurring on this date.
+class CalendarRoutineEntry extends CalendarEntry {
+  final RoutineEvent routineEvent;
+  final Routine routine;
+  final DateTime occurrenceStartTime;
+  final DateTime occurrenceEndTime;
+
+  CalendarRoutineEntry({
+    required this.routineEvent,
+    required this.routine,
+    required DateTime date,
+    required this.occurrenceStartTime,
+    required this.occurrenceEndTime,
+  }) : super(CalendarDateUtils.dateOnly(date));
+
+  @override
+  String get id => 'routine_${routineEvent.id}_${DateFormat('yyyyMMdd').format(date)}';
+
+  @override
+  String get title => routineEvent.title;
+
+  @override
+  CalendarLayer get layer => CalendarLayer.tasks;
+
+  @override
+  bool get isAllDay => false;
+
+  @override
+  DateTime get startTime => occurrenceStartTime;
+
+  DateTime get endTime => occurrenceEndTime;
+  int get startMinutes => routineEvent.startMinutes;
+  int get endMinutes => routineEvent.endMinutes;
+  String? get category => routineEvent.category;
+  String? get notes => routineEvent.notes;
+  String get formattedTimeRange => routineEvent.formattedTimeRange;
+}
+
+/// A scheduled check-in reminder on this date.
+class CalendarReminderEntry extends CalendarEntry {
+  final CheckinReminder reminder;
+  final DateTime occurrenceTime;
+
+  CalendarReminderEntry({
+    required this.reminder,
+    required DateTime date,
+    required this.occurrenceTime,
+  }) : super(CalendarDateUtils.dateOnly(date));
+
+  @override
+  String get id => 'reminder_${reminder.id}_${DateFormat('yyyyMMdd').format(date)}';
+
+  @override
+  String get title => reminder.message;
+
+  @override
+  CalendarLayer get layer => CalendarLayer.tasks;
+
+  @override
+  bool get isAllDay => false;
+
+  @override
+  DateTime get startTime => occurrenceTime;
+
+  int get hour => reminder.hour;
+  int get minute => reminder.minute;
+  String get formattedTime => reminder.formattedTime;
 }
 
 class CalendarDateUtils {
@@ -257,5 +464,197 @@ class CalendarDateUtils {
       default:
         return current.add(const Duration(days: 7));
     }
+  }
+
+  /// Projects logged expenses between [startDate] and [endDate].
+  static List<CalendarExpenseEntry> projectExpenses({
+    required List<LocalExpense> expenses,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? currentUserId,
+    String partnerName = 'Partner',
+  }) {
+    final List<CalendarExpenseEntry> entries = [];
+    final start = dateOnly(startDate);
+    final end = dateOnly(endDate);
+
+    for (final exp in expenses) {
+      final expDate = dateOnly(exp.expenseDate);
+      if (!expDate.isBefore(start) && !expDate.isAfter(end)) {
+        final isMe = currentUserId != null && exp.paidBy == currentUserId;
+        final payer = isMe ? 'You' : partnerName;
+        entries.add(CalendarExpenseEntry(
+          expense: exp,
+          payerName: payer,
+          isCurrentUser: isMe,
+        ));
+      }
+    }
+
+    return entries;
+  }
+
+  /// Projects habits due between [startDate] and [endDate].
+  static List<CalendarHabitEntry> projectHabits({
+    required List<LocalHabit> habits,
+    required List<LocalHabitCheckin> checkins,
+    required String currentUserId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final List<CalendarHabitEntry> entries = [];
+    final start = dateOnly(startDate);
+    final end = dateOnly(endDate);
+
+    int daysCount = end.difference(start).inDays + 1;
+    if (daysCount > 1000) daysCount = 1000;
+    if (daysCount < 0) return entries;
+
+    for (int i = 0; i < daysCount; i++) {
+      final currentDay = start.add(Duration(days: i));
+      final dayString = DateFormat('yyyy-MM-dd').format(currentDay);
+
+      for (final h in habits) {
+        if (h.isArchived) continue;
+        final sched = HabitSchedule.parse(h.cadence, targetDays: h.targetDaysPerWeek);
+        if (!sched.isDueOn(currentDay)) continue;
+
+        final userChecked = checkins.any((c) =>
+            c.habitId == h.id &&
+            c.memberId == currentUserId &&
+            c.checkinDate == dayString);
+
+        final partnerChecked = checkins.any((c) =>
+            c.habitId == h.id &&
+            c.memberId != currentUserId &&
+            c.checkinDate == dayString);
+
+        final streak = HabitStreakCalculator.calculate(
+          habit: h,
+          checkins: checkins,
+          referenceDate: currentDay,
+          currentUserId: h.createdBy,
+        );
+
+        final isPrivate = h.targetDaysPerWeek < 0;
+
+        entries.add(CalendarHabitEntry(
+          habit: h,
+          date: currentDay,
+          isDue: true,
+          streak: streak.currentStreak,
+          userCheckedIn: userChecked,
+          partnerCheckedIn: partnerChecked,
+          isPrivate: isPrivate,
+        ));
+      }
+    }
+
+    return entries;
+  }
+
+  /// Projects list tasks with due dates between [startDate] and [endDate].
+  static List<CalendarTaskEntry> projectTasks({
+    required List<LocalListItem> items,
+    required Map<String, String> listNames,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final List<CalendarTaskEntry> entries = [];
+    final start = dateOnly(startDate);
+    final end = dateOnly(endDate);
+
+    for (final item in items) {
+      if (item.dueDate == null) continue;
+      final due = dateOnly(item.dueDate!);
+      if (!due.isBefore(start) && !due.isAfter(end)) {
+        entries.add(CalendarTaskEntry(
+          item: item,
+          listName: listNames[item.listId] ?? 'List',
+          dueDate: due,
+        ));
+      }
+    }
+
+    return entries;
+  }
+
+  /// Projects routine blocks between [startDate] and [endDate].
+  static List<CalendarRoutineEntry> projectRoutines({
+    required List<Routine> routines,
+    required List<RoutineEvent> routineEvents,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final List<CalendarRoutineEntry> entries = [];
+    final start = dateOnly(startDate);
+    final end = dateOnly(endDate);
+
+    final routineMap = {for (final r in routines) r.id: r};
+    int daysCount = end.difference(start).inDays + 1;
+    if (daysCount > 1000) daysCount = 1000;
+    if (daysCount < 0) return entries;
+
+    for (int i = 0; i < daysCount; i++) {
+      final currentDay = start.add(Duration(days: i));
+      final weekday = currentDay.weekday; // 1=Mon .. 7=Sun
+
+      for (final ev in routineEvents) {
+        final parentRoutine = routineMap[ev.routineId];
+        if (parentRoutine == null) continue;
+        if (!parentRoutine.days.contains(weekday)) continue;
+
+        final startMinutes = ev.startMinutes;
+        final endMinutes = ev.endMinutes;
+        final startTime = currentDay.add(Duration(minutes: startMinutes));
+        final endTime = currentDay.add(Duration(minutes: endMinutes));
+
+        entries.add(CalendarRoutineEntry(
+          routineEvent: ev,
+          routine: parentRoutine,
+          date: currentDay,
+          occurrenceStartTime: startTime,
+          occurrenceEndTime: endTime,
+        ));
+      }
+    }
+
+    return entries;
+  }
+
+  /// Projects check-in reminders between [startDate] and [endDate].
+  static List<CalendarReminderEntry> projectReminders({
+    required List<CheckinReminder> reminders,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    final List<CalendarReminderEntry> entries = [];
+    final start = dateOnly(startDate);
+    final end = dateOnly(endDate);
+
+    int daysCount = end.difference(start).inDays + 1;
+    if (daysCount > 1000) daysCount = 1000;
+    if (daysCount < 0) return entries;
+
+    for (int i = 0; i < daysCount; i++) {
+      final currentDay = start.add(Duration(days: i));
+      for (final rem in reminders) {
+        if (!rem.isEnabled) continue;
+        final remTime = DateTime(
+          currentDay.year,
+          currentDay.month,
+          currentDay.day,
+          rem.hour,
+          rem.minute,
+        );
+        entries.add(CalendarReminderEntry(
+          reminder: rem,
+          date: currentDay,
+          occurrenceTime: remTime,
+        ));
+      }
+    }
+
+    return entries;
   }
 }

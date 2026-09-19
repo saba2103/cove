@@ -98,6 +98,7 @@ class ListController {
     required String listId,
     required String title,
     String? notes,
+    DateTime? dueDate,
     String? listName,
   }) async {
     final homeId = _activeHomeId;
@@ -120,6 +121,7 @@ class ListController {
         'list_name': ?resolvedListName,
         'title': title.trim(),
         'notes': notes?.trim(),
+        if (dueDate != null) 'due_date': dueDate.toIso8601String(),
       },
     );
     return id;

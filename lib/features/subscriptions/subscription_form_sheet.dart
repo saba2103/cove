@@ -16,17 +16,20 @@ import 'subscription_controller.dart';
 class SubscriptionFormSheet extends ConsumerStatefulWidget {
   final LocalSubscription? existing;
   final bool initialIsEmi;
+  final DateTime? initialDate;
 
   const SubscriptionFormSheet({
     super.key,
     this.existing,
     this.initialIsEmi = false,
+    this.initialDate,
   });
 
   static Future<void> show(
     BuildContext context, {
     LocalSubscription? existing,
     bool initialIsEmi = false,
+    DateTime? initialDate,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -35,6 +38,7 @@ class SubscriptionFormSheet extends ConsumerStatefulWidget {
       builder: (_) => SubscriptionFormSheet(
         existing: existing,
         initialIsEmi: initialIsEmi,
+        initialDate: initialDate,
       ),
     );
   }
@@ -102,7 +106,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       _customMonths = 7;
     }
 
-    _nextBillingDate = item?.nextBillingDate ?? DateTime.now().add(const Duration(days: 30));
+    _nextBillingDate = item?.nextBillingDate ?? widget.initialDate ?? DateTime.now().add(const Duration(days: 30));
     _endDate = item?.endDate;
     _totalInstallments = item?.totalInstallments ?? (_endDate != null ? item?.emiProgress?.totalInstallments : null);
     _paidInstallments = item?.paidInstallments ?? (_endDate != null ? item?.emiProgress?.paidInstallments : null);

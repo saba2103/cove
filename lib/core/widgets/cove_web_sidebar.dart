@@ -12,7 +12,6 @@ import '../../features/profile/partner_profile_controller.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/user_profile_controller.dart';
 import '../../features/routines/routine_screen.dart';
-import '../../features/today/today_screen.dart';
 import '../../features/weather/weather_controller.dart';
 import '../../sync/crypto/deterministic_home_icon.dart';
 import '../../sync/providers/active_home_provider.dart';
@@ -195,10 +194,10 @@ class CoveWebSidebar extends ConsumerWidget {
                 _buildNavItem(
                   context,
                   index: 0,
-                  label: 'Dashboard',
+                  label: 'Home',
                   icon: currentIndex == 0
-                      ? Icons.dashboard_rounded
-                      : Icons.dashboard_outlined,
+                      ? Icons.home_rounded
+                      : Icons.home_outlined,
                   colors: colors,
                   typography: typography,
                 ),
@@ -262,18 +261,6 @@ class CoveWebSidebar extends ConsumerWidget {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const HabitsScreen()),
-                    );
-                  },
-                ),
-                _buildActionItem(
-                  context,
-                  label: 'Today Focus',
-                  icon: Icons.wb_sunny_outlined,
-                  colors: colors,
-                  typography: typography,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const TodayScreen()),
                     );
                   },
                 ),

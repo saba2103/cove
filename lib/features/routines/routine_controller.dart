@@ -29,6 +29,13 @@ final routineEventsProvider = StreamProvider.family<List<RoutineEvent>, String>(
   return db.watchRoutineEvents(routineId).map((list) => list.map(RoutineEvent.fromLocal).toList());
 });
 
+final activeHomeAllRoutineEventsProvider = StreamProvider<List<RoutineEvent>>((ref) {
+  final homeId = ref.watch(activeHomeIdProvider);
+  if (homeId == null) return Stream.value([]);
+  final db = ref.watch(appDatabaseProvider);
+  return db.watchAllRoutineEvents(homeId).map((list) => list.map(RoutineEvent.fromLocal).toList());
+});
+
 final routineControllerProvider = Provider<RoutineController>((ref) => RoutineController(ref));
 
 class RoutineController {

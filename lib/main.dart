@@ -19,8 +19,7 @@ import 'features/home/onboarding_choice_screen.dart';
 import 'features/activity/activity_models.dart';
 import 'features/activity/activity_screen.dart';
 import 'features/calendar/calendar_screen.dart';
-import 'features/dashboard/dashboard_models.dart';
-import 'features/dashboard/dashboard_screen.dart';
+import 'features/today/today_screen.dart';
 import 'features/expenses/expenses_screen.dart';
 import 'features/habits/habits_screen.dart';
 import 'features/lists/lists_screen.dart';
@@ -159,7 +158,9 @@ class CoveApp extends ConsumerWidget {
         case 'activity':
           return const _ActivityPreviewScaffold();
         case 'dashboard':
-          return const _DashboardPreviewScaffold();
+        case 'today':
+        case 'home':
+          return const TodayScreen();
         case 'notifications':
         case 'profile':
         case 'settings':
@@ -1370,131 +1371,6 @@ class _ActivityPreviewScaffold extends ConsumerWidget {
           child: ActivityScreen(
             initialActivities: sampleActivities,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardPreviewScaffold extends ConsumerWidget {
-  const _DashboardPreviewScaffold();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final now = DateTime.now();
-    final currency = ref.watch(currencyPreferenceProvider);
-    final sym = currency.symbol;
-    final sampleData = DashboardData(
-      sharedExpensesTotal: 1420.00,
-      upcomingItems: [
-        DashboardUpcomingItem(
-          id: 'up_1',
-          title: 'Dinner at Trattoria Bella',
-          date: now,
-          dateBadge: 'TODAY',
-          subtitle: '7:30 PM · Anniversary table',
-          isSubscription: false,
-          icon: Icons.calendar_today_outlined,
-        ),
-        DashboardUpcomingItem(
-          id: 'up_2',
-          title: 'Netflix',
-          date: now.add(const Duration(days: 1)),
-          dateBadge: 'TOMORROW',
-          subtitle: 'from Subscriptions',
-          isSubscription: true,
-          amountFormatted: '${sym}15.49/mo',
-          icon: Icons.subscriptions_outlined,
-        ),
-        DashboardUpcomingItem(
-          id: 'up_3',
-          title: 'Weekend Hike & Cabin',
-          date: now.add(const Duration(days: 3)),
-          dateBadge: 'SAT, SEP 12',
-          subtitle: '9:00 AM · Pack hiking boots',
-          isSubscription: false,
-          icon: Icons.calendar_today_outlined,
-        ),
-      ],
-      listsSummary: const [
-        DashboardListSummary(listId: 'l1', name: 'Grocery', openCount: 3),
-        DashboardListSummary(listId: 'l2', name: 'Travel', openCount: 5),
-        DashboardListSummary(listId: 'l3', name: 'Planning', openCount: 0),
-      ],
-      habitsStatus: const [
-        DashboardHabitStatus(habitId: 'h1', habitName: 'Morning Walk', userCheckedInToday: true, partnerCheckedInToday: true),
-        DashboardHabitStatus(habitId: 'h2', habitName: 'Plant Watering', userCheckedInToday: true, partnerCheckedInToday: false),
-        DashboardHabitStatus(habitId: 'h3', habitName: 'Evening Reading', userCheckedInToday: false, partnerCheckedInToday: true),
-      ],
-      recentActivity: [
-        FormattedActivityItem(
-          id: 'a1',
-          homeId: 'demo',
-          actorId: 'user_1',
-          actorName: 'You',
-          actionText: "checked off 'Oat milk (unsweetened)' in Grocery",
-          eventType: 'list_item_toggled',
-          module: ActivityModule.lists,
-          icon: Icons.check_box_outlined,
-          timestamp: now.subtract(const Duration(minutes: 12)),
-          timeAgo: '12m ago',
-          syncStatus: CoveSyncStatus.syncedToPartner,
-          isPrivate: false,
-          isLocalActor: true,
-        ),
-        FormattedActivityItem(
-          id: 'a2',
-          homeId: 'demo',
-          actorId: 'user_2',
-          actorName: 'Sarah',
-          actionText: "logged ${sym}42.50 under Groceries",
-          eventType: 'expense_logged',
-          module: ActivityModule.expenses,
-          icon: Icons.receipt_long_outlined,
-          timestamp: now.subtract(const Duration(hours: 1)),
-          timeAgo: '1h ago',
-          syncStatus: CoveSyncStatus.syncedToPartner,
-          isPrivate: false,
-          isLocalActor: false,
-        ),
-        FormattedActivityItem(
-          id: 'a3',
-          homeId: 'demo',
-          actorId: 'user_2',
-          actorName: 'Sarah',
-          actionText: "checked in on 'Morning Walk'",
-          eventType: 'habit_checkin_toggled',
-          module: ActivityModule.habits,
-          icon: Icons.repeat_outlined,
-          timestamp: now.subtract(const Duration(hours: 2)),
-          timeAgo: '2h ago',
-          syncStatus: CoveSyncStatus.syncedToPartner,
-          isPrivate: false,
-          isLocalActor: false,
-        ),
-        FormattedActivityItem(
-          id: 'a4',
-          homeId: 'demo',
-          actorId: 'user_1',
-          actorName: 'You',
-          actionText: "added 'Whole Bean Coffee' to Grocery",
-          eventType: 'list_item_added',
-          module: ActivityModule.lists,
-          icon: Icons.add_shopping_cart_outlined,
-          timestamp: now.subtract(const Duration(hours: 4)),
-          timeAgo: '4h ago',
-          syncStatus: CoveSyncStatus.syncedToPartner,
-          isPrivate: false,
-          isLocalActor: true,
-        ),
-      ],
-    );
-
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540),
-          child: DashboardScreen(initialData: sampleData),
         ),
       ),
     );

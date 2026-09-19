@@ -36,6 +36,7 @@ class LocalListItems extends Table {
   TextColumn get listId => text()();
   TextColumn get title => text()();
   TextColumn get notes => text().nullable()();
+  DateTimeColumn get dueDate => dateTime().nullable()();
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get completedAt => dateTime().nullable()();
   TextColumn get completedBy => text().nullable()();
@@ -266,7 +267,7 @@ class AppDatabase extends _$AppDatabase {
             ));
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -303,6 +304,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 9) {
             await m.createTable(localAppliedEvents);
             await m.createTable(localDeletedTombstones);
+          }
+          if (from < 10) {
+            await m.addColumn(localListItems, localListItems.dueDate);
           }
         },
       );
@@ -825,6 +829,13 @@ class AppDatabase extends _$AppDatabase {
   Stream<List<LocalRoutineEvent>> watchRoutineEvents(String routineId) {
     return (select(localRoutineEvents)
           ..where((t) => t.routineId.equals(routineId))
+          ..orderBy([(t) => OrderingTerm.asc(t.startMinutes)]))
+        .watch();
+  }
+
+  Stream<List<LocalRoutineEvent>> watchAllRoutineEvents(String homeId) {
+    return (select(localRoutineEvents)
+          ..where((t) => t.homeId.equals(homeId))
           ..orderBy([(t) => OrderingTerm.asc(t.startMinutes)]))
         .watch();
   }

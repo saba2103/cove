@@ -3,12 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/cove_theme.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
+import '../../../core/widgets/cove_checkbox.dart';
+import '../../../core/widgets/cove_empty_state.dart';
 import '../../../core/widgets/cove_grouped_list.dart';
 import '../../../core/widgets/cove_pill_button.dart';
 import '../../../core/widgets/cove_sync_tick.dart';
 import '../../../sync/db/app_database.dart';
 import '../../activity/activity_formatter.dart';
+import '../../expenses/expense_detail_sheet.dart';
+import '../../habits/habit_controller.dart';
+import '../../lists/list_controller.dart';
+import '../../lists/list_item_detail_sheet.dart';
 import '../../profile/preferences_controller.dart';
+import '../../subscriptions/commitment_detail_sheet.dart';
+import '../calendar_controller.dart';
 import '../calendar_event_form_sheet.dart';
 import '../calendar_models.dart';
 
@@ -39,6 +47,7 @@ class CalendarAgendaView extends ConsumerStatefulWidget {
 class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
   late DateTime _displayedWeekStart;
   bool _isMonthExpanded = false;
+  CalendarLayer _selectedLayer = CalendarLayer.all;
 
   @override
   void initState() {
@@ -82,57 +91,75 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     });
   }
 
+  int _getDistinctLayerCount(
+    Map<DateTime, List<CalendarEntry>> entriesMap,
+    DateTime date,
+  ) {
+    final dayEntries = entriesMap[CalendarDateUtils.dateOnly(date)] ?? [];
+    final layers = <CalendarLayer>{};
+    for (final e in dayEntries) {
+      if (e is CalendarHabitEntry) {
+        // Daily recurring habits do not contribute a dot on every day
+        final h = e.habit;
+        if (h.cadence.toLowerCase() == 'daily' || h.targetDaysPerWeek == 7) {
+          continue;
+        }
+      }
+      layers.add(e.layer);
+    }
+    return layers.length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
     final now = DateTime.now();
 
-    // 1. Project recurring and regular events for window
     final windowStart = DateTime(_displayedWeekStart.year, _displayedWeekStart.month - 1, 1);
     final windowEnd = DateTime(_displayedWeekStart.year, _displayedWeekStart.month + 2, 0);
 
-    final projectedEvents = CalendarDateUtils.projectCalendarEvents(
-      events: widget.events,
-      startDate: windowStart,
-      endDate: windowEnd,
+    final entriesMap = ref.watch(
+      unifiedCalendarEntriesProvider(
+        CalendarWindow(startDate: windowStart, endDate: windowEnd),
+      ),
     );
 
-    // 2. Project subscriptions
-    final projectedSubs = CalendarDateUtils.projectSubscriptions(
-      subscriptions: widget.subscriptions,
-      startDate: windowStart,
-      endDate: windowEnd,
-    );
-
-    // 3. Combine events and subscriptions into single chronological list
-    final List<CalendarEntry> allEntries = [
-      ...projectedEvents,
-      ...projectedSubs,
-    ]..sort((a, b) => a.date.compareTo(b.date));
-
-    // 4. Dates with items for dot indicators in week strip & month grid
-    final datesWithItems = allEntries
-        .map((e) => CalendarDateUtils.dateOnly(e.date))
-        .toSet();
-
-    // 5. Week days (Monday-Sunday)
     final weekDays = List.generate(
       7,
       (i) => _displayedWeekStart.add(Duration(days: i)),
     );
 
-    // 6. Filter entries strictly for selected date
     final selectedDateOnly = CalendarDateUtils.dateOnly(widget.selectedDate);
-    final selectedDayEntries = allEntries
-        .where((e) => CalendarDateUtils.isSameDay(e.date, selectedDateOnly))
-        .toList();
+    final dayEntries = entriesMap[selectedDateOnly] ?? [];
 
+    // Filtered entries for selected layer
+    final filteredEntries = _selectedLayer == CalendarLayer.all
+        ? dayEntries
+        : dayEntries.where((e) => e.layer == _selectedLayer).toList();
+
+    // Layer counts for chips
+    final eventsCount = dayEntries.whereType<CalendarEventEntry>().length;
+    final commitmentsCount = dayEntries.whereType<CalendarSubscriptionEntry>().length;
+    final moneyCount = dayEntries.whereType<CalendarExpenseEntry>().length;
+    final rhythms = dayEntries.whereType<CalendarHabitEntry>().toList();
+    final rhythmsCount = rhythms.length;
+    final tasksCount = dayEntries
+        .where((e) => e is CalendarTaskEntry || e is CalendarRoutineEntry || e is CalendarReminderEntry)
+        .length;
+
+    final completedRhythms = rhythms.where((r) => r.userCheckedIn).length;
+    final totalSpent = dayEntries.whereType<CalendarExpenseEntry>().fold<double>(
+          0.0,
+          (sum, exp) => sum + exp.amount,
+        );
+
+    final currencyPref = ref.watch(currencyPreferenceProvider);
     final isToday = CalendarDateUtils.isSameDay(selectedDateOnly, now);
 
     return Column(
       children: [
-        // Month Navigation Header with Chevron to expand/collapse into Month View
+        // Month Navigation Header with chevron expand/collapse
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 12, 6),
           child: Row(
@@ -189,71 +216,68 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           firstChild: _buildWeekStrip(
             context,
             weekDays: weekDays,
-            datesWithItems: datesWithItems,
+            entriesMap: entriesMap,
             today: now,
           ),
           secondChild: _buildMonthGrid(
             context,
             year: _displayedWeekStart.year,
             month: _displayedWeekStart.month,
-            datesWithItems: datesWithItems,
+            entriesMap: entriesMap,
             today: now,
           ),
         ),
 
+        // Layer Filter Chips Row (All, Events, Commitments, Money, Rhythms, Tasks)
+        _buildLayerFilterChips(
+          context,
+          allCount: dayEntries.length,
+          eventsCount: eventsCount,
+          commitmentsCount: commitmentsCount,
+          moneyCount: moneyCount,
+          rhythmsCount: rhythmsCount,
+          tasksCount: tasksCount,
+        ),
+
         const Divider(height: 1, thickness: 1),
 
-        // Selected Day Events List
+        // Selected Day Events & Content
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             children: [
-              // Selected Day Date Heading
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 12),
-                child: Row(
-                  children: [
-                    Text(
-                      CalendarDateUtils.getRelativeDateLabel(selectedDateOnly, now: now),
-                      style: typography.caption.copyWith(
-                        color: isToday
-                            ? colors.accentPrimary
-                            : colors.textSubtle,
-                        fontWeight: isToday
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    if (isToday) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colors.accentPrimary,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              // Date Heading & Bodoni Summary Line
+              _buildDayHeaderAndSummary(
+                context,
+                selectedDateOnly: selectedDateOnly,
+                isToday: isToday,
+                now: now,
+                eventsCount: eventsCount,
+                completedRhythms: completedRhythms,
+                totalRhythms: rhythmsCount,
+                totalSpent: totalSpent,
+                currencySymbol: currencyPref.symbol,
               ),
+              const SizedBox(height: 14),
 
-              // Events for Selected Day or Day Empty State
-              if (selectedDayEntries.isEmpty)
-                _buildDayEmptyState(context, selectedDateOnly)
+              // Rhythms Strip (shown if All or Rhythms layer selected and rhythms exist)
+              if ((_selectedLayer == CalendarLayer.all || _selectedLayer == CalendarLayer.rhythms) &&
+                  rhythms.isNotEmpty) ...[
+                _buildRhythmsStrip(context, rhythms),
+                const SizedBox(height: 18),
+              ],
+
+              // Filtered Timeline Entries or Empty State
+              if (filteredEntries.isEmpty)
+                _buildEmptyLayerState(context, selectedDateOnly)
               else
-                CoveGroupedCard(
-                  children: selectedDayEntries.map((entry) {
-                    if (entry is CalendarSubscriptionEntry) {
-                      return _buildSubscriptionRow(context, entry);
-                    } else if (entry is CalendarEventEntry) {
-                      return _buildEventRow(context, entry);
-                    }
-                    return const SizedBox.shrink();
-                  }).toList(),
+                _buildTimelineList(
+                  context,
+                  entries: _selectedLayer == CalendarLayer.all
+                      ? filteredEntries.where((e) => e is! CalendarHabitEntry).toList()
+                      : filteredEntries,
                 ),
+              const SizedBox(height: 48),
             ],
           ),
         ),
@@ -264,7 +288,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
   Widget _buildWeekStrip(
     BuildContext context, {
     required List<DateTime> weekDays,
-    required Set<DateTime> datesWithItems,
+    required Map<DateTime, List<CalendarEntry>> entriesMap,
     required DateTime today,
   }) {
     final colors = context.colors;
@@ -276,26 +300,24 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: weekDays.map((day) {
-          final isSelected =
-              CalendarDateUtils.isSameDay(day, widget.selectedDate);
+          final isSelected = CalendarDateUtils.isSameDay(day, widget.selectedDate);
           final isToday = CalendarDateUtils.isSameDay(day, today);
-          final hasItems =
-              datesWithItems.contains(CalendarDateUtils.dateOnly(day));
+          final dotCount = _getDistinctLayerCount(entriesMap, day);
 
           return GestureDetector(
             onTap: () => widget.onSelectDate(day),
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              width: 42,
+              padding: const EdgeInsets.symmetric(vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
                     ? colors.accentPrimary
                     : (isToday
-                        ? colors.accentPrimary.withValues(alpha: 0.15)
+                        ? colors.accentPrimary.withValues(alpha: 0.12)
                         : Colors.transparent),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: isToday && !isSelected
                     ? Border.all(color: colors.accentPrimary, width: 1)
                     : null,
@@ -307,37 +329,27 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                     CalendarDateUtils.formatDayOfWeek(day).substring(0, 2),
                     style: typography.caption.copyWith(
                       fontSize: 11,
-                      color: isSelected
-                          ? colors.background
-                          : colors.textSubtle,
+                      color: isSelected ? colors.background : colors.textSubtle,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${day.day}',
-                    style: typography.bodyMedium.copyWith(
-                      fontWeight:
-                          isSelected || isToday ? FontWeight.w600 : FontWeight.w400,
+                    style: TextStyle(
+                      fontFamily: 'BodoniModa',
+                      fontSize: 16,
+                      fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
                           ? colors.background
-                          : (isToday
-                              ? colors.accentPrimary
-                              : colors.textPrimary),
+                          : (isToday ? colors.accentPrimary : colors.textPrimary),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  // Item dot
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: hasItems
-                          ? (isSelected
-                              ? colors.background
-                              : colors.accentPrimary)
-                          : Colors.transparent,
-                    ),
+                  const SizedBox(height: 5),
+                  // Stepped champagne opacity density dots
+                  _buildDensityDots(
+                    colors: colors,
+                    count: dotCount,
+                    isSelected: isSelected,
                   ),
                 ],
               ),
@@ -348,12 +360,11 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     );
   }
 
-  /// Expanded full month calendar grid
   Widget _buildMonthGrid(
     BuildContext context, {
     required int year,
     required int month,
-    required Set<DateTime> datesWithItems,
+    required Map<DateTime, List<CalendarEntry>> entriesMap,
     required DateTime today,
   }) {
     final colors = context.colors;
@@ -365,7 +376,6 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Day of week labels (M, T, W, T, F, S, S)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: const ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -386,14 +396,12 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                 .toList(),
           ),
           const SizedBox(height: 8),
-
-          // 7-column calendar grid
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.05,
               mainAxisSpacing: 4,
               crossAxisSpacing: 4,
             ),
@@ -402,11 +410,9 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
               final day = gridDays[idx];
               if (day == null) return const SizedBox.shrink();
 
-              final isSelected =
-                  CalendarDateUtils.isSameDay(day, widget.selectedDate);
+              final isSelected = CalendarDateUtils.isSameDay(day, widget.selectedDate);
               final isToday = CalendarDateUtils.isSameDay(day, today);
-              final hasItems =
-                  datesWithItems.contains(CalendarDateUtils.dateOnly(day));
+              final dotCount = _getDistinctLayerCount(entriesMap, day);
 
               return GestureDetector(
                 onTap: () {
@@ -418,8 +424,8 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                 behavior: HitTestBehavior.opaque,
                 child: Center(
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       color: isSelected
                           ? colors.accentPrimary
@@ -437,32 +443,22 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                         Text(
                           '${day.day}',
                           style: TextStyle(
-                            fontFamily: 'GeneralSans',
+                            fontFamily: 'BodoniModa',
                             fontSize: 13,
                             fontWeight: isSelected || isToday
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: isSelected
                                 ? colors.background
-                                : (isToday
-                                    ? colors.accentPrimary
-                                    : colors.textPrimary),
+                                : (isToday ? colors.accentPrimary : colors.textPrimary),
                           ),
                         ),
-                        if (hasItems)
-                          Container(
-                            width: 3.5,
-                            height: 3.5,
-                            margin: const EdgeInsets.only(top: 1),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isSelected
-                                  ? colors.background
-                                  : colors.accentPrimary,
-                            ),
-                          )
-                        else
-                          const SizedBox(height: 4.5),
+                        const SizedBox(height: 2),
+                        _buildDensityDots(
+                          colors: colors,
+                          count: dotCount,
+                          isSelected: isSelected,
+                        ),
                       ],
                     ),
                   ),
@@ -475,188 +471,491 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     );
   }
 
-  /// Row for actual calendar events (interactive, supports edit/delete, has sync tick)
-  Widget _buildEventRow(BuildContext context, CalendarEventEntry entry) {
+  /// Up to 3 density dots based on distinct layers at stepped champagne opacity
+  Widget _buildDensityDots({
+    required CoveColors colors,
+    required int count,
+    required bool isSelected,
+  }) {
+    if (count <= 0) {
+      return const SizedBox(height: 4);
+    }
+
+    final dotColor = isSelected ? colors.background : colors.accentPrimary;
+    final effectiveCount = count > 3 ? 3 : count;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(effectiveCount, (i) {
+        double opacity = 1.0;
+        if (i == 1) opacity = 0.55;
+        if (i == 2) opacity = 0.30;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          width: 3.5,
+          height: 3.5,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: dotColor.withValues(alpha: isSelected ? (opacity * 0.9) : opacity),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildLayerFilterChips(
+    BuildContext context, {
+    required int allCount,
+    required int eventsCount,
+    required int commitmentsCount,
+    required int moneyCount,
+    required int rhythmsCount,
+    required int tasksCount,
+  }) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    final chips = [
+      (layer: CalendarLayer.all, count: allCount),
+      (layer: CalendarLayer.events, count: eventsCount),
+      (layer: CalendarLayer.commitments, count: commitmentsCount),
+      (layer: CalendarLayer.money, count: moneyCount),
+      (layer: CalendarLayer.rhythms, count: rhythmsCount),
+      (layer: CalendarLayer.tasks, count: tasksCount),
+    ];
+
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (ctx, idx) {
+          final item = chips[idx];
+          final isSelected = _selectedLayer == item.layer;
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedLayer = item.layer),
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? colors.accentPrimary
+                    : colors.surfaceCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? colors.accentPrimary : colors.borderHairline,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.layer.label,
+                    style: typography.caption.copyWith(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? colors.background : colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${item.count}',
+                    style: TextStyle(
+                      fontFamily: 'BodoniModa',
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected
+                          ? colors.background
+                          : colors.textSubtle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDayHeaderAndSummary(
+    BuildContext context, {
+    required DateTime selectedDateOnly,
+    required bool isToday,
+    required DateTime now,
+    required int eventsCount,
+    required int completedRhythms,
+    required int totalRhythms,
+    required double totalSpent,
+    required String currencySymbol,
+  }) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              CalendarDateUtils.getRelativeDateLabel(selectedDateOnly, now: now),
+              style: typography.caption.copyWith(
+                color: isToday ? colors.accentPrimary : colors.textSubtle,
+                fontWeight: isToday ? FontWeight.w600 : FontWeight.w500,
+                letterSpacing: 0.8,
+              ),
+            ),
+            if (isToday) ...[
+              const SizedBox(width: 6),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors.accentPrimary,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        // Figures in Bodoni Moda
+        Row(
+          children: [
+            Text(
+              '$eventsCount',
+              style: const TextStyle(
+                fontFamily: 'BodoniModa',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              ' ${eventsCount == 1 ? 'event' : 'events'}  ·  ',
+              style: typography.caption.copyWith(color: colors.textSubtle),
+            ),
+            Text(
+              '$completedRhythms/$totalRhythms',
+              style: const TextStyle(
+                fontFamily: 'BodoniModa',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              ' rhythms  ·  ',
+              style: typography.caption.copyWith(color: colors.textSubtle),
+            ),
+            Text(
+              '$currencySymbol${formatCoveAmount(totalSpent)}',
+              style: const TextStyle(
+                fontFamily: 'BodoniModa',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              ' logged',
+              style: typography.caption.copyWith(color: colors.textSubtle),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRhythmsStrip(BuildContext context, List<CalendarHabitEntry> habits) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 8),
+          child: Text(
+            'RHYTHMS DUE TODAY',
+            style: typography.caption.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+              color: colors.textSubtle,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: habits.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (ctx, idx) {
+              final habitEntry = habits[idx];
+              final isChecked = habitEntry.userCheckedIn;
+
+              return Container(
+                width: 190,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.surfaceCard,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colors.borderHairline),
+                ),
+                child: Row(
+                  children: [
+                    CoveCheckbox(
+                      value: isChecked,
+                      onChanged: (val) async {
+                        await ref.read(habitControllerProvider).toggleCheckin(
+                              habit: habitEntry.habit,
+                              date: habitEntry.date,
+                              checked: val,
+                            );
+                      },
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            habitEntry.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: typography.bodyMedium.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              // Dropping to textMuted without strikethrough
+                              color: isChecked ? colors.textMuted : colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Text(
+                                '🔥 ',
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              Text(
+                                '${habitEntry.streak}',
+                                style: const TextStyle(
+                                  fontFamily: 'BodoniModa',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                ' streak',
+                                style: typography.caption.copyWith(
+                                  fontSize: 11,
+                                  color: colors.textSubtle,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineList(
+    BuildContext context, {
+    required List<CalendarEntry> entries,
+  }) {
+    return CoveGroupedCard(
+      children: entries.map((entry) {
+        return _buildTimelineRow(context, entry);
+      }).toList(),
+    );
+  }
+
+  Widget _buildTimelineRow(BuildContext context, CalendarEntry entry) {
+    final colors = context.colors;
+    final typography = context.typography;
+    final currency = ref.watch(currencyPreferenceProvider);
+
+    // Left gutter time in Bodoni Moda
+    String gutterText;
+    if (entry.isAllDay) {
+      gutterText = 'ALL DAY';
+    } else {
+      gutterText = DateFormat('h:mm a').format(entry.startTime);
+    }
+
+    Widget content;
+    if (entry is CalendarEventEntry) {
+      content = _buildEventContent(context, entry);
+    } else if (entry is CalendarSubscriptionEntry) {
+      content = _buildSubscriptionContent(context, entry, currency.symbol);
+    } else if (entry is CalendarExpenseEntry) {
+      content = _buildExpenseContent(context, entry, currency.symbol);
+    } else if (entry is CalendarTaskEntry) {
+      content = _buildTaskContent(context, entry);
+    } else if (entry is CalendarRoutineEntry) {
+      content = _buildRoutineContent(context, entry);
+    } else if (entry is CalendarReminderEntry) {
+      content = _buildReminderContent(context, entry);
+    } else {
+      content = Text(entry.title, style: typography.bodyMedium);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Bodoni Tabular Time Gutter
+          SizedBox(
+            width: 72,
+            child: Text(
+              gutterText,
+              style: entry.isAllDay
+                  ? typography.caption.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                      color: colors.textSubtle,
+                    )
+                  : const TextStyle(
+                      fontFamily: 'BodoniModa',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventContent(BuildContext context, CalendarEventEntry entry) {
     final colors = context.colors;
     final typography = context.typography;
     final event = entry.event;
 
-    // Check outbox status
     final syncStatus = resolveCoveSyncStatus(
       entityId: event.id,
       outbox: widget.outboxEvents,
       hasPartner: widget.hasPartner,
     );
 
-    String timeStr;
-    if (event.isAllDay) {
-      timeStr = 'All day';
-    } else {
-      final start = CalendarDateUtils.formatTime(entry.startTime);
-      final end = CalendarDateUtils.formatTime(entry.endTime);
-      timeStr = '$start – $end';
-    }
-
     return InkWell(
       onTap: () => CalendarEventFormSheet.show(context, existing: event),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            // Calendar icon marker
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: colors.accentPrimary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                entry.isRecurring
-                    ? Icons.repeat
-                    : Icons.calendar_today_outlined,
-                size: 16,
-                color: colors.accentPrimary,
-              ),
-            ),
-            const SizedBox(width: 14),
-
-            // Title, time & location
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          event.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: typography.bodyMedium.copyWith(
-                            color: colors.textPrimary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      if (entry.isRecurring) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.repeat,
-                          size: 13,
-                          color: colors.accentPrimary,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Text(
-                        timeStr,
-                        style: typography.caption.copyWith(
-                          fontSize: 12,
-                          color: colors.textSubtle,
-                        ),
-                      ),
-                      if (event.location != null &&
-                          event.location!.trim().isNotEmpty) ...[
-                        Text(
-                          ' • ${event.location!}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: typography.caption.copyWith(
-                            fontSize: 12,
-                            color: colors.textSubtle,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // Two-tick sync indicator
-            CoveSyncTick(status: syncStatus),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Row for surfaced subscription renewals (read-only, no sync tick, has "from Subscriptions" caption)
-  Widget _buildSubscriptionRow(
-      BuildContext context, CalendarSubscriptionEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final sub = entry.subscription;
-    final currency = ref.watch(currencyPreferenceProvider);
-    final sym = ActivityFormatter.getCurrencySymbol(sub.currency, fallbackSymbol: currency.symbol);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          // Subscriptions icon
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colors.accentSecondary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.autorenew_rounded,
-              size: 18,
-              color: colors.accentSecondary,
-            ),
+          _buildLayerIcon(
+            icon: entry.isRecurring ? Icons.repeat : Icons.calendar_today_outlined,
+            color: colors.accentPrimary,
           ),
-          const SizedBox(width: 14),
-
-          // Title & "from Subscriptions" caption
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                _buildMicroLabel('EVENT', colors),
+                const SizedBox(height: 2),
+                Text(
+                  event.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: typography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                if (event.location != null && event.location!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    event.location!,
+                    style: typography.caption.copyWith(
+                      fontSize: 11,
+                      color: colors.textSubtle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          CoveSyncTick(status: syncStatus),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionContent(
+    BuildContext context,
+    CalendarSubscriptionEntry entry,
+    String defaultSymbol,
+  ) {
+    final colors = context.colors;
+    final typography = context.typography;
+    final sub = entry.subscription;
+    final sym = ActivityFormatter.getCurrencySymbol(sub.currency, fallbackSymbol: defaultSymbol);
+
+    return InkWell(
+      onTap: () => CommitmentDetailSheet.show(context, sub),
+      child: Row(
+        children: [
+          _buildLayerIcon(
+            icon: Icons.autorenew_rounded,
+            color: colors.accentSecondary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildMicroLabel('RENEWAL', colors),
+                const SizedBox(height: 2),
                 Text(
                   sub.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: typography.bodyMedium.copyWith(
-                    color: colors.textPrimary,
                     fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'from Subscriptions',
+                  '${sub.billingCycle} commitment',
                   style: typography.caption.copyWith(
                     fontSize: 11,
-                    color: colors.accentPrimary,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
+                    color: colors.textSubtle,
                   ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(width: 12),
-
-          // Surfaced renewal amount in editorial Bodoni Moda style
+          const SizedBox(width: 8),
           Text(
             '$sym${formatCoveAmount(sub.amount)}',
-            style: typography.headline.copyWith(
+            style: const TextStyle(
+              fontFamily: 'BodoniModa',
               fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: colors.textPrimary,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -664,39 +963,298 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     );
   }
 
-  Widget _buildDayEmptyState(BuildContext context, DateTime date) {
+  Widget _buildExpenseContent(
+    BuildContext context,
+    CalendarExpenseEntry entry,
+    String defaultSymbol,
+  ) {
     final colors = context.colors;
     final typography = context.typography;
-    final isToday = CalendarDateUtils.isSameDay(date, DateTime.now());
-    final dayLabel = isToday ? 'today' : DateFormat('EEEE, MMM d').format(date);
+    final exp = entry.expense;
+    final sym = ActivityFormatter.getCurrencySymbol(exp.currency, fallbackSymbol: defaultSymbol);
+
+    return InkWell(
+      onTap: () => ExpenseDetailSheet.show(context, exp),
+      child: Row(
+        children: [
+          _buildLayerIcon(
+            icon: Icons.receipt_long_outlined,
+            color: colors.accentPrimary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    _buildMicroLabel('EXPENSE', colors),
+                    const SizedBox(width: 6),
+                    _buildAttributionChip(entry.payerName, colors),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  exp.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: typography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                if (exp.category != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    exp.category!,
+                    style: typography.caption.copyWith(
+                      fontSize: 11,
+                      color: colors.textSubtle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$sym${formatCoveAmount(exp.amount)}',
+            style: const TextStyle(
+              fontFamily: 'BodoniModa',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskContent(BuildContext context, CalendarTaskEntry entry) {
+    final colors = context.colors;
+    final typography = context.typography;
+    final item = entry.item;
+    final isDone = item.isCompleted;
+
+    return InkWell(
+      onTap: () => ListItemDetailSheet.show(
+        context,
+        item: item,
+        listName: entry.listName,
+      ),
+      child: Row(
+        children: [
+          CoveCheckbox(
+            value: isDone,
+            onChanged: (val) async {
+              await ref.read(listControllerProvider).toggleItem(
+                    itemId: item.id,
+                    isCompleted: val,
+                    itemTitle: item.title,
+                    listName: entry.listName,
+                  );
+            },
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    _buildMicroLabel('TASK', colors),
+                    const SizedBox(width: 6),
+                    _buildAttributionChip(entry.listName, colors),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: typography.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: isDone ? colors.textMuted : colors.textPrimary,
+                    // Strikethrough for tasks
+                    decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoutineContent(BuildContext context, CalendarRoutineEntry entry) {
+    final colors = context.colors;
+    final typography = context.typography;
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceRow.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colors.borderHairline,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Row(
         children: [
-          Icon(
-            Icons.event_available_outlined,
-            size: 40,
-            color: colors.textSubtle.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Nothing planned for $dayLabel',
-            style: typography.bodyMedium.copyWith(
-              color: colors.textSubtle,
-              fontWeight: FontWeight.w400,
+          Icon(Icons.schedule_outlined, size: 16, color: colors.textSubtle),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildMicroLabel('ROUTINE', colors),
+                    const SizedBox(width: 6),
+                    Text(
+                      entry.routine.name,
+                      style: typography.caption.copyWith(
+                        fontSize: 10,
+                        color: colors.textSubtle,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  entry.title,
+                  style: typography.bodyMedium.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          CovePillButton(
-            label: 'Add Event',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderContent(BuildContext context, CalendarReminderEntry entry) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    return Row(
+      children: [
+        _buildLayerIcon(
+          icon: Icons.notifications_none_outlined,
+          color: colors.accentSecondary,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMicroLabel('CHECK-IN', colors),
+              const SizedBox(height: 2),
+              Text(
+                entry.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: typography.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLayerIcon({required IconData icon, required Color color}) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 16, color: color),
+    );
+  }
+
+  Widget _buildMicroLabel(String label, CoveColors colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: colors.surfaceRow,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: colors.borderHairline),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'GeneralSans',
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+          color: colors.textSubtle,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttributionChip(String text, CoveColors colors) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: colors.accentPrimary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontFamily: 'GeneralSans',
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: colors.accentPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyLayerState(BuildContext context, DateTime date) {
+    if (_selectedLayer == CalendarLayer.all) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: CoveEmptyState(
+          icon: Icons.spa_outlined,
+          title: 'A quiet day in your sanctuary',
+          description: 'No events, rhythms, or tasks scheduled for today.',
+          action: CovePillButton(
+            label: '+ Add Entry',
             icon: const Icon(Icons.add, size: 16),
             onPressed: widget.onAddEvent,
           ),
-        ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: CoveEmptyState(
+        icon: Icons.event_available_outlined,
+        title: 'No ${_selectedLayer.label.toLowerCase()} on this day',
+        description: 'Keep your household rhythms and commitments in sync together.',
+        action: CovePillButton(
+          label: 'Add to Sanctuary',
+          icon: const Icon(Icons.add, size: 16),
+          onPressed: widget.onAddEvent,
+        ),
       ),
     );
   }

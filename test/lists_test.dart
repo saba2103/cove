@@ -634,8 +634,15 @@ class _TestListController extends ListController {
     required String title,
     String? notes,
     String? listName,
+    DateTime? dueDate,
   }) async {
-    final res = await super.addItem(listId: listId, title: title, notes: notes, listName: listName);
+    final res = await super.addItem(
+      listId: listId,
+      title: title,
+      notes: notes,
+      listName: listName,
+      dueDate: dueDate,
+    );
     await onMutate();
     return res;
   }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-const String kCoveCurrentAppVersion = '2.4.0';
+const String kCoveCurrentAppVersion = '1.0.0-alpha.1';
 const String kCoveLastSeenFreshVersionKey = 'cove_last_seen_fresh_version';
 
 enum ChangelogPreviewType {
+  calendarFirst,
   helicopterView,
   smartDecimals,
   profileStudio,
@@ -43,6 +44,22 @@ class ChangelogItem {
 }
 
 const List<ChangelogItem> kChangelogItems = [
+  // 0. Calendar-First Architecture & Today Home (v1.0-alpha.1)
+  ChangelogItem(
+    id: 'calendar_first_restructure',
+    title: 'Calendar-First Sanctuary & Today Home',
+    tagline: 'The calendar now opens first and carries everything dated.',
+    outcome:
+        'Cove launches directly into your day on the calendar, carrying five quiet layers: events, commitments, money, rhythms, and tasks. Today is now your home tab, gathering monthly spend totals, shared list pills, and recent activity into one calm flow.',
+    underTheHood:
+        'Unified 5-layer calendar provider, additive due-date database schema, Day view layer filters, Bodoni time gutters, and retired Dashboard architecture.',
+    category: 'Architecture',
+    version: 'v1.0-alpha.1',
+    icon: Icons.calendar_month_rounded,
+    previewType: ChangelogPreviewType.calendarFirst,
+    isFeatured: true,
+  ),
+
   // 1. Helicopter View (Featured in Modal #1)
   ChangelogItem(
     id: 'helicopter_view',
@@ -53,7 +70,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Custom LayoutBuilder aspect ratio grid (4x3), dynamic 50/50 attribution toggle, monthly/annual commitment aggregation & bottom sheet sorting.',
     category: 'Commitments',
-    version: 'v2.4',
+    version: 'v0.6-alpha',
     icon: Icons.grid_view_rounded,
     previewType: ChangelogPreviewType.helicopterView,
     isFeatured: true,
@@ -69,7 +86,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'formatCoveAmount with integer modulo normalization across hero cards, notification payloads, list items, and expense ledgers.',
     category: 'Finances',
-    version: 'v2.4',
+    version: 'v0.6-alpha',
     icon: Icons.toll_outlined,
     previewType: ChangelogPreviewType.smartDecimals,
     isFeatured: true,
@@ -85,7 +102,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'image_picker binary upload to Supabase Storage avatars bucket, synchronous SharedPreferences frame-0 preload, and OAuth override guards.',
     category: 'Identity',
-    version: 'v2.4',
+    version: 'v0.6-alpha',
     icon: Icons.portrait_rounded,
     previewType: ChangelogPreviewType.profileStudio,
     isFeatured: true,
@@ -101,7 +118,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'UUID regex detection and fallback resolution mapping session auth IDs and createdBy hashes to partnerProfile.displayName.',
     category: 'Commitments',
-    version: 'v2.3',
+    version: 'v0.5-alpha',
     icon: Icons.person_outline_rounded,
     previewType: ChangelogPreviewType.humanAttribution,
   ),
@@ -116,7 +133,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Supabase Edge Function v3 silent event suppression & client NotificationService broadcast suppression.',
     category: 'Sync & Privacy',
-    version: 'v2.3',
+    version: 'v0.5-alpha',
     icon: Icons.notifications_off_outlined,
     previewType: ChangelogPreviewType.silentSync,
   ),
@@ -131,7 +148,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Replaced rolling 30-day lookaheads with strict calendar month boundary comparisons (DateTime.year & DateTime.month).',
     category: 'Commitments',
-    version: 'v2.2',
+    version: 'v0.4-alpha',
     icon: Icons.calendar_month_outlined,
     previewType: ChangelogPreviewType.strictRenewals,
   ),
@@ -146,7 +163,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Libsodium XSalsa20-Poly1305 authenticated symmetric encryption with ephemeral private QR key exchange.',
     category: 'Security',
-    version: 'v2.1',
+    version: 'v0.3-alpha',
     icon: Icons.lock_outline_rounded,
     previewType: ChangelogPreviewType.e2eeSync,
   ),
@@ -161,7 +178,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Local outbox status tracking paired with real-time Supabase WebSocket delivery confirmation broadcasts.',
     category: 'Sync',
-    version: 'v2.0',
+    version: 'v0.2-alpha',
     icon: Icons.done_all_rounded,
     previewType: ChangelogPreviewType.twoTickSync,
   ),
@@ -176,7 +193,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Flexible recurrence schedules (daily, weekly, custom) with Drift local streak calculation and optimistic check-ins.',
     category: 'Rhythms',
-    version: 'v2.0',
+    version: 'v0.2-alpha',
     icon: Icons.favorite_outline_rounded,
     previewType: ChangelogPreviewType.dailyRhythms,
   ),
@@ -191,7 +208,7 @@ const List<ChangelogItem> kChangelogItems = [
     underTheHood:
         'Local-first Drift SQLite database, optimistic mutation pipeline with outbox queues, and multi-currency formatting.',
     category: 'Architecture',
-    version: 'v1.9',
+    version: 'v0.1-alpha',
     icon: Icons.wifi_off_rounded,
     previewType: ChangelogPreviewType.offlineFirst,
   ),

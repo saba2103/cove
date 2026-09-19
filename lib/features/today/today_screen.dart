@@ -6,8 +6,11 @@ import '../../core/theme/cove_theme.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_checkbox.dart';
+import '../../core/widgets/cove_pill_button.dart';
+import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../activity/activity_screen.dart';
 import '../calendar/calendar_event_form_sheet.dart';
 import '../calendar/calendar_screen.dart';
 import '../expenses/expense_form_sheet.dart';
@@ -123,7 +126,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             // --- 2. AT-A-GLANCE PULSE CARDS ---
             _buildPulseStrip(
               context,
-              eventsCount: todayData.events.length,
+              eventsCount: todayData.eventsOnlyCount,
               completedHabits: completedHabits,
               totalHabits: totalHabits,
               openTasksCount: todayData.focusTasks.length,
@@ -142,18 +145,27 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
             // --- 5. FOCUS TASKS ---
             _buildTasksSection(context, todayData.focusTasks),
+            const SizedBox(height: 20),
+
+            // --- 6. SHARED LISTS PILL ROW ---
+            _buildSharedListsSection(context, todayData.listsSummary),
             const SizedBox(height: 28),
 
-            // --- 6. TODAY'S SPEND & EXPENSES ---
+            // --- 7. TODAY'S SPEND & EXPENSES ---
             _buildSpendSection(
               context,
               todayData.todayExpenses,
               todayData.todaySpendTotal,
+              todayData.sharedMonthExpensesTotal,
               currency.symbol,
             ),
+            const SizedBox(height: 28),
+
+            // --- 8. RECENT ACTIVITY ---
+            _buildRecentActivitySection(context),
             const SizedBox(height: 48),
 
-            // --- 7. SERENE FOOTER ---
+            // --- 9. SERENE FOOTER ---
             _buildFooter(context),
           ],
         ),
@@ -290,7 +302,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           child: _buildPulseCard(
             context,
             icon: Icons.checklist_rounded,
-            title: 'To-Do',
+            title: 'Tasks',
             value: '$openTasksCount',
             subtitle: openTasksCount == 1 ? 'task' : 'tasks',
             color: colors.accentPrimary,
@@ -762,10 +774,100 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     );
   }
 
+  Widget _buildSharedListsSection(BuildContext context, List<TodayListSummary> summaries) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    if (summaries.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('SHARED LISTS', style: typography.caption),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ListsScreen()),
+                );
+              },
+              child: Text(
+                'All lists →',
+                style: typography.caption.copyWith(color: colors.accentPrimary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 38,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: summaries.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (ctx, idx) {
+              final s = summaries[idx];
+              return InkWell(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ListsScreen()),
+                  );
+                },
+                borderRadius: BorderRadius.circular(19),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceCard,
+                    borderRadius: BorderRadius.circular(19),
+                    border: Border.all(color: colors.borderHairline),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        s.name,
+                        style: typography.bodyMedium.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: s.openCount > 0
+                              ? colors.accentPrimary.withValues(alpha: 0.15)
+                              : colors.surfaceRow,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${s.openCount}',
+                          style: TextStyle(
+                            fontFamily: 'BodoniModa',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: s.openCount > 0 ? colors.accentPrimary : colors.textSubtle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSpendSection(
     BuildContext context,
     List<TodayExpenseItem> expenses,
     double totalSpend,
+    double sharedMonthSpendTotal,
     String currencySymbol,
   ) {
     final colors = context.colors;
@@ -865,7 +967,138 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   );
                 }),
               ],
+              const SizedBox(height: 14),
+              // Shared this month total in Bodoni Moda
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: colors.surfaceRow.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: colors.borderHairline),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SHARED THIS MONTH',
+                          style: typography.caption.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                            color: colors.textSubtle,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '$currencySymbol${formatCoveAmount(sharedMonthSpendTotal)}',
+                          style: const TextStyle(
+                            fontFamily: 'BodoniModa',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    CovePillButton(
+                      label: 'Ledger →',
+                      variant: CoveButtonVariant.secondary,
+                      isCompact: true,
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const ExpensesScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentActivitySection(BuildContext context) {
+    final colors = context.colors;
+    final typography = context.typography;
+    final recentActivityAsync = ref.watch(todayRecentActivityProvider);
+    final items = recentActivityAsync.value ?? [];
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('RECENT ACTIVITY', style: typography.caption),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                );
+              },
+              child: Text(
+                'All →',
+                style: typography.caption.copyWith(color: colors.accentPrimary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        CoveCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            children: items.take(3).map((item) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: colors.accentPrimary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(item.icon, size: 15, color: colors.accentPrimary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.actionText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: typography.bodyMedium.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.timeAgo,
+                            style: typography.caption.copyWith(
+                              fontSize: 11,
+                              color: colors.textSubtle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    CoveSyncTick(status: item.syncStatus),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],
@@ -896,12 +1129,15 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             children: [
               Icon(Icons.lock_outline, size: 12, color: colors.textSubtle.withValues(alpha: 0.6)),
               const SizedBox(width: 6),
-              Text(
-                'End-to-end encrypted on-device · Zero cloud knowledge',
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 11,
-                  color: colors.textSubtle.withValues(alpha: 0.6),
+              Flexible(
+                child: Text(
+                  'End-to-end encrypted on-device · Zero cloud knowledge',
+                  style: TextStyle(
+                    fontFamily: 'GeneralSans',
+                    fontSize: 11,
+                    color: colors.textSubtle.withValues(alpha: 0.6),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

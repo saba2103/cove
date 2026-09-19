@@ -89,6 +89,12 @@ class HabitSchedule {
     );
   }
 
+  /// Whether the habit is scheduled to occur on the given [date].
+  bool isDueOn(DateTime date) {
+    if (frequency == 'daily') return true;
+    return daysOfWeek.contains(date.weekday);
+  }
+
   /// Encodes this schedule into a cadence string for database persistence.
   String toCadenceString() {
     String base;

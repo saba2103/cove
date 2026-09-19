@@ -2,6 +2,7 @@ import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/app_shell.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/home/about_cove_screen.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
 import 'package:cove/features/notifications/notification_service.dart';
@@ -138,7 +139,7 @@ void main() {
     ];
   }
 
-  testWidgets('AppShell header has Today icon button and clicking it navigates to TodayScreen', (tester) async {
+  testWidgets('AppShell bottom bar has Today tab and clicking it navigates to TodayScreen', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -157,19 +158,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Verify Today button icon is present in AppBar
-    final todayButton = find.byTooltip('Today');
-    expect(todayButton, findsOneWidget);
-    expect(find.byIcon(Icons.wb_sunny_outlined), findsOneWidget);
+    // Default tab is Calendar (index 2)
+    expect(find.byType(CalendarScreen), findsOneWidget);
 
-    // Tap Today button
-    await tester.tap(todayButton);
+    // Tap Today/Home tab in bottom navigation bar
+    final homeTab = find.byTooltip('Home');
+    expect(homeTab, findsOneWidget);
+    await tester.tap(homeTab);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     // Verify TodayScreen is shown
     expect(find.byType(TodayScreen), findsOneWidget);
-    expect(find.text('Today'), findsOneWidget);
     expect(find.textContaining('TODAY\'S FLOW'), findsOneWidget);
     expect(find.textContaining('DAILY RHYTHMS'), findsOneWidget);
     expect(find.textContaining('FOCUS TASKS'), findsOneWidget);
@@ -293,6 +293,9 @@ void main() {
       focusTasks: [],
       todayExpenses: [],
       todaySpendTotal: 45.0,
+      eventsOnlyCount: 1,
+      listsSummary: const [],
+      sharedMonthExpensesTotal: 0.0,
       userName: 'Alex',
       partnerName: 'Sophia',
       hasPartner: true,
@@ -325,7 +328,7 @@ void main() {
     expect(find.textContaining('Sophia checked in ✓'), findsOneWidget);
 
     // Verify spend card
-    expect(find.text('\$45.00'), findsOneWidget);
+    expect(find.text('\$45'), findsWidgets);
 
     // Clean up
     await tester.pumpWidget(const SizedBox());
@@ -385,7 +388,7 @@ void main() {
 
     // Focus tasks section renders active item
     expect(find.text('Organic Almond Milk'), findsOneWidget);
-    expect(find.text('Groceries'), findsOneWidget);
+    expect(find.text('Groceries'), findsWidgets);
 
     // Old task from deleted list is strictly NOT rendered
     expect(find.text('Old Task From Deleted List'), findsNothing);

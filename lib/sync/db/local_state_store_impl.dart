@@ -13,12 +13,7 @@ class LocalStateStoreImpl implements LocalStateStore {
   final AppDatabase db;
   final FlutterSecureStorage storage;
 
-  LocalStateStoreImpl(this.db, {this.storage = const FlutterSecureStorage()}) {
-    // Proactively purge any existing profile update activity rows
-    db.clearProfileActivityEvents().catchError((_) => 0);
-    // Proactively purge any orphaned or deleted list items
-    db.purgeOrphanedAndArchivedListItems().catchError((_) => 0);
-  }
+  LocalStateStoreImpl(this.db, {this.storage = const FlutterSecureStorage()});
 
   @override
   Future<void> initialize() async {
@@ -231,6 +226,11 @@ class LocalStateStoreImpl implements LocalStateStore {
                 .write(const LocalListsCompanion(isArchived: Value(false)));
           }
 
+          DateTime? dueDate;
+          if (payload['due_date'] != null) {
+            dueDate = DateTime.tryParse(payload['due_date'].toString());
+          }
+
           await db.into(db.localListItems).insertOnConflictUpdate(
                 LocalListItemsCompanion.insert(
                   id: itemId,
@@ -238,6 +238,7 @@ class LocalStateStoreImpl implements LocalStateStore {
                   listId: listId,
                   title: (payload['title'] as String?) ?? '',
                   notes: Value(payload['notes'] as String?),
+                  dueDate: Value(dueDate),
                   isCompleted: const Value(false),
                   createdAt: timestamp,
                   createdBy: authorId,
@@ -250,10 +251,16 @@ class LocalStateStoreImpl implements LocalStateStore {
           if (await db.isTombstoned(itemId)) break;
           final title = payload['title'] as String?;
           final notes = payload['notes'] as String?;
+          DateTime? updatedDueDate;
+          final hasDueDate = payload.containsKey('due_date');
+          if (hasDueDate && payload['due_date'] != null) {
+            updatedDueDate = DateTime.tryParse(payload['due_date'].toString());
+          }
           await (db.update(db.localListItems)..where((t) => t.id.equals(itemId))).write(
             LocalListItemsCompanion(
               title: title != null ? Value(title) : const Value.absent(),
               notes: notes != null ? Value(notes) : const Value.absent(),
+              dueDate: hasDueDate ? Value(updatedDueDate) : const Value.absent(),
             ),
           );
           break;

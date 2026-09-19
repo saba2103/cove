@@ -7,8 +7,10 @@ import 'package:cove/features/calendar/calendar_controller.dart';
 import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/calendar/views/calendar_agenda_view.dart';
 import 'package:cove/features/calendar/views/calendar_month_view.dart';
-import 'package:cove/features/calendar/views/calendar_year_view.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
+import 'package:cove/features/reminders/reminder_controller.dart';
+import 'package:cove/features/reminders/reminder_models.dart';
+import 'package:cove/features/routines/routine_controller.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/db/local_state_store_impl.dart';
@@ -176,7 +178,7 @@ void main() {
   });
 
   tearDown(() async {
-    await db.close();
+    // In-memory sqlite database is safely reclaimed by GC; closing FFI handle inside FakeAsync creates pending timer issues.
   });
 
   List<Override> createOverrides({
@@ -259,7 +261,15 @@ void main() {
         LocalHome(id: homeId, name: 'Our Home', createdAt: DateTime.now(), createdBy: userIdAlex, currency: 'USD'),
       )),
       partnerProfileProvider.overrideWith(() => FakePartnerProfileNotifier()),
+      checkinRemindersProvider.overrideWith(() => FakeReminderNotifier()),
       activeHomeOutboxProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeExpensesProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeHabitsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeAllHabitCheckinsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeListsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeAllListItemsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeRoutinesProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeAllRoutineEventsProvider.overrideWith((ref) => Stream.value([])),
     ];
   }
 
@@ -284,7 +294,7 @@ void main() {
   }
 
   group('Shared Calendar Feature Tests', () {
-    testWidgets('1. Empty state renders correctly with Add First Event button',
+    testWidgets('1. Empty state renders correctly with Add Entry button',
         (tester) async {
       await tester.pumpWidget(
         createWidgetUnderTest(child: const CalendarScreen()),
@@ -293,40 +303,32 @@ void main() {
 
       expect(find.text('Shared Calendar'), findsOneWidget);
       expect(find.byType(CalendarAgendaView), findsOneWidget);
-      expect(find.text('Nothing Scheduled Yet'), findsOneWidget);
-      expect(find.text('Add First Event'), findsOneWidget);
+      expect(find.text('A quiet day in your sanctuary'), findsOneWidget);
+      expect(find.text('+ Add Entry'), findsOneWidget);
     });
 
-    testWidgets('2. Three-way view switcher toggles between Agenda, Month, and Year modes',
+    testWidgets('2. View switcher toggles between Day and Month modes',
         (tester) async {
       await tester.pumpWidget(
         createWidgetUnderTest(child: const CalendarScreen()),
       );
       await tester.pumpAndSettle();
 
-      // Default is Agenda
+      // Default is Day (Agenda)
       expect(find.byType(CalendarAgendaView), findsOneWidget);
       expect(find.byType(CalendarMonthView), findsNothing);
-      expect(find.byType(CalendarYearView), findsNothing);
 
       // Switch to Month
       await tester.tap(find.text('Month'));
       await tester.pumpAndSettle();
       expect(find.byType(CalendarAgendaView), findsNothing);
       expect(find.byType(CalendarMonthView), findsOneWidget);
-      expect(find.byType(CalendarYearView), findsNothing);
 
-      // Switch to Year
-      await tester.tap(find.text('Year'));
+      // Switch back to Day
+      await tester.tap(find.text('Day'));
       await tester.pumpAndSettle();
-      expect(find.byType(CalendarAgendaView), findsNothing);
+      expect(find.byType(CalendarAgendaView), findsOneWidget);
       expect(find.byType(CalendarMonthView), findsNothing);
-      expect(find.byType(CalendarYearView), findsOneWidget);
-
-      // Tap on a month card in Year view returns to Month view
-      await tester.tap(find.text('Jan'));
-      await tester.pumpAndSettle();
-      expect(find.byType(CalendarMonthView), findsOneWidget);
     });
 
     testWidgets('3. Adding a calendar event emits calendar_event_added and renders with CoveSyncTick',
@@ -336,8 +338,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open creation sheet via + Event
-      await tester.tap(find.widgetWithText(CovePillButton, '+ Event'));
+      // Open creation sheet via + Add
+      await tester.tap(find.widgetWithText(CovePillButton, '+ Add'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Event'), findsOneWidget);
+      await tester.tap(find.text('Event'));
       await tester.pumpAndSettle();
 
       expect(find.text('Add Calendar Event'), findsOneWidget);
@@ -364,11 +370,11 @@ void main() {
       expect(find.byType(CoveSyncTick), findsOneWidget);
     });
 
-    testWidgets('4. Subscription renewals are surfaced inline with from Subscriptions caption and NO sync tick',
+    testWidgets('4. Subscription renewals are surfaced inline with RENEWAL caption and NO sync tick',
         (tester) async {
       final now = DateTime.now();
 
-      // Insert active subscription renewing in 2 days
+      // Insert active subscription renewing today
       await db.into(db.localSubscriptions).insert(
             LocalSubscriptionsCompanion.insert(
               id: 'sub_netflix',
@@ -377,21 +383,21 @@ void main() {
               amount: 22.99,
               currency: const drift.Value('USD'),
               billingCycle: const drift.Value('monthly'),
-              nextBillingDate: now.add(const Duration(days: 2)),
+              nextBillingDate: now,
               isActive: const drift.Value(true),
               isPrivate: const drift.Value(false),
               createdAt: now,
             ),
           );
 
-      // Also insert a calendar event
+      // Also insert a calendar event today
       await db.into(db.localCalendarEvents).insert(
             LocalCalendarEventsCompanion.insert(
               id: 'event_dentist',
               homeId: homeId,
               title: 'Dentist Checkup',
-              startTime: now.add(const Duration(days: 1)),
-              endTime: now.add(const Duration(days: 1, hours: 1)),
+              startTime: now,
+              endTime: now.add(const Duration(hours: 1)),
               isAllDay: const drift.Value(false),
               createdAt: now,
               createdBy: userIdAlex,
@@ -399,7 +405,7 @@ void main() {
           );
 
       await tester.pumpWidget(
-        createWidgetUnderTest(child: const CalendarScreen()),
+        createWidgetUnderTest(child: CalendarScreen(initialSelectedDate: now)),
       );
       await tester.pumpAndSettle();
 
@@ -408,7 +414,7 @@ void main() {
 
       // 2. Surfaced subscription is rendered with distinct caption and amount
       expect(find.text('Netflix Premium'), findsWidgets);
-      expect(find.text('from Subscriptions'), findsWidgets);
+      expect(find.text('RENEWAL'), findsWidgets);
       expect(find.text('\$22.99'), findsWidgets);
 
       // 3. Exactly one sync tick exists (for the real calendar event, NOT for the subscription)
@@ -466,19 +472,27 @@ void main() {
       expect(find.text('M'), findsOneWidget);
       expect(find.text('W'), findsOneWidget);
 
-      // Selected day panel contains Tokyo flight
-      expect(find.text('Flight to Tokyo'), findsOneWidget);
+      // Selected day peek card shows item count
+      expect(find.text('1 items'), findsOneWidget);
+      expect(find.text('View Day'), findsOneWidget);
     });
 
-    testWidgets('6. Year view shows 12 month cards with upcoming count',
+    testWidgets('6. Month view day tap switches back to Day view',
         (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       final now = DateTime.now();
       final annivEvent = LocalCalendarEvent(
         id: 'event_anniversary',
         homeId: homeId,
         title: 'Our Anniversary',
-        startTime: DateTime(now.year, now.month, 15),
-        endTime: DateTime(now.year, now.month, 15, 23, 59),
+        startTime: now,
+        endTime: now.add(const Duration(hours: 2)),
         isAllDay: true,
         createdAt: now,
         createdBy: userIdAlex,
@@ -500,18 +514,23 @@ void main() {
       await tester.pumpWidget(
         createWidgetUnderTest(
           child: CalendarScreen(
-            initialMode: CalendarViewMode.year,
+            initialMode: CalendarViewMode.month,
             initialEvents: [annivEvent],
+            initialSelectedDate: now,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(CalendarYearView), findsOneWidget);
+      expect(find.byType(CalendarMonthView), findsOneWidget);
+      expect(find.text('View Day'), findsOneWidget);
 
-      // Cards for months
-      expect(find.text('Jan'), findsOneWidget);
-      expect(find.text('1 upcoming'), findsOneWidget);
+      await tester.ensureVisible(find.text('View Day'));
+      await tester.tap(find.text('View Day'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CalendarAgendaView), findsOneWidget);
+      expect(find.text('Our Anniversary'), findsOneWidget);
     });
 
     testWidgets('7. Dual-theme verification: renders correctly in light and dark themes',
@@ -603,5 +622,10 @@ class FakePartnerProfileNotifier extends PartnerProfileNotifier {
   PartnerProfileState build() {
     return const PartnerProfileState();
   }
+}
+
+class FakeReminderNotifier extends ReminderNotifier {
+  @override
+  List<CheckinReminder> build() => [];
 }
 

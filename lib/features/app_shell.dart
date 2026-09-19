@@ -8,7 +8,6 @@ import '../core/widgets/cove_web_sidebar.dart';
 import 'activity/activity_read_status_controller.dart';
 import 'activity/activity_screen.dart';
 import 'calendar/calendar_screen.dart';
-import 'dashboard/dashboard_screen.dart';
 import 'expenses/expenses_screen.dart';
 import 'habits/habits_screen.dart';
 import 'home/home_controller.dart';
@@ -36,7 +35,7 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
-  int _currentIndex = 0;
+  int _currentIndex = 2;
   DateTime? _lastBackPressed;
   StreamSubscription? _navSub;
   StreamSubscription? _notifSub;
@@ -253,16 +252,16 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           return;
         }
 
-        // If not on Dashboard tab, switch to Dashboard first
-        if (_currentIndex != 0) {
+        // If not on Calendar tab, switch to Calendar first
+        if (_currentIndex != 2) {
           setState(() {
-            _currentIndex = 0;
+            _currentIndex = 2;
             _lastBackPressed = null;
           });
           return;
         }
 
-        // On Dashboard / Home tab: require double press within 2 seconds to exit
+        // On Calendar tab: require double press within 2 seconds to exit
         final now = DateTime.now();
         if (_lastBackPressed == null ||
             now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
@@ -313,19 +312,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const RoutineScreen()),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.wb_sunny_outlined,
-                      size: 22,
-                      color: colors.textPrimary,
-                    ),
-                    tooltip: 'Today',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const TodayScreen()),
                       );
                     },
                   ),
@@ -475,7 +461,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   Widget _buildCurrentTab() {
     switch (_currentIndex) {
       case 0:
-        return const DashboardScreen();
+        return const TodayScreen();
       case 1:
         return const SubscriptionsScreen();
       case 2:
@@ -485,7 +471,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       case 4:
         return const ExpensesScreen();
       default:
-        return const DashboardScreen();
+        return const CalendarScreen();
     }
   }
 }

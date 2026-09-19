@@ -919,6 +919,17 @@ class $LocalListItemsTable extends LocalListItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isCompletedMeta = const VerificationMeta(
     'isCompleted',
   );
@@ -985,6 +996,7 @@ class $LocalListItemsTable extends LocalListItems
     listId,
     title,
     notes,
+    dueDate,
     isCompleted,
     completedAt,
     completedBy,
@@ -1036,6 +1048,12 @@ class $LocalListItemsTable extends LocalListItems
       context.handle(
         _notesMeta,
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
       );
     }
     if (data.containsKey('is_completed')) {
@@ -1110,6 +1128,10 @@ class $LocalListItemsTable extends LocalListItems
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      ),
       isCompleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_completed'],
@@ -1145,6 +1167,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
   final String listId;
   final String title;
   final String? notes;
+  final DateTime? dueDate;
   final bool isCompleted;
   final DateTime? completedAt;
   final String? completedBy;
@@ -1156,6 +1179,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     required this.listId,
     required this.title,
     this.notes,
+    this.dueDate,
     required this.isCompleted,
     this.completedAt,
     this.completedBy,
@@ -1171,6 +1195,9 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
     }
     map['is_completed'] = Variable<bool>(isCompleted);
     if (!nullToAbsent || completedAt != null) {
@@ -1193,6 +1220,9 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
       isCompleted: Value(isCompleted),
       completedAt: completedAt == null && nullToAbsent
           ? const Value.absent()
@@ -1216,6 +1246,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       listId: serializer.fromJson<String>(json['listId']),
       title: serializer.fromJson<String>(json['title']),
       notes: serializer.fromJson<String?>(json['notes']),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
       isCompleted: serializer.fromJson<bool>(json['isCompleted']),
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       completedBy: serializer.fromJson<String?>(json['completedBy']),
@@ -1232,6 +1263,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       'listId': serializer.toJson<String>(listId),
       'title': serializer.toJson<String>(title),
       'notes': serializer.toJson<String?>(notes),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
       'isCompleted': serializer.toJson<bool>(isCompleted),
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'completedBy': serializer.toJson<String?>(completedBy),
@@ -1246,6 +1278,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     String? listId,
     String? title,
     Value<String?> notes = const Value.absent(),
+    Value<DateTime?> dueDate = const Value.absent(),
     bool? isCompleted,
     Value<DateTime?> completedAt = const Value.absent(),
     Value<String?> completedBy = const Value.absent(),
@@ -1257,6 +1290,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     listId: listId ?? this.listId,
     title: title ?? this.title,
     notes: notes.present ? notes.value : this.notes,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
     isCompleted: isCompleted ?? this.isCompleted,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     completedBy: completedBy.present ? completedBy.value : this.completedBy,
@@ -1270,6 +1304,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       listId: data.listId.present ? data.listId.value : this.listId,
       title: data.title.present ? data.title.value : this.title,
       notes: data.notes.present ? data.notes.value : this.notes,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       isCompleted: data.isCompleted.present
           ? data.isCompleted.value
           : this.isCompleted,
@@ -1292,6 +1327,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           ..write('listId: $listId, ')
           ..write('title: $title, ')
           ..write('notes: $notes, ')
+          ..write('dueDate: $dueDate, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('completedAt: $completedAt, ')
           ..write('completedBy: $completedBy, ')
@@ -1308,6 +1344,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     listId,
     title,
     notes,
+    dueDate,
     isCompleted,
     completedAt,
     completedBy,
@@ -1323,6 +1360,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           other.listId == this.listId &&
           other.title == this.title &&
           other.notes == this.notes &&
+          other.dueDate == this.dueDate &&
           other.isCompleted == this.isCompleted &&
           other.completedAt == this.completedAt &&
           other.completedBy == this.completedBy &&
@@ -1336,6 +1374,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
   final Value<String> listId;
   final Value<String> title;
   final Value<String?> notes;
+  final Value<DateTime?> dueDate;
   final Value<bool> isCompleted;
   final Value<DateTime?> completedAt;
   final Value<String?> completedBy;
@@ -1348,6 +1387,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     this.listId = const Value.absent(),
     this.title = const Value.absent(),
     this.notes = const Value.absent(),
+    this.dueDate = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.completedBy = const Value.absent(),
@@ -1361,6 +1401,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     required String listId,
     required String title,
     this.notes = const Value.absent(),
+    this.dueDate = const Value.absent(),
     this.isCompleted = const Value.absent(),
     this.completedAt = const Value.absent(),
     this.completedBy = const Value.absent(),
@@ -1379,6 +1420,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     Expression<String>? listId,
     Expression<String>? title,
     Expression<String>? notes,
+    Expression<DateTime>? dueDate,
     Expression<bool>? isCompleted,
     Expression<DateTime>? completedAt,
     Expression<String>? completedBy,
@@ -1392,6 +1434,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
       if (listId != null) 'list_id': listId,
       if (title != null) 'title': title,
       if (notes != null) 'notes': notes,
+      if (dueDate != null) 'due_date': dueDate,
       if (isCompleted != null) 'is_completed': isCompleted,
       if (completedAt != null) 'completed_at': completedAt,
       if (completedBy != null) 'completed_by': completedBy,
@@ -1407,6 +1450,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     Value<String>? listId,
     Value<String>? title,
     Value<String?>? notes,
+    Value<DateTime?>? dueDate,
     Value<bool>? isCompleted,
     Value<DateTime?>? completedAt,
     Value<String?>? completedBy,
@@ -1420,6 +1464,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
       listId: listId ?? this.listId,
       title: title ?? this.title,
       notes: notes ?? this.notes,
+      dueDate: dueDate ?? this.dueDate,
       isCompleted: isCompleted ?? this.isCompleted,
       completedAt: completedAt ?? this.completedAt,
       completedBy: completedBy ?? this.completedBy,
@@ -1446,6 +1491,9 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
     }
     if (isCompleted.present) {
       map['is_completed'] = Variable<bool>(isCompleted.value);
@@ -1476,6 +1524,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
           ..write('listId: $listId, ')
           ..write('title: $title, ')
           ..write('notes: $notes, ')
+          ..write('dueDate: $dueDate, ')
           ..write('isCompleted: $isCompleted, ')
           ..write('completedAt: $completedAt, ')
           ..write('completedBy: $completedBy, ')
@@ -8860,6 +8909,7 @@ typedef $$LocalListItemsTableCreateCompanionBuilder =
       required String listId,
       required String title,
       Value<String?> notes,
+      Value<DateTime?> dueDate,
       Value<bool> isCompleted,
       Value<DateTime?> completedAt,
       Value<String?> completedBy,
@@ -8874,6 +8924,7 @@ typedef $$LocalListItemsTableUpdateCompanionBuilder =
       Value<String> listId,
       Value<String> title,
       Value<String?> notes,
+      Value<DateTime?> dueDate,
       Value<bool> isCompleted,
       Value<DateTime?> completedAt,
       Value<String?> completedBy,
@@ -8913,6 +8964,11 @@ class $$LocalListItemsTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8976,6 +9032,11 @@ class $$LocalListItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
     builder: (column) => ColumnOrderings(column),
@@ -9025,6 +9086,9 @@ class $$LocalListItemsTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
 
   GeneratedColumn<bool> get isCompleted => $composableBuilder(
     column: $table.isCompleted,
@@ -9086,6 +9150,7 @@ class $$LocalListItemsTableTableManager
                 Value<String> listId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<String?> completedBy = const Value.absent(),
@@ -9098,6 +9163,7 @@ class $$LocalListItemsTableTableManager
                 listId: listId,
                 title: title,
                 notes: notes,
+                dueDate: dueDate,
                 isCompleted: isCompleted,
                 completedAt: completedAt,
                 completedBy: completedBy,
@@ -9112,6 +9178,7 @@ class $$LocalListItemsTableTableManager
                 required String listId,
                 required String title,
                 Value<String?> notes = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
                 Value<bool> isCompleted = const Value.absent(),
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<String?> completedBy = const Value.absent(),
@@ -9124,6 +9191,7 @@ class $$LocalListItemsTableTableManager
                 listId: listId,
                 title: title,
                 notes: notes,
+                dueDate: dueDate,
                 isCompleted: isCompleted,
                 completedAt: completedAt,
                 completedBy: completedBy,

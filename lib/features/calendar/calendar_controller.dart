@@ -2,6 +2,128 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
+import '../profile/partner_profile_controller.dart';
+import '../reminders/reminder_controller.dart';
+import '../routines/routine_controller.dart';
+import 'calendar_models.dart';
+
+class CalendarWindow {
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const CalendarWindow({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CalendarWindow &&
+          runtimeType == other.runtimeType &&
+          CalendarDateUtils.isSameDay(startDate, other.startDate) &&
+          CalendarDateUtils.isSameDay(endDate, other.endDate);
+
+  @override
+  int get hashCode =>
+      CalendarDateUtils.dateOnly(startDate).hashCode ^
+      CalendarDateUtils.dateOnly(endDate).hashCode;
+}
+
+/// Unified provider that watches all 5 layers and projects them into a dated map.
+final unifiedCalendarEntriesProvider =
+    Provider.family<Map<DateTime, List<CalendarEntry>>, CalendarWindow>((ref, window) {
+  final events = ref.watch(activeHomeCalendarEventsProvider).value ?? [];
+  final subscriptions = ref.watch(activeHomeSubscriptionsProvider).value ?? [];
+  final expenses = ref.watch(activeHomeExpensesProvider).value ?? [];
+  final habits = ref.watch(activeHomeHabitsProvider).value ?? [];
+  final checkins = ref.watch(activeHomeAllHabitCheckinsProvider).value ?? [];
+  final lists = ref.watch(activeHomeListsProvider).value ?? [];
+  final listItems = ref.watch(activeHomeAllListItemsProvider).value ?? [];
+  final routines = ref.watch(activeHomeRoutinesProvider).value ?? [];
+  final routineEvents = ref.watch(activeHomeAllRoutineEventsProvider).value ?? [];
+  final reminders = ref.watch(checkinRemindersProvider);
+  final partnerName = ref.watch(partnerProfileProvider).displayName;
+  final currentUserId = ref.watch(authProvider).value?.id ?? 'local_user';
+
+  final listNamesMap = {for (final l in lists) l.id: l.name};
+
+  final projectedEvents = CalendarDateUtils.projectCalendarEvents(
+    events: events,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final projectedSubs = CalendarDateUtils.projectSubscriptions(
+    subscriptions: subscriptions,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final projectedExpenses = CalendarDateUtils.projectExpenses(
+    expenses: expenses,
+    startDate: window.startDate,
+    endDate: window.endDate,
+    currentUserId: currentUserId,
+    partnerName: partnerName,
+  );
+
+  final projectedHabits = CalendarDateUtils.projectHabits(
+    habits: habits,
+    checkins: checkins,
+    currentUserId: currentUserId,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final projectedTasks = CalendarDateUtils.projectTasks(
+    items: listItems,
+    listNames: listNamesMap,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final projectedRoutines = CalendarDateUtils.projectRoutines(
+    routines: routines,
+    routineEvents: routineEvents,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final projectedReminders = CalendarDateUtils.projectReminders(
+    reminders: reminders,
+    startDate: window.startDate,
+    endDate: window.endDate,
+  );
+
+  final all = <CalendarEntry>[
+    ...projectedEvents,
+    ...projectedSubs,
+    ...projectedExpenses,
+    ...projectedHabits,
+    ...projectedTasks,
+    ...projectedRoutines,
+    ...projectedReminders,
+  ];
+
+  final Map<DateTime, List<CalendarEntry>> map = {};
+  for (final entry in all) {
+    final d = CalendarDateUtils.dateOnly(entry.date);
+    map.putIfAbsent(d, () => []).add(entry);
+  }
+
+  for (final list in map.values) {
+    list.sort((a, b) {
+      if (a.isAllDay && !b.isAllDay) return -1;
+      if (!a.isAllDay && b.isAllDay) return 1;
+      final timeComp = a.startTime.compareTo(b.startTime);
+      if (timeComp != 0) return timeComp;
+      return a.title.compareTo(b.title);
+    });
+  }
+
+  return map;
+});
 
 class CalendarController {
   final Ref ref;
