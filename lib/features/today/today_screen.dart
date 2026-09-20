@@ -76,11 +76,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final now = DateTime.now();
     final todayFormatted = DateFormat('EEEE, MMMM d').format(now).toUpperCase();
     final greetingPrefix = _getGreetingPrefix(now.hour);
-    final names = todayData.hasPartner && todayData.partnerName.isNotEmpty
-        ? (todayData.userName.isNotEmpty
-            ? '${todayData.userName} & ${todayData.partnerName}'
-            : todayData.partnerName)
-        : (todayData.userName.isNotEmpty ? todayData.userName : 'there');
+    final name = todayData.userName.isNotEmpty ? todayData.userName : 'there';
 
     final completedHabits = todayData.habits.where((h) => h.userCheckedInToday).length;
     final totalHabits = todayData.habits.length;
@@ -118,7 +114,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
               context,
               todayFormatted: todayFormatted,
               greetingPrefix: greetingPrefix,
-              names: names,
+              name: name,
               quote: todayData.morningQuote,
             ),
             const SizedBox(height: 20),
@@ -139,7 +135,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             _buildFlowSection(context, todayData.events),
             const SizedBox(height: 28),
 
-            // --- 4. DAILY RHYTHMS & HABITS ---
+            // --- 4. RHYTHMS OF US ---
             _buildHabitsSection(context, todayData.habits, completedHabits, totalHabits),
             const SizedBox(height: 28),
 
@@ -177,7 +173,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     BuildContext context, {
     required String todayFormatted,
     required String greetingPrefix,
-    required String names,
+    required String name,
     required String quote,
   }) {
     final colors = context.colors;
@@ -227,7 +223,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
           ),
           Text(
-            names,
+            name,
             style: typography.headline.copyWith(
               fontSize: 24,
               fontWeight: FontWeight.w700,

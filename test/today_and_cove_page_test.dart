@@ -315,8 +315,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Verify greeting contains partner name
-    expect(find.textContaining('Alex & Sophia'), findsOneWidget);
+    // Verify greeting contains user's name only
+    expect(find.text('Alex'), findsOneWidget);
+    expect(find.textContaining('& Sophia'), findsNothing);
 
     // Verify event is displayed
     expect(find.text('Farmers Market'), findsOneWidget);

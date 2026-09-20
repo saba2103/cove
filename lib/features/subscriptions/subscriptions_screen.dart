@@ -22,6 +22,7 @@ import '../../core/widgets/cove_tab_row.dart';
 import 'commitment_models.dart';
 import 'commitment_detail_sheet.dart';
 import 'commitments_helicopter_screen.dart';
+import 'emi_tracker_screen.dart';
 import 'subscription_form_sheet.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 
@@ -882,6 +883,17 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                   ),
                   actions: [
                     IconButton(
+                      tooltip: 'EMI Outstanding',
+                      icon: const Icon(Icons.account_balance_outlined, size: 20),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EmiTrackerScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
                       tooltip: 'Helicopter View',
                       icon: const Icon(Icons.grid_view_rounded, size: 20),
                       onPressed: () {
@@ -1381,6 +1393,19 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           'Commitments',
           style: context.typography.headline.copyWith(fontSize: 20),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'EMI Outstanding',
+            icon: const Icon(Icons.account_balance_outlined, size: 20),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const EmiTrackerScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         color: colors.accentPrimary,
