@@ -126,34 +126,39 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                   padding: const EdgeInsets.only(left: 20, right: 12, top: 16, bottom: 4),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.accentPrimary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: colors.accentPrimary.withValues(alpha: 0.25),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: colors.accentPrimary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: colors.accentPrimary.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome, size: 12, color: colors.accentPrimary),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  "WHAT'S FRESH · v1.0",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'GeneralSans',
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    color: colors.accentPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.auto_awesome, size: 12, color: colors.accentPrimary),
-                            const SizedBox(width: 5),
-                            Text(
-                              'WHAT\'S FRESH · v2.4',
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                                color: colors.accentPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Text(
                         '${_currentPage + 1} of ${_featuredItems.length}',
                         style: typography.caption.copyWith(
@@ -188,6 +193,62 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Meta Row: Version, Category, Date
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.accentPrimary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    item.version,
+                                    style: TextStyle(
+                                      fontFamily: 'GeneralSans',
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: colors.accentPrimary,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.surfaceRow,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: colors.borderHairline),
+                                  ),
+                                  child: Text(
+                                    item.category.toUpperCase(),
+                                    style: TextStyle(
+                                      fontFamily: 'GeneralSans',
+                                      fontSize: 9.5,
+                                      letterSpacing: 0.6,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.textMuted,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '·',
+                                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                                ),
+                                Text(
+                                  item.date,
+                                  style: typography.caption.copyWith(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: colors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
                             // Big Title
                             Text(
                               item.title,

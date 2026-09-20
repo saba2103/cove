@@ -25,6 +25,7 @@ class ChangelogItem {
   final String underTheHood;
   final String category;
   final String version;
+  final String date;
   final IconData icon;
   final ChangelogPreviewType previewType;
   final bool isFeatured;
@@ -37,6 +38,7 @@ class ChangelogItem {
     required this.underTheHood,
     required this.category,
     required this.version,
+    required this.date,
     required this.icon,
     required this.previewType,
     this.isFeatured = false,
@@ -44,7 +46,24 @@ class ChangelogItem {
 }
 
 const List<ChangelogItem> kChangelogItems = [
-  // 0. Calendar-First Architecture & Today Home (v1.0-alpha.1)
+  // 0. EMI Tracker, Foreclosure & Sync Delivery Fix (v1.0-alpha.1)
+  ChangelogItem(
+    id: 'emi_tracker_and_closure',
+    title: 'EMI Tracker & Loan Foreclosure',
+    tagline: 'Track loan burdens, simulate payoff scenarios, and foreclose with ease.',
+    outcome:
+        'A dedicated overview for all household EMIs with total outstanding, monthly burden, payoff simulation on multi-select, one-tap foreclosure confirmation, and guaranteed two-tick sync reconciliation.',
+    underTheHood:
+        'Bodoni Moda hero burden card, sticky MultiSelectBurdenBar, foreclosure projection controller with optional expense ledger entry, and persistent Supabase delivery receipt reconciliation.',
+    category: 'Commitments',
+    version: 'v1.0-alpha.1',
+    date: 'Sep 20, 2026',
+    icon: Icons.account_balance_wallet_outlined,
+    previewType: ChangelogPreviewType.helicopterView,
+    isFeatured: true,
+  ),
+
+  // 1. Calendar-First Architecture & Today Home (v1.0-alpha.1)
   ChangelogItem(
     id: 'calendar_first_restructure',
     title: 'Calendar-First Sanctuary & Today Home',
@@ -55,12 +74,13 @@ const List<ChangelogItem> kChangelogItems = [
         'Unified 5-layer calendar provider, additive due-date database schema, Day view layer filters, Bodoni time gutters, and retired Dashboard architecture.',
     category: 'Architecture',
     version: 'v1.0-alpha.1',
+    date: 'Sep 19, 2026',
     icon: Icons.calendar_month_rounded,
     previewType: ChangelogPreviewType.calendarFirst,
     isFeatured: true,
   ),
 
-  // 1. Helicopter View (Featured in Modal #1)
+  // 2. Helicopter View (Featured in Modal #1)
   ChangelogItem(
     id: 'helicopter_view',
     title: 'Commitments Helicopter View',
@@ -71,12 +91,13 @@ const List<ChangelogItem> kChangelogItems = [
         'Custom LayoutBuilder aspect ratio grid (4x3), dynamic 50/50 attribution toggle, monthly/annual commitment aggregation & bottom sheet sorting.',
     category: 'Commitments',
     version: 'v0.6-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.grid_view_rounded,
     previewType: ChangelogPreviewType.helicopterView,
     isFeatured: true,
   ),
 
-  // 2. Smart Clean Decimals (Featured in Modal #2)
+  // 3. Smart Clean Decimals (Featured in Modal #2)
   ChangelogItem(
     id: 'smart_decimals',
     title: 'Clean, Clutter-Free Decimals',
@@ -87,12 +108,12 @@ const List<ChangelogItem> kChangelogItems = [
         'formatCoveAmount with integer modulo normalization across hero cards, notification payloads, list items, and expense ledgers.',
     category: 'Finances',
     version: 'v0.6-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.toll_outlined,
     previewType: ChangelogPreviewType.smartDecimals,
-    isFeatured: true,
   ),
 
-  // 3. Custom Profile Studio (Featured in Modal #3)
+  // 4. Custom Profile Studio (Featured in Modal #3)
   ChangelogItem(
     id: 'profile_studio',
     title: 'Personal Profile Studio',
@@ -103,12 +124,12 @@ const List<ChangelogItem> kChangelogItems = [
         'image_picker binary upload to Supabase Storage avatars bucket, synchronous SharedPreferences frame-0 preload, and OAuth override guards.',
     category: 'Identity',
     version: 'v0.6-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.portrait_rounded,
     previewType: ChangelogPreviewType.profileStudio,
-    isFeatured: true,
   ),
 
-  // 4. Human-Readable Attribution
+  // 5. Human-Readable Attribution
   ChangelogItem(
     id: 'human_attribution',
     title: 'Partner-First "Paid By" Details',
@@ -119,11 +140,12 @@ const List<ChangelogItem> kChangelogItems = [
         'UUID regex detection and fallback resolution mapping session auth IDs and createdBy hashes to partnerProfile.displayName.',
     category: 'Commitments',
     version: 'v0.5-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.person_outline_rounded,
     previewType: ChangelogPreviewType.humanAttribution,
   ),
 
-  // 5. Silent Background Sync
+  // 6. Silent Background Sync
   ChangelogItem(
     id: 'silent_sync',
     title: 'Quiet Background Sync',
@@ -134,11 +156,12 @@ const List<ChangelogItem> kChangelogItems = [
         'Supabase Edge Function v3 silent event suppression & client NotificationService broadcast suppression.',
     category: 'Sync & Privacy',
     version: 'v0.5-alpha',
+    date: 'Sep 16, 2026',
     icon: Icons.notifications_off_outlined,
     previewType: ChangelogPreviewType.silentSync,
   ),
 
-  // 6. True Calendar Month Bucketing
+  // 7. True Calendar Month Bucketing
   ChangelogItem(
     id: 'strict_renewals',
     title: 'True Month Renewal Bucketing',
@@ -149,11 +172,12 @@ const List<ChangelogItem> kChangelogItems = [
         'Replaced rolling 30-day lookaheads with strict calendar month boundary comparisons (DateTime.year & DateTime.month).',
     category: 'Commitments',
     version: 'v0.4-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.calendar_month_outlined,
     previewType: ChangelogPreviewType.strictRenewals,
   ),
 
-  // 7. End-to-End Encrypted Sync
+  // 8. End-to-End Encrypted Sync
   ChangelogItem(
     id: 'e2ee_sync',
     title: 'Zero-Knowledge Encrypted Sync',
@@ -164,11 +188,12 @@ const List<ChangelogItem> kChangelogItems = [
         'Libsodium XSalsa20-Poly1305 authenticated symmetric encryption with ephemeral private QR key exchange.',
     category: 'Security',
     version: 'v0.3-alpha',
+    date: 'Sep 17, 2026',
     icon: Icons.lock_outline_rounded,
     previewType: ChangelogPreviewType.e2eeSync,
   ),
 
-  // 8. Two-Tick Delivery Reassurance
+  // 9. Two-Tick Delivery Reassurance
   ChangelogItem(
     id: 'two_tick_sync',
     title: 'Two-Tick Delivery Reassurance',
@@ -179,11 +204,12 @@ const List<ChangelogItem> kChangelogItems = [
         'Local outbox status tracking paired with real-time Supabase WebSocket delivery confirmation broadcasts.',
     category: 'Sync',
     version: 'v0.2-alpha',
+    date: 'Sep 10, 2026',
     icon: Icons.done_all_rounded,
     previewType: ChangelogPreviewType.twoTickSync,
   ),
 
-  // 9. Daily Rhythms & Mutual Cheers
+  // 10. Daily Rhythms & Mutual Cheers
   ChangelogItem(
     id: 'daily_rhythms',
     title: 'Daily Rhythms & Mutual Cheers',
@@ -194,11 +220,12 @@ const List<ChangelogItem> kChangelogItems = [
         'Flexible recurrence schedules (daily, weekly, custom) with Drift local streak calculation and optimistic check-ins.',
     category: 'Rhythms',
     version: 'v0.2-alpha',
+    date: 'Sep 8, 2026',
     icon: Icons.favorite_outline_rounded,
     previewType: ChangelogPreviewType.dailyRhythms,
   ),
 
-  // 10. Instant Offline Caching & Multi-Currency
+  // 11. Instant Offline Caching & Multi-Currency
   ChangelogItem(
     id: 'offline_first',
     title: 'Offline-First Architecture & Multi-Currency',
@@ -209,6 +236,7 @@ const List<ChangelogItem> kChangelogItems = [
         'Local-first Drift SQLite database, optimistic mutation pipeline with outbox queues, and multi-currency formatting.',
     category: 'Architecture',
     version: 'v0.1-alpha',
+    date: 'Sep 5, 2026',
     icon: Icons.wifi_off_rounded,
     previewType: ChangelogPreviewType.offlineFirst,
   ),

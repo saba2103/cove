@@ -267,6 +267,15 @@ class _TimelineItemRow extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
+                        Text(
+                          item.date,
+                          style: typography.caption.copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: colors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Icon(item.icon, size: 16, color: colors.textMuted),
                       ],
                     ),

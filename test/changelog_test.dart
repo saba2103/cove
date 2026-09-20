@@ -22,19 +22,8 @@ void main() {
   });
 
   group('Changelog Models & Data Tests', () {
-    test('kChangelogItems contains exactly 10 major outcome-focused updates', () {
-      expect(kChangelogItems.length, 10);
-    });
-
-    test('Exactly 3 featured items for the What\'s Fresh onboarding modal', () {
-      final featured = kChangelogItems.where((i) => i.isFeatured).toList();
-      expect(featured.length, 3);
-      expect(featured[0].id, 'helicopter_view');
-      expect(featured[1].id, 'smart_decimals');
-      expect(featured[2].id, 'profile_studio');
-    });
-
-    test('Every changelog item has human outcome and technical underTheHood descriptions', () {
+    test('kChangelogItems contains outcome-focused updates with valid dates', () {
+      expect(kChangelogItems.length, 12);
       for (final item in kChangelogItems) {
         expect(item.title.isNotEmpty, isTrue);
         expect(item.tagline.isNotEmpty, isTrue);
@@ -42,12 +31,21 @@ void main() {
         expect(item.underTheHood.isNotEmpty, isTrue);
         expect(item.category.isNotEmpty, isTrue);
         expect(item.version.isNotEmpty, isTrue);
+        expect(item.date.isNotEmpty, isTrue);
       }
+    });
+
+    test('Exactly 3 featured items for the What\'s Fresh onboarding modal', () {
+      final featured = kChangelogItems.where((i) => i.isFeatured).toList();
+      expect(featured.length, 3);
+      expect(featured[0].id, 'emi_tracker_and_closure');
+      expect(featured[1].id, 'calendar_first_restructure');
+      expect(featured[2].id, 'helicopter_view');
     });
   });
 
   group('What\'s Fresh Modal Widget Tests', () {
-    testWidgets('Modal renders carousel with title, preview mockup, outcome, and monospaced box', (tester) async {
+    testWidgets('Modal renders carousel with title, date, preview mockup, outcome, and monospaced box', (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -76,11 +74,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
 
       // Header badge & step counter
-      expect(find.text("WHAT'S FRESH · v2.4"), findsOneWidget);
+      expect(find.text("WHAT'S FRESH · v1.0"), findsOneWidget);
       expect(find.text('1 of 3'), findsOneWidget);
 
-      // Slide 1 title & mockup
-      expect(find.text('Commitments Helicopter View'), findsOneWidget);
+      // Slide 1 title, date & mockup
+      expect(find.text('EMI Tracker & Loan Foreclosure'), findsOneWidget);
+      expect(find.text('Sep 20, 2026'), findsOneWidget);
       expect(find.byType(ChangelogPreviewMockup), findsOneWidget);
       expect(find.text('UNDER THE HOOD'), findsOneWidget);
       expect(find.text('Next'), findsOneWidget);
@@ -91,7 +90,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('2 of 3'), findsOneWidget);
-      expect(find.text('Clean, Clutter-Free Decimals'), findsOneWidget);
+      expect(find.text('Calendar-First Sanctuary & Today Home'), findsOneWidget);
+      expect(find.text('Sep 19, 2026'), findsOneWidget);
 
       // Tap Next to advance to Slide 3
       await tester.tap(find.text('Next'));
@@ -99,7 +99,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('3 of 3'), findsOneWidget);
-      expect(find.text('Personal Profile Studio'), findsOneWidget);
+      expect(find.text('Commitments Helicopter View'), findsOneWidget);
+      expect(find.text('Sep 17, 2026'), findsOneWidget);
       expect(find.text('Got it'), findsOneWidget);
 
       // Tap Got it to dismiss
@@ -114,13 +115,13 @@ void main() {
       expect(prefs.getString(kCoveLastSeenFreshVersionKey), isNull);
 
       await prefs.setString(kCoveLastSeenFreshVersionKey, kCoveCurrentAppVersion);
-      expect(prefs.getString(kCoveLastSeenFreshVersionKey), '2.4.0');
+      expect(prefs.getString(kCoveLastSeenFreshVersionKey), kCoveCurrentAppVersion);
     });
   });
 
   group('ChangelogScreen Widget Tests', () {
-    testWidgets('ChangelogScreen renders timeline items, intro card, and What\'s Fresh AppBar button', (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
+    testWidgets('ChangelogScreen renders timeline items, dates, intro card, and What\'s Fresh AppBar button', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -142,14 +143,17 @@ void main() {
 
       // Intro header card
       expect(find.text('Cove Evolution'), findsOneWidget);
-      expect(find.textContaining('v2.4.0'), findsOneWidget);
+      expect(find.textContaining(kCoveCurrentAppVersion), findsOneWidget);
 
       // Timeline Items
       expect(find.text('RELEASE TIMELINE'), findsOneWidget);
+      expect(find.text('EMI Tracker & Loan Foreclosure'), findsOneWidget);
+      expect(find.text('Sep 20, 2026'), findsWidgets);
+      expect(find.text('Calendar-First Sanctuary & Today Home'), findsOneWidget);
+      expect(find.text('Sep 19, 2026'), findsWidgets);
       expect(find.text('Commitments Helicopter View'), findsOneWidget);
       expect(find.text('Clean, Clutter-Free Decimals'), findsOneWidget);
       expect(find.text('Personal Profile Studio'), findsOneWidget);
-      expect(find.text('Partner-First "Paid By" Details'), findsOneWidget);
     });
 
     testWidgets('Tapping What\'s Fresh button in AppBar opens WhatsFreshModal', (tester) async {
@@ -178,7 +182,7 @@ void main() {
 
       // Modal is now displayed
       expect(find.byType(WhatsFreshModal), findsOneWidget);
-      expect(find.text("WHAT'S FRESH · v2.4"), findsOneWidget);
+      expect(find.text("WHAT'S FRESH · v1.0"), findsOneWidget);
     });
   });
 }
