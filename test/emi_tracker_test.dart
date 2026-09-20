@@ -23,6 +23,7 @@ void main() {
     required int totalInstallments,
     required int paidInstallments,
     String? financedThrough,
+    String? paidBy = 'me',
     bool isPrivate = false,
   }) {
     return LocalSubscription(
@@ -36,10 +37,10 @@ void main() {
       category: 'gadgets',
       isActive: true,
       isPrivate: isPrivate,
-      createdBy: 'user_1',
+      createdBy: 'user_alex',
       createdAt: DateTime(2026, 1, 1),
       endDate: DateTime(2026, 12, 31),
-      paidBy: 'user_1',
+      paidBy: paidBy,
       financedThrough: financedThrough,
       totalInstallments: totalInstallments,
       paidInstallments: paidInstallments,
@@ -77,22 +78,24 @@ void main() {
       expect(find.text('Add Loan or EMI'), findsOneWidget);
     });
 
-    testWidgets('Calculates total outstanding, paid total, and renders EMI cards', (tester) async {
+    testWidgets('Calculates total outstanding, paid total, and renders EMI cards with payer badge', (tester) async {
       final emi1 = createMockEmi(
         id: 'emi_1',
         name: 'MacBook Pro',
         amount: 200.0,
         totalInstallments: 10,
-        paidInstallments: 4, // 6 remaining * 200 = 1200 outstanding, 800 paid
+        paidInstallments: 4, // 6 rem * 200 = 1200 outstanding, 800 paid
         financedThrough: 'Apple Card',
+        paidBy: 'me',
       );
       final emi2 = createMockEmi(
         id: 'emi_2',
         name: 'Car Loan',
         amount: 500.0,
         totalInstallments: 20,
-        paidInstallments: 8, // 12 remaining * 500 = 6000 outstanding, 4000 paid
+        paidInstallments: 8, // 12 rem * 500 = 6000 outstanding, 4000 paid
         financedThrough: 'Chase',
+        paidBy: 'Sophia',
       );
 
       await tester.pumpWidget(buildTestWidget(subscriptions: [emi1, emi2]));
@@ -110,16 +113,67 @@ void main() {
       // Card 1
       expect(find.text('MacBook Pro'), findsOneWidget);
       expect(find.text('Apple Card'), findsOneWidget);
-      expect(find.text('\$1,200'), findsOneWidget); // Outstanding for emi1
-      expect(find.text('\$800'), findsOneWidget); // Paid for emi1
+      expect(find.text('\$1,200'), findsOneWidget);
+      expect(find.text('\$800'), findsOneWidget);
       expect(find.text('4/10 mo'), findsOneWidget);
+      expect(find.text('You'), findsOneWidget); // Payer badge for emi1
 
       // Card 2
       expect(find.text('Car Loan'), findsOneWidget);
       expect(find.text('Chase'), findsOneWidget);
-      expect(find.text('\$6,000'), findsOneWidget); // Outstanding for emi2
-      expect(find.text('\$4,000'), findsOneWidget); // Paid for emi2
+      expect(find.text('\$6,000'), findsOneWidget);
+      expect(find.text('\$4,000'), findsOneWidget);
       expect(find.text('8/20 mo'), findsOneWidget);
+      expect(find.text('Sophia'), findsOneWidget); // Payer badge for emi2
+    });
+
+    testWidgets('Long press selects card and displays sticky selected burden row card', (tester) async {
+      final emi1 = createMockEmi(
+        id: 'emi_1',
+        name: 'MacBook Pro',
+        amount: 200.0,
+        totalInstallments: 10,
+        paidInstallments: 4, // 1200 outst, 200/mo
+      );
+      final emi2 = createMockEmi(
+        id: 'emi_2',
+        name: 'Car Loan',
+        amount: 500.0,
+        totalInstallments: 20,
+        paidInstallments: 8, // 6000 outst, 500/mo
+      );
+
+      await tester.pumpWidget(buildTestWidget(subscriptions: [emi1, emi2]));
+      await tester.pumpAndSettle();
+
+      // Initially no sticky banner
+      expect(find.text('SELECTED BURDEN'), findsNothing);
+
+      // Long press on MacBook Pro card
+      await tester.longPress(find.text('MacBook Pro'));
+      await tester.pumpAndSettle();
+
+      // Sticky banner appears with 1 selected: EMI $200/mo, Outst $1,200
+      expect(find.text('SELECTED BURDEN'), findsOneWidget);
+      expect(find.text('(1)'), findsOneWidget);
+      expect(find.text('\$200/mo'), findsOneWidget);
+      expect(find.text('\$1,200'), findsNWidgets(2)); // Card + sticky card
+
+      // Tap second card (Car Loan) to add to selection
+      await tester.tap(find.text('Car Loan'));
+      await tester.pumpAndSettle();
+
+      // Now 2 selected: EMI 200 + 500 = $700/mo, Outst 1200 + 6000 = $7,200
+      expect(find.text('(2)'), findsOneWidget);
+      expect(find.text('\$700/mo'), findsOneWidget);
+      expect(find.text('\$7,200'), findsNWidgets(2)); // Hero total + sticky card
+
+      // Clear selection using the close icon in the sticky card
+      final closeBtn = find.byIcon(Icons.close_rounded).first;
+      await tester.tap(closeBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('SELECTED BURDEN'), findsNothing);
     });
 
     testWidgets('Toggles universal progress mode between Tenure Paid and EMI Share', (tester) async {
