@@ -78,6 +78,18 @@ class EventStoreImpl implements EventStore {
   }
 
   @override
+  Future<List<CoveEncryptedEvent>> getUnconfirmedUploadedEvents(
+      {int limit = 100}) async {
+    final rows = await (db.select(db.localOutboxEvents)
+          ..where((t) => t.syncStatus.equals('uploadedToCloud'))
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(limit))
+        .get();
+
+    return rows.map(_mapRowToEvent).toList();
+  }
+
+  @override
   Future<void> markEventSynced(String eventId) async {
     await (db.update(db.localOutboxEvents)..where((t) => t.id.equals(eventId)))
         .write(

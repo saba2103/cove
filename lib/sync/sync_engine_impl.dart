@@ -101,8 +101,9 @@ class SyncEngineImpl implements SyncEngine {
     _startOutboxTimer();
     _startForegroundPoller();
 
-    // Trigger immediate outbox flush
+    // Trigger immediate outbox flush and delivery reconciliation
     unawaited(flushOutbox());
+    unawaited(reconcileDeliveryConfirmations());
   }
 
   void _subscribeToRealtime({String? homeId}) {
@@ -215,6 +216,10 @@ class SyncEngineImpl implements SyncEngine {
     }
     if (await localStateStore.hasEvent(eventId)) {
       _processedEventIds.add(eventId);
+      // Ensure delivery confirmation is sent to Supabase even if already applied locally
+      if (actorId != currentUserId) {
+        unawaited(_recordDeliveryAck(eventId: eventId, memberId: currentUserId));
+      }
       return;
     }
 
@@ -265,28 +270,7 @@ class SyncEngineImpl implements SyncEngine {
 
       // Send delivery confirmation only for partner's events (not our own multi-device events)
       if (actorId != currentUserId) {
-        if (_realtimeChannel != null) {
-          unawaited(_realtimeChannel!.sendBroadcastMessage(
-            event: 'sync_ack',
-            payload: {
-              'event_id': eventId,
-              'member_id': currentUserId,
-            },
-          ));
-        }
-
-        if (supabaseClient != null) {
-          unawaited(supabaseClient!.from('event_deliveries').upsert(
-            {
-              'event_id': eventId,
-              'member_id': currentUserId,
-              'delivered_at': DateTime.now().toUtc().toIso8601String(),
-            },
-            onConflict: 'event_id,member_id',
-            ignoreDuplicates: true,
-          ));
-          debugPrint('[SyncEngine] Sent delivery ack for event $eventId');
-        }
+        unawaited(_recordDeliveryAck(eventId: eventId, memberId: currentUserId));
       }
 
       // Trigger partner activity notification callback ONLY for live Realtime events from partner
@@ -305,17 +289,51 @@ class SyncEngineImpl implements SyncEngine {
     }
   }
 
+  /// Sends a delivery ack broadcast and records it in Supabase `event_deliveries`.
+  Future<void> _recordDeliveryAck({
+    required String eventId,
+    required String memberId,
+  }) async {
+    if (_realtimeChannel != null) {
+      unawaited(_realtimeChannel!.sendBroadcastMessage(
+        event: 'sync_ack',
+        payload: {
+          'event_id': eventId,
+          'member_id': memberId,
+        },
+      ));
+    }
+
+    if (supabaseClient != null) {
+      try {
+        await supabaseClient!.from('event_deliveries').upsert(
+          {
+            'event_id': eventId,
+            'member_id': memberId,
+            'delivered_at': DateTime.now().toUtc().toIso8601String(),
+          },
+          onConflict: 'event_id,member_id',
+          ignoreDuplicates: true,
+        );
+        debugPrint('[SyncEngine] Sent delivery ack for event $eventId');
+      } catch (ackErr) {
+        debugPrint('[SyncEngine] Error recording delivery ack for event $eventId: $ackErr');
+      }
+    }
+  }
+
   /// Processes an acknowledgment row pushed from Supabase Realtime.
   /// When a partner's device acknowledges receipt of our event, this flips
   /// our local status from 1-tick (savedLocally) to 2-ticks (syncedToPartner).
   Future<void> _handleInboundDelivery(Map<String, dynamic> record) async {
     final eventId = record['event_id']?.toString();
     final memberId = record['member_id']?.toString();
-    if (eventId == null || memberId == null) return;
+    if (eventId == null) return;
 
     // A partner (not ourselves) has confirmed receipt of an event
-    if (memberId != currentUserId) {
+    if (memberId == null || memberId != currentUserId) {
       await eventStore.markEventSynced(eventId);
+      debugPrint('[SyncEngine] Marked event $eventId as syncedToPartner via inbound delivery');
     }
   }
 
@@ -456,11 +474,46 @@ class SyncEngineImpl implements SyncEngine {
       }
 
       _consecutiveFailures = 0;
+      unawaited(reconcileDeliveryConfirmations());
     } catch (e, st) {
       debugPrint('[SyncEngine] Error flushing outbox to Supabase: $e\n$st');
       _consecutiveFailures++;
     } finally {
       _isFlushing = false;
+    }
+  }
+
+  /// Queries Supabase `event_deliveries` for any locally uploaded events that
+  /// have not yet been marked as synced to partner, ensuring zero stale single-ticks.
+  @override
+  Future<void> reconcileDeliveryConfirmations() async {
+    if (supabaseClient == null) return;
+
+    try {
+      final unconfirmed = await eventStore.getUnconfirmedUploadedEvents(limit: 100);
+      if (unconfirmed.isEmpty) return;
+
+      final unconfirmedIds = unconfirmed.map((e) => e.id).toList();
+      final rows = await supabaseClient!
+          .from('event_deliveries')
+          .select('event_id, member_id')
+          .inFilter('event_id', unconfirmedIds);
+
+      final deliveryRows = rows as List;
+      if (deliveryRows.isEmpty) return;
+
+      for (final record in deliveryRows) {
+        final map = record as Map<String, dynamic>;
+        final eventId = map['event_id']?.toString();
+        final memberId = map['member_id']?.toString();
+
+        if (eventId != null && (memberId == null || memberId != currentUserId)) {
+          await eventStore.markEventSynced(eventId);
+          debugPrint('[SyncEngine] Reconciled delivery confirmation for event $eventId');
+        }
+      }
+    } catch (e) {
+      debugPrint('[SyncEngine] Error reconciling delivery confirmations: $e');
     }
   }
 
@@ -494,9 +547,13 @@ class SyncEngineImpl implements SyncEngine {
   DateTime? _lastPulledCreatedAt;
 
   @override
-  Future<void> pullLatestEvents({String? homeId}) async {
+  Future<void> pullLatestEvents({String? homeId, bool forceFullCatchup = false}) async {
     final targetHomeId = homeId ?? getActiveHomeId?.call();
     if (targetHomeId == null || supabaseClient == null) return;
+
+    if (forceFullCatchup) {
+      _lastPulledCreatedAt = null;
+    }
 
     try {
       final baseQuery = supabaseClient!
@@ -528,6 +585,7 @@ class SyncEngineImpl implements SyncEngine {
       }
 
       await flushOutbox();
+      await reconcileDeliveryConfirmations();
     } catch (_) {
       // Offline or temporary fetch failure; silent background wake falls back gracefully
     }

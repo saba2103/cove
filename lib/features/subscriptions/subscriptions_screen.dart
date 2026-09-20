@@ -44,7 +44,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
   Future<void> _handleRefresh() async {
     final homeId = ref.read(activeHomeIdProvider);
-    await ref.read(syncEngineProvider).pullLatestEvents(homeId: homeId);
+    await ref.read(syncEngineProvider).pullLatestEvents(homeId: homeId, forceFullCatchup: true);
   }
 
   @override

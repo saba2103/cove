@@ -69,7 +69,7 @@ class FakeTrackingSyncEngine extends SyncEngineImpl {
   });
 
   @override
-  Future<void> pullLatestEvents({String? homeId}) async {
+  Future<void> pullLatestEvents({String? homeId, bool forceFullCatchup = false}) async {
     pulledHomeIds.add(homeId);
   }
 }

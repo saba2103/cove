@@ -68,6 +68,9 @@ abstract class EventStore {
   /// Marks an event as uploaded to the Supabase blind relay.
   Future<void> markEventUploaded(String eventId);
 
+  /// Retrieves events that have been uploaded to cloud but are awaiting partner delivery acknowledgment.
+  Future<List<CoveEncryptedEvent>> getUnconfirmedUploadedEvents({int limit = 100});
+
   /// Marks an event as synced after acknowledgment from the partner or relay.
   Future<void> markEventSynced(String eventId);
 

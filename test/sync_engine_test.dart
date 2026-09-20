@@ -551,6 +551,43 @@ void main() {
       expect(expensesAfterDup.length, equals(1));
     });
 
+    test('getUnconfirmedUploadedEvents retrieves events in uploadedToCloud status', () async {
+      final now = DateTime.now().toUtc();
+      final event1 = CoveEncryptedEvent(
+        id: 'evt_upload_1',
+        homeId: 'home_alpha',
+        eventType: 'subscription_added',
+        authorId: 'alex_user_id',
+        createdAt: now,
+        ciphertext: Uint8List.fromList([1, 2, 3]),
+        nonce: Uint8List.fromList([4, 5, 6]),
+        syncStatus: EventSyncStatus.uploadedToCloud,
+      );
+      final event2 = CoveEncryptedEvent(
+        id: 'evt_upload_2',
+        homeId: 'home_alpha',
+        eventType: 'subscription_added',
+        authorId: 'alex_user_id',
+        createdAt: now.add(const Duration(seconds: 1)),
+        ciphertext: Uint8List.fromList([7, 8, 9]),
+        nonce: Uint8List.fromList([10, 11, 12]),
+        syncStatus: EventSyncStatus.savedLocally,
+      );
+
+      await eventStore.appendEvent(event1, payloadJson: '{"id": "sub_1"}');
+      await eventStore.appendEvent(event2, payloadJson: '{"id": "sub_2"}');
+
+      // Before markUploaded, event1 was saved with syncStatus = uploadedToCloud
+      final unconfirmed = await eventStore.getUnconfirmedUploadedEvents();
+      expect(unconfirmed.any((e) => e.id == 'evt_upload_1'), isTrue);
+      expect(unconfirmed.any((e) => e.id == 'evt_upload_2'), isFalse);
+
+      // Now mark event1 as syncedToPartner
+      await eventStore.markEventSynced('evt_upload_1');
+      final unconfirmedAfter = await eventStore.getUnconfirmedUploadedEvents();
+      expect(unconfirmedAfter.any((e) => e.id == 'evt_upload_1'), isFalse);
+    });
+
     test('dispatchLocalEvent auto-heals missing symmetric key and succeeds without throwing',
         () async {
       // Create an engine scoped to a home that has NO key in storage

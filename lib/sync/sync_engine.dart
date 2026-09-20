@@ -37,7 +37,10 @@ abstract class SyncEngine {
 
   /// Pulls, decrypts, and applies latest unread partner events from the blind relay.
   /// Used during app resume or silent push notification wake.
-  Future<void> pullLatestEvents({String? homeId});
+  Future<void> pullLatestEvents({String? homeId, bool forceFullCatchup = false});
+
+  /// Reconciles delivery confirmations with Supabase for any uploaded outbox events.
+  Future<void> reconcileDeliveryConfirmations();
 
   /// Stops sync loops and closes active relay subscriptions.
   Future<void> stop();
