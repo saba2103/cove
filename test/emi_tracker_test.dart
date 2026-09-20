@@ -1,5 +1,6 @@
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
+import 'package:cove/features/subscriptions/commitment_detail_sheet.dart';
 import 'package:cove/features/subscriptions/emi_tracker_screen.dart';
 import 'package:cove/features/subscriptions/subscriptions_screen.dart';
 import 'package:cove/sync/db/app_database.dart';
@@ -274,6 +275,100 @@ void main() {
 
       expect(find.byType(EmiTrackerScreen), findsOneWidget);
       expect(find.text('EMI Outstanding'), findsOneWidget);
+    });
+
+    testWidgets('CommitmentDetailSheet shows foreclosure button beside close only for active EMIs', (tester) async {
+      final activeEmi = createMockEmi(
+        id: 'emi_1',
+        name: 'MacBook Pro',
+        amount: 200.0,
+        totalInstallments: 10,
+        paidInstallments: 4,
+        financedThrough: 'Apple Card',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currencyPreferenceProvider.overrideWith(
+              () => FakeCurrencyNotifier(const CurrencyOption(
+                code: 'USD',
+                symbol: '\$',
+                name: 'US Dollar',
+              )),
+            ),
+          ],
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: Scaffold(
+              body: CommitmentDetailSheet(subscription: activeEmi),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Foreclosure button should be present beside close
+      final forecloseBtn = find.byTooltip('Preclose / Foreclose EMI');
+      expect(forecloseBtn, findsOneWidget);
+
+      // Tap foreclosure button
+      await tester.tap(forecloseBtn);
+      await tester.pumpAndSettle();
+
+      // Confirmation dialog should be open
+      expect(find.text('Foreclose EMI'), findsWidgets); // title and button
+      expect(find.text('Payoff Outstanding'), findsOneWidget);
+      expect(find.text('\$1,200'), findsOneWidget); // 6 rem * 200 = 1200
+      expect(find.text('4 of 10 paid (6 remaining)'), findsOneWidget);
+      expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Apple Card')), findsOneWidget);
+      expect(find.text('Log payoff of \$1,200 to Expenses'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
+    testWidgets('CommitmentDetailSheet does not show foreclosure button for regular subscriptions or finished EMIs', (tester) async {
+      final regularSub = LocalSubscription(
+        id: 'sub_1',
+        homeId: 'home_1',
+        name: 'Netflix',
+        amount: 15.99,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: DateTime(2026, 10, 1),
+        category: 'streaming',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime(2026, 1, 1),
+        endDate: null,
+        paidBy: 'me',
+        totalInstallments: null,
+        paidInstallments: null,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currencyPreferenceProvider.overrideWith(
+              () => FakeCurrencyNotifier(const CurrencyOption(
+                code: 'USD',
+                symbol: '\$',
+                name: 'US Dollar',
+              )),
+            ),
+          ],
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: Scaffold(
+              body: CommitmentDetailSheet(subscription: regularSub),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should NOT have foreclosure button
+      expect(find.byTooltip('Preclose / Foreclose EMI'), findsNothing);
     });
   });
 }

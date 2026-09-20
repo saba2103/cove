@@ -351,6 +351,77 @@ class SubscriptionController {
     }
   }
 
+  /// Forecloses/precloses an EMI: marks all remaining installments as paid and marks isActive = false.
+  /// Optionally logs the full payoff amount as an expense.
+  Future<void> forecloseEmi(
+    String id, {
+    required bool isPrivate,
+    bool logExpense = false,
+  }) async {
+    final homeId = _activeHomeId;
+    if (homeId == null) throw StateError('No active home selected.');
+
+    final sub = await (_db.select(_db.localSubscriptions)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (sub == null) return;
+
+    final total = sub.totalInstallments ?? 12;
+    final currentPaid = sub.paidInstallments ?? 0;
+    final remainingInstallments = (total - currentPaid).clamp(0, total);
+    final payoffAmount = remainingInstallments * sub.amount;
+
+    if (isPrivate) {
+      await (_db.update(_db.localSubscriptions)..where((t) => t.id.equals(id))).write(
+        LocalSubscriptionsCompanion(
+          paidInstallments: Value(total),
+          isActive: const Value(false),
+        ),
+      );
+    } else {
+      final emit = ref.read(coveEmitActionProvider);
+      await emit(
+        eventType: 'subscription_updated',
+        payload: {
+          'id': id,
+          'home_id': homeId,
+          'name': sub.name,
+          'amount': sub.amount,
+          'currency': sub.currency,
+          'billing_cycle': sub.billingCycle,
+          'next_billing_date': sub.nextBillingDate.toIso8601String(),
+          'category': sub.category,
+          'is_active': false,
+          'is_private': false,
+          'created_by': sub.createdBy,
+          'end_date': sub.endDate?.toIso8601String(),
+          'paid_by': sub.paidBy,
+          'financed_through': sub.financedThrough,
+          'total_installments': total,
+          'paid_installments': total,
+        },
+      );
+    }
+
+    if (logExpense && payoffAmount > 0) {
+      final expenseCtrl = ref.read(expenseControllerProvider);
+      final payer = sub.paidBy ?? _currentUser?.id ?? 'me';
+      final isSplit = payer == 'split' || payer == '50/50' || payer == 'split_50_50';
+      final visibility = isPrivate
+          ? ExpenseVisibility.privateToMe
+          : ExpenseVisibility.shared;
+
+      await expenseCtrl.logExpense(
+        title: '${sub.name} (EMI Foreclosure Payoff)',
+        amount: payoffAmount,
+        currency: sub.currency,
+        expenseDate: DateTime.now(),
+        paidBy: isSplit ? (_currentUser?.id ?? 'me') : payer,
+        category: sub.category ?? 'Loan',
+        notes: 'Preclosed EMI with full settlement of remaining $remainingInstallments installments via ${sub.financedThrough ?? "Commitments"}',
+        visibility: visibility,
+      );
+    }
+  }
+
   /// Permanently deletes a subscription.
   Future<void> deleteSubscription(String id, {required bool isPrivate}) async {
     final homeId = _activeHomeId;

@@ -412,6 +412,261 @@ class CommitmentDetailSheet extends ConsumerWidget {
     }
   }
 
+  Future<void> _handleForecloseEmi(BuildContext context, WidgetRef ref) async {
+    final colors = context.colors;
+    final typography = context.typography;
+    final currency = ref.read(currencyPreferenceProvider);
+
+    final total = subscription.totalInstallments ?? 12;
+    final currentPaid = subscription.paidInstallments ?? 0;
+    final remainingInstallments = (total - currentPaid).clamp(0, total);
+    final outstandingAmount = remainingInstallments * subscription.amount;
+
+    bool logExpense = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: colors.surfaceCard,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: colors.borderHairline, width: 1),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: colors.accentPrimary.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.task_alt_rounded,
+                    color: colors.accentPrimary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Foreclose EMI',
+                    style: TextStyle(
+                      fontFamily: 'GeneralSans',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Are you sure you want to foreclose "${subscription.name}"? This will settle all remaining installments and close this loan.',
+                  style: TextStyle(
+                    fontFamily: 'GeneralSans',
+                    fontSize: 14,
+                    color: colors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceRow,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.borderHairline),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Loan Name', style: typography.caption.copyWith(color: colors.textMuted)),
+                          Text(
+                            subscription.name,
+                            style: typography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (subscription.financedThrough != null &&
+                          subscription.financedThrough!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Financed Via', style: typography.caption.copyWith(color: colors.textMuted)),
+                            Text(
+                              subscription.financedThrough!.trim(),
+                              style: typography.bodyMedium.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Monthly EMI', style: typography.caption.copyWith(color: colors.textMuted)),
+                          Text(
+                            '${currency.symbol}${formatCoveAmount(subscription.amount)}/mo',
+                            style: typography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Tenure Status', style: typography.caption.copyWith(color: colors.textMuted)),
+                          Text(
+                            '$currentPaid of $total paid ($remainingInstallments remaining)',
+                            style: typography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Divider(height: 18, thickness: 1, color: colors.borderHairline),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Payoff Outstanding',
+                            style: typography.caption.copyWith(
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${currency.symbol}${formatCoveAmount(outstandingAmount)}',
+                            style: typography.bodyMedium.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: colors.accentTint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                InkWell(
+                  onTap: () => setDialogState(() => logExpense = !logExpense),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Checkbox(
+                            value: logExpense,
+                            activeColor: colors.accentPrimary,
+                            checkColor: colors.surfaceCard,
+                            side: BorderSide(color: colors.borderHairline, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            onChanged: (val) => setDialogState(() => logExpense = val ?? false),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Log payoff of ${currency.symbol}${formatCoveAmount(outstandingAmount)} to Expenses',
+                            style: TextStyle(
+                              fontFamily: 'GeneralSans',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontFamily: 'GeneralSans',
+                    color: colors.textMuted,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  'Foreclose EMI',
+                  style: TextStyle(
+                    fontFamily: 'GeneralSans',
+                    fontWeight: FontWeight.w700,
+                    color: colors.accentPrimary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await ref.read(subscriptionControllerProvider).forecloseEmi(
+            subscription.id,
+            isPrivate: subscription.isPrivate,
+            logExpense: logExpense,
+          );
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        CoveUndoToast.show(
+          context,
+          message: 'Foreclosed "${subscription.name}" · Loan closed',
+          icon: Icons.task_alt_rounded,
+          onUndo: () async {
+            await ref.read(subscriptionControllerProvider).updateSubscription(
+                  id: subscription.id,
+                  name: subscription.name,
+                  amount: subscription.amount,
+                  currency: subscription.currency,
+                  billingCycle: subscription.billingCycle,
+                  nextBillingDate: subscription.nextBillingDate,
+                  category: subscription.category,
+                  isPrivate: subscription.isPrivate,
+                  endDate: subscription.endDate,
+                  paidBy: subscription.paidBy,
+                  financedThrough: subscription.financedThrough,
+                  totalInstallments: subscription.totalInstallments,
+                  paidInstallments: subscription.paidInstallments,
+                );
+          },
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
@@ -602,12 +857,32 @@ class CommitmentDetailSheet extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 18, color: colors.textMuted),
-                    splashRadius: 18,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: () => Navigator.of(context).pop(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isEmi && !isDone) ...[
+                        IconButton(
+                          tooltip: 'Preclose / Foreclose EMI',
+                          icon: Icon(
+                            Icons.task_alt_rounded,
+                            size: 19,
+                            color: colors.accentPrimary,
+                          ),
+                          splashRadius: 18,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          onPressed: () => _handleForecloseEmi(context, ref),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      IconButton(
+                        icon: Icon(Icons.close, size: 18, color: colors.textMuted),
+                        splashRadius: 18,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
                 ],
               ),
