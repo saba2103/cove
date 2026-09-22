@@ -6,6 +6,7 @@ import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/expenses/expenses_screen.dart';
 import 'package:cove/features/lists/lists_screen.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
+import 'package:cove/features/notifications/notification_models.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/features/profile/user_profile_controller.dart';
@@ -86,6 +87,18 @@ class FakeWeatherNotifier extends WeatherNotifier {
 }
 
 class FakeNotificationService extends NotificationService {
+  FakeNotificationService({super.onNavigate, NotificationModule? initialPending}) {
+    if (initialPending != null) {
+      onNotificationTapped(CoveNotificationPayload(
+        homeId: 'home_123',
+        module: initialPending,
+        eventType: 'generic',
+        title: 'Test',
+        body: 'Test',
+      ));
+    }
+  }
+
   @override
   Future<void> initializeLocalNotifications() async {}
 
@@ -316,6 +329,86 @@ void main() {
       expect(find.byType(RoutineScreen), findsNothing);
       expect(find.byType(AppShell), findsOneWidget);
       expect(find.byType(CalendarScreen), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('6. Cold launch from notification routes directly to respective page (Subscriptions)', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final overrides = createBaseOverrides();
+      // Override notification service with a pending subscriptions module
+      overrides[0] = notificationServiceProvider.overrideWithValue(
+        FakeNotificationService(initialPending: NotificationModule.subscriptions),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides,
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: const AppShell(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Must open directly to SubscriptionsScreen, NOT default CalendarScreen
+      expect(find.byType(SubscriptionsScreen), findsOneWidget);
+      expect(find.byType(CalendarScreen), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('7. In-app notification tap switches tab and dismisses any open modal/screen', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final fakeNotif = FakeNotificationService();
+      final overrides = createBaseOverrides();
+      overrides[0] = notificationServiceProvider.overrideWithValue(fakeNotif);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides,
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: const AppShell(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CalendarScreen), findsOneWidget);
+
+      // Open a modal/pushed route (e.g. Routines)
+      await tester.tap(find.byTooltip('Routines'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(RoutineScreen), findsOneWidget);
+
+      // Now tap a notification for Expenses
+      fakeNotif.onNotificationTapped(const CoveNotificationPayload(
+        homeId: 'home_123',
+        module: NotificationModule.expenses,
+        eventType: 'expense_logged',
+        title: 'Expenses',
+        body: 'New expense logged',
+      ));
+
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      // RoutineScreen was popped and ExpensesScreen is now visible
+      expect(find.byType(RoutineScreen), findsNothing);
+      expect(find.byType(ExpensesScreen), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
     });

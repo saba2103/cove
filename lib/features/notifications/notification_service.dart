@@ -16,6 +16,16 @@ class NotificationService {
   final String? Function()? getCurrentUserId;
   final String? Function()? getPartnerName;
   final String? Function()? getCurrencySymbol;
+  final void Function(NotificationModule module)? onNavigate;
+
+  NotificationModule? _pendingNavigationModule;
+
+  /// Retrieves and clears any pending navigation module queued from launch notifications.
+  NotificationModule? consumePendingNavigationModule() {
+    final mod = _pendingNavigationModule;
+    _pendingNavigationModule = null;
+    return mod;
+  }
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -34,6 +44,7 @@ class NotificationService {
     this.getCurrentUserId,
     this.getPartnerName,
     this.getCurrencySymbol,
+    this.onNavigate,
   });
 
 
@@ -293,6 +304,25 @@ class NotificationService {
       }
 
       _localNotificationsInitialized = true;
+
+      // Check if a local notification launched the app from a terminated state
+      final launchDetails =
+          await _localNotifications.getNotificationAppLaunchDetails();
+      if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+        final payloadStr = launchDetails.notificationResponse?.payload;
+        if (payloadStr != null && payloadStr.isNotEmpty) {
+          try {
+            final data = jsonDecode(payloadStr) as Map<String, dynamic>;
+            final payload = CoveNotificationPayload.fromMap(data);
+            debugPrint(
+                '[NotificationService] App launched from local notification: ${payload.module}');
+            onNotificationTapped(payload);
+          } catch (e) {
+            debugPrint(
+                '[NotificationService] Error parsing launch local notification: $e');
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[NotificationService] Local notifications initialization error: $e');
     }
@@ -348,6 +378,9 @@ class NotificationService {
 
   /// Dispatches a deep link navigation action to open the appropriate module screen.
   void onNotificationTapped(CoveNotificationPayload payload) {
+    debugPrint('[NotificationService] onNotificationTapped for module: ${payload.module}');
+    _pendingNavigationModule = payload.module;
+    onNavigate?.call(payload.module);
     if (!_navigationStreamController.isClosed) {
       _navigationStreamController.add(payload.module);
     }
@@ -416,42 +449,55 @@ class NotificationService {
   Future<void> initializeFcm({String? fallbackToken}) async {
     try {
       final fcm = FirebaseMessaging.instance;
-      await fcm.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
 
-      final token = fallbackToken ?? await fcm.getToken();
-      if (token != null) {
-        await registerDeviceToken(token);
-      }
-
-      final initialMessage = await fcm.getInitialMessage();
-      if (initialMessage != null) {
-        final payload = CoveNotificationPayload.fromMap(initialMessage.data);
+      // 1. Immediately attach listeners for background taps and foreground messages
+      _fcmOpenSub?.cancel();
+      _fcmOpenSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('[NotificationService] onMessageOpenedApp received data: ${message.data}');
+        final payload = CoveNotificationPayload.fromMap(message.data);
         onNotificationTapped(payload);
-      }
-
-      _fcmTokenSub?.cancel();
-      _fcmTokenSub = fcm.onTokenRefresh.listen((newToken) {
-        registerDeviceToken(newToken);
       });
 
       _fcmMessageSub?.cancel();
       _fcmMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('[NotificationService] onMessage received in foreground: ${message.data}');
         handleIncomingMessage(message.data);
       });
 
-      _fcmOpenSub?.cancel();
-      _fcmOpenSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        final payload = CoveNotificationPayload.fromMap(message.data);
+      // 2. Check if a notification launched the app from a terminated state
+      final initialMessage = await fcm.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('[NotificationService] getInitialMessage found: ${initialMessage.data}');
+        final payload = CoveNotificationPayload.fromMap(initialMessage.data);
         onNotificationTapped(payload);
-      });
+      }
+
+      // 3. Request permissions and register token in background without blocking
+      unawaited(() async {
+        try {
+          await fcm.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+
+          final token = fallbackToken ?? await fcm.getToken();
+          if (token != null) {
+            await registerDeviceToken(token);
+          }
+
+          _fcmTokenSub?.cancel();
+          _fcmTokenSub = fcm.onTokenRefresh.listen((newToken) {
+            registerDeviceToken(newToken);
+          });
+        } catch (e) {
+          debugPrint('[NotificationService] FCM token registration/permission error: $e');
+        }
+      }());
     } catch (e) {
       debugPrint('[NotificationService] FCM initialization skipped or unavailable: $e');
       if (fallbackToken != null) {
-        await registerDeviceToken(fallbackToken);
+        unawaited(registerDeviceToken(fallbackToken));
       }
     }
   }

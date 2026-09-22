@@ -505,6 +505,40 @@ void main() {
       await sub.cancel();
       service.dispose();
     });
+
+    test('Notification tap invokes onNavigate callback and caches pending module for cold launch', () async {
+      NotificationModule? callbackModule;
+      final service = NotificationService(
+        syncEngine: syncEngine,
+        appDatabase: db,
+        getCurrentUserId: () => 'user_test',
+        onNavigate: (module) {
+          callbackModule = module;
+        },
+      );
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_alpha',
+        module: NotificationModule.subscriptions,
+        eventType: 'subscription_added',
+        eventId: 'sub_1',
+        title: 'Commitments',
+        body: 'New subscription added',
+      );
+
+      service.onNotificationTapped(payload);
+
+      // Verify immediate synchronous callback invocation
+      expect(callbackModule, NotificationModule.subscriptions);
+
+      // Verify pending navigation module caching for cold launch consumption
+      expect(service.consumePendingNavigationModule(), NotificationModule.subscriptions);
+
+      // Verify consume clears the pending module so it is not re-triggered
+      expect(service.consumePendingNavigationModule(), isNull);
+
+      service.dispose();
+    });
   });
 
   group('ProfileScreen: Partner Notifications Preferences UI', () {

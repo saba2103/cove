@@ -57,6 +57,14 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         _showInAppNotificationBanner(payload);
       });
 
+      // Check if a notification launched the app and navigate to its module immediately
+      final pendingModule = notifService.consumePendingNavigationModule() ??
+          ref.read(notificationNavigationProvider);
+      if (pendingModule != null) {
+        ref.read(notificationNavigationProvider.notifier).navigateTo(null);
+        _navigateToModule(pendingModule);
+      }
+
       // Start the sync engine, self-heal home synchronization, and pull unread events
       final activeHomeId = ref.read(activeHomeIdProvider);
       final syncEngine = ref.read(syncEngineProvider);
@@ -75,8 +83,10 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         });
       }
 
-      // Check and present What's Fresh modal once per new release
-      WhatsFreshModal.checkAndShow(context);
+      // Check and present What's Fresh modal once per new release (only if not navigating via notification)
+      if (pendingModule == null) {
+        WhatsFreshModal.checkAndShow(context);
+      }
     });
   }
 
@@ -103,21 +113,40 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
   void _navigateToModule(NotificationModule module) {
     if (!mounted) return;
+
+    // Pop any open modals, sheets, or pushed routes to return to the root shell
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
     switch (module) {
       case NotificationModule.home:
-        setState(() => _currentIndex = 0);
+        setState(() {
+          _currentIndex = 0;
+          _lastBackPressed = null;
+        });
         break;
       case NotificationModule.subscriptions:
-        setState(() => _currentIndex = 1);
+        setState(() {
+          _currentIndex = 1;
+          _lastBackPressed = null;
+        });
         break;
       case NotificationModule.calendar:
-        setState(() => _currentIndex = 2);
+        setState(() {
+          _currentIndex = 2;
+          _lastBackPressed = null;
+        });
         break;
       case NotificationModule.lists:
-        setState(() => _currentIndex = 3);
+        setState(() {
+          _currentIndex = 3;
+          _lastBackPressed = null;
+        });
         break;
       case NotificationModule.expenses:
-        setState(() => _currentIndex = 4);
+        setState(() {
+          _currentIndex = 4;
+          _lastBackPressed = null;
+        });
         break;
       case NotificationModule.habits:
         Navigator.of(context).push(

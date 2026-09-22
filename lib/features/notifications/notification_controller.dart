@@ -13,16 +13,17 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final sync = ref.watch(syncEngineProvider);
   final supabase = ref.watch(supabaseClientProvider);
-  final user = ref.watch(authProvider).value;
-  final partner = ref.watch(partnerProfileProvider);
 
   final service = NotificationService(
     supabaseClient: supabase,
     syncEngine: sync,
     appDatabase: db,
-    getCurrentUserId: () => user?.id,
-    getPartnerName: () => partner.displayName,
+    getCurrentUserId: () => ref.read(authProvider).value?.id,
+    getPartnerName: () => ref.read(partnerProfileProvider).displayName,
     getCurrencySymbol: () => ref.read(currencyPreferenceProvider).symbol,
+    onNavigate: (module) {
+      ref.read(notificationNavigationProvider.notifier).navigateTo(module);
+    },
   );
 
   // Wire sync engine inbound activity into the notification pipeline
