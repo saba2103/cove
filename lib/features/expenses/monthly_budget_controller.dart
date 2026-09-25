@@ -1,5 +1,7 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 
@@ -13,11 +15,19 @@ class MonthlyBudgetNotifier extends Notifier<double?> {
     _activeNotifiers.add(this);
     ref.onDispose(() => _activeNotifiers.remove(this));
 
+    // 1. Pull directly from active home in Drift SQLite
+    final homeAsync = ref.watch(activeHomeProvider);
+    final home = homeAsync.value;
+    if (home != null && home.monthlyBudget != null && home.monthlyBudget! > 0) {
+      return home.monthlyBudget;
+    }
+
+    // 2. Fallback check for device-local cache migration
     final homeId = ref.watch(activeHomeIdProvider);
     if (homeId != null && homeId.isNotEmpty) {
       _loadBudget(homeId);
     }
-    return null;
+    return home?.monthlyBudget;
   }
 
   Future<void> _loadBudget(String homeId) async {
@@ -25,8 +35,13 @@ class MonthlyBudgetNotifier extends Notifier<double?> {
       final val = await storage.read(key: '$_keyPrefix$homeId');
       if (val != null && val.isNotEmpty) {
         final parsed = double.tryParse(val);
-        if (parsed != null && parsed > 0) {
+        if (parsed != null && parsed > 0 && state == null) {
           state = parsed;
+          // Self-heal SQLite if empty
+          final db = ref.read(appDatabaseProvider);
+          await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
+            LocalHomesCompanion(monthlyBudget: Value(parsed)),
+          );
         }
       }
     } catch (_) {}
@@ -58,10 +73,21 @@ class MonthlyBudgetNotifier extends Notifier<double?> {
     if (homeId == null) return;
 
     state = amount;
+
+    // 1. Update Drift SQLite database
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
+        LocalHomesCompanion(monthlyBudget: Value(amount)),
+      );
+    } catch (_) {}
+
+    // 2. Update secure storage fallback
     try {
       await storage.write(key: '$_keyPrefix$homeId', value: amount.toString());
     } catch (_) {}
 
+    // 3. Emit sync event to partner
     try {
       final emit = ref.read(coveEmitActionProvider);
       await emit(
@@ -80,10 +106,21 @@ class MonthlyBudgetNotifier extends Notifier<double?> {
     if (homeId == null) return;
 
     state = null;
+
+    // 1. Clear in Drift SQLite database
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
+        const LocalHomesCompanion(monthlyBudget: Value(null)),
+      );
+    } catch (_) {}
+
+    // 2. Clear secure storage fallback
     try {
       await storage.delete(key: '$_keyPrefix$homeId');
     } catch (_) {}
 
+    // 3. Emit sync event to partner
     try {
       final emit = ref.read(coveEmitActionProvider);
       await emit(

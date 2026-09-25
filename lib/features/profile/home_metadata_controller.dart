@@ -49,8 +49,21 @@ class HomeMetadataNotifier extends Notifier<HomeMetadataState> {
 
   @override
   HomeMetadataState build() {
+    final homeAsync = ref.watch(activeHomeProvider);
+    final home = homeAsync.value;
     final homeId = ref.watch(activeHomeIdProvider) ?? '';
-    _loadAnniversaryDate(homeId);
+
+    if (home != null) {
+      return HomeMetadataState(
+        homeId: home.id,
+        anniversaryDate: home.anniversaryDate,
+        formattedTogetherDuration: HomeMetadataState.formatDuration(home.anniversaryDate),
+      );
+    }
+
+    if (homeId.isNotEmpty) {
+      _loadAnniversaryDate(homeId);
+    }
     return HomeMetadataState(homeId: homeId);
   }
 
@@ -60,11 +73,16 @@ class HomeMetadataNotifier extends Notifier<HomeMetadataState> {
       final raw = await _storage.read(key: '$_anniversaryKeyPrefix$homeId');
       if (raw != null && raw.isNotEmpty) {
         final parsed = DateTime.tryParse(raw);
-        if (parsed != null) {
+        if (parsed != null && state.anniversaryDate == null) {
           state = HomeMetadataState(
             homeId: homeId,
             anniversaryDate: parsed,
             formattedTogetherDuration: HomeMetadataState.formatDuration(parsed),
+          );
+          // Self-heal SQLite if empty
+          final db = ref.read(appDatabaseProvider);
+          await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
+            LocalHomesCompanion(anniversaryDate: drift.Value(parsed)),
           );
         }
       }
@@ -72,7 +90,9 @@ class HomeMetadataNotifier extends Notifier<HomeMetadataState> {
   }
 
   Future<void> setAnniversaryDate(DateTime? date) async {
-    final homeId = state.homeId;
+    final homeId = state.homeId.isNotEmpty
+        ? state.homeId
+        : (ref.read(activeHomeIdProvider) ?? '');
     if (homeId.isEmpty) return;
 
     state = HomeMetadataState(
@@ -81,14 +101,38 @@ class HomeMetadataNotifier extends Notifier<HomeMetadataState> {
       formattedTogetherDuration: HomeMetadataState.formatDuration(date),
     );
 
-    if (date != null) {
-      await _storage.write(
-        key: '$_anniversaryKeyPrefix$homeId',
-        value: date.toIso8601String(),
+    // 1. Update Drift SQLite database
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
+        LocalHomesCompanion(anniversaryDate: drift.Value(date)),
       );
-    } else {
-      await _storage.delete(key: '$_anniversaryKeyPrefix$homeId');
-    }
+    } catch (_) {}
+
+    // 2. Update secure storage fallback
+    try {
+      if (date != null) {
+        await _storage.write(
+          key: '$_anniversaryKeyPrefix$homeId',
+          value: date.toIso8601String(),
+        );
+      } else {
+        await _storage.delete(key: '$_anniversaryKeyPrefix$homeId');
+      }
+    } catch (_) {}
+
+    // 3. Emit home_anniversary_updated sync event so partner updates
+    try {
+      final emitAction = ref.read(coveEmitActionProvider);
+      await emitAction(
+        eventType: 'home_anniversary_updated',
+        payload: {
+          'id': homeId,
+          'anniversary_date': date?.toIso8601String(),
+        },
+        targetHomeId: homeId,
+      );
+    } catch (_) {}
   }
 
   Future<void> updateHomeDetails({
@@ -96,25 +140,43 @@ class HomeMetadataNotifier extends Notifier<HomeMetadataState> {
     String? description,
     DateTime? anniversaryDate,
   }) async {
-    final homeId = state.homeId;
+    final homeId = state.homeId.isNotEmpty
+        ? state.homeId
+        : (ref.read(activeHomeIdProvider) ?? '');
     if (homeId.isEmpty) return;
 
-    // 1. Update anniversary date locally
-    await setAnniversaryDate(anniversaryDate);
+    // 1. Update state
+    state = HomeMetadataState(
+      homeId: homeId,
+      anniversaryDate: anniversaryDate,
+      formattedTogetherDuration: HomeMetadataState.formatDuration(anniversaryDate),
+    );
 
     // 2. Update local Drift database projection
     final db = ref.read(appDatabaseProvider);
-    final home = await (db.select(db.localHomes)..where((t) => t.id.equals(homeId))).getSingleOrNull();
-    if (home != null) {
+    try {
       await (db.update(db.localHomes)..where((t) => t.id.equals(homeId))).write(
         LocalHomesCompanion(
           name: drift.Value(name.trim()),
           description: drift.Value(description?.trim()),
+          anniversaryDate: drift.Value(anniversaryDate),
         ),
       );
-    }
+    } catch (_) {}
 
-    // 3. Emit home_updated sync action for partner
+    // 3. Update secure storage fallback
+    try {
+      if (anniversaryDate != null) {
+        await _storage.write(
+          key: '$_anniversaryKeyPrefix$homeId',
+          value: anniversaryDate.toIso8601String(),
+        );
+      } else {
+        await _storage.delete(key: '$_anniversaryKeyPrefix$homeId');
+      }
+    } catch (_) {}
+
+    // 4. Emit home_updated sync action for partner
     try {
       final emitAction = ref.read(coveEmitActionProvider);
       await emitAction(

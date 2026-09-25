@@ -11,6 +11,8 @@ class LocalHomes extends Table {
   TextColumn get description => text().nullable()();
   TextColumn get icon => text().nullable()();
   TextColumn get currency => text().withDefault(const Constant('USD'))();
+  RealColumn get monthlyBudget => real().nullable()();
+  DateTimeColumn get anniversaryDate => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get createdBy => text()();
 
@@ -237,6 +239,19 @@ class LocalDeletedTombstones extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class LocalCheckinReminders extends Table {
+  TextColumn get id => text()();
+  TextColumn get homeId => text()();
+  IntColumn get hour => integer()();
+  IntColumn get minute => integer()();
+  TextColumn get message => text()();
+  BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(tables: [
   LocalHomes,
   LocalLists,
@@ -254,6 +269,7 @@ class LocalDeletedTombstones extends Table {
   LocalRoutineEvents,
   LocalAppliedEvents,
   LocalDeletedTombstones,
+  LocalCheckinReminders,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
@@ -267,7 +283,7 @@ class AppDatabase extends _$AppDatabase {
             ));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -308,10 +324,35 @@ class AppDatabase extends _$AppDatabase {
           if (from < 10) {
             await m.addColumn(localListItems, localListItems.dueDate);
           }
+          if (from < 11) {
+            await m.addColumn(localHomes, localHomes.monthlyBudget);
+            await m.addColumn(localHomes, localHomes.anniversaryDate);
+            await m.createTable(localCheckinReminders);
+          }
         },
       );
 
   // --- REACTION STREAMS FILTERED BY homeId ---
+
+  Stream<List<LocalCheckinReminder>> watchCheckinReminders(String homeId) {
+    return (select(localCheckinReminders)
+          ..where((t) => t.homeId.equals(homeId))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.hour),
+            (t) => OrderingTerm.asc(t.minute),
+          ]))
+        .watch();
+  }
+
+  Future<List<LocalCheckinReminder>> getCheckinReminders(String homeId) {
+    return (select(localCheckinReminders)
+          ..where((t) => t.homeId.equals(homeId))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.hour),
+            (t) => OrderingTerm.asc(t.minute),
+          ]))
+        .get();
+  }
 
   Stream<List<LocalHome>> watchHomes() {
     return (select(localHomes)..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))

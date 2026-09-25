@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import '../../sync/db/app_database.dart';
 
 class CheckinReminder {
   final String id;
@@ -62,6 +63,17 @@ class CheckinReminder {
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
           : DateTime.now(),
+    );
+  }
+
+  factory CheckinReminder.fromLocal(LocalCheckinReminder local) {
+    return CheckinReminder(
+      id: local.id,
+      hour: local.hour,
+      minute: local.minute,
+      message: local.message,
+      isEnabled: local.isEnabled,
+      createdAt: local.createdAt,
     );
   }
 

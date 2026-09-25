@@ -4,7 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/expenses/monthly_budget_controller.dart';
 import '../../features/profile/partner_profile_controller.dart';
-import '../../features/profile/preferences_controller.dart';
 import '../../features/profile/user_profile_controller.dart';
 import '../local_state_store.dart';
 import 'app_database.dart';
@@ -86,12 +85,17 @@ class LocalStateStoreImpl implements LocalStateStore {
           final id = (payload['id'] as String?) ?? homeId;
           final existing = await (db.select(db.localHomes)..where((t) => t.id.equals(id))).getSingleOrNull();
           final rawPayloadCurrency = payload['currency'] as String?;
-          final userPreferred = CurrencyNotifier.cachedInitialCurrency;
-          final currencyVal = (userPreferred != null && userPreferred.isNotEmpty)
-              ? userPreferred
-              : ((existing != null && existing.currency.isNotEmpty && existing.currency != 'USD')
-                  ? (rawPayloadCurrency != null && rawPayloadCurrency != 'USD' ? rawPayloadCurrency : existing.currency)
-                  : (rawPayloadCurrency ?? existing?.currency ?? 'USD'));
+          final currencyVal = (rawPayloadCurrency != null && rawPayloadCurrency.isNotEmpty)
+              ? rawPayloadCurrency
+              : (existing?.currency ?? 'USD');
+
+          final rawPayloadBudget = (payload['monthly_budget'] as num?)?.toDouble() ??
+              (payload['budget'] as num?)?.toDouble();
+          final rawPayloadAnniversary = payload['anniversary_date'] as String?;
+          final parsedAnniversary = rawPayloadAnniversary != null
+              ? DateTime.tryParse(rawPayloadAnniversary)
+              : null;
+
           await db.into(db.localHomes).insertOnConflictUpdate(
                 LocalHomesCompanion(
                   id: Value(id),
@@ -99,6 +103,8 @@ class LocalStateStoreImpl implements LocalStateStore {
                   description: Value(payload.containsKey('description') ? payload['description'] as String? : existing?.description),
                   icon: Value(payload.containsKey('icon') ? payload['icon'] as String? : existing?.icon),
                   currency: Value(currencyVal),
+                  monthlyBudget: Value(rawPayloadBudget ?? existing?.monthlyBudget),
+                  anniversaryDate: Value(parsedAnniversary ?? existing?.anniversaryDate),
                   createdAt: Value(existing?.createdAt ?? timestamp),
                   createdBy: Value(existing?.createdBy ?? authorId),
                 ),
@@ -108,14 +114,20 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'home_currency_updated':
           final id = (payload['id'] as String?) ?? homeId;
           final currency = (payload['currency'] as String?) ?? 'USD';
-          final userPreferred = CurrencyNotifier.cachedInitialCurrency;
-          // Protect user's explicit local currency choice (e.g. INR) from stale remote overwrites (e.g. EUR)
-          final effectiveCurrency = (userPreferred != null && userPreferred.isNotEmpty)
-              ? userPreferred
-              : currency;
           await (db.update(db.localHomes)..where((t) => t.id.equals(id))).write(
             LocalHomesCompanion(
-              currency: Value(effectiveCurrency),
+              currency: Value(currency),
+            ),
+          );
+          break;
+
+        case 'home_anniversary_updated':
+          final id = (payload['id'] as String?) ?? homeId;
+          final rawDate = payload['anniversary_date'] as String?;
+          final parsedDate = rawDate != null ? DateTime.tryParse(rawDate) : null;
+          await (db.update(db.localHomes)..where((t) => t.id.equals(id))).write(
+            LocalHomesCompanion(
+              anniversaryDate: Value(parsedDate),
             ),
           );
           break;
@@ -768,13 +780,66 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'monthly_budget_updated':
           final bAmt = (payload['amount'] as num?)?.toDouble();
+          final bHomeId = (payload['home_id'] as String?) ?? homeId;
           if (bAmt != null && bAmt > 0) {
-            await MonthlyBudgetNotifier.updateFromRemote(homeId: homeId, amount: bAmt);
+            await (db.update(db.localHomes)..where((t) => t.id.equals(bHomeId))).write(
+              LocalHomesCompanion(
+                monthlyBudget: Value(bAmt),
+              ),
+            );
+            await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: bAmt);
           }
           break;
 
         case 'monthly_budget_cleared':
-          await MonthlyBudgetNotifier.updateFromRemote(homeId: homeId, amount: null);
+          final bHomeId = (payload['home_id'] as String?) ?? homeId;
+          await (db.update(db.localHomes)..where((t) => t.id.equals(bHomeId))).write(
+            const LocalHomesCompanion(
+              monthlyBudget: Value(null),
+            ),
+          );
+          await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: null);
+          break;
+
+        // --- CHECK-IN REMINDERS ---
+        case 'checkin_reminder_added':
+        case 'checkin_reminder_updated':
+          final remId = payload['id'] as String;
+          final remHomeId = (payload['home_id'] as String?) ?? homeId;
+          final hour = (payload['hour'] as num).toInt();
+          final minute = (payload['minute'] as num).toInt();
+          final message = (payload['message'] as String?) ?? 'A quiet moment for us • Check in on our sanctuary';
+          final isEnabled = (payload['is_enabled'] as bool?) ?? true;
+          final remCreatedAt = payload['created_at'] != null
+              ? (DateTime.tryParse(payload['created_at'] as String) ?? timestamp)
+              : timestamp;
+
+          await db.into(db.localCheckinReminders).insertOnConflictUpdate(
+            LocalCheckinRemindersCompanion(
+              id: Value(remId),
+              homeId: Value(remHomeId),
+              hour: Value(hour),
+              minute: Value(minute),
+              message: Value(message),
+              isEnabled: Value(isEnabled),
+              createdAt: Value(remCreatedAt),
+            ),
+          );
+          break;
+
+        case 'checkin_reminder_toggled':
+          final remId = payload['id'] as String;
+          final isEnabled = (payload['is_enabled'] as bool?) ?? true;
+          await (db.update(db.localCheckinReminders)..where((t) => t.id.equals(remId))).write(
+            LocalCheckinRemindersCompanion(
+              isEnabled: Value(isEnabled),
+            ),
+          );
+          break;
+
+        case 'checkin_reminder_deleted':
+          final remId = payload['id'] as String;
+          await (db.delete(db.localCheckinReminders)..where((t) => t.id.equals(remId))).go();
           break;
 
         default:
@@ -799,6 +864,7 @@ class LocalStateStoreImpl implements LocalStateStore {
       await db.delete(db.localActivityEvents).go();
       await db.delete(db.localAppliedEvents).go();
       await db.delete(db.localDeletedTombstones).go();
+      await db.delete(db.localCheckinReminders).go();
     });
   }
 

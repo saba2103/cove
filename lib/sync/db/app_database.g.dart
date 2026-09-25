@@ -59,6 +59,29 @@ class $LocalHomesTable extends LocalHomes
     requiredDuringInsert: false,
     defaultValue: const Constant('USD'),
   );
+  static const VerificationMeta _monthlyBudgetMeta = const VerificationMeta(
+    'monthlyBudget',
+  );
+  @override
+  late final GeneratedColumn<double> monthlyBudget = GeneratedColumn<double>(
+    'monthly_budget',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _anniversaryDateMeta = const VerificationMeta(
+    'anniversaryDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> anniversaryDate =
+      GeneratedColumn<DateTime>(
+        'anniversary_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -88,6 +111,8 @@ class $LocalHomesTable extends LocalHomes
     description,
     icon,
     currency,
+    monthlyBudget,
+    anniversaryDate,
     createdAt,
     createdBy,
   ];
@@ -137,6 +162,24 @@ class $LocalHomesTable extends LocalHomes
         currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta),
       );
     }
+    if (data.containsKey('monthly_budget')) {
+      context.handle(
+        _monthlyBudgetMeta,
+        monthlyBudget.isAcceptableOrUnknown(
+          data['monthly_budget']!,
+          _monthlyBudgetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('anniversary_date')) {
+      context.handle(
+        _anniversaryDateMeta,
+        anniversaryDate.isAcceptableOrUnknown(
+          data['anniversary_date']!,
+          _anniversaryDateMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -182,6 +225,14 @@ class $LocalHomesTable extends LocalHomes
         DriftSqlType.string,
         data['${effectivePrefix}currency'],
       )!,
+      monthlyBudget: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}monthly_budget'],
+      ),
+      anniversaryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}anniversary_date'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -205,6 +256,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
   final String? description;
   final String? icon;
   final String currency;
+  final double? monthlyBudget;
+  final DateTime? anniversaryDate;
   final DateTime createdAt;
   final String createdBy;
   const LocalHome({
@@ -213,6 +266,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     this.description,
     this.icon,
     required this.currency,
+    this.monthlyBudget,
+    this.anniversaryDate,
     required this.createdAt,
     required this.createdBy,
   });
@@ -228,6 +283,12 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
       map['icon'] = Variable<String>(icon);
     }
     map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || monthlyBudget != null) {
+      map['monthly_budget'] = Variable<double>(monthlyBudget);
+    }
+    if (!nullToAbsent || anniversaryDate != null) {
+      map['anniversary_date'] = Variable<DateTime>(anniversaryDate);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['created_by'] = Variable<String>(createdBy);
     return map;
@@ -242,6 +303,12 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           : Value(description),
       icon: icon == null && nullToAbsent ? const Value.absent() : Value(icon),
       currency: Value(currency),
+      monthlyBudget: monthlyBudget == null && nullToAbsent
+          ? const Value.absent()
+          : Value(monthlyBudget),
+      anniversaryDate: anniversaryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(anniversaryDate),
       createdAt: Value(createdAt),
       createdBy: Value(createdBy),
     );
@@ -258,6 +325,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
       description: serializer.fromJson<String?>(json['description']),
       icon: serializer.fromJson<String?>(json['icon']),
       currency: serializer.fromJson<String>(json['currency']),
+      monthlyBudget: serializer.fromJson<double?>(json['monthlyBudget']),
+      anniversaryDate: serializer.fromJson<DateTime?>(json['anniversaryDate']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
     );
@@ -271,6 +340,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
       'description': serializer.toJson<String?>(description),
       'icon': serializer.toJson<String?>(icon),
       'currency': serializer.toJson<String>(currency),
+      'monthlyBudget': serializer.toJson<double?>(monthlyBudget),
+      'anniversaryDate': serializer.toJson<DateTime?>(anniversaryDate),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'createdBy': serializer.toJson<String>(createdBy),
     };
@@ -282,6 +353,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     Value<String?> description = const Value.absent(),
     Value<String?> icon = const Value.absent(),
     String? currency,
+    Value<double?> monthlyBudget = const Value.absent(),
+    Value<DateTime?> anniversaryDate = const Value.absent(),
     DateTime? createdAt,
     String? createdBy,
   }) => LocalHome(
@@ -290,6 +363,12 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
     description: description.present ? description.value : this.description,
     icon: icon.present ? icon.value : this.icon,
     currency: currency ?? this.currency,
+    monthlyBudget: monthlyBudget.present
+        ? monthlyBudget.value
+        : this.monthlyBudget,
+    anniversaryDate: anniversaryDate.present
+        ? anniversaryDate.value
+        : this.anniversaryDate,
     createdAt: createdAt ?? this.createdAt,
     createdBy: createdBy ?? this.createdBy,
   );
@@ -302,6 +381,12 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           : this.description,
       icon: data.icon.present ? data.icon.value : this.icon,
       currency: data.currency.present ? data.currency.value : this.currency,
+      monthlyBudget: data.monthlyBudget.present
+          ? data.monthlyBudget.value
+          : this.monthlyBudget,
+      anniversaryDate: data.anniversaryDate.present
+          ? data.anniversaryDate.value
+          : this.anniversaryDate,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
     );
@@ -315,6 +400,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           ..write('description: $description, ')
           ..write('icon: $icon, ')
           ..write('currency: $currency, ')
+          ..write('monthlyBudget: $monthlyBudget, ')
+          ..write('anniversaryDate: $anniversaryDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy')
           ..write(')'))
@@ -322,8 +409,17 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, description, icon, currency, createdAt, createdBy);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    description,
+    icon,
+    currency,
+    monthlyBudget,
+    anniversaryDate,
+    createdAt,
+    createdBy,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -333,6 +429,8 @@ class LocalHome extends DataClass implements Insertable<LocalHome> {
           other.description == this.description &&
           other.icon == this.icon &&
           other.currency == this.currency &&
+          other.monthlyBudget == this.monthlyBudget &&
+          other.anniversaryDate == this.anniversaryDate &&
           other.createdAt == this.createdAt &&
           other.createdBy == this.createdBy);
 }
@@ -343,6 +441,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
   final Value<String?> description;
   final Value<String?> icon;
   final Value<String> currency;
+  final Value<double?> monthlyBudget;
+  final Value<DateTime?> anniversaryDate;
   final Value<DateTime> createdAt;
   final Value<String> createdBy;
   final Value<int> rowid;
@@ -352,6 +452,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
     this.currency = const Value.absent(),
+    this.monthlyBudget = const Value.absent(),
+    this.anniversaryDate = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -362,6 +464,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     this.description = const Value.absent(),
     this.icon = const Value.absent(),
     this.currency = const Value.absent(),
+    this.monthlyBudget = const Value.absent(),
+    this.anniversaryDate = const Value.absent(),
     required DateTime createdAt,
     required String createdBy,
     this.rowid = const Value.absent(),
@@ -375,6 +479,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     Expression<String>? description,
     Expression<String>? icon,
     Expression<String>? currency,
+    Expression<double>? monthlyBudget,
+    Expression<DateTime>? anniversaryDate,
     Expression<DateTime>? createdAt,
     Expression<String>? createdBy,
     Expression<int>? rowid,
@@ -385,6 +491,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
       if (description != null) 'description': description,
       if (icon != null) 'icon': icon,
       if (currency != null) 'currency': currency,
+      if (monthlyBudget != null) 'monthly_budget': monthlyBudget,
+      if (anniversaryDate != null) 'anniversary_date': anniversaryDate,
       if (createdAt != null) 'created_at': createdAt,
       if (createdBy != null) 'created_by': createdBy,
       if (rowid != null) 'rowid': rowid,
@@ -397,6 +505,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     Value<String?>? description,
     Value<String?>? icon,
     Value<String>? currency,
+    Value<double?>? monthlyBudget,
+    Value<DateTime?>? anniversaryDate,
     Value<DateTime>? createdAt,
     Value<String>? createdBy,
     Value<int>? rowid,
@@ -407,6 +517,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
       description: description ?? this.description,
       icon: icon ?? this.icon,
       currency: currency ?? this.currency,
+      monthlyBudget: monthlyBudget ?? this.monthlyBudget,
+      anniversaryDate: anniversaryDate ?? this.anniversaryDate,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
       rowid: rowid ?? this.rowid,
@@ -431,6 +543,12 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
+    if (monthlyBudget.present) {
+      map['monthly_budget'] = Variable<double>(monthlyBudget.value);
+    }
+    if (anniversaryDate.present) {
+      map['anniversary_date'] = Variable<DateTime>(anniversaryDate.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -451,6 +569,8 @@ class LocalHomesCompanion extends UpdateCompanion<LocalHome> {
           ..write('description: $description, ')
           ..write('icon: $icon, ')
           ..write('currency: $currency, ')
+          ..write('monthlyBudget: $monthlyBudget, ')
+          ..write('anniversaryDate: $anniversaryDate, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
           ..write('rowid: $rowid')
@@ -8376,6 +8496,460 @@ class LocalDeletedTombstonesCompanion
   }
 }
 
+class $LocalCheckinRemindersTable extends LocalCheckinReminders
+    with TableInfo<$LocalCheckinRemindersTable, LocalCheckinReminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalCheckinRemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _hourMeta = const VerificationMeta('hour');
+  @override
+  late final GeneratedColumn<int> hour = GeneratedColumn<int>(
+    'hour',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _minuteMeta = const VerificationMeta('minute');
+  @override
+  late final GeneratedColumn<int> minute = GeneratedColumn<int>(
+    'minute',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageMeta = const VerificationMeta(
+    'message',
+  );
+  @override
+  late final GeneratedColumn<String> message = GeneratedColumn<String>(
+    'message',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isEnabledMeta = const VerificationMeta(
+    'isEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> isEnabled = GeneratedColumn<bool>(
+    'is_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    homeId,
+    hour,
+    minute,
+    message,
+    isEnabled,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_checkin_reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalCheckinReminder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('hour')) {
+      context.handle(
+        _hourMeta,
+        hour.isAcceptableOrUnknown(data['hour']!, _hourMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hourMeta);
+    }
+    if (data.containsKey('minute')) {
+      context.handle(
+        _minuteMeta,
+        minute.isAcceptableOrUnknown(data['minute']!, _minuteMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_minuteMeta);
+    }
+    if (data.containsKey('message')) {
+      context.handle(
+        _messageMeta,
+        message.isAcceptableOrUnknown(data['message']!, _messageMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageMeta);
+    }
+    if (data.containsKey('is_enabled')) {
+      context.handle(
+        _isEnabledMeta,
+        isEnabled.isAcceptableOrUnknown(data['is_enabled']!, _isEnabledMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalCheckinReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalCheckinReminder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      hour: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}hour'],
+      )!,
+      minute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}minute'],
+      )!,
+      message: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message'],
+      )!,
+      isEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_enabled'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalCheckinRemindersTable createAlias(String alias) {
+    return $LocalCheckinRemindersTable(attachedDatabase, alias);
+  }
+}
+
+class LocalCheckinReminder extends DataClass
+    implements Insertable<LocalCheckinReminder> {
+  final String id;
+  final String homeId;
+  final int hour;
+  final int minute;
+  final String message;
+  final bool isEnabled;
+  final DateTime createdAt;
+  const LocalCheckinReminder({
+    required this.id,
+    required this.homeId,
+    required this.hour,
+    required this.minute,
+    required this.message,
+    required this.isEnabled,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['hour'] = Variable<int>(hour);
+    map['minute'] = Variable<int>(minute);
+    map['message'] = Variable<String>(message);
+    map['is_enabled'] = Variable<bool>(isEnabled);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalCheckinRemindersCompanion toCompanion(bool nullToAbsent) {
+    return LocalCheckinRemindersCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      hour: Value(hour),
+      minute: Value(minute),
+      message: Value(message),
+      isEnabled: Value(isEnabled),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalCheckinReminder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalCheckinReminder(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      hour: serializer.fromJson<int>(json['hour']),
+      minute: serializer.fromJson<int>(json['minute']),
+      message: serializer.fromJson<String>(json['message']),
+      isEnabled: serializer.fromJson<bool>(json['isEnabled']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'hour': serializer.toJson<int>(hour),
+      'minute': serializer.toJson<int>(minute),
+      'message': serializer.toJson<String>(message),
+      'isEnabled': serializer.toJson<bool>(isEnabled),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalCheckinReminder copyWith({
+    String? id,
+    String? homeId,
+    int? hour,
+    int? minute,
+    String? message,
+    bool? isEnabled,
+    DateTime? createdAt,
+  }) => LocalCheckinReminder(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    hour: hour ?? this.hour,
+    minute: minute ?? this.minute,
+    message: message ?? this.message,
+    isEnabled: isEnabled ?? this.isEnabled,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LocalCheckinReminder copyWithCompanion(LocalCheckinRemindersCompanion data) {
+    return LocalCheckinReminder(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      hour: data.hour.present ? data.hour.value : this.hour,
+      minute: data.minute.present ? data.minute.value : this.minute,
+      message: data.message.present ? data.message.value : this.message,
+      isEnabled: data.isEnabled.present ? data.isEnabled.value : this.isEnabled,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalCheckinReminder(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('hour: $hour, ')
+          ..write('minute: $minute, ')
+          ..write('message: $message, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, homeId, hour, minute, message, isEnabled, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalCheckinReminder &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.hour == this.hour &&
+          other.minute == this.minute &&
+          other.message == this.message &&
+          other.isEnabled == this.isEnabled &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalCheckinRemindersCompanion
+    extends UpdateCompanion<LocalCheckinReminder> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<int> hour;
+  final Value<int> minute;
+  final Value<String> message;
+  final Value<bool> isEnabled;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const LocalCheckinRemindersCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.hour = const Value.absent(),
+    this.minute = const Value.absent(),
+    this.message = const Value.absent(),
+    this.isEnabled = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalCheckinRemindersCompanion.insert({
+    required String id,
+    required String homeId,
+    required int hour,
+    required int minute,
+    required String message,
+    this.isEnabled = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       hour = Value(hour),
+       minute = Value(minute),
+       message = Value(message),
+       createdAt = Value(createdAt);
+  static Insertable<LocalCheckinReminder> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<int>? hour,
+    Expression<int>? minute,
+    Expression<String>? message,
+    Expression<bool>? isEnabled,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (hour != null) 'hour': hour,
+      if (minute != null) 'minute': minute,
+      if (message != null) 'message': message,
+      if (isEnabled != null) 'is_enabled': isEnabled,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalCheckinRemindersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<int>? hour,
+    Value<int>? minute,
+    Value<String>? message,
+    Value<bool>? isEnabled,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LocalCheckinRemindersCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      hour: hour ?? this.hour,
+      minute: minute ?? this.minute,
+      message: message ?? this.message,
+      isEnabled: isEnabled ?? this.isEnabled,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (hour.present) {
+      map['hour'] = Variable<int>(hour.value);
+    }
+    if (minute.present) {
+      map['minute'] = Variable<int>(minute.value);
+    }
+    if (message.present) {
+      map['message'] = Variable<String>(message.value);
+    }
+    if (isEnabled.present) {
+      map['is_enabled'] = Variable<bool>(isEnabled.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalCheckinRemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('hour: $hour, ')
+          ..write('minute: $minute, ')
+          ..write('message: $message, ')
+          ..write('isEnabled: $isEnabled, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8405,6 +8979,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalAppliedEventsTable(this);
   late final $LocalDeletedTombstonesTable localDeletedTombstones =
       $LocalDeletedTombstonesTable(this);
+  late final $LocalCheckinRemindersTable localCheckinReminders =
+      $LocalCheckinRemindersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8426,6 +9002,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localRoutineEvents,
     localAppliedEvents,
     localDeletedTombstones,
+    localCheckinReminders,
   ];
 }
 
@@ -8436,6 +9013,8 @@ typedef $$LocalHomesTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String?> icon,
       Value<String> currency,
+      Value<double?> monthlyBudget,
+      Value<DateTime?> anniversaryDate,
       required DateTime createdAt,
       required String createdBy,
       Value<int> rowid,
@@ -8447,6 +9026,8 @@ typedef $$LocalHomesTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String?> icon,
       Value<String> currency,
+      Value<double?> monthlyBudget,
+      Value<DateTime?> anniversaryDate,
       Value<DateTime> createdAt,
       Value<String> createdBy,
       Value<int> rowid,
@@ -8483,6 +9064,16 @@ class $$LocalHomesTableFilterComposer
 
   ColumnFilters<String> get currency => $composableBuilder(
     column: $table.currency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get monthlyBudget => $composableBuilder(
+    column: $table.monthlyBudget,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get anniversaryDate => $composableBuilder(
+    column: $table.anniversaryDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8531,6 +9122,16 @@ class $$LocalHomesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get monthlyBudget => $composableBuilder(
+    column: $table.monthlyBudget,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get anniversaryDate => $composableBuilder(
+    column: $table.anniversaryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -8567,6 +9168,16 @@ class $$LocalHomesTableAnnotationComposer
 
   GeneratedColumn<String> get currency =>
       $composableBuilder(column: $table.currency, builder: (column) => column);
+
+  GeneratedColumn<double> get monthlyBudget => $composableBuilder(
+    column: $table.monthlyBudget,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get anniversaryDate => $composableBuilder(
+    column: $table.anniversaryDate,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8611,6 +9222,8 @@ class $$LocalHomesTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<double?> monthlyBudget = const Value.absent(),
+                Value<DateTime?> anniversaryDate = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -8620,6 +9233,8 @@ class $$LocalHomesTableTableManager
                 description: description,
                 icon: icon,
                 currency: currency,
+                monthlyBudget: monthlyBudget,
+                anniversaryDate: anniversaryDate,
                 createdAt: createdAt,
                 createdBy: createdBy,
                 rowid: rowid,
@@ -8631,6 +9246,8 @@ class $$LocalHomesTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> icon = const Value.absent(),
                 Value<String> currency = const Value.absent(),
+                Value<double?> monthlyBudget = const Value.absent(),
+                Value<DateTime?> anniversaryDate = const Value.absent(),
                 required DateTime createdAt,
                 required String createdBy,
                 Value<int> rowid = const Value.absent(),
@@ -8640,6 +9257,8 @@ class $$LocalHomesTableTableManager
                 description: description,
                 icon: icon,
                 currency: currency,
+                monthlyBudget: monthlyBudget,
+                anniversaryDate: anniversaryDate,
                 createdAt: createdAt,
                 createdBy: createdBy,
                 rowid: rowid,
@@ -12957,6 +13576,275 @@ typedef $$LocalDeletedTombstonesTableProcessedTableManager =
       LocalDeletedTombstone,
       PrefetchHooks Function()
     >;
+typedef $$LocalCheckinRemindersTableCreateCompanionBuilder =
+    LocalCheckinRemindersCompanion Function({
+      required String id,
+      required String homeId,
+      required int hour,
+      required int minute,
+      required String message,
+      Value<bool> isEnabled,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$LocalCheckinRemindersTableUpdateCompanionBuilder =
+    LocalCheckinRemindersCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<int> hour,
+      Value<int> minute,
+      Value<String> message,
+      Value<bool> isEnabled,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$LocalCheckinRemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalCheckinRemindersTable> {
+  $$LocalCheckinRemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get hour => $composableBuilder(
+    column: $table.hour,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minute => $composableBuilder(
+    column: $table.minute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalCheckinRemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalCheckinRemindersTable> {
+  $$LocalCheckinRemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get hour => $composableBuilder(
+    column: $table.hour,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get minute => $composableBuilder(
+    column: $table.minute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isEnabled => $composableBuilder(
+    column: $table.isEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalCheckinRemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalCheckinRemindersTable> {
+  $$LocalCheckinRemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<int> get hour =>
+      $composableBuilder(column: $table.hour, builder: (column) => column);
+
+  GeneratedColumn<int> get minute =>
+      $composableBuilder(column: $table.minute, builder: (column) => column);
+
+  GeneratedColumn<String> get message =>
+      $composableBuilder(column: $table.message, builder: (column) => column);
+
+  GeneratedColumn<bool> get isEnabled =>
+      $composableBuilder(column: $table.isEnabled, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalCheckinRemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalCheckinRemindersTable,
+          LocalCheckinReminder,
+          $$LocalCheckinRemindersTableFilterComposer,
+          $$LocalCheckinRemindersTableOrderingComposer,
+          $$LocalCheckinRemindersTableAnnotationComposer,
+          $$LocalCheckinRemindersTableCreateCompanionBuilder,
+          $$LocalCheckinRemindersTableUpdateCompanionBuilder,
+          (
+            LocalCheckinReminder,
+            BaseReferences<
+              _$AppDatabase,
+              $LocalCheckinRemindersTable,
+              LocalCheckinReminder
+            >,
+          ),
+          LocalCheckinReminder,
+          PrefetchHooks Function()
+        > {
+  $$LocalCheckinRemindersTableTableManager(
+    _$AppDatabase db,
+    $LocalCheckinRemindersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalCheckinRemindersTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$LocalCheckinRemindersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LocalCheckinRemindersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<int> hour = const Value.absent(),
+                Value<int> minute = const Value.absent(),
+                Value<String> message = const Value.absent(),
+                Value<bool> isEnabled = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalCheckinRemindersCompanion(
+                id: id,
+                homeId: homeId,
+                hour: hour,
+                minute: minute,
+                message: message,
+                isEnabled: isEnabled,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required int hour,
+                required int minute,
+                required String message,
+                Value<bool> isEnabled = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalCheckinRemindersCompanion.insert(
+                id: id,
+                homeId: homeId,
+                hour: hour,
+                minute: minute,
+                message: message,
+                isEnabled: isEnabled,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $LocalCheckinRemindersTable,
+                    LocalCheckinReminder
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalCheckinRemindersTable,
+                    LocalCheckinReminder
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalCheckinRemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalCheckinRemindersTable,
+      LocalCheckinReminder,
+      $$LocalCheckinRemindersTableFilterComposer,
+      $$LocalCheckinRemindersTableOrderingComposer,
+      $$LocalCheckinRemindersTableAnnotationComposer,
+      $$LocalCheckinRemindersTableCreateCompanionBuilder,
+      $$LocalCheckinRemindersTableUpdateCompanionBuilder,
+      (
+        LocalCheckinReminder,
+        BaseReferences<
+          _$AppDatabase,
+          $LocalCheckinRemindersTable,
+          LocalCheckinReminder
+        >,
+      ),
+      LocalCheckinReminder,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -13000,4 +13888,6 @@ class $AppDatabaseManager {
         _db,
         _db.localDeletedTombstones,
       );
+  $$LocalCheckinRemindersTableTableManager get localCheckinReminders =>
+      $$LocalCheckinRemindersTableTableManager(_db, _db.localCheckinReminders);
 }
