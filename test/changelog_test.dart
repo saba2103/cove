@@ -23,7 +23,7 @@ void main() {
 
   group('Changelog Models & Data Tests', () {
     test('kChangelogItems contains outcome-focused updates with valid dates', () {
-      expect(kChangelogItems.length, 12);
+      expect(kChangelogItems.length, 14);
       for (final item in kChangelogItems) {
         expect(item.title.isNotEmpty, isTrue);
         expect(item.tagline.isNotEmpty, isTrue);
@@ -147,13 +147,13 @@ void main() {
 
       // Timeline Items
       expect(find.text('RELEASE TIMELINE'), findsOneWidget);
+      expect(find.text('Home-Scoped Budget, Currency & Reminders'), findsOneWidget);
+      expect(find.text('Contextual Notification Deep Linking'), findsOneWidget);
+      expect(find.text('Sep 25, 2026'), findsWidgets);
       expect(find.text('EMI Tracker & Loan Foreclosure'), findsOneWidget);
       expect(find.text('Sep 20, 2026'), findsWidgets);
       expect(find.text('Calendar-First Sanctuary & Today Home'), findsOneWidget);
       expect(find.text('Sep 19, 2026'), findsWidgets);
-      expect(find.text('Commitments Helicopter View'), findsOneWidget);
-      expect(find.text('Clean, Clutter-Free Decimals'), findsOneWidget);
-      expect(find.text('Personal Profile Studio'), findsOneWidget);
     });
 
     testWidgets('Tapping What\'s Fresh button in AppBar opens WhatsFreshModal', (tester) async {

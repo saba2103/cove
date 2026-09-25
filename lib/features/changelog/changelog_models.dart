@@ -46,6 +46,38 @@ class ChangelogItem {
 }
 
 const List<ChangelogItem> kChangelogItems = [
+  // -1. Home-Scoped Properties SQLite Persistence & Cross-Device Sync (v1.0-alpha.1)
+  ChangelogItem(
+    id: 'home_scoped_properties_sync',
+    title: 'Home-Scoped Budget, Currency & Reminders',
+    tagline: 'Monthly budgets, currency, anniversary dates, and check-in reminders now permanently persist and sync.',
+    outcome:
+        'Your sanctuary settings—including monthly expense budget caps, preferred home currency, anniversary milestones, and domestic check-in reminders—are now stored directly in SQLite and synced across partner devices with zero data loss.',
+    underTheHood:
+        'Drift schema v11 with LocalHomes budget/anniversary columns, dedicated LocalCheckinReminders table, reactive stream projections, and transparent legacy storage migration.',
+    category: 'Sync & Settings',
+    version: 'v1.0-alpha.1',
+    date: 'Sep 25, 2026',
+    icon: Icons.sync_rounded,
+    previewType: ChangelogPreviewType.silentSync,
+  ),
+
+  // 0a. Notification Deep Linking to Exact Detail Bottom Sheets (v1.0-alpha.1)
+  ChangelogItem(
+    id: 'notification_detail_deep_links',
+    title: 'Contextual Notification Deep Linking',
+    tagline: 'Tapping a push notification now opens the exact item bottom sheet directly.',
+    outcome:
+        'When you tap a push or in-app notification about an expense, commitment, or list update, Cove opens the exact entity detail bottom sheet on top of the screen instead of leaving you on a generic page.',
+    underTheHood:
+        'Entity ID payload parsing in NotificationService, NotificationDetailDispatcher lookup against Drift SQLite, and automatic navigation stack clearance.',
+    category: 'Navigation',
+    version: 'v1.0-alpha.1',
+    date: 'Sep 25, 2026',
+    icon: Icons.notifications_active_outlined,
+    previewType: ChangelogPreviewType.dailyRhythms,
+  ),
+
   // 0. EMI Tracker, Foreclosure & Sync Delivery Fix (v1.0-alpha.1)
   ChangelogItem(
     id: 'emi_tracker_and_closure',
