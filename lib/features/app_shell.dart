@@ -14,6 +14,7 @@ import 'home/home_controller.dart';
 import 'home/home_switcher_sheet.dart';
 import 'lists/lists_screen.dart';
 import 'notifications/notification_controller.dart';
+import 'notifications/notification_detail_dispatcher.dart';
 import 'notifications/notification_models.dart';
 import 'auth/auth_controller.dart';
 import 'changelog/whats_fresh_modal.dart';
@@ -49,18 +50,25 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       notifService.initializeLocalNotifications();
       notifService.initializeFcm();
 
-      _navSub = notifService.onNavigateToModule.listen((module) {
-        _navigateToModule(module);
+      _navSub = notifService.onNavigateToPayload.listen((payload) {
+        _navigateToPayload(payload);
       });
 
       _notifSub = notifService.onNotificationReceived.listen((payload) {
         _showInAppNotificationBanner(payload);
       });
 
-      // Check if a notification launched the app and navigate to its module immediately
+      // Check if a notification launched the app and navigate to its module and detail sheet immediately
+      final pendingPayload = notifService.consumePendingNotificationPayload() ??
+          ref.read(notificationPayloadNavigationProvider);
       final pendingModule = notifService.consumePendingNavigationModule() ??
           ref.read(notificationNavigationProvider);
-      if (pendingModule != null) {
+
+      if (pendingPayload != null) {
+        ref.read(notificationPayloadNavigationProvider.notifier).navigateTo(null);
+        ref.read(notificationNavigationProvider.notifier).navigateTo(null);
+        _navigateToPayload(pendingPayload);
+      } else if (pendingModule != null) {
         ref.read(notificationNavigationProvider.notifier).navigateTo(null);
         _navigateToModule(pendingModule);
       }
@@ -84,7 +92,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       }
 
       // Check and present What's Fresh modal once per new release (only if not navigating via notification)
-      if (pendingModule == null) {
+      if (pendingPayload == null && pendingModule == null) {
         WhatsFreshModal.checkAndShow(context);
       }
     });
@@ -159,6 +167,11 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         );
         break;
     }
+  }
+
+  void _navigateToPayload(CoveNotificationPayload payload) {
+    _navigateToModule(payload.module);
+    NotificationDetailDispatcher.openDetailForNotification(context, ref, payload);
   }
 
   void _showInAppNotificationBanner(CoveNotificationPayload payload) {
@@ -240,7 +253,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         action: SnackBarAction(
           label: 'View',
           textColor: colors.accentPrimary,
-          onPressed: () => _navigateToModule(payload.module),
+          onPressed: () => _navigateToPayload(payload),
         ),
       ),
     );
@@ -250,6 +263,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+
+    ref.listen<CoveNotificationPayload?>(notificationPayloadNavigationProvider, (prev, next) {
+      if (next != null) {
+        _navigateToPayload(next);
+        ref.read(notificationPayloadNavigationProvider.notifier).navigateTo(null);
+      }
+    });
 
     ref.listen<NotificationModule?>(notificationNavigationProvider, (prev, next) {
       if (next != null) {

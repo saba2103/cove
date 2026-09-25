@@ -17,14 +17,23 @@ class NotificationService {
   final String? Function()? getPartnerName;
   final String? Function()? getCurrencySymbol;
   final void Function(NotificationModule module)? onNavigate;
+  final void Function(CoveNotificationPayload payload)? onNavigatePayload;
 
   NotificationModule? _pendingNavigationModule;
+  CoveNotificationPayload? _pendingNotificationPayload;
 
   /// Retrieves and clears any pending navigation module queued from launch notifications.
   NotificationModule? consumePendingNavigationModule() {
     final mod = _pendingNavigationModule;
     _pendingNavigationModule = null;
     return mod;
+  }
+
+  /// Retrieves and clears any pending full notification payload queued from launch notifications.
+  CoveNotificationPayload? consumePendingNotificationPayload() {
+    final p = _pendingNotificationPayload;
+    _pendingNotificationPayload = null;
+    return p;
   }
 
   final FlutterLocalNotificationsPlugin _localNotifications =
@@ -37,6 +46,9 @@ class NotificationService {
   final StreamController<NotificationModule> _navigationStreamController =
       StreamController<NotificationModule>.broadcast();
 
+  final StreamController<CoveNotificationPayload> _navigationPayloadStreamController =
+      StreamController<CoveNotificationPayload>.broadcast();
+
   NotificationService({
     this.supabaseClient,
     this.syncEngine,
@@ -45,6 +57,7 @@ class NotificationService {
     this.getPartnerName,
     this.getCurrencySymbol,
     this.onNavigate,
+    this.onNavigatePayload,
   });
 
 
@@ -53,6 +66,9 @@ class NotificationService {
 
   Stream<NotificationModule> get onNavigateToModule =>
       _navigationStreamController.stream;
+
+  Stream<CoveNotificationPayload> get onNavigateToPayload =>
+      _navigationPayloadStreamController.stream;
 
   String? get currentUserId =>
       getCurrentUserId?.call() ?? supabaseClient?.auth.currentUser?.id;
@@ -378,9 +394,14 @@ class NotificationService {
 
   /// Dispatches a deep link navigation action to open the appropriate module screen.
   void onNotificationTapped(CoveNotificationPayload payload) {
-    debugPrint('[NotificationService] onNotificationTapped for module: ${payload.module}');
+    debugPrint('[NotificationService] onNotificationTapped for module: ${payload.module}, eventId: ${payload.eventId}');
+    _pendingNotificationPayload = payload;
     _pendingNavigationModule = payload.module;
+    onNavigatePayload?.call(payload);
     onNavigate?.call(payload.module);
+    if (!_navigationPayloadStreamController.isClosed) {
+      _navigationPayloadStreamController.add(payload);
+    }
     if (!_navigationStreamController.isClosed) {
       _navigationStreamController.add(payload.module);
     }
@@ -508,5 +529,6 @@ class NotificationService {
     _fcmTokenSub?.cancel();
     _notificationStreamController.close();
     _navigationStreamController.close();
+    _navigationPayloadStreamController.close();
   }
 }

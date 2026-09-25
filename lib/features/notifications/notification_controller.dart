@@ -24,6 +24,9 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
     onNavigate: (module) {
       ref.read(notificationNavigationProvider.notifier).navigateTo(module);
     },
+    onNavigatePayload: (payload) {
+      ref.read(notificationPayloadNavigationProvider.notifier).navigateTo(payload);
+    },
   );
 
   // Wire sync engine inbound activity into the notification pipeline
@@ -118,3 +121,15 @@ class NotificationNavigationNotifier extends Notifier<NotificationModule?> {
 final notificationNavigationProvider =
     NotifierProvider<NotificationNavigationNotifier, NotificationModule?>(
         NotificationNavigationNotifier.new);
+
+class NotificationPayloadNavigationNotifier extends Notifier<CoveNotificationPayload?> {
+  @override
+  CoveNotificationPayload? build() => null;
+
+  void navigateTo(CoveNotificationPayload? payload) => state = payload;
+}
+
+/// Dispatches full rich notification payload when a notification is tapped
+final notificationPayloadNavigationProvider =
+    NotifierProvider<NotificationPayloadNavigationNotifier, CoveNotificationPayload?>(
+        NotificationPayloadNavigationNotifier.new);

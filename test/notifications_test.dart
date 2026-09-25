@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_toggle_switch.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/expenses/expense_detail_sheet.dart';
+import 'package:cove/features/lists/list_item_detail_sheet.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
+import 'package:cove/features/notifications/notification_detail_dispatcher.dart';
 import 'package:cove/features/notifications/notification_formatter.dart';
 import 'package:cove/features/notifications/notification_models.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:cove/features/profile/profile_screen.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
+import 'package:cove/features/subscriptions/commitment_detail_sheet.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/db/local_state_store_impl.dart';
@@ -16,6 +21,7 @@ import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -538,6 +544,349 @@ void main() {
       expect(service.consumePendingNavigationModule(), isNull);
 
       service.dispose();
+    });
+
+    test('Notification tap invokes onNavigatePayload callback and caches pending payload for cold launch', () async {
+      CoveNotificationPayload? receivedPayload;
+      final service = NotificationService(
+        syncEngine: syncEngine,
+        appDatabase: db,
+        getCurrentUserId: () => 'user_test',
+        onNavigatePayload: (payload) {
+          receivedPayload = payload;
+        },
+      );
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_alpha',
+        module: NotificationModule.expenses,
+        eventType: 'expense_logged',
+        eventId: 'exp_1',
+        payload: {'id': 'exp_1', 'amount': 45.0},
+        title: 'Expenses',
+        body: 'New expense logged',
+      );
+
+      service.onNotificationTapped(payload);
+
+      // Verify callback invocation with rich payload
+      expect(receivedPayload, equals(payload));
+      expect(receivedPayload?.payload?['amount'], 45.0);
+
+      // Verify pending notification payload caching for cold launch consumption
+      expect(service.consumePendingNotificationPayload(), equals(payload));
+
+      // Verify consume clears the pending payload so it is not re-triggered
+      expect(service.consumePendingNotificationPayload(), isNull);
+
+      service.dispose();
+    });
+
+    test('onNavigateToPayload stream broadcasts tapped notification payload', () async {
+      final service = NotificationService(
+        syncEngine: syncEngine,
+        appDatabase: db,
+        getCurrentUserId: () => 'user_test',
+      );
+
+      final payloads = <CoveNotificationPayload>[];
+      final sub = service.onNavigateToPayload.listen(payloads.add);
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_alpha',
+        module: NotificationModule.habits,
+        eventType: 'habit_checkin_toggled',
+        eventId: 'hab_1',
+        payload: {'id': 'hab_1', 'name': 'Morning Meditation'},
+        title: 'Habits',
+        body: 'Checked in on Morning Meditation',
+      );
+
+      service.onNotificationTapped(payload);
+      await pumpEventQueue();
+
+      expect(payloads.length, 1);
+      expect(payloads.first.eventId, 'hab_1');
+      expect(payloads.first.payload?['name'], 'Morning Meditation');
+
+      await sub.cancel();
+      service.dispose();
+    });
+  });
+
+  group('NotificationDetailDispatcher: Detail Sheet Deep Linking', () {
+    Widget buildDispatcherTestApp({required Widget child}) {
+      final home = LocalHome(
+        id: 'home_1',
+        name: 'Our Home',
+        currency: 'USD',
+        createdAt: DateTime.now().toUtc(),
+        createdBy: 'user_1',
+      );
+
+      return ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          syncEngineProvider.overrideWithValue(syncEngine),
+          activeHomeIdProvider.overrideWith(
+            () => _FakeActiveHomeNotifier('home_1'),
+          ),
+          activeHomeProvider.overrideWith((ref) => Stream.value(home)),
+          activeHomeOutboxProvider.overrideWith((ref) => Stream.value([])),
+          authProvider.overrideWith(
+            () => _FakeAuthNotifier(
+              const CoveUser(
+                id: 'user_1',
+                email: 'user@cove.local',
+                displayName: 'Saba',
+              ),
+            ),
+          ),
+          partnerProfileProvider.overrideWith(() => _FakePartnerProfileNotifier()),
+        ],
+        child: MaterialApp(
+          theme: CoveTheme.darkTheme,
+          home: child,
+        ),
+      );
+    }
+
+    testWidgets('Opens ExpenseDetailSheet directly when expense notification is tapped', (tester) async {
+      await db.into(db.localExpenses).insert(
+        LocalExpensesCompanion.insert(
+          id: 'exp_notif_1',
+          homeId: 'home_1',
+          title: 'Grocery Store Run',
+          amount: 120.0,
+          paidBy: 'user_1',
+          expenseDate: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        buildDispatcherTestApp(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedContext = ctx;
+              capturedRef = ref;
+              return const Scaffold(body: Text('Shell'));
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_1',
+        module: NotificationModule.expenses,
+        eventType: 'expense_logged',
+        eventId: 'exp_notif_1',
+        payload: {'id': 'exp_notif_1'},
+        title: 'Expenses',
+        body: 'New expense logged',
+      );
+
+      await NotificationDetailDispatcher.openDetailForNotification(
+        capturedContext,
+        capturedRef,
+        payload,
+        delay: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ExpenseDetailSheet), findsOneWidget);
+      expect(find.text('Grocery Store Run'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    testWidgets('Opens CommitmentDetailSheet directly when commitment notification is tapped', (tester) async {
+      await db.into(db.localSubscriptions).insert(
+        LocalSubscriptionsCompanion.insert(
+          id: 'sub_notif_1',
+          homeId: 'home_1',
+          name: 'Netflix Premium',
+          amount: 19.99,
+          billingCycle: const Value('monthly'),
+          nextBillingDate: DateTime.now().add(const Duration(days: 10)),
+          createdBy: const Value('user_1'),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        buildDispatcherTestApp(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedContext = ctx;
+              capturedRef = ref;
+              return const Scaffold(body: Text('Shell'));
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_1',
+        module: NotificationModule.subscriptions,
+        eventType: 'subscription_added',
+        eventId: 'sub_notif_1',
+        payload: {'id': 'sub_notif_1'},
+        title: 'Commitments',
+        body: 'New subscription added',
+      );
+
+      await NotificationDetailDispatcher.openDetailForNotification(
+        capturedContext,
+        capturedRef,
+        payload,
+        delay: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CommitmentDetailSheet), findsOneWidget);
+      expect(find.text('Netflix Premium'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    testWidgets('Opens ListItemDetailSheet directly when list item notification is tapped', (tester) async {
+      await db.into(db.localLists).insert(
+        LocalListsCompanion.insert(
+          id: 'list_1',
+          homeId: 'home_1',
+          name: 'Target Shopping',
+          createdBy: 'user_1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      await db.into(db.localListItems).insert(
+        LocalListItemsCompanion.insert(
+          id: 'item_1',
+          listId: 'list_1',
+          homeId: 'home_1',
+          title: 'Paper Towels',
+          createdBy: 'user_1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        buildDispatcherTestApp(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedContext = ctx;
+              capturedRef = ref;
+              return const Scaffold(body: Text('Shell'));
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_1',
+        module: NotificationModule.lists,
+        eventType: 'list_item_added',
+        eventId: 'item_1',
+        payload: {'id': 'item_1', 'list_name': 'Target Shopping'},
+        title: 'Lists',
+        body: 'Added Paper Towels',
+      );
+
+      await NotificationDetailDispatcher.openDetailForNotification(
+        capturedContext,
+        capturedRef,
+        payload,
+        delay: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListItemDetailSheet), findsOneWidget);
+      expect(find.text('Paper Towels'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    testWidgets('Fallbacks to localActivityEvents payload if notification payload map is empty', (tester) async {
+      await db.into(db.localExpenses).insert(
+        LocalExpensesCompanion.insert(
+          id: 'exp_fallback_1',
+          homeId: 'home_1',
+          title: 'Dinner at Bistro',
+          amount: 78.50,
+          paidBy: 'user_1',
+          expenseDate: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      await db.into(db.localActivityEvents).insert(
+        LocalActivityEventsCompanion.insert(
+          id: 'evt_fallback_1',
+          homeId: 'home_1',
+          actorId: 'user_1',
+          eventType: 'expense_logged',
+          payloadJson: jsonEncode({'id': 'exp_fallback_1'}),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        buildDispatcherTestApp(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedContext = ctx;
+              capturedRef = ref;
+              return const Scaffold(body: Text('Shell'));
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Notification with eventId but empty payload
+      const payload = CoveNotificationPayload(
+        homeId: 'home_1',
+        module: NotificationModule.expenses,
+        eventType: 'expense_logged',
+        eventId: 'evt_fallback_1',
+        payload: null,
+        title: 'Expenses',
+        body: 'New expense logged',
+      );
+
+      await NotificationDetailDispatcher.openDetailForNotification(
+        capturedContext,
+        capturedRef,
+        payload,
+        delay: Duration.zero,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ExpenseDetailSheet), findsOneWidget);
+      expect(find.text('Dinner at Bistro'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
     });
   });
 
