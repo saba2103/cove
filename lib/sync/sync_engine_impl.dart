@@ -591,6 +591,15 @@ class SyncEngineImpl implements SyncEngine {
     }
   }
 
+  /// Re-syncs a home after its local database was replaced by a backup restore.
+  /// Clears the in-memory dedupe cache (which may reference events that are no
+  /// longer present locally) and replays the full server log; events already in
+  /// the restored applied-events ledger are skipped by the persistent dedupe.
+  Future<void> resyncAfterRestore(String homeId) async {
+    _processedEventIds.clear();
+    await pullLatestEvents(homeId: homeId, forceFullCatchup: true);
+  }
+
   @override
   Future<void> stop() async {
     _outboxFlushTimer?.cancel();

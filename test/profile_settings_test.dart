@@ -1,17 +1,21 @@
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
+import 'package:cove/features/backup/drive_backup_controller.dart';
 import 'package:cove/features/profile/delete_data_dialog.dart';
 import 'package:cove/features/profile/home_metadata_controller.dart';
-import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/features/profile/profile_screen.dart';
 import 'package:cove/features/profile/user_profile_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'helpers/fake_backup_remote.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
   final testProfile = const UserProfileState(
     displayName: 'Alex Rivers',
@@ -50,11 +54,13 @@ void main() {
     formattedTogetherDuration: HomeMetadataState.formatDuration(anniversaryDate),
   );
 
-  final testBackupStatus = BackupStatusState(
-    lastBackupTime: DateTime.now().subtract(const Duration(hours: 14)),
-    pendingEventCount: 14,
-    pendingBytesKb: 8.2,
-    backupTimeWindow: '02:00 AM',
+  final testBackupState = DriveBackupState(
+    isLoaded: true,
+    isConnected: true,
+    accountEmail: 'alex.backup@gmail.com',
+    hasPassphrase: true,
+    lastBackupAt: DateTime.now().subtract(const Duration(hours: 14)),
+    lastBackupSizeBytes: 48 * 1024,
   );
 
   Widget createSubject({
@@ -63,9 +69,12 @@ void main() {
     LocalHome? home,
     List<LocalHome>? homes,
     HomeMetadataState? metadata,
-    BackupStatusState? backup,
+    DriveBackupState? backup,
   }) {
     return ProviderScope(
+      overrides: [
+        backupRemoteProvider.overrideWithValue(FakeBackupRemote()),
+      ],
       child: MaterialApp(
         theme: CoveTheme.lightTheme,
         darkTheme: CoveTheme.darkTheme,
@@ -76,7 +85,7 @@ void main() {
             initialHome: home ?? testHome,
             initialHomes: homes ?? testHomes,
             initialHomeMetadata: metadata ?? testHomeMetadata,
-            initialBackupStatus: backup ?? testBackupStatus,
+            initialDriveBackupState: backup ?? testBackupState,
           ),
         ),
       ),
@@ -188,22 +197,41 @@ void main() {
       expect(find.text('Shared Calendar'), findsOneWidget);
     });
 
-    testWidgets('renders Backup & Restore section with status and Back up now button', (tester) async {
+    testWidgets('renders real Drive Backup & Restore section with connection, passphrase and actions', (tester) async {
       setupViewport(tester);
 
       await tester.pumpWidget(createSubject());
       await tester.pumpAndSettle();
 
       expect(find.text('BACKUP & RESTORE'), findsOneWidget);
+      expect(find.text('End-to-end encrypted'), findsOneWidget);
+      expect(find.text('Google Drive'), findsOneWidget);
+      expect(find.text('alex.backup@gmail.com'), findsOneWidget);
+      expect(find.text('Disconnect'), findsOneWidget);
+      expect(find.text('Recovery Passphrase'), findsOneWidget);
+      expect(find.text('Set · needed to restore on a new phone'), findsOneWidget);
       expect(find.text('Last Backup'), findsOneWidget);
-      expect(find.textContaining('Backed up'), findsOneWidget);
-      expect(find.text('Ready for Next Backup'), findsOneWidget);
-      expect(find.text('Backup Window'), findsOneWidget);
+      expect(find.textContaining('48 KB'), findsOneWidget);
       expect(find.text('Back Up Now'), findsOneWidget);
+      expect(find.text('Restore'), findsOneWidget);
 
-      await tester.tap(find.text('Back Up Now'));
+      // The legacy simulated rows are gone.
+      expect(find.text('Ready for Next Backup'), findsNothing);
+      expect(find.text('Backup Window'), findsNothing);
+    });
+
+    testWidgets('shows honest empty state when never backed up', (tester) async {
+      setupViewport(tester);
+
+      await tester.pumpWidget(createSubject(
+        backup: const DriveBackupState(isLoaded: true),
+      ));
       await tester.pumpAndSettle();
-      expect(find.text('Backing up...'), findsNothing); // Completes cleanly
+
+      expect(find.text('Not connected'), findsOneWidget);
+      expect(find.text('Connect'), findsOneWidget);
+      expect(find.text('Not set'), findsOneWidget);
+      expect(find.text('No backups yet'), findsOneWidget);
     });
 
     testWidgets('renders Household section with members and Switch Home when multiple homes', (tester) async {

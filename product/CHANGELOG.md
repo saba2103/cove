@@ -24,6 +24,17 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Real End-to-End Encrypted Google Drive Backup & Restore (`Oct 22, 2026`)**:
+  - *Outcome*: "Back Up Now" now actually backs up. Your whole household — every list, expense, commitment, habit, calendar event, activity entry, the home encryption keys and local preferences — is encrypted on the phone with a recovery passphrase and saved to a private, hidden folder in your own Google Drive. On a new or reset phone, sign in, tap **Restore from Google Drive backup**, enter the passphrase, and everything comes back; anything newer catches up from your partner automatically. The previous simulated backup UI (fake "18 hours ago", fake pending counts, non-functional nightly window) has been removed.
+  - *Under the Hood*:
+    - New `lib/features/backup/` module: `BackupCrypto` (Argon2id m=19 MiB/t=2 KEK → per-backup random DEK, AES-256-GCM with `cove-backup/v1` AAD, gzip via `archive`), `BackupSnapshotService` (generic transactional `SELECT *` export of all Drift tables + `HomeKeyStore` keys + `cove_*` secure prefs; atomic full-replace restore with schema-tolerant column intersection and `markTablesUpdated`), `GoogleDriveBackupRemote` (`google_sign_in` 7 authorization-only flow, `drive.appdata` scope, `appDataFolder` upload/list/download/delete, 401 token refresh), and `DriveBackupController` Riverpod state machine (connect, set/change passphrase, backup, keep newest 10, restore).
+    - Passphrase-derived key stored in Keystore-backed `EncryptedSharedPreferences`; restoring on a new phone adopts the backup's key so future backups need no re-entry.
+    - `SyncEngineImpl.resyncAfterRestore` clears the in-memory dedupe cache and replays the Supabase log after a restore.
+    - Settings `Backup & Restore` rebuilt as `DriveBackupSection`; onboarding gains a "Restore from Google Drive backup" entry (Android only; web shows an availability note).
+    - Removed mock `BackupStatusState`/`BackupStatusNotifier`; `CovePillInput` gains `obscureText`.
+    - Added `archive` as a direct dependency.
+    - Tests: new `test/drive_backup_test.dart` (crypto round-trip, wrong passphrase, tamper detection, snapshot fidelity, stream notification, schema tolerance, retention, full new-phone restore); updated `test/profile_settings_test.dart`.
+    - Decision record: [`product/backup_and_recovery.md`](./backup_and_recovery.md).
 - **Financed Through Support for Ongoing Subscriptions (`Oct 07, 2026`)**:
   - *Outcome*: Users can now specify and view the payment source (card, bank, or person) for ongoing subscriptions (e.g. "Amex Gold", "HDFC Regalia", "Apple Card") in addition to finite EMIs. Financing sources appear in commitment list cards, detail sheets, month breakdown sheets, calendar agenda renewal entries, and activity feeds.
   - *Under the Hood*:

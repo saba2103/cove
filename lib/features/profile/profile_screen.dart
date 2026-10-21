@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_grouped_list.dart';
-import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_toggle_switch.dart';
 import '../../sync/crypto/deterministic_home_icon.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
+import '../backup/drive_backup_controller.dart';
+import '../backup/drive_backup_section.dart';
 import '../home/home_controller.dart';
 import '../home/home_switcher_sheet.dart';
 import '../notifications/notification_controller.dart';
@@ -35,7 +35,7 @@ class ProfileScreen extends ConsumerWidget {
   final LocalHome? initialHome;
   final List<LocalHome>? initialHomes;
   final HomeMetadataState? initialHomeMetadata;
-  final BackupStatusState? initialBackupStatus;
+  final DriveBackupState? initialDriveBackupState;
 
   const ProfileScreen({
     super.key,
@@ -43,7 +43,7 @@ class ProfileScreen extends ConsumerWidget {
     this.initialHome,
     this.initialHomes,
     this.initialHomeMetadata,
-    this.initialBackupStatus,
+    this.initialDriveBackupState,
   });
 
   @override
@@ -58,7 +58,6 @@ class ProfileScreen extends ConsumerWidget {
     final currentTheme = ref.watch(themeModeProvider);
     final currency = ref.watch(currencyPreferenceProvider);
     final notificationPrefs = ref.watch(notificationPreferencesProvider);
-    final BackupStatusState backupStatus = initialBackupStatus ?? ref.watch(backupStatusProvider);
     final homeController = ref.read(homeControllerProvider);
 
     return Scaffold(
@@ -373,72 +372,7 @@ class ProfileScreen extends ConsumerWidget {
             // ==========================================
             // 5. BACKUP & RESTORE
             // ==========================================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('BACKUP & RESTORE', style: typography.caption),
-                Text('Google Drive app-data', style: typography.caption.copyWith(fontSize: 11)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            CoveGroupedCard(
-              children: [
-                CoveGroupedRow(
-                  leading: Icon(Icons.cloud_done_outlined, size: 20, color: colors.accentPrimary),
-                  title: Text('Last Backup', style: typography.bodyMedium),
-                  subtitle: Text(
-                    backupStatus.lastBackupTime != null
-                        ? 'Backed up ${DateFormat('MMM d, h:mm a').format(backupStatus.lastBackupTime!)}'
-                        : 'No backup recorded yet',
-                    style: typography.caption,
-                  ),
-                ),
-                CoveGroupedRow(
-                  leading: Icon(Icons.sync_outlined, size: 20, color: colors.textPrimary),
-                  title: Text('Ready for Next Backup', style: typography.bodyMedium),
-                  subtitle: Text(
-                    '${backupStatus.pendingEventCount} events · ~${backupStatus.pendingBytesKb.toStringAsFixed(1)} KB ciphertext',
-                    style: typography.caption,
-                  ),
-                ),
-                CoveGroupedRow(
-                  leading: Icon(Icons.schedule_outlined, size: 20, color: colors.textPrimary),
-                  title: Text('Backup Window', style: typography.bodyMedium),
-                  subtitle: Text('Nightly at ${backupStatus.backupTimeWindow}', style: typography.caption),
-                  trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: const TimeOfDay(hour: 2, minute: 0),
-                    );
-                    if (picked != null) {
-                      final formatted = DateFormat('hh:mm a').format(
-                        DateTime(2026, 1, 1, picked.hour, picked.minute),
-                      );
-                      await ref.read(backupStatusProvider.notifier).setBackupTimeWindow(formatted);
-                    }
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: CovePillButton(
-                    label: backupStatus.isBackingUp ? 'Backing Up...' : 'Back Up Now',
-                    isCompact: true,
-                    variant: CoveButtonVariant.secondary,
-                    icon: backupStatus.isBackingUp
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: colors.accentPrimary),
-                          )
-                        : const Icon(Icons.cloud_upload_outlined, size: 16),
-                    onPressed: backupStatus.isBackingUp
-                        ? null
-                        : () => ref.read(backupStatusProvider.notifier).triggerManualBackup(),
-                  ),
-                ),
-              ],
-            ),
+            DriveBackupSection(initialState: initialDriveBackupState),
             const SizedBox(height: 24),
 
             // ==========================================

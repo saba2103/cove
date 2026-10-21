@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'features/app_shell.dart';
 import 'features/auth/auth_controller.dart';
 import 'features/auth/auth_gate.dart';
+import 'features/backup/drive_backup_controller.dart';
 import 'features/home/create_home_screen.dart';
 import 'features/home/join_home_screen.dart';
 import 'features/home/onboarding_choice_screen.dart';
@@ -1428,11 +1429,13 @@ class _ProfilePreviewScaffold extends StatelessWidget {
               anniversaryDate: anniversary,
               formattedTogetherDuration: HomeMetadataState.formatDuration(anniversary),
             ),
-            initialBackupStatus: BackupStatusState(
-              lastBackupTime: DateTime.now().subtract(const Duration(hours: 14)),
-              pendingEventCount: 14,
-              pendingBytesKb: 8.2,
-              backupTimeWindow: '02:00 AM',
+            initialDriveBackupState: DriveBackupState(
+              isLoaded: true,
+              isConnected: true,
+              accountEmail: 'alex@gmail.com',
+              hasPassphrase: true,
+              lastBackupAt: DateTime.now().subtract(const Duration(hours: 14)),
+              lastBackupSizeBytes: 48 * 1024,
             ),
           ),
         ),

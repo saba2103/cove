@@ -14,6 +14,9 @@ class CovePillInput extends StatelessWidget {
   final TextCapitalization textCapitalization;
   final bool autofocus;
 
+  /// Hides typed characters (passwords, passphrases). Disables autocorrect.
+  final bool obscureText;
+
   const CovePillInput({
     super.key,
     this.controller,
@@ -27,6 +30,7 @@ class CovePillInput extends StatelessWidget {
     this.keyboardType,
     this.textCapitalization = TextCapitalization.sentences,
     this.autofocus = false,
+    this.obscureText = false,
   });
 
   @override
@@ -55,6 +59,9 @@ class CovePillInput extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               autofocus: autofocus,
+              obscureText: obscureText,
+              autocorrect: !obscureText,
+              enableSuggestions: !obscureText,
               keyboardType: keyboardType,
               textCapitalization: textCapitalization,
               textInputAction: textInputAction,

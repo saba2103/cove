@@ -5,6 +5,8 @@ import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../auth/auth_controller.dart';
+import '../backup/drive_backup_controller.dart';
+import '../backup/drive_backup_section.dart';
 import 'create_home_screen.dart';
 import 'join_home_screen.dart';
 
@@ -205,6 +207,24 @@ class OnboardingChoiceScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+
+                  // Option 3: Restore an encrypted Google Drive backup (new phone / reinstall)
+                  if (ref.watch(driveBackupProvider).isSupported) ...[
+                    const SizedBox(height: 18),
+                    TextButton.icon(
+                      key: const ValueKey('onboarding_restore_backup'),
+                      icon: Icon(
+                        Icons.settings_backup_restore_outlined,
+                        size: 18,
+                        color: colors.accentPrimary,
+                      ),
+                      label: Text(
+                        'Restore from Google Drive backup',
+                        style: typography.bodyMedium.copyWith(color: colors.accentPrimary),
+                      ),
+                      onPressed: () => DriveBackupSection.runRestoreFlow(context),
+                    ),
+                  ],
                 ],
               ),
             ),
