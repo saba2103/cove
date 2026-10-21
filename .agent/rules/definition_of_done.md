@@ -4,22 +4,20 @@ This rule is active for all engineering tasks in the Cove repository. Every time
 
 ---
 
-## 1. Quality & Linting Protocol
-* Always run `flutter analyze` after code changes.
-* Ensure **0 errors** and **0 warnings**. Clean up any unused imports or deprecated APIs immediately.
+## 1. Mechanical Verification Gate (`./tool/check.sh`)
+* Run `./tool/check.sh` and require it to exit 0 (`all green`).
+* This single script covers:
+  - `flutter analyze` (0 errors and 0 warnings required; clean up any unused imports or deprecated APIs immediately)
+  - The token contrast gate (`python3 tool/check_contrast.py`)
+  - Tokens being in sync with `design/tokens.json` (`dart run tool/gen_tokens.dart` + `git diff --exit-code lib/core/theme/cove_tokens.dart`)
+  - The style ratchet (`dart run tool/style_gate.dart`)
+  - Version-string agreement (`dart run tool/check_version.dart`)
+  - The full test suite including goldens (`flutter test`)
 * Preserve all existing comments, docstrings, and architectural design invariants.
-* Use `formatCoveAmount()` from `cove_currency_formatter.dart` for currency formatting (respecting the Indian numbering system and clean decimals).
 
 ---
 
-## 2. Automated Test Verification
-* Whenever modifying application logic, controllers, or database schemas, identify the relevant test files in `test/`.
-* Run targeted tests via `flutter test <test_file_path>`.
-* Ensure 100% test pass rate. If existing tests fail due to updated expectations (e.g. number formatting or new properties), update the test expectations deliberately to maintain test coverage.
-
----
-
-## 3. Mandatory Changelog Maintenance
+## 2. Mandatory Changelog Maintenance
 * **Never conclude a feature or bug fix without updating [`product/CHANGELOG.md`](../../product/CHANGELOG.md)**.
 * Add an entry under the active version release section:
   - **Outcome**: Plain language explanation of the user-visible or architectural benefit.
@@ -27,10 +25,16 @@ This rule is active for all engineering tasks in the Cove repository. Every time
 
 ---
 
-## 4. Product Decision Documentation
+## 3. Product Decision Documentation
 * If a conversation establishes a new product decision, versioning rule, naming convention, or core invariant:
   - Document it in the `product/` directory (e.g., `product/versioning_and_git_strategy.md`, `product/ENGINEERING_PRACTICES.md`).
   - Keep product documentation current and linked in your summary.
+
+---
+
+## 4. Formatting & Numbers
+* Use `formatCoveAmount()` from `cove_currency_formatter.dart` for currency numbers (Indian numbering system, clean decimals).
+* Amounts render through `formatCoveAmount()` and never through `toStringAsFixed` in display code — input-field prefill is the exception.
 
 ---
 
