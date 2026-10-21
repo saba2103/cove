@@ -49,3 +49,6 @@ supabase/.temp/
 
 # Flutter SDK cache (for CI/Vercel builds)
 /flutter/
+
+# Chat handoff scratch directory
+Claude outputs/
