@@ -4,6 +4,19 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ---
 
+## [v2.0-alpha.1] — 2026-10-22
+
+### Added
+- **Version Bump to `2.0.0-alpha.1+1` & Screenshot Font Cleanup (`Oct 22, 2026`)**:
+  - *Outcome*: Bumped Cove to `2.0.0-alpha.1+1` (`v2.0-alpha.1`) across `pubspec.yaml`, the in-app changelog, `AboutCoveScreen`, and the milestone ledger, and aligned the screenshot generation tests with `LibreBodoni`.
+  - *Under the Hood*:
+    - Updated `pubspec.yaml` to `version: 2.0.0-alpha.1+1` and `kCoveCurrentAppVersion` in [`lib/features/changelog/changelog_models.dart`](../lib/features/changelog/changelog_models.dart) to `'2.0.0-alpha.1'`.
+    - Added the **v2.0-alpha.1 — The Design System** entry to `kChangelogItems` in [`lib/features/changelog/changelog_models.dart`](../lib/features/changelog/changelog_models.dart) and updated [`test/changelog_test.dart`](../test/changelog_test.dart).
+    - Updated [`lib/features/home/about_cove_screen.dart`](../lib/features/home/about_cove_screen.dart) to display `v2.0-alpha.1 (1)` and added the `v2.0-alpha.1` row to §2 of [`product/versioning_and_git_strategy.md`](./versioning_and_git_strategy.md).
+    - Replaced `BodoniModa-Medium.ttf` font loading in [`test/generate_screenshots_test.dart`](../test/generate_screenshots_test.dart) and [`test/generate_commitments_screenshots_test.dart`](../test/generate_commitments_screenshots_test.dart) with `LibreBodoni-Regular.ttf` and `LibreBodoni-Medium.ttf`.
+
+---
+
 ## [v1.0-alpha.1] — 2026-09-25
 
 ### Fixed

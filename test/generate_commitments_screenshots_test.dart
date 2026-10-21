@@ -120,7 +120,8 @@ void main() {
     await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Medium.ttf');
     await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Semibold.ttf');
     await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Bold.ttf');
-    await loadFontFromFile('BodoniModa', 'assets/fonts/BodoniModa-Medium.ttf');
+    await loadFontFromFile('LibreBodoni', 'assets/fonts/LibreBodoni-Regular.ttf');
+    await loadFontFromFile('LibreBodoni', 'assets/fonts/LibreBodoni-Medium.ttf');
   });
 
   testWidgets('Capture Commitments Screen in Dark Theme',

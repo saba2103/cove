@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const String kCoveCurrentAppVersion = '1.0.0-alpha.1';
+const String kCoveCurrentAppVersion = '2.0.0-alpha.1';
 const String kCoveLastSeenFreshVersionKey = 'cove_last_seen_fresh_version';
 
 enum ChangelogPreviewType {
@@ -46,6 +46,22 @@ class ChangelogItem {
 }
 
 const List<ChangelogItem> kChangelogItems = [
+  // 0. v2.0-alpha.1 — The Design System
+  ChangelogItem(
+    id: 'v2_design_system',
+    title: 'v2.0-alpha.1 — The Design System',
+    tagline:
+        'DTCG token pipeline with generated Dart, WCAG AA contrast, Plus Jakarta Sans & Libre Bodoni typography, and automated quality gates.',
+    outcome:
+        'Both light and dark modes now run on a unified W3C DTCG design token system with verified WCAG AA contrast across every surface and text pairing. Plus Jakarta Sans replaces General Sans for UI legibility, and Libre Bodoni replaces Bodoni Moda for display titles and hero/card figures with native ₹ glyph support.',
+    underTheHood:
+        'DTCG token pipeline (design/tokens.json → tool/gen_tokens.dart → CoveTokens, CoveSpace, CoveSize, CoveRadius, CoveType, CoveMotion) serving both light and dark modes, WCAG AA contrast fixes, Plus Jakarta Sans for UI, Libre Bodoni for display and figures, and quality gates (contrast check, style ratchet, version agreement, 84 multi-viewport goldens, and 17-table Drift v11 schema migration test).',
+    category: 'Design & Architecture',
+    version: 'v2.0-alpha.1',
+    date: 'Oct 22, 2026',
+    icon: Icons.palette_outlined,
+    previewType: ChangelogPreviewType.smartDecimals,
+  ),
   // -1. Home-Scoped Properties SQLite Persistence & Cross-Device Sync (v1.0-alpha.1)
   ChangelogItem(
     id: 'home_scoped_properties_sync',

@@ -75,8 +75,8 @@ flowchart LR
 Every historical milestone in Cove's development was retroactively systematized under the `-alpha` taxonomy to accurately document that each step was tested live by the founders:
 
 ```
-v0.1-alpha ──> v0.2-alpha ──> v0.3-alpha ──> v0.4-alpha ──> v0.5-alpha ──> v0.6-alpha ──> v1.0-alpha.1 ──> v1.0-alpha.2
-(Foundation)   (E2EE Sync)    (Modules)      (Rhythms)      (Ergonomics)   (Helicopter)   (Calendar-First)  (Drive Backup)
+v0.1-alpha ──> v0.2-alpha ──> v0.3-alpha ──> v0.4-alpha ──> v0.5-alpha ──> v0.6-alpha ──> v1.0-alpha.1 ──> v1.0-alpha.2 ──> v2.0-alpha.1
+(Foundation)   (E2EE Sync)    (Modules)      (Rhythms)      (Ergonomics)   (Helicopter)   (Calendar-First)  (Drive Backup)   (Design System)
 ```
 
 ### Milestone Ledger
@@ -91,6 +91,7 @@ v0.1-alpha ──> v0.2-alpha ──> v0.3-alpha ──> v0.4-alpha ──> v0.5
 | **`v0.6-alpha`** | Sep 17, 2026 | **Commitments Helicopter View & Profile Studio**: 12-month commitment projections, smart decimal rendering, custom avatar presets, user initials badge. |
 | **`v1.0-alpha.1`** | Sep 19, 2026 | **Calendar-First Sanctuary Architecture**: Replaced standalone dashboard with calendar agenda hub, Today morning briefing, EMI Tracker with loan foreclosure and multi-select burden simulation, persistent delivery reconciliation, and direct push notification routing. |
 | **`v1.0-alpha.2`** | Oct 22, 2026 | **Encrypted Drive Backup**: End-to-end encrypted household snapshot backup (`726c3b0`, `73f7fcc`) with Argon2id passphrase-derived keys (AES-256-GCM envelope), Google Drive `appDataFolder` storage, atomic SQLite + key + preference restore with post-restore Supabase log catch-up, and nightly automatic WorkManager backup schedule. |
+| **`v2.0-alpha.1`** | Oct 22, 2026 | **The Design System**: W3C DTCG design token pipeline (`design/tokens.json` → generated `cove_tokens.dart`), WCAG AA contrast fixes across light and dark modes, `PlusJakartaSans` replacing `GeneralSans` for UI, `LibreBodoni` (with native `₹` glyph) replacing `BodoniModa` for display and tabular figures, `CoveTheme` serving `CoveTokens` in both modes, and automated quality gates (contrast check, one-way style ratchet, version agreement, 84 multi-viewport screen goldens, and 17-table Drift v11 schema migration verification). |
 
 ---
 

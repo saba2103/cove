@@ -9,7 +9,6 @@ import '../../sync/crypto/deterministic_home_icon.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
-import '../changelog/changelog_models.dart';
 import '../profile/currency_selector_sheet.dart';
 import '../profile/edit_home_dialog.dart';
 import '../profile/partner_profile_controller.dart';
@@ -422,7 +421,7 @@ class AboutCoveScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  'Cove v$kCoveCurrentAppVersion · Designed for Two',
+                  'Cove v2.0-alpha.1 (1) · Designed for Two',
                   style: typography.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colors.textMuted,

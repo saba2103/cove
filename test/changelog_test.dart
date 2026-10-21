@@ -23,7 +23,7 @@ void main() {
 
   group('Changelog Models & Data Tests', () {
     test('kChangelogItems contains outcome-focused updates with valid dates', () {
-      expect(kChangelogItems.length, 14);
+      expect(kChangelogItems.length, 15);
       for (final item in kChangelogItems) {
         expect(item.title.isNotEmpty, isTrue);
         expect(item.tagline.isNotEmpty, isTrue);
