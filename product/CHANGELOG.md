@@ -24,6 +24,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Drift v11 Schema Snapshot & Data-Preserving Migration Safety Gate (`Oct 22, 2026`)**:
+  - *Outcome*: Captured an immutable snapshot of live production database schema v11 across all 17 household tables and locked in automated schema verification, a full 17-table data-preservation migration test, and a schema snapshot ratchet guard before any v2 changes begin.
+  - *Under the Hood*:
+    - Dumped schema v11 to [`drift_schemas/drift_schema_v11.json`](../drift_schemas/drift_schema_v11.json) via `dart run drift_dev schema dump` and generated versioned schema & step-by-step helpers in [`test/drift/generated/`](../test/drift/generated/).
+    - Added [`test/migration_test.dart`](../test/migration_test.dart) with three gates: a snapshot ratchet ensuring `AppDatabase.schemaVersion` never exceeds the newest snapshot in `drift_schemas/`, a `SchemaVerifier` check validating v11 against the snapshot, and a data-preserving migration test that populates all 17 tables at v11 with non-default values across every column and verifies zero field loss after migrating to `schemaVersion`.
 - **v2 Design System Token Pipeline & Quality Gates (`Oct 22, 2026`)**:
   - *Outcome*: Laid the foundation for the v2 design system revamp (`feature/v2-design-system-revamp`) without touching any existing screen or widget. Registered the new `PlusJakartaSans` UI typeface alongside `GeneralSans` and `BodoniModa`, added its SIL Open Font Licence (`assets/fonts/OFL.txt`), and wired deterministic token generation, WCAG contrast checks, a one-way style-literal ratchet gate, and golden test scaffolding.
   - *Under the Hood*:

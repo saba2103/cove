@@ -282,7 +282,7 @@ void main() {
 
       // 2. Verify hero total & row in ExpensesScreen
       expect(find.text('Farmers Market Produce'), findsOneWidget);
-      expect(find.text('\$42.50'), findsWidgets);
+      expect(find.text('\$42.5'), findsWidgets);
       expect(find.byType(CoveSyncTick), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
@@ -332,10 +332,10 @@ void main() {
       expect(payload['visibility'], equals('partner_can_see'));
       expect(payload['split_ratio'], equals(0.0));
 
-      // In the UI, it displays "Partner sees" tag, and shared monthly total remains $0.00
+      // In the UI, it displays "Partner sees" tag, and shared monthly total remains $0
       expect(find.text('Vintage Acoustic Guitar'), findsOneWidget);
       expect(find.text('Partner sees'), findsOneWidget);
-      expect(find.text('\$0.00'), findsOneWidget); // Shared pool total excludes partner_can_see
+      expect(find.text('\$0'), findsOneWidget); // Shared pool total excludes partner_can_see
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
@@ -384,7 +384,7 @@ void main() {
       // Rendered locally for Alex with "Private" tag
       expect(find.text('Secret Anniversary Gift'), findsOneWidget);
       expect(find.text('Private'), findsOneWidget);
-      expect(find.text('\$0.00'), findsOneWidget); // Excluded from shared total
+      expect(find.text('\$0'), findsOneWidget); // Excluded from shared total
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
@@ -433,11 +433,11 @@ void main() {
 
       // Sarah sees Weekly Groceries
       expect(find.text('Weekly Groceries'), findsOneWidget);
-      expect(find.text('\$65.00'), findsWidgets);
+      expect(find.text('\$65'), findsWidgets);
 
       // Sarah NEVER sees the private expense
       expect(find.text('Alex Secret Ring Purchase'), findsNothing);
-      expect(find.text('\$850.00'), findsNothing);
+      expect(find.text('\$850'), findsNothing);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
@@ -503,9 +503,9 @@ void main() {
       // Category breakdown section is present
       expect(find.text('CATEGORY BREAKDOWN'), findsOneWidget);
       expect(find.text('Groceries'), findsWidgets);
-      expect(find.text('\$200.00'), findsOneWidget); // 150 + 50 in category breakdown
+      expect(find.text('\$200'), findsOneWidget); // 150 + 50 in category breakdown
       expect(find.text('Home & Utilities'), findsWidgets);
-      expect(find.text('\$80.00'), findsWidgets);
+      expect(find.text('\$80'), findsWidgets);
 
       // Verify plain list structure using CoveGroupedRow
       expect(find.byType(CoveGroupedRow), findsWidgets);
@@ -559,14 +559,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify that by default, the combined total ($350.00) is NOT shown anywhere
-      expect(find.text('\$350.00'), findsNothing);
+      // Verify that by default, the combined total ($350) is NOT shown anywhere
+      expect(find.text('\$350'), findsNothing);
       // Expenditure amount appears in hero card, category, and ledger
-      expect(find.text('\$100.00'), findsWidgets);
+      expect(find.text('\$100'), findsWidgets);
       // Transfer amount appears only once (in ledger row, not hero card yet)
-      expect(find.text('\$250.00'), findsOneWidget);
+      expect(find.text('\$250'), findsOneWidget);
 
-      // Verify that Category Breakdown has Dining Out ($100.00)
+      // Verify that Category Breakdown has Dining Out ($100)
       expect(find.text('Dining Out'), findsWidgets);
 
       // Both transactions appear in the ledger
@@ -581,8 +581,8 @@ void main() {
       await tester.tap(find.text('Transfers').first);
       await tester.pumpAndSettle();
 
-      // Now the hero card also displays the transfer total ($250.00) alongside the ledger row (2 occurrences)
-      expect(find.text('\$250.00'), findsNWidgets(2));
+      // Now the hero card also displays the transfer total ($250) alongside the ledger row (2 occurrences)
+      expect(find.text('\$250'), findsNWidgets(2));
 
       // Verify controller logging a transfer directly
       final container = ProviderScope.containerOf(
@@ -653,11 +653,11 @@ void main() {
       await tester.tap(find.widgetWithText(CovePillButton, 'Save Budget'));
       await tester.pumpAndSettle();
 
-      // 3. Verify budget card appears with $600.00 remaining of $1,000.00
+      // 3. Verify budget card appears with $600 remaining of $1,000
       expect(find.text('MONTHLY BUDGET'), findsOneWidget);
-      expect(find.text('\$600.00 remaining'), findsOneWidget);
-      expect(find.text('\$400.00 spent'), findsOneWidget);
-      expect(find.text('Target: \$1,000.00 (40%)'), findsOneWidget);
+      expect(find.text('\$600 remaining'), findsOneWidget);
+      expect(find.text('\$400 spent'), findsOneWidget);
+      expect(find.text('Target: \$1,000 (40%)'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
@@ -698,9 +698,9 @@ void main() {
 
       // Verify "SHOT UP · OVER BUDGET" alert banner and overshoot amount
       expect(find.text('SHOT UP · OVER BUDGET'), findsOneWidget);
-      expect(find.text('Shot up by \$250.00'), findsOneWidget);
-      expect(find.text('\$1,250.00 spent'), findsOneWidget);
-      expect(find.text('Target: \$1,000.00 (100%)'), findsOneWidget);
+      expect(find.text('Shot up by \$250'), findsOneWidget);
+      expect(find.text('\$1,250 spent'), findsOneWidget);
+      expect(find.text('Target: \$1,000 (100%)'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));

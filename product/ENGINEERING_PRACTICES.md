@@ -30,7 +30,7 @@ No feature, architectural refactor, or bug fix is considered **"Done"** until ev
 - [ ] 3. Automated Test Verification
       - Unit / widget tests written or updated for the changed logic.
       - Targeted test files run and pass with 100% success rate.
-      - Schema changes verified with database migration tests.
+      - Schema changes accompanied by a new `drift_schemas/drift_schema_vN.json` dump, regenerated `test/drift/generated/`, and verified by `test/migration_test.dart`.
 
 - [ ] 4. Changelog Maintenance
       - `product/CHANGELOG.md` updated under the active release section.

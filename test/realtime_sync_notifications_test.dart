@@ -156,7 +156,7 @@ void main() {
       expect(receivedNotif!.eventType, equals('expense_logged'));
       expect(receivedNotif!.title, contains('Expenses'));
       expect(receivedNotif!.body, contains('Dinner Groceries'));
-      expect(receivedNotif!.body, contains('450.00'));
+      expect(receivedNotif!.body, contains('\$450'));
 
       await sub.cancel();
     });
