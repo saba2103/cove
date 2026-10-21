@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:cove/features/backup/backup_scheduler.dart';
 import 'package:cove/features/backup/drive_backup_remote.dart';
+import 'package:flutter/material.dart' show TimeOfDay;
 
 /// In-memory stand-in for Google Drive's appDataFolder.
 class FakeBackupRemote implements BackupRemote {
@@ -8,6 +10,7 @@ class FakeBackupRemote implements BackupRemote {
   bool supported;
   String? email;
   Object? connectError;
+  Object? uploadError;
   int connectCalls = 0;
   int _counter = 0;
 
@@ -28,6 +31,7 @@ class FakeBackupRemote implements BackupRemote {
 
   @override
   Future<RemoteBackupFile> upload(Uint8List bytes, {required DateTime createdAt, String? deviceLabel}) async {
+    if (uploadError != null) throw uploadError!;
     final id = 'file-${_counter++}';
     // Guarantee strictly increasing timestamps for ordering.
     final stamped = createdAt.add(Duration(milliseconds: _counter));
@@ -51,5 +55,36 @@ class FakeBackupRemote implements BackupRemote {
   @override
   Future<void> delete(String fileId) async {
     files.remove(fileId);
+  }
+}
+
+/// Records scheduling calls instead of talking to WorkManager.
+class FakeBackupScheduler implements BackupScheduler {
+  bool scheduled = false;
+  TimeOfDay? time;
+  bool? wifiOnly;
+  int scheduleCalls = 0;
+  int resetCalls = 0;
+  int cancelCalls = 0;
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> schedule({required TimeOfDay time, required bool wifiOnly, bool reset = false}) async {
+    scheduleCalls++;
+    if (reset) resetCalls++;
+    scheduled = true;
+    this.time = time;
+    this.wifiOnly = wifiOnly;
+  }
+
+  @override
+  Future<void> cancel() async {
+    cancelCalls++;
+    scheduled = false;
   }
 }

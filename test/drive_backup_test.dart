@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cove/features/backup/backup_crypto.dart';
+import 'package:cove/features/backup/backup_scheduler.dart';
+import 'package:cove/features/backup/backup_service.dart';
+import 'package:cove/features/backup/drive_backup_remote.dart';
 import 'package:cove/features/backup/backup_snapshot_service.dart';
 import 'package:cove/features/backup/drive_backup_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
@@ -9,6 +12,7 @@ import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -219,11 +223,13 @@ void main() {
   // ===========================================================================
   group('DriveBackupController (end-to-end with fake Drive)', () {
     late FakeBackupRemote remote;
+    late FakeBackupScheduler scheduler;
 
     ProviderContainer makeContainer(AppDatabase db) {
       final c = ProviderContainer(overrides: [
         appDatabaseProvider.overrideWithValue(db),
         backupRemoteProvider.overrideWithValue(remote),
+        backupSchedulerProvider.overrideWithValue(scheduler),
         backupKdfFactoryProvider.overrideWithValue(fastKdf),
       ]);
       addTearDown(c.dispose);
@@ -236,7 +242,10 @@ void main() {
       return c.read(driveBackupProvider.notifier);
     }
 
-    setUp(() => remote = FakeBackupRemote());
+    setUp(() {
+      remote = FakeBackupRemote();
+      scheduler = FakeBackupScheduler();
+    });
 
     test('starts honest: not connected, no passphrase, no backup', () async {
       final db = AppDatabase(NativeDatabase.memory());
@@ -372,6 +381,256 @@ void main() {
       expect(s.isConnected, isFalse);
       expect(s.errorMessage, contains('No connection'));
       expect(s.isBusy, isFalse);
+    });
+  });
+
+  // ===========================================================================
+  group('Nightly automatic backup: BackupService', () {
+    late AppDatabase db;
+    late FakeBackupRemote remote;
+    late DateTime now;
+    const storage = FlutterSecureStorage();
+
+    BackupService service() => BackupService(
+          snapshot: BackupSnapshotService(db: db, keyStore: HomeKeyStore()),
+          remote: remote,
+          storage: storage,
+          clock: () => now,
+        );
+
+    Future<void> configure() async {
+      final params = fastKdf();
+      final kek = await BackupCrypto.deriveKey('our cove passphrase', params);
+      await storage.write(key: BackupKeys.kek, value: base64Encode(kek));
+      await storage.write(key: BackupKeys.kdf, value: jsonEncode(params.toJson()));
+      await storage.write(key: BackupKeys.connected, value: 'true');
+    }
+
+    setUp(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      remote = FakeBackupRemote();
+      now = DateTime(2026, 10, 22, 2, 0);
+      await seedHome(db);
+    });
+
+    tearDown(() => db.close());
+
+    test('does nothing until Drive and passphrase are set up', () async {
+      final r = await service().run(automatic: true);
+      expect(r.outcome, BackupRunOutcome.notConfigured);
+      expect(remote.files, isEmpty);
+      expect(await storage.read(key: BackupKeys.autoLastOutcome), 'notConfigured');
+    });
+
+    test('respects the user turning nightly backup off', () async {
+      await configure();
+      await storage.write(key: BackupKeys.autoEnabled, value: 'false');
+      expect((await service().run(automatic: true)).outcome, BackupRunOutcome.notConfigured);
+      expect(remote.files, isEmpty);
+    });
+
+    test('uploads when configured, then skips unchanged data the next night', () async {
+      await configure();
+      final first = await service().run(automatic: true);
+      expect(first.outcome, BackupRunOutcome.uploaded);
+      expect(remote.files.length, 1);
+
+      now = now.add(const Duration(days: 1));
+      final second = await service().run(automatic: true);
+      expect(second.outcome, BackupRunOutcome.skippedUnchanged);
+      expect(remote.files.length, 1, reason: 'identical data must not consume a retention slot');
+      expect(DateTime.parse((await storage.read(key: BackupKeys.lastAt))!), now.toUtc());
+    });
+
+    test('uploads again the next night when data changed', () async {
+      await configure();
+      await service().run(automatic: true);
+      await seedHome(db, id: 'home-2', name: 'Cabin');
+
+      now = now.add(const Duration(days: 1));
+      expect((await service().run(automatic: true)).outcome, BackupRunOutcome.uploaded);
+      expect(remote.files.length, 2);
+    });
+
+    test('skips when a backup already ran in the last 20 hours', () async {
+      await configure();
+      await service().run(automatic: false); // manual backup in the evening
+      await seedHome(db, id: 'home-2', name: 'Cabin');
+
+      now = now.add(const Duration(hours: 5));
+      expect((await service().run(automatic: true)).outcome, BackupRunOutcome.skippedRecent);
+      expect(remote.files.length, 1);
+    });
+
+    test('lost Drive access pauses nightly backup with a visible message, without throwing', () async {
+      await configure();
+      remote.uploadError = const BackupAuthException('Reconnect Google Drive to continue.');
+      final r = await service().run(automatic: true);
+      expect(r.outcome, BackupRunOutcome.needsReconnect);
+      expect(await storage.read(key: BackupKeys.autoError), contains('reconnect Google Drive'));
+
+      // Once access is back, the message clears.
+      remote.uploadError = null;
+      now = now.add(const Duration(days: 1));
+      expect((await service().run(automatic: true)).outcome, BackupRunOutcome.uploaded);
+      expect(await storage.read(key: BackupKeys.autoError), isNull);
+    });
+
+    test('network failures are reported as retryable, never thrown', () async {
+      await configure();
+      remote.uploadError = Exception('SocketException: Network is unreachable');
+      final r = await service().run(automatic: true);
+      expect(r.outcome, BackupRunOutcome.failed);
+      expect(r.isSuccess, isFalse);
+    });
+
+    test('manual backups always upload, even if nothing changed', () async {
+      await configure();
+      await service().run(automatic: false);
+      await service().run(automatic: false);
+      expect(remote.files.length, 2);
+    });
+
+    test('fingerprint ignores preference ordering', () {
+      final a = {'schemaVersion': 11, 'tables': {}, 'homeKeys': {}, 'prefs': {'a': '1', 'b': '2'}};
+      final b = {'schemaVersion': 11, 'tables': {}, 'homeKeys': {}, 'prefs': {'b': '2', 'a': '1'}};
+      expect(BackupService.fingerprint(a), BackupService.fingerprint(b));
+    });
+  });
+
+  // ===========================================================================
+  group('Nightly automatic backup: scheduling', () {
+    test('delayUntil targets the next occurrence of the chosen time', () {
+      const twoAm = TimeOfDay(hour: 2, minute: 0);
+      expect(BackupScheduler.delayUntil(twoAm, DateTime(2026, 10, 22, 0, 30)), const Duration(hours: 1, minutes: 30));
+      expect(BackupScheduler.delayUntil(twoAm, DateTime(2026, 10, 22, 2, 0)), const Duration(hours: 24));
+      expect(BackupScheduler.delayUntil(twoAm, DateTime(2026, 10, 22, 23, 0)), const Duration(hours: 3));
+    });
+
+    test('time encoding round-trips and rejects junk', () {
+      const t = TimeOfDay(hour: 3, minute: 5);
+      expect(DriveBackupState.encodeTime(t), '03:05');
+      expect(DriveBackupState.decodeTime('03:05'), t);
+      expect(DriveBackupState.decodeTime('25:00'), isNull);
+      expect(DriveBackupState.decodeTime('nope'), isNull);
+    });
+
+    late FakeBackupRemote remote;
+    late FakeBackupScheduler scheduler;
+
+    ProviderContainer makeContainer(AppDatabase db) {
+      final c = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        backupRemoteProvider.overrideWithValue(remote),
+        backupSchedulerProvider.overrideWithValue(scheduler),
+        backupKdfFactoryProvider.overrideWithValue(fastKdf),
+      ]);
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    setUp(() {
+      remote = FakeBackupRemote();
+      scheduler = FakeBackupScheduler();
+    });
+
+    test('nightly job is scheduled (2 AM, Wi-Fi) only once backup is fully set up', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final c = makeContainer(db);
+      c.read(driveBackupProvider);
+      await pumpEventQueue();
+      final ctrl = c.read(driveBackupProvider.notifier);
+
+      expect(scheduler.scheduled, isFalse);
+      expect(c.read(driveBackupProvider).isAutoActive, isFalse);
+
+      await ctrl.connect();
+      expect(scheduler.scheduled, isFalse, reason: 'no passphrase yet');
+
+      await ctrl.setPassphrase('our cove passphrase');
+      expect(scheduler.scheduled, isTrue);
+      expect(scheduler.time, const TimeOfDay(hour: 2, minute: 0));
+      expect(scheduler.wifiOnly, isTrue);
+      expect(c.read(driveBackupProvider).isAutoActive, isTrue);
+    });
+
+    test('changing time / network reschedules; turning off cancels; settings persist', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final c = makeContainer(db);
+      c.read(driveBackupProvider);
+      await pumpEventQueue();
+      final ctrl = c.read(driveBackupProvider.notifier);
+      await ctrl.connect();
+      await ctrl.setPassphrase('our cove passphrase');
+
+      await ctrl.setAutoTime(const TimeOfDay(hour: 3, minute: 30));
+      expect(scheduler.time, const TimeOfDay(hour: 3, minute: 30));
+      expect(scheduler.resetCalls, 1);
+
+      await ctrl.setAutoWifiOnly(false);
+      expect(scheduler.wifiOnly, isFalse);
+      expect(scheduler.resetCalls, 2);
+
+      await ctrl.setAutoEnabled(false);
+      expect(scheduler.scheduled, isFalse);
+
+      // App restart: preferences reload, job stays cancelled.
+      scheduler = FakeBackupScheduler();
+      final c2 = makeContainer(db);
+      c2.read(driveBackupProvider);
+      await pumpEventQueue();
+      final s = c2.read(driveBackupProvider);
+      expect(s.autoEnabled, isFalse);
+      expect(s.autoTime, const TimeOfDay(hour: 3, minute: 30));
+      expect(s.autoWifiOnly, isFalse);
+      expect(scheduler.scheduled, isFalse);
+      expect(scheduler.cancelCalls, 1);
+    });
+
+    test('app launch re-registers the job without resetting its timer', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final c = makeContainer(db);
+      c.read(driveBackupProvider);
+      await pumpEventQueue();
+      final ctrl = c.read(driveBackupProvider.notifier);
+      await ctrl.connect();
+      await ctrl.setPassphrase('our cove passphrase');
+
+      scheduler = FakeBackupScheduler();
+      final c2 = makeContainer(db);
+      c2.read(driveBackupProvider);
+      await pumpEventQueue();
+      expect(scheduler.scheduled, isTrue);
+      expect(scheduler.resetCalls, 0);
+    });
+
+    test('Settings reflects the outcome of the last nightly run after refresh', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final c = makeContainer(db);
+      c.read(driveBackupProvider);
+      await pumpEventQueue();
+      final ctrl = c.read(driveBackupProvider.notifier);
+      await ctrl.connect();
+      await ctrl.setPassphrase('our cove passphrase');
+
+      // Simulate the background worker running while the app was closed.
+      final worker = BackupService(
+        snapshot: c.read(backupSnapshotServiceProvider),
+        remote: remote,
+        storage: c.read(backupSecureStorageProvider),
+      );
+      await worker.run(automatic: true);
+
+      await ctrl.refresh();
+      final s = c.read(driveBackupProvider);
+      expect(s.autoLastOutcome, BackupRunOutcome.uploaded);
+      expect(s.autoLastRunAt, isNotNull);
+      expect(s.lastBackupAt, isNotNull);
+      expect(remote.files.length, 1);
     });
   });
 }

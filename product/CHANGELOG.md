@@ -24,6 +24,16 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Nightly Automatic Google Drive Backup (`Oct 22, 2026`)**:
+  - *Outcome*: Once Google Drive and a recovery passphrase are set up, Cove now backs itself up every night around 2:00 AM on Wi-Fi — no tapping required. Nights with no changes are skipped so the 10 kept backups stay meaningful, and if Drive access is ever lost, Settings says so plainly instead of failing silently. Time, Wi-Fi-only and on/off are adjustable under **Settings → Backup & Restore**.
+  - *Under the Hood*:
+    - New `BackupService` (shared manual/automatic pipeline): `run(automatic:)` with outcomes `uploaded`, `skippedUnchanged` (SHA-256 snapshot fingerprint via `pointycastle`), `skippedRecent` (< 20 h), `notConfigured`, `needsReconnect`, `failed`; automatic runs never throw and persist `cove_backup_auto_*` status.
+    - New `WorkmanagerBackupScheduler` (`workmanager` ^0.10.10): unique 24 h periodic job `cove-nightly-backup`, initial delay to the chosen local time, `unmetered`/`connected` network + battery-not-low constraints, exponential backoff from 30 min; `KEEP` on launch, `REPLACE` on settings change.
+    - `coveBackgroundDispatcher` + `BackgroundBackupRunner` run the backup in a background isolate with silent Play-services Drive authorization (no Activity required); reuses the app's DB connection if executed in the main isolate.
+    - `DriveBackupController` refactored onto `BackupService`; adds `setAutoEnabled`/`setAutoTime`/`setAutoWifiOnly`, `refresh()` (called on app resume) and schedule sync on launch from `AppShell`.
+    - Settings: **Nightly Backup** toggle with live last-run status, **Backup Time** picker, **Wi-Fi Only** toggle.
+    - Tests: 15 new cases in `test/drive_backup_test.dart` (skip rules, reconnect/failed handling, fingerprint stability, scheduling/persistence); `test/notifications_test.dart` switch count scoped to notification toggles.
+    - Decision record updated: [`product/backup_and_recovery.md`](./backup_and_recovery.md) §5a.
 - **Real End-to-End Encrypted Google Drive Backup & Restore (`Oct 22, 2026`)**:
   - *Outcome*: "Back Up Now" now actually backs up. Your whole household — every list, expense, commitment, habit, calendar event, activity entry, the home encryption keys and local preferences — is encrypted on the phone with a recovery passphrase and saved to a private, hidden folder in your own Google Drive. On a new or reset phone, sign in, tap **Restore from Google Drive backup**, enter the passphrase, and everything comes back; anything newer catches up from your partner automatically. The previous simulated backup UI (fake "18 hours ago", fake pending counts, non-functional nightly window) has been removed.
   - *Under the Hood*:

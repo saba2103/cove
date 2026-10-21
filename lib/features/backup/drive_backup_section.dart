@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_pill_button.dart';
+import '../../core/widgets/cove_toggle_switch.dart';
+import 'backup_service.dart';
 import 'drive_backup_controller.dart';
 import 'drive_backup_sheets.dart';
 
@@ -41,6 +43,22 @@ class DriveBackupSection extends ConsumerWidget {
         const SnackBar(content: Text('Backup restored. Catching up with your partner…')),
       );
     }
+  }
+
+  static String _nightlySubtitle(BuildContext context, DriveBackupState state) {
+    if (!state.autoEnabled) return 'Off · back up manually';
+    if (!state.isConfigured) return 'Starts after your first backup';
+    if (state.autoError != null) return state.autoError!;
+    final last = state.autoLastRunAt;
+    if (last == null) return 'On · first run tonight';
+    final when = DateFormat('MMM d, h:mm a').format(last);
+    return switch (state.autoLastOutcome) {
+      BackupRunOutcome.uploaded => 'On · last ran $when',
+      BackupRunOutcome.skippedUnchanged => 'On · $when, nothing new to back up',
+      BackupRunOutcome.skippedRecent => 'On · $when, already backed up today',
+      BackupRunOutcome.failed => 'On · $when didn\'t finish, will retry',
+      _ => 'On · last checked $when',
+    };
   }
 
   @override
@@ -133,6 +151,50 @@ class DriveBackupSection extends ConsumerWidget {
               title: Text('Last Backup', style: typography.bodyMedium),
               subtitle: Text(lastBackupText, style: typography.caption),
             ),
+            CoveGroupedRow(
+              key: const ValueKey('nightly_backup_row'),
+              leading: Icon(Icons.nightlight_outlined, size: 20, color: colors.textPrimary),
+              title: Text('Nightly Backup', style: typography.bodyMedium),
+              subtitle: Text(
+                _nightlySubtitle(context, state),
+                style: typography.caption.copyWith(
+                  color: state.autoError != null && state.isAutoActive ? colors.accentSecondary : null,
+                ),
+              ),
+              trailing: CoveToggleSwitch(
+                value: state.autoEnabled,
+                onChanged: state.isBusy ? null : (v) => notifier.setAutoEnabled(v),
+              ),
+            ),
+            if (state.autoEnabled) ...[
+              CoveGroupedRow(
+                leading: Icon(Icons.schedule_outlined, size: 20, color: colors.textPrimary),
+                title: Text('Backup Time', style: typography.bodyMedium),
+                subtitle: Text(
+                  'Around ${state.autoTime.format(context)} · Android may shift it slightly',
+                  style: typography.caption,
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: state.isBusy
+                    ? null
+                    : () async {
+                        final picked = await showTimePicker(context: context, initialTime: state.autoTime);
+                        if (picked != null) await notifier.setAutoTime(picked);
+                      },
+              ),
+              CoveGroupedRow(
+                leading: Icon(Icons.wifi_outlined, size: 20, color: colors.textPrimary),
+                title: Text('Wi-Fi Only', style: typography.bodyMedium),
+                subtitle: Text(
+                  state.autoWifiOnly ? 'Waits for Wi-Fi' : 'Wi-Fi or mobile data',
+                  style: typography.caption,
+                ),
+                trailing: CoveToggleSwitch(
+                  value: state.autoWifiOnly,
+                  onChanged: state.isBusy ? null : (v) => notifier.setAutoWifiOnly(v),
+                ),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Column(

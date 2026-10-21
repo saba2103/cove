@@ -17,6 +17,7 @@ import 'notifications/notification_controller.dart';
 import 'notifications/notification_detail_dispatcher.dart';
 import 'notifications/notification_models.dart';
 import 'auth/auth_controller.dart';
+import 'backup/drive_backup_controller.dart';
 import 'changelog/whats_fresh_modal.dart';
 import 'profile/profile_screen.dart';
 import 'profile/user_profile_controller.dart';
@@ -95,12 +96,18 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       if (pendingPayload == null && pendingModule == null) {
         WhatsFreshModal.checkAndShow(context);
       }
+
+      // Wake the Drive backup controller so the nightly backup job is
+      // (re)registered with WorkManager on every launch.
+      ref.read(driveBackupProvider);
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Pick up results of a nightly backup that ran while the app was closed.
+      ref.read(driveBackupProvider.notifier).refresh();
       // Silently refresh weather when returning to app / when location may have been toggled
       ref.read(weatherProvider.notifier).refreshWeather();
       final activeHomeId = ref.read(activeHomeIdProvider);

@@ -29,7 +29,7 @@ Google Drive backup closes this gap.
 | Restore semantics | **Full replace** of local data, atomically | Predictable. Events that reached the server after the backup are replayed automatically from Supabase. |
 | Retention | Newest **10** backups | Bounded Drive usage, enough history to roll back a bad day. |
 | Platforms (v1) | **Android only** | Web shows "Available in the Cove Android app". iOS project does not exist yet. |
-| Scheduling (v1) | **Manual** "Back Up Now" | Nightly background backup (WorkManager) is the planned follow-up. The previous fake "Nightly at 02:00 AM" UI was removed rather than kept as a lie. |
+| Scheduling | Manual **"Back Up Now"** + **Nightly automatic backup** (Oct 22, 2026) | See §5a. The earlier fake "Nightly at 02:00 AM" row was replaced by a real WorkManager job. |
 
 > [!IMPORTANT]
 > **Honesty invariant:** backup UI must only ever show real state. No placeholder timestamps, counts or schedules. The previous mock (`BackupStatusNotifier`) was deleted for this reason.
@@ -75,6 +75,24 @@ flowchart LR
 
 ---
 
+## 5a. Nightly Automatic Backup
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Default | **On** as soon as Drive is connected and a passphrase is set | Backups people must remember don't happen. Existing users get nightly backups after updating, with no action needed. Turn off via **Nightly Backup** toggle. |
+| Time | **Around 2:00 AM** local, user-adjustable | Phone is usually idle, charging and on Wi-Fi. Android (Doze/battery saver) may shift it; WorkManager catches up as soon as constraints allow. UI says "Around…" to stay honest. |
+| Network | **Wi-Fi only** by default (toggle for mobile data) | Avoid surprise data usage. |
+| Battery | Requires battery-not-low | Never compete with a dying phone. |
+| Unchanged data | **Skipped** (SHA-256 fingerprint of the snapshot) | Identical nightly copies would push genuinely different backups out of the 10-slot retention window. "Last Backup" time is still refreshed because the existing backup is current. |
+| Recent backup | Skipped if any backup succeeded in the last **20 h** | A manual backup in the evening already covers the night. |
+| Lost Drive access | Run records `needsReconnect`; Settings shows "Automatic backup paused — reconnect Google Drive." | Background code can never show the Google consent sheet; failing loudly in Settings beats failing silently. Cleared on the next successful backup or reconnect. |
+| Network/Drive errors | Returned as retryable → WorkManager exponential backoff (from 30 min) | Transient problems self-heal. |
+| Manual backups | Always upload, even if unchanged | A user tapping "Back Up Now" expects a fresh copy. |
+
+**Mechanics:** `WorkmanagerBackupScheduler` registers a unique 24 h periodic job (`cove-nightly-backup`) with an initial delay to the next chosen time. App launch re-registers with `KEEP` (timer untouched); changing time/network/toggle re-registers with `REPLACE`. The job runs `coveBackgroundDispatcher` → `BackgroundBackupRunner` → `BackupService.run(automatic: true)` in a background isolate, opening its own read connection to `cove_db` (or reusing the app's live connection if WorkManager runs it in the main isolate). Google Drive tokens are obtained silently via the Play services Identity API, which needs no Activity. Outcomes are stored under `cove_backup_auto_*` and shown in Settings ("On · last ran Oct 22, 2:03 AM" / "nothing new to back up" / "didn't finish, will retry").
+
+---
+
 ## 6. One-Time Google Cloud Setup (required for Drive access)
 
 Firebase project: `cove-home-app` (number `633452066662`).
@@ -90,7 +108,7 @@ Firebase project: `cove-home-app` (number `633452066662`).
 
 ## 7. Follow-ups
 
-- Nightly automatic backup (WorkManager, Wi-Fi/charging constraints) using the stored KEK.
+- Local notification when nightly backup has been paused (needs reconnect) for more than 3 days.
 - Web support (Google Identity Services token client + web OAuth client).
 - "Verify passphrase" reminder every few months so users don't forget it.
 
@@ -102,6 +120,8 @@ Firebase project: `cove-home-app` (number `633452066662`).
 |---|---|
 | `lib/features/backup/backup_crypto.dart` | Argon2id KDF, AES-256-GCM envelope, gzip |
 | `lib/features/backup/backup_snapshot_service.dart` | Generic DB/keys/prefs export & atomic restore |
+| `lib/features/backup/backup_service.dart` | Shared backup pipeline (manual + automatic), fingerprint skip, status keys |
+| `lib/features/backup/backup_scheduler.dart` | WorkManager nightly job, background dispatcher/runner |
 | `lib/features/backup/drive_backup_remote.dart` | `BackupRemote` interface + Google Drive `appDataFolder` implementation |
 | `lib/features/backup/drive_backup_controller.dart` | Riverpod state machine: connect, passphrase, backup, prune, restore |
 | `lib/features/backup/drive_backup_section.dart` | Settings section + flow orchestration |

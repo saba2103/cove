@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_toggle_switch.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/backup/drive_backup_section.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
 import 'package:cove/features/lists/list_item_detail_sheet.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
@@ -1077,8 +1078,17 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      // Only count partner-notification toggles; the Backup & Restore section
+      // (rendered below) has its own Nightly Backup / Wi-Fi Only switches.
       final switches = find.byType(CoveToggleSwitch);
-      expect(switches, findsNWidgets(5));
+      final backupSwitches = find.descendant(
+        of: find.byType(DriveBackupSection),
+        matching: find.byType(CoveToggleSwitch),
+      );
+      expect(
+        switches.evaluate().length - backupSwitches.evaluate().length,
+        5,
+      );
 
       await tester.tap(switches.at(0), warnIfMissed: false);
       await tester.runAsync(() async {
