@@ -22,8 +22,43 @@ class CoveWidth {
   static const wide  = Size(840, 900);   // Fold 7 open — proves the maxContent cap
 }
 
+String _resolveFlutterRoot() {
+  final envRoot = Platform.environment['FLUTTER_ROOT'];
+  if (envRoot != null && envRoot.isNotEmpty) {
+    return envRoot;
+  }
+  // Fallback when invoked via `<FLUTTER_ROOT>/bin/cache/dart-sdk/bin/dart test`
+  final execDir = File(Platform.resolvedExecutable).parent;
+  if (execDir.path.endsWith('/bin/cache/dart-sdk/bin') ||
+      execDir.path.endsWith(r'\bin\cache\dart-sdk\bin')) {
+    return execDir.parent.parent.parent.parent.path;
+  }
+  fail(
+    'Unable to resolve FLUTTER_ROOT from environment or Platform.resolvedExecutable '
+    '(${Platform.resolvedExecutable}). Cannot load MaterialIcons-Regular.otf for goldens.',
+  );
+}
+
 Future<void> loadCoveFonts() async {
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  final flutterRoot = _resolveFlutterRoot();
+  final materialIconsPath =
+      '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf';
+  final materialIconsFile = File(materialIconsPath);
+  if (!materialIconsFile.existsSync()) {
+    fail(
+      'MaterialIcons-Regular.otf not found at "$materialIconsPath" '
+      '(resolved from FLUTTER_ROOT="$flutterRoot"). '
+      'Refusing to generate or compare goldens with tofu icon boxes.',
+    );
+  }
+  final materialLoader = FontLoader('MaterialIcons')
+    ..addFont(
+      Future.value(ByteData.sublistView(materialIconsFile.readAsBytesSync())),
+    );
+  await materialLoader.load();
+
   const families = <String, List<String>>{
     'PlusJakartaSans': [
       'assets/fonts/PlusJakartaSans-Regular.ttf',

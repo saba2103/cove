@@ -29,6 +29,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Material Icon Font Rendering in Golden Harness & Regenerated Baselines (`Oct 22, 2026`)**:
+  - *Outcome*: All 84 baseline screen goldens now render actual Material icons instead of fallback tofu boxes, and the golden harness fails fast if `MaterialIcons-Regular.otf` cannot be resolved from the Flutter SDK.
+  - *Under the Hood*:
+    - Updated [`loadCoveFonts`](../test/golden/golden_harness.dart) in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) to resolve `$FLUTTER_ROOT` at runtime (via `Platform.environment['FLUTTER_ROOT']` with `Platform.resolvedExecutable` fallback), fail explicitly if `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf` is missing, and register it with `FontLoader('MaterialIcons')`. Confirmed zero `CupertinoIcons` usage across `lib/`.
+    - Regenerated all 84 baseline PNGs in `test/golden/goldens/` and verified `today_screen.phone.dark.png`, `profile_screen.phone.light.png`, and `calendar_create_sheet.phone.dark.png`.
 - **Baseline Multi-Viewport Screen Goldens (`Oct 22, 2026`)**:
   - *Outcome*: Captured 84 deterministic "before" golden snapshots across all 14 Cove screens and representative sheets (3 widths: Fold cover 320dp, phone 411dp, Fold inner wide 840dp × 2 modes: dark and light) to serve as the visual baseline before the v2 design system conversion.
   - *Under the Hood*:
