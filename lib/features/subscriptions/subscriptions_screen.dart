@@ -1235,7 +1235,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           : '$paidText$viaText · EMI · $nextTiming';
     } else {
       final cycleLabel = formatBillingCycleLabel(sub.billingCycle);
-      subtitleText = '$paidText · $renewsText · $cycleLabel';
+      subtitleText = '$paidText$viaText · $renewsText · $cycleLabel';
     }
 
     return CoveGroupedRow(

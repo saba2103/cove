@@ -104,6 +104,7 @@ void main() {
     db = AppDatabase(NativeDatabase.memory());
     fakeStorage = FakeSecureStorage();
     PartnerProfileNotifier.storage = fakeStorage;
+    PartnerProfileNotifier.resetCache();
     keyStore = HomeKeyStore(storage: fakeStorage);
     crypto = SodiumCryptoService();
     final localStore = LocalStateStoreImpl(db, storage: fakeStorage);
@@ -117,6 +118,7 @@ void main() {
   });
 
   tearDown(() async {
+    PartnerProfileNotifier.resetCache();
     PartnerProfileNotifier.storage = const FlutterSecureStorage();
     await db.close();
   });

@@ -1126,7 +1126,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (isEmi && subscription.financedThrough != null && subscription.financedThrough!.isNotEmpty)
+                  if (subscription.financedThrough != null && subscription.financedThrough!.trim().isNotEmpty)
                     CoveGroupedRow(
                       leading: Icon(Icons.credit_card_outlined, size: 18, color: colors.accentPrimary),
                       title: Text('Financed Through', style: typography.bodyMedium),

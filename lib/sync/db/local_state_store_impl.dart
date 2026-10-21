@@ -119,6 +119,16 @@ class LocalStateStoreImpl implements LocalStateStore {
               currency: Value(currency),
             ),
           );
+          await (db.update(db.localExpenses)..where((t) => t.homeId.equals(id))).write(
+            LocalExpensesCompanion(
+              currency: Value(currency),
+            ),
+          );
+          await (db.update(db.localSubscriptions)..where((t) => t.homeId.equals(id))).write(
+            LocalSubscriptionsCompanion(
+              currency: Value(currency),
+            ),
+          );
           break;
 
         case 'home_anniversary_updated':
@@ -324,13 +334,23 @@ class LocalStateStoreImpl implements LocalStateStore {
           final endDateStr = payload['end_date'] as String?;
           final endDate = endDateStr != null ? DateTime.tryParse(endDateStr) : null;
 
+          var currencyVal = (payload['currency'] as String?)?.trim();
+          if (currencyVal == null || currencyVal.isEmpty || currencyVal == 'USD') {
+            final home = await (db.select(db.localHomes)..where((t) => t.id.equals(homeId))).getSingleOrNull();
+            if (home != null && home.currency.isNotEmpty) {
+              currencyVal = home.currency;
+            } else {
+              currencyVal ??= 'USD';
+            }
+          }
+
           await db.into(db.localSubscriptions).insertOnConflictUpdate(
                 LocalSubscriptionsCompanion.insert(
                   id: subId,
                   homeId: homeId,
                   name: (payload['name'] as String?) ?? '',
                   amount: (payload['amount'] as num?)?.toDouble() ?? 0.0,
-                  currency: Value((payload['currency'] as String?) ?? 'USD'),
+                  currency: Value(currencyVal),
                   billingCycle:
                       Value((payload['billing_cycle'] as String?) ?? 'monthly'),
                   nextBillingDate: nextDate,
@@ -415,13 +435,23 @@ class LocalStateStoreImpl implements LocalStateStore {
             break;
           }
 
+          var currencyVal = (payload['currency'] as String?)?.trim();
+          if (currencyVal == null || currencyVal.isEmpty || currencyVal == 'USD') {
+            final home = await (db.select(db.localHomes)..where((t) => t.id.equals(homeId))).getSingleOrNull();
+            if (home != null && home.currency.isNotEmpty) {
+              currencyVal = home.currency;
+            } else {
+              currencyVal ??= 'USD';
+            }
+          }
+
           await db.into(db.localExpenses).insertOnConflictUpdate(
                 LocalExpensesCompanion.insert(
                   id: expenseId,
                   homeId: homeId,
                   title: (payload['title'] as String?) ?? '',
                   amount: (payload['amount'] as num?)?.toDouble() ?? 0.0,
-                  currency: Value((payload['currency'] as String?) ?? 'USD'),
+                  currency: Value(currencyVal),
                   paidBy: (payload['paid_by'] as String?) ?? authorId,
                   splitRatio: Value(splitRatioVal),
                   expenseDate: expenseDate,

@@ -4,6 +4,7 @@ import 'package:cove/core/widgets/cove_pill_button.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/subscriptions/commitment_models.dart';
+import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
 import 'package:cove/features/subscriptions/subscription_controller.dart';
 import 'package:cove/features/subscriptions/subscription_form_sheet.dart';
 import 'package:cove/features/subscriptions/subscriptions_screen.dart';
@@ -254,13 +255,13 @@ void main() {
       expect(find.byType(SubscriptionFormSheet), findsOneWidget);
 
       // Enter Service Name
-      final nameField = find.widgetWithText(TextField, '').first;
+      final nameField = find.byType(TextField).at(0);
       await tester.enterText(nameField, 'Spotify Duo');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
 
       // Enter Amount
-      final amountField = find.widgetWithText(TextField, '').last;
+      final amountField = find.byType(TextField).at(1);
       await tester.enterText(amountField, '16.99');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
@@ -283,12 +284,14 @@ void main() {
       expect(find.text('Spotify Duo'), findsOneWidget);
       expect(find.text('\$16.99.00'), findsNothing);
       expect(find.text('\$16.99/mo'), findsOneWidget);
-      expect(find.text('\$16.99'), findsOneWidget); // Hero total
+      expect(find.text('\$16.99'), findsWidgets); // Hero total and row
       expect(find.byType(CoveSyncTick), findsOneWidget);
     });
 
     testWidgets('STRUCTURAL PRIVACY: Adding a PRIVATE-TO-ME subscription NEVER emits to sync engine',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         ProviderScope(
           overrides: createOverrides(),
@@ -305,12 +308,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill name & amount
-      final nameField = find.widgetWithText(TextField, '').first;
+      final nameField = find.byType(TextField).at(0);
       await tester.enterText(nameField, 'Secret Book Club');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
 
-      final amountField = find.widgetWithText(TextField, '').last;
+      final amountField = find.byType(TextField).at(1);
       await tester.enterText(amountField, '25.00');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
@@ -336,14 +339,14 @@ void main() {
       expect(find.text('Private'), findsOneWidget);
       expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
 
-      // 2. Default shared hero total remains $0.00 (excluded from shared burn!)
-      expect(find.text('\$0.00'), findsOneWidget);
+      // 2. Default shared hero total remains $0 (excluded from shared burn!)
+      expect(find.text('\$0'), findsWidgets);
       expect(find.text('0 shared commitments • 1 private'), findsOneWidget);
 
       // 3. Toggle "Include private" adds it to viewed total
       await tester.tap(find.text('Include private'));
       await tester.pumpAndSettle();
-      expect(find.text('\$25.00'), findsOneWidget);
+      expect(find.text('\$25'), findsWidgets);
     });
 
     testWidgets('PARTNER VIEW: Partner NEVER receives or sees private subscription',
@@ -396,7 +399,7 @@ void main() {
 
       // Sarah sees the shared fiber internet
       expect(find.text('Home Fiber'), findsOneWidget);
-      expect(find.text('\$70.00'), findsOneWidget);
+      expect(find.text('\$70/mo'), findsOneWidget);
 
       // STRICT PRIVACY CHECK: Sarah NEVER sees the private subscription!
       expect(find.text('Surprise Anniversary Gift Box'), findsNothing);
@@ -406,6 +409,8 @@ void main() {
 
     testWidgets('Cancelling a subscription deactivates it without deleting history',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       // Seed an active shared subscription
       await db.into(db.localSubscriptions).insert(
             LocalSubscriptionsCompanion.insert(
@@ -435,7 +440,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Netflix'), findsOneWidget);
-      expect(find.text('\$15.00'), findsOneWidget);
+      expect(find.text('\$15/mo'), findsOneWidget);
 
       // Tap Netflix row to open detail bottomsheet
       await tester.tap(find.text('Netflix'));
@@ -462,8 +467,8 @@ void main() {
       expect(find.text('Paused & Completed'), findsOneWidget);
       expect(find.textContaining('Paused'), findsWidgets);
 
-      // 3. Hero total becomes $0.00 since active count is 0
-      expect(find.text('\$0.00'), findsOneWidget);
+      // 3. Hero total becomes $0 since active count is 0
+      expect(find.text('\$0'), findsWidgets);
       expect(find.text('0 shared commitments'), findsOneWidget);
     });
 
@@ -547,16 +552,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. By default, monthly view calculates monthly commitments ONLY ($10.00, not $10 + 120/12 = $20)
-      expect(find.text('\$10.00'), findsOneWidget);
+      // 1. By default, monthly view calculates monthly commitments ONLY ($10, not $10 + 120/12 = $20)
+      expect(find.text('\$10'), findsWidgets);
       expect(find.text('per month · monthly commitments only'), findsOneWidget);
 
       // 2. Switch to Annual view (tap 'Monthly' / swap button)
       await tester.tap(find.text('Monthly'));
       await tester.pumpAndSettle();
 
-      // In annual view by default, calculates annual commitments ONLY ($120.00, not $120 + 10*12 = $240)
-      expect(find.text('\$120.00'), findsOneWidget);
+      // In annual view by default, calculates annual commitments ONLY ($120, not $120 + 10*12 = $240)
+      expect(find.text('\$120'), findsWidgets);
       expect(find.text('per year · annual commitments only'), findsOneWidget);
 
       // 3. Find and turn ON the combine toggle
@@ -564,16 +569,16 @@ void main() {
       await tester.tap(find.text('Calculate monthly & annual together'));
       await tester.pumpAndSettle();
 
-      // Combined annual total: $120 + (10 * 12) = $240.00
-      expect(find.text('\$240.00'), findsOneWidget);
+      // Combined annual total: $120 + (10 * 12) = $240
+      expect(find.text('\$240'), findsWidgets);
       expect(find.text('per year · combined monthly & annual'), findsOneWidget);
 
       // 4. Switch back to Monthly view with toggle still ON
       await tester.tap(find.text('Annual'));
       await tester.pumpAndSettle();
 
-      // Combined monthly total: $10 + (120 / 12) = $20.00
-      expect(find.text('\$20.00'), findsOneWidget);
+      // Combined monthly total: $10 + (120 / 12) = $20
+      expect(find.text('\$20'), findsWidgets);
       expect(find.text('per month · combined monthly & annual'), findsOneWidget);
     });
 
@@ -618,13 +623,13 @@ void main() {
       expect(find.byType(SubscriptionFormSheet), findsOneWidget);
 
       // Enter Service Name
-      final nameField = find.widgetWithText(TextField, '').first;
+      final nameField = find.byType(TextField).at(0);
       await tester.enterText(nameField, 'WiFi 6+1 Plan');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
 
       // Enter Amount
-      final amountField = find.widgetWithText(TextField, '').last;
+      final amountField = find.byType(TextField).at(1);
       await tester.enterText(amountField, '3500');
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
@@ -652,14 +657,14 @@ void main() {
 
       // 2. Verify subscription renders in list with /7mo and Every 7 months
       expect(find.text('WiFi 6+1 Plan'), findsOneWidget);
-      expect(find.text('\$3500.00/7mo'), findsOneWidget);
+      expect(find.text('\$3,500/7mo'), findsOneWidget);
       expect(find.textContaining('Every 7 months'), findsOneWidget);
 
-      // 3. Turn on combine toggle to verify proration: 3500 / 7 = $500.00/mo
+      // 3. Turn on combine toggle to verify proration: 3500 / 7 = $500/mo
       await tester.tap(find.text('Calculate monthly & annual together'));
       await tester.pumpAndSettle();
 
-      expect(find.text('\$500.00'), findsOneWidget);
+      expect(find.text('\$500'), findsWidgets);
     });
 
     test('EMI progress formats caption as X/Y paid and honors totalInstallments & paidInstallments', () {
@@ -851,6 +856,96 @@ void main() {
       expect(payload['paid_installments'], equals(0));
     });
 
+    testWidgets('SubscriptionFormSheet creates regular subscription with financedThrough and renders in SubscriptionsScreen and CommitmentDetailSheet', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      fakeEngine.dispatchedEvents.clear();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: createOverrides(),
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => SubscriptionFormSheet.show(context),
+                  child: const Text('Open Sheet'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Sheet'));
+      await tester.pumpAndSettle();
+
+      // Enter commitment name and amount
+      await tester.enterText(find.byType(TextField).at(0), 'ChatGPT Plus');
+      await tester.enterText(find.byType(TextField).at(1), '20.00');
+
+      // Keep default 'Subscription' commitment type
+      // Enter financed through text
+      expect(find.text('FINANCED THROUGH'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).at(2), 'Amex Gold');
+      await tester.pumpAndSettle();
+
+      // Tap Save
+      final saveButton = find.widgetWithText(CovePillButton, 'Add Commitment');
+      await tester.ensureVisible(saveButton);
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+
+      // 1. Verify dispatched event payload has financed_through set and total_installments is null
+      expect(fakeEngine.dispatchedEvents.length, equals(1));
+      final payload = fakeEngine.dispatchedEvents.first['payload'] as Map<String, dynamic>;
+      expect(payload['name'], equals('ChatGPT Plus'));
+      expect(payload['amount'], equals(20.0));
+      expect(payload['financed_through'], equals('Amex Gold'));
+      expect(payload['total_installments'], isNull);
+      expect(payload['end_date'], isNull);
+
+      // 2. Open SubscriptionsScreen and verify regular subscription renders 'via Amex Gold' in subtitle
+      final createdSub = LocalSubscription(
+        id: payload['id'] as String? ?? 'sub_chatgpt',
+        homeId: 'home_1',
+        name: 'ChatGPT Plus',
+        amount: 20.0,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        nextBillingDate: DateTime.now().add(const Duration(days: 20)),
+        category: 'Software',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime.now(),
+        financedThrough: 'Amex Gold',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: createOverrides(initialSubs: [createdSub]),
+          child: MaterialApp(
+            theme: CoveTheme.darkTheme,
+            home: const SubscriptionsScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('ChatGPT Plus'), findsOneWidget);
+      expect(find.textContaining('via Amex Gold'), findsOneWidget);
+
+      // 3. Open CommitmentDetailSheet and verify Financed Through row is displayed
+      await tester.tap(find.text('ChatGPT Plus'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Financed Through'), findsOneWidget);
+      expect(find.text('Amex Gold'), findsOneWidget);
+    });
+
     testWidgets('Tapping commitment opens CommitmentDetailSheet with full details and edit button', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -893,7 +988,7 @@ void main() {
 
       // Verify CommitmentDetailSheet is displayed
       expect(find.text('EMI FINANCING'), findsOneWidget);
-      expect(find.text('\$150.00'), findsWidgets);
+      expect(find.textContaining('\$150'), findsWidgets);
       expect(find.text('Installments Progress'), findsOneWidget);
       expect(find.text('3/12 paid'), findsOneWidget);
       expect(find.text('9 remaining'), findsOneWidget);
@@ -1169,6 +1264,109 @@ void main() {
         fakeEngine.dispatchedEvents.any((e) => e['eventType'] == 'subscription_updated'),
         isTrue,
       );
+    });
+
+    test('CommitmentProjectionUtils.projectYear includes past paid months for foreclosed and completed EMIs', () {
+      // 1. Foreclosed EMI: 12 months loan, started Jan 2026, foreclosed in April 2026 (3 months paid)
+      final foreclosedEmi = LocalSubscription(
+        id: 'foreclosed_loan',
+        homeId: 'home_test',
+        name: 'MacBook Loan',
+        amount: 3000.0,
+        currency: 'INR',
+        billingCycle: 'monthly',
+        nextBillingDate: DateTime(2026, 4, 15),
+        category: 'Electronics',
+        isActive: false, // Foreclosed!
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime(2026, 1, 15),
+        endDate: DateTime(2026, 12, 15),
+        paidBy: 'user_alex',
+        financedThrough: 'HDFC',
+        totalInstallments: 12,
+        paidInstallments: 12, // Foreclosure sets paidInstallments = totalInstallments
+      );
+
+      // 2. Naturally completed EMI: 6 months loan in 2026 (Jan to June), completed
+      final completedEmi = LocalSubscription(
+        id: 'completed_loan',
+        homeId: 'home_test',
+        name: 'Phone Loan',
+        amount: 2000.0,
+        currency: 'INR',
+        billingCycle: 'monthly',
+        nextBillingDate: DateTime(2026, 7, 10), // Pushed past June 2026
+        category: 'Electronics',
+        isActive: false, // Completed
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime(2026, 1, 10),
+        endDate: DateTime(2026, 6, 10),
+        paidBy: 'user_alex',
+        financedThrough: 'Bajaj',
+        totalInstallments: 6,
+        paidInstallments: 6,
+      );
+
+      // 3. Inactive regular subscription (cancelled): should be excluded entirely
+      final cancelledSub = LocalSubscription(
+        id: 'cancelled_sub',
+        homeId: 'home_test',
+        name: 'Gym',
+        amount: 1000.0,
+        currency: 'INR',
+        billingCycle: 'monthly',
+        nextBillingDate: DateTime(2026, 3, 1),
+        category: 'Fitness',
+        isActive: false,
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime(2026, 1, 1),
+        endDate: null,
+        paidBy: 'user_alex',
+        financedThrough: null,
+        totalInstallments: null,
+        paidInstallments: null,
+      );
+
+      final projection2026 = CommitmentProjectionUtils.projectYear(
+        subscriptions: [foreclosedEmi, completedEmi, cancelledSub],
+        year: 2026,
+      );
+
+      // Months 1..3 (Jan, Feb, Mar): Both foreclosedEmi and completedEmi are active!
+      for (int m = 1; m <= 3; m++) {
+        final summary = projection2026[m]!;
+        expect(summary.emisCount, 2, reason: 'Month $m should have both EMIs');
+        expect(summary.subsCount, 0, reason: 'Cancelled subscription must not appear');
+        expect(summary.totalAmount, 5000.0);
+      }
+
+      // Months 4..6 (Apr, May, Jun): Foreclosed EMI is closed; completedEmi is still active!
+      for (int m = 4; m <= 6; m++) {
+        final summary = projection2026[m]!;
+        expect(summary.emisCount, 1, reason: 'Month $m should only have completedEmi');
+        expect(summary.items.first.subscription.id, 'completed_loan');
+        expect(summary.totalAmount, 2000.0);
+      }
+
+      // Months 7..12 (Jul..Dec): Both EMIs have ended!
+      for (int m = 7; m <= 12; m++) {
+        final summary = projection2026[m]!;
+        expect(summary.emisCount, 0, reason: 'Month $m should have 0 EMIs');
+        expect(summary.totalAmount, 0.0);
+      }
+
+      // Year 2027 projection: Neither should appear in 2027
+      final projection2027 = CommitmentProjectionUtils.projectYear(
+        subscriptions: [foreclosedEmi, completedEmi, cancelledSub],
+        year: 2027,
+      );
+      for (int m = 1; m <= 12; m++) {
+        expect(projection2027[m]!.emisCount, 0);
+        expect(projection2027[m]!.totalAmount, 0.0);
+      }
     });
   });
 }

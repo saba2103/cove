@@ -1,4 +1,3 @@
-import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/db/local_state_store_impl.dart';
 import 'package:drift/drift.dart' as drift;
@@ -262,7 +261,7 @@ void main() {
   });
 
   group('Currency Retention & Protection Tests', () {
-    test('LocalStateStore prevents remote EUR event from overriding user-selected INR', () async {
+    test('LocalStateStore updates LocalHomes.currency and cascades to expenses and subscriptions on home_currency_updated', () async {
       final db = AppDatabase(NativeDatabase.memory());
 
       final store = LocalStateStoreImpl(db);
@@ -279,10 +278,32 @@ void main() {
             ),
           );
 
-      // Set user's explicit preference to INR
-      CurrencyNotifier.cachedInitialCurrency = 'INR';
+      // Insert an existing expense and subscription for this home
+      await db.into(db.localExpenses).insert(
+            LocalExpensesCompanion.insert(
+              id: 'exp_init_1',
+              homeId: homeId,
+              title: 'Groceries',
+              amount: 500.0,
+              currency: const drift.Value('INR'),
+              paidBy: 'user_1',
+              expenseDate: DateTime.now(),
+              createdAt: DateTime.now(),
+            ),
+          );
+      await db.into(db.localSubscriptions).insert(
+            LocalSubscriptionsCompanion.insert(
+              id: 'sub_init_1',
+              homeId: homeId,
+              name: 'Netflix',
+              amount: 15.0,
+              currency: const drift.Value('INR'),
+              nextBillingDate: DateTime.now(),
+              createdAt: DateTime.now(),
+            ),
+          );
 
-      // Simulate incoming remote event with EUR (e.g. from historical Supabase event)
+      // Simulate incoming remote event with EUR
       await store.applyEvent(
         eventId: 'evt_currency_eur',
         homeId: homeId,
@@ -296,7 +317,13 @@ void main() {
       );
 
       final home = await (db.select(db.localHomes)..where((t) => t.id.equals(homeId))).getSingle();
-      expect(home.currency, 'INR'); // Kept INR!
+      expect(home.currency, 'EUR');
+
+      final expense = await (db.select(db.localExpenses)..where((t) => t.id.equals('exp_init_1'))).getSingle();
+      expect(expense.currency, 'EUR');
+
+      final sub = await (db.select(db.localSubscriptions)..where((t) => t.id.equals('sub_init_1'))).getSingle();
+      expect(sub.currency, 'EUR');
     });
   });
 }

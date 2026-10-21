@@ -138,6 +138,12 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
         await (db.update(db.localHomes)..where((t) => t.id.equals(activeHomeId))).write(
           LocalHomesCompanion(currency: drift.Value(option.code)),
         );
+        await (db.update(db.localExpenses)..where((t) => t.homeId.equals(activeHomeId))).write(
+          LocalExpensesCompanion(currency: drift.Value(option.code)),
+        );
+        await (db.update(db.localSubscriptions)..where((t) => t.homeId.equals(activeHomeId))).write(
+          LocalSubscriptionsCompanion(currency: drift.Value(option.code)),
+        );
         await _storage.write(key: '$_homeCurrencyKeyPrefix$activeHomeId', value: option.code);
       } catch (_) {}
 

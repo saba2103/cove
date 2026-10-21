@@ -382,6 +382,20 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                           fontSize: 12,
                         ),
                       ),
+                      if (item.subscription.financedThrough != null && item.subscription.financedThrough!.trim().isNotEmpty) ...[
+                        Text(
+                          ' · ',
+                          style: typography.caption.copyWith(color: colors.textSubtle),
+                        ),
+                        Text(
+                          'via ${item.subscription.financedThrough!.trim()}',
+                          style: typography.caption.copyWith(
+                            color: colors.textMuted,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],

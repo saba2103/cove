@@ -392,13 +392,30 @@ class NotificationService {
     }
   }
 
+  String? _lastTappedKey;
+  DateTime? _lastTappedAt;
+
   /// Dispatches a deep link navigation action to open the appropriate module screen.
   void onNotificationTapped(CoveNotificationPayload payload) {
+    final key = payload.eventId ?? '${payload.module.name}_${payload.eventType}_${payload.title}';
+    final now = DateTime.now();
+    if (_lastTappedKey == key &&
+        _lastTappedAt != null &&
+        now.difference(_lastTappedAt!) < const Duration(milliseconds: 1000)) {
+      debugPrint('[NotificationService] Ignoring duplicate notification tap within 1000ms for $key');
+      return;
+    }
+    _lastTappedKey = key;
+    _lastTappedAt = now;
+
     debugPrint('[NotificationService] onNotificationTapped for module: ${payload.module}, eventId: ${payload.eventId}');
     _pendingNotificationPayload = payload;
     _pendingNavigationModule = payload.module;
-    onNavigatePayload?.call(payload);
-    onNavigate?.call(payload.module);
+    if (onNavigatePayload != null) {
+      onNavigatePayload?.call(payload);
+    } else {
+      onNavigate?.call(payload.module);
+    }
     if (!_navigationPayloadStreamController.isClosed) {
       _navigationPayloadStreamController.add(payload);
     }

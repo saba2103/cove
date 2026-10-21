@@ -146,7 +146,9 @@ class CommitmentProjectionUtils {
     };
 
     for (final sub in subscriptions) {
-      if (!sub.isActive) continue;
+      // Finite commitments (EMIs) retain their past paid installments even if
+      // inactive or foreclosed. Open-ended subscriptions are excluded if inactive.
+      if (!sub.isActive && !sub.isEmi) continue;
 
       final cycleMonths = getBillingCycleMonths(sub.billingCycle);
       final isAnnual = cycleMonths == 12;
@@ -205,7 +207,62 @@ class CommitmentProjectionUtils {
     final targetMonthStart = DateTime(year, month, 1);
     final targetMonthEnd = DateTime(year, month + 1, 0);
 
-    // 1. Check end date
+    // 1. Determine the first installment month of this EMI loan
+    final DateTime startMonth;
+    if (sub.endDate != null && sub.totalInstallments != null && sub.totalInstallments! > 0) {
+      startMonth = DateTime(
+        sub.endDate!.year,
+        sub.endDate!.month - (sub.totalInstallments! - 1),
+        1,
+      );
+    } else if (sub.totalInstallments != null && sub.totalInstallments! > 0) {
+      final paid = (sub.paidInstallments ?? 0).clamp(0, sub.totalInstallments!);
+      startMonth = DateTime(
+        sub.nextBillingDate.year,
+        sub.nextBillingDate.month - paid,
+        1,
+      );
+    } else {
+      startMonth = DateTime(sub.createdAt.year, sub.createdAt.month, 1);
+    }
+
+    if (targetMonthEnd.isBefore(startMonth)) {
+      return false;
+    }
+
+    // 2. Inactive / Foreclosed / Completed EMIs:
+    // Past installments up to the foreclosure/completion cutoff month are active,
+    // but no installments are calculated on or after the cutoff month.
+    if (!sub.isActive) {
+      DateTime cutoffMonth = DateTime(
+        sub.nextBillingDate.year,
+        sub.nextBillingDate.month,
+        1,
+      );
+
+      if (sub.endDate != null) {
+        final endMonthStart = DateTime(sub.endDate!.year, sub.endDate!.month, 1);
+        final naturalCompletionCutoff = DateTime(
+          endMonthStart.year,
+          endMonthStart.month + 1,
+          1,
+        );
+        // If nextBillingDate was advanced past the original tenure end date
+        if (cutoffMonth.isAfter(naturalCompletionCutoff)) {
+          cutoffMonth = naturalCompletionCutoff;
+        }
+      }
+
+      // If target month is on or after the cutoff month, it was foreclosed / not due
+      if (!targetMonthStart.isBefore(cutoffMonth)) {
+        return false;
+      }
+
+      return true;
+    }
+
+    // 3. Active EMIs:
+    // Check end date
     if (sub.endDate != null) {
       final endMonthStart = DateTime(sub.endDate!.year, sub.endDate!.month, 1);
       if (targetMonthStart.isAfter(endMonthStart)) {
@@ -213,37 +270,30 @@ class CommitmentProjectionUtils {
       }
     }
 
-    // 2. Check total and paid installments
+    // Check tenure and installments remaining
     if (sub.totalInstallments != null && sub.totalInstallments! > 0) {
       final total = sub.totalInstallments!;
       final paid = (sub.paidInstallments ?? 0).clamp(0, total);
       final remaining = total - paid;
 
-      // Next billing date represents installment `paid + 1`
-      final nextYear = sub.nextBillingDate.year;
-      final nextMonth = sub.nextBillingDate.month;
-
-      // The last installment month
-      final lastInstallmentDate = DateTime(nextYear, nextMonth + (remaining - 1), 1);
+      final lastInstallmentDate = DateTime(
+        sub.nextBillingDate.year,
+        sub.nextBillingDate.month + (remaining - 1),
+        1,
+      );
       if (targetMonthStart.isAfter(DateTime(lastInstallmentDate.year, lastInstallmentDate.month, 1))) {
         return false;
       }
 
-      // The first installment month
-      final firstInstallmentDate = DateTime(nextYear, nextMonth - paid, 1);
+      final firstInstallmentDate = DateTime(
+        sub.nextBillingDate.year,
+        sub.nextBillingDate.month - paid,
+        1,
+      );
       if (targetMonthEnd.isBefore(firstInstallmentDate)) {
         return false;
       }
 
-      return true;
-    }
-
-    // 3. Fallback: if endDate was provided and target is on or before endDate
-    if (sub.endDate != null) {
-      final start = DateTime(sub.createdAt.year, sub.createdAt.month, 1);
-      if (targetMonthEnd.isBefore(start)) {
-        return false;
-      }
       return true;
     }
 

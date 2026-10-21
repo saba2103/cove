@@ -912,6 +912,9 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     final typography = context.typography;
     final sub = entry.subscription;
     final sym = ActivityFormatter.getCurrencySymbol(sub.currency, fallbackSymbol: defaultSymbol);
+    final viaText = (sub.financedThrough != null && sub.financedThrough!.trim().isNotEmpty)
+        ? ' · via ${sub.financedThrough!.trim()}'
+        : '';
 
     return InkWell(
       onTap: () => CommitmentDetailSheet.show(context, sub),
@@ -940,7 +943,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${sub.billingCycle} commitment',
+                  '${sub.billingCycle} commitment$viaText',
                   style: typography.caption.copyWith(
                     fontSize: 11,
                     color: colors.textSubtle,

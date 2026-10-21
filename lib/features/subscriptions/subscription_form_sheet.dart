@@ -290,7 +290,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
 
     final isEmiSelected = _endDate != null || (_totalInstallments != null && _totalInstallments! > 0);
     final financedThroughText = _financedThroughController.text.trim();
-    final effectiveFinancedThrough = (isEmiSelected && financedThroughText.isNotEmpty)
+    final effectiveFinancedThrough = financedThroughText.isNotEmpty
         ? financedThroughText
         : null;
     final effectivePaid = isEmiSelected ? _effectivePaidInstallments : null;
@@ -492,100 +492,100 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
               const SizedBox(height: 18),
 
-              // EMI Configuration Section
-              if (_endDate != null || (_totalInstallments != null && _totalInstallments! > 0)) ...[
-                // Financed Through (Card, Person, Bank, etc.)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('FINANCED THROUGH', style: typography.caption),
-                    Text(
-                      'Card, Person, or Bank',
-                      style: typography.caption.copyWith(
-                        fontSize: 11,
-                        color: colors.textMuted,
-                      ),
+              // Financed Through (Card, Person, Bank, etc.)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('FINANCED THROUGH', style: typography.caption),
+                  Text(
+                    'Card, Person, or Bank',
+                    style: typography.caption.copyWith(
+                      fontSize: 11,
+                      color: colors.textMuted,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                CovePillInput(
-                  controller: _financedThroughController,
-                  hintText: 'e.g. HDFC Regalia, Dad, Amex, Apple Card',
-                  onChanged: (val) => setState(() {}),
-                  prefixIcon: Icon(
-                    Icons.credit_card_outlined,
-                    size: 18,
-                    color: colors.textMuted,
-                  ),
-                  suffix: _financedThroughController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            _financedThroughController.clear();
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                ),
-                // Real-time suggestions of previously input text
-                if (financingSuggestions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: financingSuggestions.take(6).map((source) {
-                      final isExact = _financedThroughController.text.trim().toLowerCase() == source.toLowerCase();
-                      return InkWell(
-                        onTap: () {
-                          _financedThroughController.text = source;
-                          _financedThroughController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: source.length),
-                          );
-                          setState(() {});
-                        },
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isExact
-                                ? colors.accentPrimary.withValues(alpha: 0.2)
-                                : colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: isExact
-                                  ? colors.accentPrimary
-                                  : colors.borderHairline,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.history,
-                                size: 12,
-                                color: isExact ? colors.accentPrimary : colors.textMuted,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                source,
-                                style: TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 12,
-                                  fontWeight: isExact ? FontWeight.w600 : FontWeight.w500,
-                                  color: isExact ? colors.accentPrimary : colors.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(),
                   ),
                 ],
-                const SizedBox(height: 18),
+              ),
+              const SizedBox(height: 8),
+              CovePillInput(
+                controller: _financedThroughController,
+                hintText: 'e.g. HDFC Regalia, Dad, Amex, Apple Card',
+                onChanged: (val) => setState(() {}),
+                prefixIcon: Icon(
+                  Icons.credit_card_outlined,
+                  size: 18,
+                  color: colors.textMuted,
+                ),
+                suffix: _financedThroughController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          _financedThroughController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
+              // Real-time suggestions of previously input text
+              if (financingSuggestions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: financingSuggestions.take(6).map((source) {
+                    final isExact = _financedThroughController.text.trim().toLowerCase() == source.toLowerCase();
+                    return InkWell(
+                      onTap: () {
+                        _financedThroughController.text = source;
+                        _financedThroughController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: source.length),
+                        );
+                        setState(() {});
+                      },
+                      borderRadius: BorderRadius.circular(999),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isExact
+                              ? colors.accentPrimary.withValues(alpha: 0.2)
+                              : colors.surfaceRow,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: isExact
+                                ? colors.accentPrimary
+                                : colors.borderHairline,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.history,
+                              size: 12,
+                              color: isExact ? colors.accentPrimary : colors.textMuted,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              source,
+                              style: TextStyle(
+                                fontFamily: 'GeneralSans',
+                                fontSize: 12,
+                                fontWeight: isExact ? FontWeight.w600 : FontWeight.w500,
+                                color: isExact ? colors.accentPrimary : colors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+              const SizedBox(height: 18),
 
+              // EMI Configuration Section
+              if (_endDate != null || (_totalInstallments != null && _totalInstallments! > 0)) ...[
                 // Actual Number of Months (Tenure) & Installments Paid
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

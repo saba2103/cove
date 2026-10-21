@@ -264,13 +264,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     final colors = context.colors;
     final typography = context.typography;
 
-    ref.listen<CoveNotificationPayload?>(notificationPayloadNavigationProvider, (prev, next) {
-      if (next != null) {
-        _navigateToPayload(next);
-        ref.read(notificationPayloadNavigationProvider.notifier).navigateTo(null);
-      }
-    });
-
     ref.listen<NotificationModule?>(notificationNavigationProvider, (prev, next) {
       if (next != null) {
         _navigateToModule(next);

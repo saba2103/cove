@@ -6,7 +6,34 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ## [v1.0-alpha.1] — 2026-09-25
 
+### Fixed
+- **Prevent Duplicate Bottom Sheets on Push Notification Tap (`Oct 07, 2026`)**:
+  - *Outcome*: Tapping a push notification now opens exactly one entity detail bottom sheet (e.g. expense, commitment, list item, habit, or calendar event), eliminating stacked duplicate bottom sheets.
+  - *Under the Hood*:
+    - Removed redundant `ref.listen(notificationPayloadNavigationProvider)` in `AppShell` that was duplicating the `_navSub = notifService.onNavigateToPayload.listen` stream listener.
+    - Added an opening mutex and a 1500ms entity debounce in `NotificationDetailDispatcher.openDetailForNotification` to safely drop concurrent or rapid duplicate dispatches.
+    - Enforced `Navigator.of(context).popUntil((route) => route.isFirst)` right before presenting any notification detail sheet to ensure no previously open sheet or modal remains underneath.
+    - Debounced duplicate OS tap callbacks within 1000ms in `NotificationService.onNotificationTapped` (preventing dual triggers from `getNotificationAppLaunchDetails` and `onDidReceiveNotificationResponse`).
+    - Added automated widget test in `test/notifications_test.dart` verifying concurrent dispatches open exactly one bottom sheet.
+- **Foreclosed & Completed EMI Year Projections in Helicopter View (`Oct 07, 2026`)**:
+  - *Outcome*: Foreclosed and completed EMIs now preserve their past paid installment months in the 12-month Helicopter Year View, while correctly stopping further EMI calculations on and after the foreclosure or completion cutoff. Inactive loans no longer vanish completely from the year view as if they never existed.
+  - *Under the Hood*:
+    - In `CommitmentProjectionUtils.projectYear`, adjusted the inactive filter to only exclude open-ended subscriptions (`if (!sub.isActive && !sub.isEmi) continue;`), allowing finite commitments (EMIs) to evaluate past active months.
+    - Enhanced `_isEmiActiveInMonth` to determine the loan's initial start month via `endDate - (totalInstallments - 1)` (or `createdAt`) and the foreclosure cutoff month via `sub.nextBillingDate`.
+    - Excluded months on or after the foreclosure cutoff while keeping all months between loan start and cutoff active.
+    - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
+
 ### Added
+- **Financed Through Support for Ongoing Subscriptions (`Oct 07, 2026`)**:
+  - *Outcome*: Users can now specify and view the payment source (card, bank, or person) for ongoing subscriptions (e.g. "Amex Gold", "HDFC Regalia", "Apple Card") in addition to finite EMIs. Financing sources appear in commitment list cards, detail sheets, month breakdown sheets, calendar agenda renewal entries, and activity feeds.
+  - *Under the Hood*:
+    - In `SubscriptionFormSheet`, elevated the `FINANCED THROUGH` input field with real-time history suggestions directly below the commitment type selector so it is accessible for all commitment types.
+    - Removed `isEmiSelected` gate from `effectiveFinancedThrough` so sources are persisted and dispatched via sync for standard subscriptions.
+    - Updated `SubscriptionsScreen` subtitle builder to append `· via <source>` for regular subscriptions.
+    - Updated `CommitmentDetailSheet` to display the "Financed Through" row for any commitment with a valid source.
+    - Surfaced payment source in `MonthCommitmentsSheet` tile subtitles and `CalendarAgendaView` renewal entries.
+    - Included payment source in `ActivityFormatter` and `NotificationFormatter` event subtitles.
+    - Added full end-to-end unit and widget test coverage in `test/subscriptions_test.dart`.
 - **Home-Scoped SQLite Persistence & Cross-Device Sync (`Sep 25, 2026`)**:
   - *Outcome*: Monthly expense budgets, preferred home currency, anniversary dates, and check-in reminders now permanently persist in local SQLite and sync seamlessly across partner devices.
   - *Under the Hood*:
@@ -15,6 +42,14 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Created dedicated `LocalCheckinReminders` table (`id`, `homeId`, `hour`, `minute`, `message`, `isEnabled`, `createdAt`).
     - Added full CRUD projections in `LocalStateStoreImpl` for `home_currency_updated`, `home_anniversary_updated`, `monthly_budget_updated`, `monthly_budget_cleared`, and `checkin_reminder_*` events.
     - Updated `MonthlyBudgetNotifier`, `CurrencyNotifier`, `HomeMetadataNotifier`, and `ReminderNotifier` to stream reactively from SQLite.
+- **End-to-End Home Currency Consistency (`Sep 25, 2026`)**:
+  - *Outcome*: The active Home's currency preference (e.g. INR `₹`) is now the single authoritative source of truth across all screens, activity feeds, detail sheets, and notifications. Activity logs and undo handlers no longer default to USD `$`.
+  - *Under the Hood*:
+    - `ActivityFormatter.formatWithDb` queries `db.localHomes` by `homeId` if currency symbol is not yet loaded into memory, guaranteeing correct symbol resolution.
+    - `ActivityFormatter.getCurrencySymbol` honors `fallbackSymbol` whenever currency is USD or omitted.
+    - `PreferencesController.setCurrency` cascades new currency preference to all existing SQLite `localExpenses` and `localSubscriptions` records for the active home.
+    - `LocalStateStoreImpl` projects `home_currency_updated` events to cascade update `localExpenses` and `localSubscriptions` across devices.
+    - `ActivityEventDetailSheet` undo handlers fallback to `currencyPreferenceProvider.code` rather than hardcoded `'USD'`.
 - **Contextual Notification Deep Linking (`Sep 25, 2026`)**:
   - *Outcome*: Tapping an expense, commitment, or list push notification now opens the exact item's detail bottom sheet directly on top of the screen instead of simply navigating to the generic tab.
   - *Under the Hood*:

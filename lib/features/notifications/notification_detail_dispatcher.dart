@@ -13,6 +13,17 @@ import 'notification_models.dart';
 /// Dispatches push notification deep links directly to the corresponding
 /// entity detail bottom sheet (Expense, Commitment, List Item, Calendar Event, Habit).
 class NotificationDetailDispatcher {
+  static bool _isOpening = false;
+  static String? _lastDispatchedEntityId;
+  static DateTime? _lastDispatchedTime;
+
+  @visibleForTesting
+  static void resetState() {
+    _isOpening = false;
+    _lastDispatchedEntityId = null;
+    _lastDispatchedTime = null;
+  }
+
   static Future<void> openDetailForNotification(
     BuildContext context,
     WidgetRef ref,
@@ -62,136 +73,159 @@ class NotificationDetailDispatcher {
     // the user has already navigated to the module screen.
     if (entityId == null) return;
 
-    // Allow UI tab switch to render and settle before opening the modal sheet
-    if (delay > Duration.zero) {
-      await Future.delayed(delay);
+    final now = DateTime.now();
+    if (_isOpening && _lastDispatchedEntityId == entityId) {
+      debugPrint('[NotificationDetailDispatcher] Already opening detail for $entityId, skipping duplicate');
+      return;
     }
-    if (!context.mounted) return;
+    if (_lastDispatchedEntityId == entityId &&
+        _lastDispatchedTime != null &&
+        now.difference(_lastDispatchedTime!) < const Duration(milliseconds: 1500)) {
+      debugPrint('[NotificationDetailDispatcher] Dropping duplicate sheet open for $entityId within 1500ms');
+      return;
+    }
 
-    switch (payload.module) {
-      case NotificationModule.expenses:
-        var expense = await (db.select(db.localExpenses)
-              ..where((t) => t.id.equals(entityId)))
-            .getSingleOrNull();
+    _isOpening = true;
+    _lastDispatchedEntityId = entityId;
+    _lastDispatchedTime = now;
 
-        if (expense == null && payload.homeId.isNotEmpty) {
-          try {
-            await syncEngine.pullLatestEvents(homeId: payload.homeId);
-            expense = await (db.select(db.localExpenses)
-                  ..where((t) => t.id.equals(entityId)))
-                .getSingleOrNull();
-          } catch (_) {}
-        }
+    try {
+      // Allow UI tab switch to render and settle before opening the modal sheet
+      if (delay > Duration.zero) {
+        await Future.delayed(delay);
+      }
+      if (!context.mounted) return;
 
-        if (expense != null && context.mounted) {
-          ExpenseDetailSheet.show(context, expense);
-        }
-        break;
+      // Ensure any existing sheet is popped before opening to prevent stacking
+      Navigator.of(context).popUntil((route) => route.isFirst);
 
-      case NotificationModule.subscriptions:
-        var sub = await (db.select(db.localSubscriptions)
-              ..where((t) => t.id.equals(entityId)))
-            .getSingleOrNull();
-
-        if (sub == null && payload.homeId.isNotEmpty) {
-          try {
-            await syncEngine.pullLatestEvents(homeId: payload.homeId);
-            sub = await (db.select(db.localSubscriptions)
-                  ..where((t) => t.id.equals(entityId)))
-                .getSingleOrNull();
-          } catch (_) {}
-        }
-
-        if (sub != null && context.mounted) {
-          CommitmentDetailSheet.show(context, sub);
-        }
-        break;
-
-      case NotificationModule.lists:
-        var item = await (db.select(db.localListItems)
-              ..where((t) => t.id.equals(entityId)))
-            .getSingleOrNull();
-
-        if (item == null && payload.homeId.isNotEmpty) {
-          try {
-            await syncEngine.pullLatestEvents(homeId: payload.homeId);
-            item = await (db.select(db.localListItems)
-                  ..where((t) => t.id.equals(entityId)))
-                .getSingleOrNull();
-          } catch (_) {}
-        }
-
-        final resolvedItem = item;
-        if (resolvedItem != null && context.mounted) {
-          final list = await (db.select(db.localLists)
-                ..where((t) => t.id.equals(resolvedItem.listId)))
+      switch (payload.module) {
+        case NotificationModule.expenses:
+          var expense = await (db.select(db.localExpenses)
+                ..where((t) => t.id.equals(entityId)))
               .getSingleOrNull();
-          final listName = list?.name ??
-              rawPayload?['list_name'] as String? ??
-              'Shared List';
-          if (context.mounted) {
-            ListItemDetailSheet.show(
-              context,
-              item: resolvedItem,
-              listName: listName,
-            );
+
+          if (expense == null && payload.homeId.isNotEmpty) {
+            try {
+              await syncEngine.pullLatestEvents(homeId: payload.homeId);
+              expense = await (db.select(db.localExpenses)
+                    ..where((t) => t.id.equals(entityId)))
+                  .getSingleOrNull();
+            } catch (_) {}
           }
-        }
-        break;
 
-      case NotificationModule.calendar:
-        var event = await (db.select(db.localCalendarEvents)
-              ..where((t) => t.id.equals(entityId)))
-            .getSingleOrNull();
-
-        if (event == null && payload.homeId.isNotEmpty) {
-          try {
-            await syncEngine.pullLatestEvents(homeId: payload.homeId);
-            event = await (db.select(db.localCalendarEvents)
-                  ..where((t) => t.id.equals(entityId)))
-                .getSingleOrNull();
-          } catch (_) {}
-        }
-
-        if (event != null && context.mounted) {
-          CalendarEventFormSheet.show(context, existing: event);
-        }
-        break;
-
-      case NotificationModule.habits:
-        var habit = await (db.select(db.localHabits)
-              ..where((t) => t.id.equals(entityId)))
-            .getSingleOrNull();
-
-        if (habit == null && payload.homeId.isNotEmpty) {
-          try {
-            await syncEngine.pullLatestEvents(homeId: payload.homeId);
-            habit = await (db.select(db.localHabits)
-                  ..where((t) => t.id.equals(entityId)))
-                .getSingleOrNull();
-          } catch (_) {}
-        }
-
-        final resolvedHabit = habit;
-        if (resolvedHabit != null && context.mounted) {
-          final checkins = await (db.select(db.localHabitCheckins)
-                ..where((t) => t.habitId.equals(resolvedHabit.id)))
-              .get();
-          final currentUserId = ref.read(authProvider).value?.id;
-          if (context.mounted) {
-            HabitDetailSheet.show(
-              context,
-              habit: resolvedHabit,
-              checkins: checkins,
-              isPartnerHabit: resolvedHabit.createdBy != currentUserId,
-            );
+          if (expense != null && context.mounted) {
+            ExpenseDetailSheet.show(context, expense);
           }
-        }
-        break;
+          break;
 
-      case NotificationModule.activity:
-      case NotificationModule.home:
-        break;
+        case NotificationModule.subscriptions:
+          var sub = await (db.select(db.localSubscriptions)
+                ..where((t) => t.id.equals(entityId)))
+              .getSingleOrNull();
+
+          if (sub == null && payload.homeId.isNotEmpty) {
+            try {
+              await syncEngine.pullLatestEvents(homeId: payload.homeId);
+              sub = await (db.select(db.localSubscriptions)
+                    ..where((t) => t.id.equals(entityId)))
+                  .getSingleOrNull();
+            } catch (_) {}
+          }
+
+          if (sub != null && context.mounted) {
+            CommitmentDetailSheet.show(context, sub);
+          }
+          break;
+
+        case NotificationModule.lists:
+          var item = await (db.select(db.localListItems)
+                ..where((t) => t.id.equals(entityId)))
+              .getSingleOrNull();
+
+          if (item == null && payload.homeId.isNotEmpty) {
+            try {
+              await syncEngine.pullLatestEvents(homeId: payload.homeId);
+              item = await (db.select(db.localListItems)
+                    ..where((t) => t.id.equals(entityId)))
+                  .getSingleOrNull();
+            } catch (_) {}
+          }
+
+          final resolvedItem = item;
+          if (resolvedItem != null && context.mounted) {
+            final list = await (db.select(db.localLists)
+                  ..where((t) => t.id.equals(resolvedItem.listId)))
+                .getSingleOrNull();
+            final listName = list?.name ??
+                rawPayload?['list_name'] as String? ??
+                'Shared List';
+            if (context.mounted) {
+              ListItemDetailSheet.show(
+                context,
+                item: resolvedItem,
+                listName: listName,
+              );
+            }
+          }
+          break;
+
+        case NotificationModule.calendar:
+          var event = await (db.select(db.localCalendarEvents)
+                ..where((t) => t.id.equals(entityId)))
+              .getSingleOrNull();
+
+          if (event == null && payload.homeId.isNotEmpty) {
+            try {
+              await syncEngine.pullLatestEvents(homeId: payload.homeId);
+              event = await (db.select(db.localCalendarEvents)
+                    ..where((t) => t.id.equals(entityId)))
+                  .getSingleOrNull();
+            } catch (_) {}
+          }
+
+          if (event != null && context.mounted) {
+            CalendarEventFormSheet.show(context, existing: event);
+          }
+          break;
+
+        case NotificationModule.habits:
+          var habit = await (db.select(db.localHabits)
+                ..where((t) => t.id.equals(entityId)))
+              .getSingleOrNull();
+
+          if (habit == null && payload.homeId.isNotEmpty) {
+            try {
+              await syncEngine.pullLatestEvents(homeId: payload.homeId);
+              habit = await (db.select(db.localHabits)
+                    ..where((t) => t.id.equals(entityId)))
+                  .getSingleOrNull();
+            } catch (_) {}
+          }
+
+          final resolvedHabit = habit;
+          if (resolvedHabit != null && context.mounted) {
+            final checkins = await (db.select(db.localHabitCheckins)
+                  ..where((t) => t.habitId.equals(resolvedHabit.id)))
+                .get();
+            final currentUserId = ref.read(authProvider).value?.id;
+            if (context.mounted) {
+              HabitDetailSheet.show(
+                context,
+                habit: resolvedHabit,
+                checkins: checkins,
+                isPartnerHabit: resolvedHabit.createdBy != currentUserId,
+              );
+            }
+          }
+          break;
+
+        case NotificationModule.activity:
+        case NotificationModule.home:
+          break;
+      }
+    } finally {
+      _isOpening = false;
     }
   }
 }

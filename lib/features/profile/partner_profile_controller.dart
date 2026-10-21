@@ -46,6 +46,11 @@ class PartnerProfileNotifier extends Notifier<PartnerProfileState> {
 
   static final Set<PartnerProfileNotifier> _activeNotifiers = {};
 
+  @visibleForTesting
+  static void resetCache() {
+    _cachedProfiles.clear();
+  }
+
   @override
   PartnerProfileState build() {
     _activeNotifiers.add(this);

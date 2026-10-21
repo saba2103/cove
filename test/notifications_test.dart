@@ -888,6 +888,72 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
     });
+
+    testWidgets('Rapid duplicate calls to openDetailForNotification open exactly ONE bottom sheet', (tester) async {
+      NotificationDetailDispatcher.resetState();
+
+      await db.into(db.localExpenses).insert(
+        LocalExpensesCompanion.insert(
+          id: 'exp_double_1',
+          homeId: 'home_1',
+          title: 'Concert Tickets',
+          amount: 250.0,
+          paidBy: 'user_1',
+          expenseDate: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        buildDispatcherTestApp(
+          child: Consumer(
+            builder: (ctx, ref, _) {
+              capturedContext = ctx;
+              capturedRef = ref;
+              return const Scaffold(body: Text('Shell'));
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      const payload = CoveNotificationPayload(
+        homeId: 'home_1',
+        module: NotificationModule.expenses,
+        eventType: 'expense_logged',
+        eventId: 'exp_double_1',
+        payload: {'id': 'exp_double_1'},
+        title: 'Expenses',
+        body: 'New expense logged',
+      );
+
+      // Fire 2 concurrent dispatches simultaneously (mimicking duplicate tap/listener)
+      await Future.wait([
+        NotificationDetailDispatcher.openDetailForNotification(
+          capturedContext,
+          capturedRef,
+          payload,
+          delay: Duration.zero,
+        ),
+        NotificationDetailDispatcher.openDetailForNotification(
+          capturedContext,
+          capturedRef,
+          payload,
+          delay: Duration.zero,
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      // Exactly ONE bottom sheet must be open, NOT two!
+      expect(find.byType(ExpenseDetailSheet), findsOneWidget);
+      expect(find.text('Concert Tickets'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
   });
 
   group('ProfileScreen: Partner Notifications Preferences UI', () {

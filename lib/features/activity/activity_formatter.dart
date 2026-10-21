@@ -5,12 +5,13 @@ import 'package:intl/intl.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/db/app_database.dart';
+import '../profile/preferences_controller.dart';
 import 'activity_models.dart';
 
 class ActivityFormatter {
   static String getCurrencySymbol(String? code, {String? fallbackSymbol}) {
     if (fallbackSymbol != null && fallbackSymbol.isNotEmpty) {
-      if (code == null || code.toUpperCase() == 'USD') {
+      if (code == null || code.isEmpty || code.toUpperCase() == 'USD') {
         return fallbackSymbol;
       }
     }
@@ -48,12 +49,18 @@ class ActivityFormatter {
       payload = jsonDecode(rawEvent.payloadJson) as Map<String, dynamic>;
     } catch (_) {}
 
+    final resolvedSymbol = (preferredCurrencySymbol != null && preferredCurrencySymbol.isNotEmpty)
+        ? preferredCurrencySymbol
+        : (CurrencyNotifier.cachedInitialCurrency != null
+            ? getCurrencySymbol(CurrencyNotifier.cachedInitialCurrency)
+            : null);
+
     return formatFromPayload(
       rawEvent: rawEvent,
       payload: payload,
       currentUserId: currentUserId,
       partnerName: partnerName,
-      preferredCurrencySymbol: preferredCurrencySymbol,
+      preferredCurrencySymbol: resolvedSymbol,
     );
   }
 
@@ -69,6 +76,18 @@ class ActivityFormatter {
     try {
       payload = jsonDecode(rawEvent.payloadJson) as Map<String, dynamic>;
     } catch (_) {}
+
+    String? resolvedCurrencySymbol = preferredCurrencySymbol;
+    if (resolvedCurrencySymbol == null || resolvedCurrencySymbol.isEmpty || resolvedCurrencySymbol == '\$') {
+      try {
+        final home = await (db.select(db.localHomes)
+              ..where((t) => t.id.equals(rawEvent.homeId)))
+            .getSingleOrNull();
+        if (home != null && home.currency.isNotEmpty) {
+          resolvedCurrencySymbol = getCurrencySymbol(home.currency);
+        }
+      } catch (_) {}
+    }
 
     String? resolvedPartnerName = partnerName;
     if (resolvedPartnerName == null ||
@@ -189,7 +208,7 @@ class ActivityFormatter {
       payload: payload,
       currentUserId: currentUserId,
       partnerName: resolvedPartnerName,
-      preferredCurrencySymbol: preferredCurrencySymbol,
+      preferredCurrencySymbol: resolvedCurrencySymbol,
     );
   }
 
@@ -495,6 +514,10 @@ class ActivityFormatter {
         final amount = (payload['amount'] as num?)?.toDouble();
         final cycle = payload['billing_cycle'] ?? 'monthly';
         final sym = getCurrencySymbol(payload['currency'] as String?, fallbackSymbol: preferredCurrencySymbol);
+        final financedThrough = payload['financed_through'] as String?;
+        final viaStr = (financedThrough != null && financedThrough.trim().isNotEmpty)
+            ? ' · via ${financedThrough.trim()}'
+            : '';
         final costStr =
             amount != null ? ' ($sym${formatCoveAmount(amount)}/$cycle)' : '';
         return FormattedActivityItem(
@@ -515,13 +538,17 @@ class ActivityFormatter {
           entityId: payload['id'] as String?,
           targetTitle: name.toString(),
           detailSubtitle:
-              amount != null ? '$sym${formatCoveAmount(amount)}/$cycle' : null,
+              amount != null ? '$sym${formatCoveAmount(amount)}/$cycle$viaStr' : null,
         );
 
       case 'subscription_updated':
         final name = payload['name'] ?? 'commitment';
         final isEmi = payload['end_date'] != null;
         final kind = isEmi ? 'EMI' : 'commitment';
+        final financedThrough = payload['financed_through'] as String?;
+        final viaStr = (financedThrough != null && financedThrough.trim().isNotEmpty)
+            ? ' · via ${financedThrough.trim()}'
+            : '';
         return FormattedActivityItem(
           id: rawEvent.id,
           homeId: rawEvent.homeId,
@@ -539,7 +566,7 @@ class ActivityFormatter {
           rawPayload: payload,
           entityId: payload['id'] as String?,
           targetTitle: name.toString(),
-          detailSubtitle: '$kind updated',
+          detailSubtitle: '$kind updated$viaStr',
         );
 
       case 'subscription_cancelled':
@@ -796,12 +823,13 @@ class ActivityFormatter {
 
       case 'home_currency_updated':
         final currency = payload['currency'] as String? ?? 'USD';
+        final sym = getCurrencySymbol(currency);
         return FormattedActivityItem(
           id: rawEvent.id,
           homeId: rawEvent.homeId,
           actorId: rawEvent.actorId,
           actorName: actorName,
-          actionText: "changed home currency to '$currency'",
+          actionText: "changed home currency to '$currency ($sym)'",
           eventType: rawEvent.eventType,
           module: ActivityModule.all,
           icon: Icons.currency_exchange_rounded,

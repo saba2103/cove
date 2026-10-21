@@ -198,7 +198,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
         // --- EXPENSES ---
         case 'expense_deleted':
           final amount = (payload['amount'] as num?)?.toDouble() ?? 0.0;
-          final currency = payload['currency'] as String? ?? 'USD';
+          final currency = payload['currency'] as String? ?? ref.read(currencyPreferenceProvider).code;
           final category = payload['category'] as String?;
           final dateStr = payload['expense_date'] as String?;
           final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
@@ -232,7 +232,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
           if (entityId != null && prev != null) {
             final prevTitle = prev['title'] as String? ?? title;
             final amount = (prev['amount'] as num?)?.toDouble() ?? 0.0;
-            final currency = prev['currency'] as String? ?? 'USD';
+            final currency = prev['currency'] as String? ?? ref.read(currencyPreferenceProvider).code;
             final dateStr = prev['expense_date'] as String?;
             final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
             final paidBy = prev['paid_by'] as String? ?? 'me';

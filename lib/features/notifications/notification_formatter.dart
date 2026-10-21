@@ -266,9 +266,13 @@ class NotificationFormatter {
         final amount = (payload['amount'] as num?)?.toDouble();
         final cycle = payload['billing_cycle'] as String? ?? 'monthly';
         final currency = payload['currency'] as String?;
-        final costStr = amount != null
-            ? ' (${formatAmount(amount, currency, fallbackSymbol: preferredCurrencySymbol)} / $cycle)'
+        final financedThrough = payload['financed_through'] as String?;
+        final viaStr = (financedThrough != null && financedThrough.trim().isNotEmpty)
+            ? ' · via ${financedThrough.trim()}'
             : '';
+        final costStr = amount != null
+            ? ' (${formatAmount(amount, currency, fallbackSymbol: preferredCurrencySymbol)} / $cycle$viaStr)'
+            : (viaStr.isNotEmpty ? ' ($viaStr)' : '');
 
         return (
           title: '$name • Commitments',
@@ -313,7 +317,7 @@ class NotificationFormatter {
 
       case 'home_currency_updated': {
         final curr = payload['currency'] as String? ?? 'USD';
-        final sym = getCurrencySymbol(curr);
+        final sym = getCurrencySymbol(curr, fallbackSymbol: preferredCurrencySymbol);
         return (
           title: '$name • Home Settings',
           body: "Changed home currency to $curr ($sym)",

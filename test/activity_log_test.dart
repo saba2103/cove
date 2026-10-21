@@ -287,7 +287,7 @@ void main() {
         rawEvent: expenseEvent,
         currentUserId: userIdAlex,
       );
-      expect(formattedExpense.actionText, 'logged \$42.50 under Groceries');
+      expect(formattedExpense.actionText, 'logged \$42.5 under Groceries');
 
       final subEvent = LocalActivityEvent(
         id: 'act_4',
@@ -475,7 +475,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.textContaining('logged \$60.00'), findsOneWidget);
+      expect(find.textContaining('logged \$60'), findsOneWidget);
       expect(find.textContaining('Secret Gift'), findsOneWidget);
       expect(find.text('Private to you'), findsOneWidget);
 
@@ -489,7 +489,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.textContaining('logged \$60.00'), findsOneWidget);
+      expect(find.textContaining('logged \$60'), findsOneWidget);
       expect(find.textContaining('Secret Gift'), findsNothing);
       expect(find.text('Private to you'), findsNothing);
     });
@@ -725,6 +725,49 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
+    });
+
+    test('ActivityFormatter respects home currency preference and formats with INR symbol ₹', () async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(() => db.close());
+
+      // 1. Create a Home with INR currency
+      await db.into(db.localHomes).insert(
+        LocalHomesCompanion.insert(
+          id: 'home_inr',
+          name: 'Our INR Sanctuary',
+          currency: const drift.Value('INR'),
+          createdAt: DateTime.now(),
+          createdBy: 'user_alex',
+        ),
+      );
+
+      final expEvent = LocalActivityEvent(
+        id: 'act_inr_1',
+        homeId: 'home_inr',
+        actorId: 'user_alex',
+        eventType: 'expense_logged',
+        payloadJson: jsonEncode({
+          'id': 'exp_1',
+          'amount': 2500.0,
+          'title': 'Electricity Bill',
+          'category': 'Utilities',
+          'currency': 'USD', // even if legacy event had USD, home is INR
+        }),
+        createdAt: DateTime.now(),
+        syncStatus: 'savedLocally',
+        isPrivate: false,
+      );
+
+      // formatWithDb without preferredCurrencySymbol looks up home currency in SQLite
+      final formatted = await ActivityFormatter.formatWithDb(
+        rawEvent: expEvent,
+        currentUserId: 'user_alex',
+        db: db,
+      );
+
+      expect(formatted.actionText, contains('₹2,500'));
+      expect(formatted.actionText, isNot(contains('\$')));
     });
   });
 }
