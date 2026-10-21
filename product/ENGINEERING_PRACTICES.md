@@ -18,12 +18,13 @@ No feature, architectural refactor, or bug fix is considered **"Done"** until ev
 
 ```markdown
 - [ ] 1. Code Quality & Formatting
-      - Respects existing architecture (Calm Palette, Indian numbering via `formatCoveAmount`, Drift SQLite offline-first).
+      - Respects existing architecture (W3C DTCG token pipeline via `design/tokens.json` → `lib/core/theme/cove_tokens.dart`, Indian numbering via `formatCoveAmount`, Drift SQLite offline-first).
       - Preserves comments, documentation, and existing docstrings.
       - Scoped strictly to the active Home (`LocalHomes`).
 
-- [ ] 2. Static Analysis & Diagnostics
+- [ ] 2. Static Analysis & Design System Gates
       - `flutter analyze` passes with 0 errors and 0 warnings.
+      - `tool/check.sh` passes (`gen_tokens.dart` clean diff, `check_contrast.py`, `style_gate.dart` ratchet, `check_version.dart`).
       - No unused imports or deprecated API usage.
 
 - [ ] 3. Automated Test Verification

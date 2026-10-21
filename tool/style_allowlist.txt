@@ -1,0 +1,75 @@
+# Cove style ratchet — files still allowed raw literals, and how many.
+#
+# Generated 22 Oct 2026 against feature/v2-design-system. 66 files, 748 literals.
+# Converting a screen means DELETING its line. The number may only go down.
+# style_gate.dart fails if a file exceeds its budget AND if it comes in under one,
+# so a conversion cannot land without the line being removed or lowered.
+#
+# Not listed = converted = zero tolerance.
+
+lib/core/widgets/cove_activity_row.dart 3
+lib/core/widgets/cove_bottom_nav.dart 2
+lib/core/widgets/cove_checkbox.dart 5
+lib/core/widgets/cove_empty_state.dart 2
+lib/core/widgets/cove_error_state.dart 2
+lib/core/widgets/cove_loading.dart 1
+lib/core/widgets/cove_pill_button.dart 4
+lib/core/widgets/cove_pill_input.dart 3
+lib/core/widgets/cove_splash_screen.dart 2
+lib/core/widgets/cove_streak_badge.dart 2
+lib/core/widgets/cove_tab_row.dart 4
+lib/core/widgets/cove_toggle_switch.dart 3
+lib/core/widgets/cove_undo_toast.dart 3
+lib/core/widgets/cove_web_sidebar.dart 22
+lib/features/activity/activity_detail_sheet.dart 6
+lib/features/activity/activity_screen.dart 12
+lib/features/app_shell.dart 9
+lib/features/auth/sign_in_screen.dart 4
+lib/features/backup/drive_backup_section.dart 1
+lib/features/backup/drive_backup_sheets.dart 4
+lib/features/calendar/calendar_create_sheet.dart 8
+lib/features/calendar/calendar_event_form_sheet.dart 6
+lib/features/calendar/calendar_screen.dart 4
+lib/features/calendar/views/calendar_agenda_view.dart 33
+lib/features/calendar/views/calendar_month_view.dart 7
+lib/features/changelog/changelog_screen.dart 17
+lib/features/changelog/whats_fresh_modal.dart 18
+lib/features/changelog/widgets/changelog_preview_mockup.dart 19
+lib/features/expenses/category_detail_sheet.dart 12
+lib/features/expenses/expense_detail_sheet.dart 10
+lib/features/expenses/expense_form_sheet.dart 28
+lib/features/expenses/expenses_screen.dart 43
+lib/features/expenses/monthly_budget_sheet.dart 10
+lib/features/habits/habit_detail_sheet.dart 13
+lib/features/habits/habit_form_sheet.dart 16
+lib/features/habits/habits_screen.dart 12
+lib/features/home/about_cove_screen.dart 15
+lib/features/home/create_home_screen.dart 3
+lib/features/home/home_settings_screen.dart 4
+lib/features/home/home_switcher_sheet.dart 5
+lib/features/home/join_home_screen.dart 10
+lib/features/home/onboarding_choice_screen.dart 5
+lib/features/lists/create_list_dialog.dart 5
+lib/features/lists/list_item_detail_sheet.dart 11
+lib/features/lists/lists_screen.dart 29
+lib/features/profile/currency_selector_sheet.dart 3
+lib/features/profile/delete_data_dialog.dart 2
+lib/features/profile/edit_home_dialog.dart 4
+lib/features/profile/edit_partner_profile_dialog.dart 2
+lib/features/profile/edit_profile_dialog.dart 8
+lib/features/profile/profile_screen.dart 14
+lib/features/reminders/reminders_screen.dart 10
+lib/features/roadmap/roadmap_screen.dart 8
+lib/features/routines/routine_event_form_sheet.dart 8
+lib/features/routines/routine_form_sheet.dart 2
+lib/features/routines/routine_models.dart 9
+lib/features/routines/routine_screen.dart 8
+lib/features/subscriptions/commitment_detail_sheet.dart 41
+lib/features/subscriptions/commitments_helicopter_screen.dart 10
+lib/features/subscriptions/emi_tracker_screen.dart 40
+lib/features/subscriptions/month_commitments_sheet.dart 15
+lib/features/subscriptions/subscription_form_sheet.dart 51
+lib/features/subscriptions/subscriptions_screen.dart 28
+lib/features/today/today_screen.dart 34
+lib/features/weather/widgets/dashboard_weather_badge.dart 7
+lib/features/weather/widgets/weather_detail_sheet.dart 7

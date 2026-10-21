@@ -24,6 +24,14 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **v2 Design System Token Pipeline & Quality Gates (`Oct 22, 2026`)**:
+  - *Outcome*: Laid the foundation for the v2 design system revamp (`feature/v2-design-system-revamp`) without touching any existing screen or widget. Registered the new `PlusJakartaSans` UI typeface alongside `GeneralSans` and `BodoniModa`, added its SIL Open Font Licence (`assets/fonts/OFL.txt`), and wired deterministic token generation, WCAG contrast checks, a one-way style-literal ratchet gate, and golden test scaffolding.
+  - *Under the Hood*:
+    - Registered `PlusJakartaSans` (weights 400, 500, 600, 700) in `pubspec.yaml` and added `assets/fonts/OFL.txt`.
+    - Added W3C DTCG single source of truth [`design/tokens.json`](../design/tokens.json) and code generator [`tool/gen_tokens.dart`](../tool/gen_tokens.dart), emitting [`lib/core/theme/cove_tokens.dart`](../lib/core/theme/cove_tokens.dart) (`CoveTokens`, `CoveSpace`, `CoveSize`, `CoveRadius`, `CoveType`, `CoveMotion`, and `BuildContext.cv`).
+    - Added automated gates: [`tool/check_contrast.py`](../tool/check_contrast.py) (WCAG AA contrast verification across dark & light modes), [`tool/style_gate.dart`](../tool/style_gate.dart) + [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (ratchet enforcing zero raw `Color(...)`, `fontSize:`, or `BorderRadius.circular(...)` in converted files), [`tool/check_version.dart`](../tool/check_version.dart), and [`tool/check.sh`](../tool/check.sh).
+    - Added multi-viewport/multi-mode golden test harness [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) (`CoveWidth.cover`, `CoveWidth.phone`, `CoveWidth.wide` × dark/light) and resolved Riverpod 3 `Override` import and analyzer lints across `tool/` and `test/golden/`.
+    - Architectural pattern documented in [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md) and [`product/design_system_tokens.md`](./design_system_tokens.md).
 - **Nightly Automatic Google Drive Backup (`Oct 22, 2026`)**:
   - *Outcome*: Once Google Drive and a recovery passphrase are set up, Cove now backs itself up every night around 2:00 AM on Wi-Fi — no tapping required. Nights with no changes are skipped so the 10 kept backups stay meaningful, and if Drive access is ever lost, Settings says so plainly instead of failing silently. Time, Wi-Fi-only and on/off are adjustable under **Settings → Backup & Restore**.
   - *Under the Hood*:
