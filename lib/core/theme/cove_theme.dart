@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cove_colors.dart';
+import 'cove_tokens.dart';
 import 'cove_typography.dart';
 
 export 'cove_colors.dart';
+export 'cove_tokens.dart';
 export 'cove_typography.dart';
 
 class CoveTheme {
@@ -13,23 +15,41 @@ class CoveTheme {
   static ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final colors = isDark ? CoveColors.dark : CoveColors.light;
+    final tokens = isDark ? CoveTokens.dark : CoveTokens.light;
     final typography = CoveTypography.fromColors(colors);
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      scaffoldBackgroundColor: colors.background,
-      fontFamily: CoveTypography.generalSansFamily,
+      scaffoldBackgroundColor: tokens.surfaceCanvas,
+      fontFamily: 'PlusJakartaSans',
       colorScheme: ColorScheme(
         brightness: brightness,
-        primary: colors.accentPrimary,
-        onPrimary: isDark ? const Color(0xFF0B1F1E) : const Color(0xFFFFFFFF),
-        secondary: colors.accentSecondary,
-        onSecondary: const Color(0xFFFFFFFF),
-        error: colors.accentSecondary,
-        onError: const Color(0xFFFFFFFF),
-        surface: colors.surfaceCard,
-        onSurface: colors.textPrimary,
+        primary: tokens.accentFill,
+        onPrimary: tokens.textOnAccent,
+        secondary: tokens.statusAlert,
+        onSecondary: tokens.textOnAccent,
+        error: tokens.statusAlert,
+        onError: tokens.textOnAccent,
+        surface: tokens.surfaceCard,
+        onSurface: tokens.textPrimary,
+      ),
+      textTheme: TextTheme(
+        displayLarge: CoveType.heroFigure.copyWith(color: tokens.textPrimary),
+        displayMedium: CoveType.cardFigure.copyWith(color: tokens.textPrimary),
+        displaySmall: CoveType.title.copyWith(color: tokens.textPrimary),
+        headlineLarge: CoveType.title.copyWith(color: tokens.textPrimary),
+        headlineMedium: CoveType.title.copyWith(color: tokens.textPrimary),
+        headlineSmall: CoveType.title.copyWith(color: tokens.textPrimary),
+        titleLarge: CoveType.title.copyWith(color: tokens.textPrimary),
+        titleMedium: CoveType.rowTitle.copyWith(color: tokens.textPrimary),
+        titleSmall: CoveType.readout.copyWith(color: tokens.textSecondary),
+        bodyLarge: CoveType.body.copyWith(color: tokens.textPrimary),
+        bodyMedium: CoveType.readout.copyWith(color: tokens.textPrimary),
+        bodySmall: CoveType.rowSub.copyWith(color: tokens.textSecondary),
+        labelLarge: CoveType.rowTitle.copyWith(color: tokens.textPrimary),
+        labelMedium: CoveType.capsPage.copyWith(color: tokens.textSecondary),
+        labelSmall: CoveType.capsCard.copyWith(color: tokens.textSecondary),
       ),
       cardTheme: CardThemeData(
         color: colors.surfaceCard,
@@ -87,6 +107,7 @@ class CoveTheme {
       extensions: [
         colors,
         typography,
+        tokens,
       ],
     );
   }

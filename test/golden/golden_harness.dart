@@ -137,6 +137,6 @@ Future<void> goldenMatrix(
   }
 }
 
-/// Replace with the real factory once lib/core/theme/cove_theme.dart reads CoveTokens.
+/// Resolves the Cove theme for [b] with both [CoveTokens] and legacy [CoveColors].
 ThemeData coveThemeFor(Brightness b) =>
     b == Brightness.dark ? CoveTheme.darkTheme : CoveTheme.lightTheme;

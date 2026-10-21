@@ -29,6 +29,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Theme Serves `CoveTokens`, `CoveType`, and Token-Mapped `ColorScheme`/`TextTheme` (`Oct 22, 2026`)**:
+  - *Outcome*: `CoveTheme.darkTheme` and `CoveTheme.lightTheme` now register `CoveTokens.dark` and `CoveTokens.light` alongside the existing `CoveColors` and `CoveTypography` extensions, and map Material's `ColorScheme` and `TextTheme` directly from `CoveTokens` and `CoveType` so `context.cv` and Material defaults resolve consistently across both modes while unconverted screens continue to coexist.
+  - *Under the Hood*:
+    - Registered `CoveTokens.dark` and `CoveTokens.light` in `ThemeData.extensions` in [`lib/core/theme/cove_theme.dart`](../lib/core/theme/cove_theme.dart) and re-exported `cove_tokens.dart` without altering `CoveColors`.
+    - Mapped `ColorScheme` (`primary: tokens.accentFill`, `onPrimary: tokens.textOnAccent`, `error: tokens.statusAlert`, `surface: tokens.surfaceCard`, `onSurface: tokens.textPrimary`) and `TextTheme` (`displayLarge: CoveType.heroFigure`, `displayMedium: CoveType.cardFigure`, `titleLarge`/`headline*`/`displaySmall: CoveType.title`, `titleMedium`/`labelLarge: CoveType.rowTitle`, `titleSmall`/`bodyMedium: CoveType.readout`, `bodyLarge: CoveType.body`, `bodySmall: CoveType.rowSub`, `labelMedium: CoveType.capsPage`, `labelSmall: CoveType.capsCard`) in [`lib/core/theme/cove_theme.dart`](../lib/core/theme/cove_theme.dart).
+    - Added [`test/theme_tokens_test.dart`](../test/theme_tokens_test.dart) verifying `context.cv` resolves in both `Brightness.dark` and `Brightness.light` and matches `CoveTokens` (`surfaceCanvas`, `textPrimary`, `accentFill`).
+    - Regenerated all 84 screen goldens in `test/golden/goldens/` and verified every diff is attributable to `CoveTokens` / `CoveType`.
 - **Libre Bodoni Display Typeface with Native `₹` Glyph (`Oct 22, 2026`)**:
   - *Outcome*: Replaced the display typeface `BodoniModa` with `LibreBodoni` across all editorial titles and financial hero/card figures so the Indian Rupee symbol (`₹`, U+20B9) renders natively in the display serif rather than falling back to a system font, while preserving vertical rhythm (cap height 754 vs 750 per 1000 em).
   - *Under the Hood*:

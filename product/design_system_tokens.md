@@ -20,7 +20,7 @@ All visual primitives—colors (across `dark` and `light` modes), spacing (`spac
 * `CoveSpace`, `CoveSize`, `CoveRadius`: mode-independent `abstract final` constant classes.
 * `CoveType`: colorless `TextStyle` constants paired with `CoveTokens` colors at the use site.
 * `CoveMotion`: durations (`quick`, `sheet`), cubic easing, and reduced-motion-aware helpers (`CoveMotion.q(context)`, `CoveMotion.s(context)`).
-* `CoveTokens`: a `ThemeExtension<CoveTokens>` with `CoveTokens.dark` and `CoveTokens.light` instances, exposed via `context.cv`.
+* `CoveTokens`: a `ThemeExtension<CoveTokens>` with `CoveTokens.dark` and `CoveTokens.light` instances, exposed via `context.cv` and registered in `CoveTheme.darkTheme` / `CoveTheme.lightTheme` (`lib/core/theme/cove_theme.dart`) alongside the legacy `CoveColors` and `CoveTypography` extensions. Material's `ColorScheme` and `TextTheme` are mapped directly from `CoveTokens` and `CoveType`.
 
 `lib/core/theme/cove_tokens.dart` is committed to version control and must never be edited by hand. Running `dart run tool/gen_tokens.dart` must produce an empty `git diff`.
 
