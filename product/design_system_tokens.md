@@ -9,7 +9,7 @@ This document records the architectural pattern introduced for the v2 Design Sys
 All visual primitives—colors (across `dark` and `light` modes), spacing (`space`), sizing (`size`), corner radii (`radius`), typography (`type`), motion curves/durations (`motion`), person attribution rings/gradients (`person`), and elevations (`elevation`)—are authored in W3C Design Tokens Community Group (DTCG) format in [`design/tokens.json`](../design/tokens.json).
 
 * **UI Typeface**: `PlusJakartaSans` (weights 400, 500, 600, 700), licensed under the SIL Open Font Licence (`assets/fonts/OFL.txt`). Coexists with `GeneralSans` during incremental migration until the final screen is converted.
-* **Display Typeface**: `BodoniModa` for editorial and financial hero figures.
+* **Display Typeface**: `LibreBodoni` (weights 400, 500; SIL Open Font Licence) for editorial titles and financial hero/card figures, providing native `₹` (U+20B9) glyph coverage and matching Bodoni Moda's cap height (754 vs 750 per 1000 em).
 
 ---
 

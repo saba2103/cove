@@ -167,7 +167,7 @@ class _CoveSplashScreenState extends State<CoveSplashScreen>
                         child: Text(
                           'Cove',
                           style: TextStyle(
-                            fontFamily: 'BodoniModa',
+                            fontFamily: 'LibreBodoni',
                             fontSize: 34,
                             fontWeight: FontWeight.w500,
                             color: colors.textPrimary,

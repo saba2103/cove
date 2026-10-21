@@ -29,6 +29,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Libre Bodoni Display Typeface with Native `₹` Glyph (`Oct 22, 2026`)**:
+  - *Outcome*: Replaced the display typeface `BodoniModa` with `LibreBodoni` across all editorial titles and financial hero/card figures so the Indian Rupee symbol (`₹`, U+20B9) renders natively in the display serif rather than falling back to a system font, while preserving vertical rhythm (cap height 754 vs 750 per 1000 em).
+  - *Under the Hood*:
+    - Added `assets/fonts/LibreBodoni-Regular.ttf` (400) and `assets/fonts/LibreBodoni-Medium.ttf` (500), appended the Libre Bodoni copyright notice to `assets/fonts/OFL.txt`, registered `LibreBodoni` in `pubspec.yaml`, and removed `BodoniModa` (`assets/fonts/BodoniModa-Medium.ttf`).
+    - Updated `type.familyDisplay` in [`design/tokens.json`](../design/tokens.json) to `LibreBodoni` and regenerated [`lib/core/theme/cove_tokens.dart`](../lib/core/theme/cove_tokens.dart).
+    - Replaced all `'BodoniModa'` / `GoogleFonts.bodoniModa` references across `lib/` ([`lib/core/theme/cove_typography.dart`](../lib/core/theme/cove_typography.dart), [`lib/core/widgets/cove_splash_screen.dart`](../lib/core/widgets/cove_splash_screen.dart), [`lib/core/widgets/cove_streak_badge.dart`](../lib/core/widgets/cove_streak_badge.dart), [`lib/features/home/about_cove_screen.dart`](../lib/features/home/about_cove_screen.dart), [`lib/features/calendar/views/calendar_month_view.dart`](../lib/features/calendar/views/calendar_month_view.dart), [`lib/features/calendar/views/calendar_agenda_view.dart`](../lib/features/calendar/views/calendar_agenda_view.dart), [`lib/features/today/today_screen.dart`](../lib/features/today/today_screen.dart), [`lib/features/expenses/monthly_budget_sheet.dart`](../lib/features/expenses/monthly_budget_sheet.dart), and [`lib/features/subscriptions/emi_tracker_screen.dart`](../lib/features/subscriptions/emi_tracker_screen.dart)).
+    - Updated [`loadCoveFonts`](../test/golden/golden_harness.dart) in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) to load both `LibreBodoni` weights and regenerated all 84 baseline goldens in `test/golden/goldens/`.
 - **Material Icon Font Rendering in Golden Harness & Regenerated Baselines (`Oct 22, 2026`)**:
   - *Outcome*: All 84 baseline screen goldens now render actual Material icons instead of fallback tofu boxes, and the golden harness fails fast if `MaterialIcons-Regular.otf` cannot be resolved from the Flutter SDK.
   - *Under the Hood*:

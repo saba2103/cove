@@ -49,9 +49,9 @@ abstract final class CoveRadius {
 
 /// Text styles without colour. Pair with a CoveTokens colour at the use site.
 abstract final class CoveType {
-  static const TextStyle title = TextStyle(fontFamily: 'BodoniModa', fontSize: 28.0, fontWeight: FontWeight.w500, height: 1.2857142857142858, letterSpacing: -0.280);
-  static const TextStyle heroFigure = TextStyle(fontFamily: 'BodoniModa', fontSize: 40.0, fontWeight: FontWeight.w400, height: 1.1, letterSpacing: 0.000);
-  static const TextStyle cardFigure = TextStyle(fontFamily: 'BodoniModa', fontSize: 28.0, fontWeight: FontWeight.w400, height: 1.1428571428571428, letterSpacing: 0.000);
+  static const TextStyle title = TextStyle(fontFamily: 'LibreBodoni', fontSize: 28.0, fontWeight: FontWeight.w500, height: 1.2857142857142858, letterSpacing: -0.280);
+  static const TextStyle heroFigure = TextStyle(fontFamily: 'LibreBodoni', fontSize: 40.0, fontWeight: FontWeight.w400, height: 1.1, letterSpacing: 0.000);
+  static const TextStyle cardFigure = TextStyle(fontFamily: 'LibreBodoni', fontSize: 28.0, fontWeight: FontWeight.w400, height: 1.1428571428571428, letterSpacing: 0.000);
   static const TextStyle rowTitle = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 15.0, fontWeight: FontWeight.w500, height: 1.3333333333333333, letterSpacing: 0.000);
   static const TextStyle body = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 15.0, fontWeight: FontWeight.w400, height: 1.4666666666666666, letterSpacing: 0.000);
   static const TextStyle readout = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 14.0, fontWeight: FontWeight.w400, height: 1.2857142857142858, letterSpacing: 0.000);

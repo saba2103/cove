@@ -229,7 +229,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                             Text(
                               '${day.day}',
                               style: TextStyle(
-                                fontFamily: 'BodoniModa',
+                                fontFamily: 'LibreBodoni',
                                 fontSize: 14,
                                 fontWeight: isSelected || isToday
                                     ? FontWeight.w700

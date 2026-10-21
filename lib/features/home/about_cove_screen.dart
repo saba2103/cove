@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_card.dart';
@@ -120,7 +119,8 @@ class AboutCoveScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   homeName,
-                  style: GoogleFonts.bodoniModa(
+                  style: TextStyle(
+                    fontFamily: 'LibreBodoni',
                     fontSize: 32,
                     fontWeight: FontWeight.w600,
                     fontStyle: FontStyle.italic,
@@ -373,7 +373,8 @@ class AboutCoveScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
                 Text(
                   'A private digital sanctuary crafted exclusively for two people.',
-                  style: GoogleFonts.bodoniModa(
+                  style: TextStyle(
+                    fontFamily: 'LibreBodoni',
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
                     fontStyle: FontStyle.italic,

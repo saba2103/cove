@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/cove_theme.dart';
 
 class CoveStreakIndicator extends StatelessWidget {
@@ -23,7 +22,8 @@ class CoveStreakIndicator extends StatelessWidget {
       children: [
         Text(
           '$count',
-          style: GoogleFonts.bodoniModa(
+          style: TextStyle(
+            fontFamily: 'LibreBodoni',
             fontSize: 22,
             fontWeight: FontWeight.w500,
             color: colors.accentTint,

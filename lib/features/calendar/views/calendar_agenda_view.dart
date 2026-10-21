@@ -336,7 +336,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                   Text(
                     '${day.day}',
                     style: TextStyle(
-                      fontFamily: 'BodoniModa',
+                      fontFamily: 'LibreBodoni',
                       fontSize: 16,
                       fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
@@ -443,7 +443,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                         Text(
                           '${day.day}',
                           style: TextStyle(
-                            fontFamily: 'BodoniModa',
+                            fontFamily: 'LibreBodoni',
                             fontSize: 13,
                             fontWeight: isSelected || isToday
                                 ? FontWeight.w700
@@ -569,7 +569,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                   Text(
                     '${item.count}',
                     style: TextStyle(
-                      fontFamily: 'BodoniModa',
+                      fontFamily: 'LibreBodoni',
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                       color: isSelected
@@ -633,7 +633,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
             Text(
               '$eventsCount',
               style: const TextStyle(
-                fontFamily: 'BodoniModa',
+                fontFamily: 'LibreBodoni',
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -645,7 +645,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
             Text(
               '$completedRhythms/$totalRhythms',
               style: const TextStyle(
-                fontFamily: 'BodoniModa',
+                fontFamily: 'LibreBodoni',
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -657,7 +657,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
             Text(
               '$currencySymbol${formatCoveAmount(totalSpent)}',
               style: const TextStyle(
-                fontFamily: 'BodoniModa',
+                fontFamily: 'LibreBodoni',
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -748,7 +748,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                               Text(
                                 '${habitEntry.streak}',
                                 style: const TextStyle(
-                                  fontFamily: 'BodoniModa',
+                                  fontFamily: 'LibreBodoni',
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -834,7 +834,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                       color: colors.textSubtle,
                     )
                   : const TextStyle(
-                      fontFamily: 'BodoniModa',
+                      fontFamily: 'LibreBodoni',
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -956,7 +956,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           Text(
             '$sym${formatCoveAmount(sub.amount)}',
             style: const TextStyle(
-              fontFamily: 'BodoniModa',
+              fontFamily: 'LibreBodoni',
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -1024,7 +1024,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           Text(
             '$sym${formatCoveAmount(exp.amount)}',
             style: const TextStyle(
-              fontFamily: 'BodoniModa',
+              fontFamily: 'LibreBodoni',
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),

@@ -72,12 +72,10 @@ Future<void> loadCoveFonts() async {
       'assets/fonts/GeneralSans-Semibold.ttf',
       'assets/fonts/GeneralSans-Bold.ttf',
     ],
-    'BodoniModa': ['assets/fonts/BodoniModa-Medium.ttf'],
-    'BodoniModa_regular': ['assets/fonts/BodoniModa-Medium.ttf'],
-    'BodoniModa_italic': ['assets/fonts/BodoniModa-Medium.ttf'],
-    'BodoniModa_500': ['assets/fonts/BodoniModa-Medium.ttf'],
-    'BodoniModa_600': ['assets/fonts/BodoniModa-Medium.ttf'],
-    'BodoniModa_700': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'LibreBodoni': [
+      'assets/fonts/LibreBodoni-Regular.ttf',
+      'assets/fonts/LibreBodoni-Medium.ttf',
+    ],
   };
   for (final entry in families.entries) {
     final loader = FontLoader(entry.key);

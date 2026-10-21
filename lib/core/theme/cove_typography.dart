@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'cove_colors.dart';
 
 @immutable
@@ -23,31 +22,27 @@ class CoveTypography extends ThemeExtension<CoveTypography> {
   });
 
   static const String generalSansFamily = 'GeneralSans';
-  static const String bodoniModaFamily = 'BodoniModa';
+  static const String bodoniModaFamily = 'LibreBodoni';
 
   factory CoveTypography.fromColors(CoveColors colors) {
     return CoveTypography(
-      displayLarge: GoogleFonts.bodoniModa(
+      displayLarge: TextStyle(
+        fontFamily: bodoniModaFamily,
+        fontFamilyFallback: const ['LibreBodoni', 'serif'],
         fontSize: 36,
         fontWeight: FontWeight.w500,
         height: 1.15,
         letterSpacing: -0.5,
         color: colors.textPrimary,
-        textStyle: const TextStyle(
-          fontFamily: bodoniModaFamily,
-          fontFamilyFallback: ['BodoniModa', 'serif'],
-        ),
       ),
-      headline: GoogleFonts.bodoniModa(
+      headline: TextStyle(
+        fontFamily: bodoniModaFamily,
+        fontFamilyFallback: const ['LibreBodoni', 'serif'],
         fontSize: 26,
         fontWeight: FontWeight.w500,
         height: 1.20,
         letterSpacing: -0.3,
         color: colors.textPrimary,
-        textStyle: const TextStyle(
-          fontFamily: bodoniModaFamily,
-          fontFamilyFallback: ['BodoniModa', 'serif'],
-        ),
       ),
       title: const TextStyle(
         fontFamily: generalSansFamily,
@@ -74,16 +69,14 @@ class CoveTypography extends ThemeExtension<CoveTypography> {
         height: 1.30,
         letterSpacing: 0.2,
       ).copyWith(color: colors.textMuted),
-      largeNumber: GoogleFonts.bodoniModa(
+      largeNumber: TextStyle(
+        fontFamily: bodoniModaFamily,
+        fontFamilyFallback: const ['LibreBodoni', 'serif'],
         fontSize: 36,
         fontWeight: FontWeight.w500,
         height: 1.15,
         letterSpacing: -0.5,
         color: colors.accentTint,
-        textStyle: const TextStyle(
-          fontFamily: bodoniModaFamily,
-          fontFamilyFallback: ['BodoniModa', 'serif'],
-        ),
       ),
     );
   }

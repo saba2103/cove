@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/cove_theme.dart';
 import '../../core/utils/cove_currency_formatter.dart';
@@ -414,7 +413,8 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
           // Large Bodoni Moda Total Outstanding
           Text(
             '${currency.symbol}${formatCoveAmount(totalOutstanding)}',
-            style: GoogleFonts.bodoniModa(
+            style: TextStyle(
+              fontFamily: 'LibreBodoni',
               fontSize: 34,
               fontWeight: FontWeight.w600,
               color: colors.accentTint,

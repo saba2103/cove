@@ -133,7 +133,7 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                   Text(
                     currency.symbol,
                     style: TextStyle(
-                      fontFamily: 'BodoniModa',
+                      fontFamily: 'LibreBodoni',
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
                       color: colors.accentTint,
@@ -145,7 +145,7 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                       controller: _amountController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       style: TextStyle(
-                        fontFamily: 'BodoniModa',
+                        fontFamily: 'LibreBodoni',
                         fontSize: 28,
                         fontWeight: FontWeight.w600,
                         color: colors.textPrimary,
@@ -153,7 +153,7 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                       decoration: InputDecoration(
                         hintText: '0.00',
                         hintStyle: TextStyle(
-                          fontFamily: 'BodoniModa',
+                          fontFamily: 'LibreBodoni',
                           fontSize: 28,
                           color: colors.textSubtle,
                         ),

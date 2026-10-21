@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/cove_theme.dart';
 import '../../core/utils/cove_currency_formatter.dart';
@@ -214,7 +213,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           const SizedBox(height: 10),
           Text(
             '$greetingPrefix,',
-            style: GoogleFonts.bodoniModa(
+            style: TextStyle(
+              fontFamily: 'LibreBodoni',
               fontSize: 26,
               fontWeight: FontWeight.w400,
               fontStyle: FontStyle.italic,
@@ -244,7 +244,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 Expanded(
                   child: Text(
                     quote,
-                    style: GoogleFonts.bodoniModa(
+                    style: TextStyle(
+                      fontFamily: 'LibreBodoni',
                       fontSize: 14,
                       fontStyle: FontStyle.italic,
                       color: colors.textMuted,
@@ -358,7 +359,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: GoogleFonts.bodoniModa(
+            style: TextStyle(
+              fontFamily: 'LibreBodoni',
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: color,
@@ -841,7 +843,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         child: Text(
                           '${s.openCount}',
                           style: TextStyle(
-                            fontFamily: 'BodoniModa',
+                            fontFamily: 'LibreBodoni',
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: s.openCount > 0 ? colors.accentPrimary : colors.textSubtle,
@@ -991,7 +993,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         Text(
                           '$currencySymbol${formatCoveAmount(sharedMonthSpendTotal)}',
                           style: const TextStyle(
-                            fontFamily: 'BodoniModa',
+                            fontFamily: 'LibreBodoni',
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1110,7 +1112,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         children: [
           Text(
             'Two lives.\nOne calm rhythm.',
-            style: GoogleFonts.bodoniModa(
+            style: TextStyle(
+              fontFamily: 'LibreBodoni',
               fontSize: 24,
               fontStyle: FontStyle.italic,
               fontWeight: FontWeight.w400,
