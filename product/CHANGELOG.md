@@ -29,6 +29,12 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests in `test/subscriptions_test.dart` validating month-by-month projections for foreclosed, completed, and cancelled commitments.
 
 ### Added
+- **Baseline Multi-Viewport Screen Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Captured 84 deterministic "before" golden snapshots across all 14 Cove screens and representative sheets (3 widths: Fold cover 320dp, phone 411dp, Fold inner wide 840dp × 2 modes: dark and light) to serve as the visual baseline before the v2 design system conversion.
+  - *Under the Hood*:
+    - Wired `coveThemeFor(Brightness)` in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) to the existing `CoveTheme.darkTheme` and `CoveTheme.lightTheme` factories and registered `GeneralSans` and `BodoniModa` font families in `loadCoveFonts()` for offline deterministic glyph rendering.
+    - Added [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) covering `today_screen`, `calendar_screen`, `expenses_screen`, `subscriptions_screen`, `emi_tracker_screen`, `commitments_helicopter_screen`, `routine_screen`, `activity_screen`, `home_settings_screen`, `profile_screen`, `calendar_create_sheet`, `expense_detail_sheet`, `lists_screen`, and `habits_screen` using stubbed Riverpod providers and fixed seed data (zero database connections or network calls).
+    - Committed all 84 baseline PNGs in `test/golden/goldens/`.
 - **Drift v11 Schema Snapshot & Data-Preserving Migration Safety Gate (`Oct 22, 2026`)**:
   - *Outcome*: Captured an immutable snapshot of live production database schema v11 across all 17 household tables and locked in automated schema verification, a full 17-table data-preservation migration test, and a schema snapshot ratchet guard before any v2 changes begin.
   - *Under the Hood*:

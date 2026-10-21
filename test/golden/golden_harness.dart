@@ -7,6 +7,7 @@
 // Fonts are loaded from disk — never from the network — so goldens are identical
 // on your machine, Ancy's and CI.
 import 'dart:io';
+import 'package:cove/core/theme/cove_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,18 +24,40 @@ class CoveWidth {
 
 Future<void> loadCoveFonts() async {
   GoogleFonts.config.allowRuntimeFetching = false;
-  for (final f in const [
-    ['PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Regular.ttf'],
-    ['PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Medium.ttf'],
-    ['PlusJakartaSans', 'assets/fonts/PlusJakartaSans-SemiBold.ttf'],
-    ['PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Bold.ttf'],
-    ['BodoniModa', 'assets/fonts/BodoniModa-Medium.ttf'],
-  ]) {
-    final file = File(f[1]);
-    if (!file.existsSync()) continue;
-    final loader = FontLoader(f[0])
-      ..addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
-    await loader.load();
+  const families = <String, List<String>>{
+    'PlusJakartaSans': [
+      'assets/fonts/PlusJakartaSans-Regular.ttf',
+      'assets/fonts/PlusJakartaSans-Medium.ttf',
+      'assets/fonts/PlusJakartaSans-SemiBold.ttf',
+      'assets/fonts/PlusJakartaSans-Bold.ttf',
+    ],
+    'GeneralSans': [
+      'assets/fonts/GeneralSans-Regular.ttf',
+      'assets/fonts/GeneralSans-Medium.ttf',
+      'assets/fonts/GeneralSans-Semibold.ttf',
+      'assets/fonts/GeneralSans-Bold.ttf',
+    ],
+    'BodoniModa': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'BodoniModa_regular': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'BodoniModa_italic': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'BodoniModa_500': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'BodoniModa_600': ['assets/fonts/BodoniModa-Medium.ttf'],
+    'BodoniModa_700': ['assets/fonts/BodoniModa-Medium.ttf'],
+  };
+  for (final entry in families.entries) {
+    final loader = FontLoader(entry.key);
+    var hasAny = false;
+    for (final path in entry.value) {
+      final file = File(path);
+      if (!file.existsSync()) continue;
+      hasAny = true;
+      loader.addFont(
+        Future.value(ByteData.sublistView(file.readAsBytesSync())),
+      );
+    }
+    if (hasAny) {
+      await loader.load();
+    }
   }
 }
 
@@ -82,5 +105,5 @@ Future<void> goldenMatrix(
 }
 
 /// Replace with the real factory once lib/core/theme/cove_theme.dart reads CoveTokens.
-ThemeData coveThemeFor(Brightness b) => throw UnimplementedError(
-    'Wire this to cove_theme.dart in Phase 1, step 3.');
+ThemeData coveThemeFor(Brightness b) =>
+    b == Brightness.dark ? CoveTheme.darkTheme : CoveTheme.lightTheme;
