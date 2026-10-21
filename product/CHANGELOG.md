@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v1.0-alpha.1] — 2026-09-25
 
 ### Fixed
+- **Two-Decimal Precision for Non-Integer Currency Amounts (`Oct 22, 2026`)**:
+  - *Outcome*: Currency amounts with non-zero paise/cents now always display two decimal places (e.g. `₹42.50` and `₹12,34,567.50` instead of `₹42.5`), while whole-number amounts continue to omit `.00` cleanly (e.g. `₹42`).
+  - *Under the Hood*:
+    - Updated `_coveDecimalAmountFormat` in [`lib/core/utils/cove_currency_formatter.dart`](../lib/core/utils/cove_currency_formatter.dart) from `NumberFormat('#,##,##0.##', 'en_IN')` to `NumberFormat('#,##,##0.00', 'en_IN')`, keeping `_coveIntegerAmountFormat` and the `roundedCents % 100 == 0` branch intact.
+    - Restored the `$42.50` expectation in [`test/expenses_test.dart`](../test/expenses_test.dart) and added unit tests in [`test/user_requests_batch_test.dart`](../test/user_requests_batch_test.dart) covering `42.5 -> "42.50"`, `42.57 -> "42.57"`, `42.0 -> "42"`, `0 -> "0"`, `1234567.5 -> "12,34,567.50"`, and `0.005 -> "0.01"`.
 - **Prevent Duplicate Bottom Sheets on Push Notification Tap (`Oct 07, 2026`)**:
   - *Outcome*: Tapping a push notification now opens exactly one entity detail bottom sheet (e.g. expense, commitment, list item, habit, or calendar event), eliminating stacked duplicate bottom sheets.
   - *Under the Hood*:

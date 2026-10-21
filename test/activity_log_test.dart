@@ -287,7 +287,7 @@ void main() {
         rawEvent: expenseEvent,
         currentUserId: userIdAlex,
       );
-      expect(formattedExpense.actionText, 'logged \$42.5 under Groceries');
+      expect(formattedExpense.actionText, 'logged \$42.50 under Groceries');
 
       final subEvent = LocalActivityEvent(
         id: 'act_4',

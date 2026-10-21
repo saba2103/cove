@@ -215,12 +215,20 @@ void main() {
       expect(formatCoveAmount(0), equals('0'));
       expect(formatCoveAmount(0.00), equals('0'));
 
-      // Non-zero decimals: show up to 2 decimal places
+      // Non-zero decimals: always show 2 decimal places
       expect(formatCoveAmount(1234567.89), equals('12,34,567.89'));
-      expect(formatCoveAmount(12.5), equals('12.5'));
-      expect(formatCoveAmount(12.50), equals('12.5'));
+      expect(formatCoveAmount(12.5), equals('12.50'));
+      expect(formatCoveAmount(12.50), equals('12.50'));
       expect(formatCoveAmount(100.25), equals('100.25'));
       expect(formatCoveAmount(100 / 3), equals('33.33')); // 33.333333333333336 rounded to 2 places
+
+      // Explicit boundary & rounding cases
+      expect(formatCoveAmount(42.5), equals('42.50'));
+      expect(formatCoveAmount(42.57), equals('42.57'));
+      expect(formatCoveAmount(42.0), equals('42'));
+      expect(formatCoveAmount(0), equals('0'));
+      expect(formatCoveAmount(1234567.5), equals('12,34,567.50'));
+      expect(formatCoveAmount(0.005), equals('0.01'));
     });
   });
 

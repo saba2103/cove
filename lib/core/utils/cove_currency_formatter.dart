@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 
 /// Centralized Indian numbering system formatter (e.g. 1,00,00,000 format).
-final NumberFormat _coveDecimalAmountFormat = NumberFormat('#,##,##0.##', 'en_IN');
+final NumberFormat _coveDecimalAmountFormat = NumberFormat('#,##,##0.00', 'en_IN');
 final NumberFormat _coveIntegerAmountFormat = NumberFormat('#,##,##0', 'en_IN');
 
 /// Formats a numeric amount string using the 1,00,00,000 Indian comma pattern.

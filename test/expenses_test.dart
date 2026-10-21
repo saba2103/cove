@@ -282,7 +282,7 @@ void main() {
 
       // 2. Verify hero total & row in ExpensesScreen
       expect(find.text('Farmers Market Produce'), findsOneWidget);
-      expect(find.text('\$42.5'), findsWidgets);
+      expect(find.text('\$42.50'), findsWidgets);
       expect(find.byType(CoveSyncTick), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
