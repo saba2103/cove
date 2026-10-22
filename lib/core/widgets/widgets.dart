@@ -1,5 +1,6 @@
 export 'cove_activity_row.dart';
 export 'cove_actor_avatar.dart';
+export 'cove_avatar.dart';
 export 'cove_bottom_nav.dart';
 export 'cove_brand_mark.dart';
 export 'cove_card.dart';

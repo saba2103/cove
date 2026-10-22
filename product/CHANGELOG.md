@@ -19,6 +19,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
 
 ### Added
+- **`CoveAvatar` Primitive & Multi-Rung Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Built [`CoveAvatar`](../lib/core/widgets/cove_avatar.dart) across all four size rungs (`inline` 24, `row` 28, `header` 32, `profile` 64) and three household attribution states (`CovePerson.a` creator, `CovePerson.b` joiner, and `CovePerson.both` unfilled `1.5 dp` gradient ring with `&`), keyed strictly to `home.createdBy` with Libre Bodoni `w500` initials at `0.44 × diameter`.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_avatar.dart`](../lib/core/widgets/cove_avatar.dart) (exported via [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) using `context.cv` (`personA`/`personALabel`, `personB`/`personBLabel`, `personBothRing`/`personBothLabel`), `CoveSize`, `CoveType.title`, and a custom `_GradientRingPainter` for the unfilled `both` ring.
+    - Added [`test/golden/avatar_golden_test.dart`](../test/golden/avatar_golden_test.dart) and generated all 6 `avatar.{cover,phone,wide}.{dark,light}.png` goldens.
 - **`CoveRoundButton` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
   - *Outcome*: Built [`CoveRoundButton`](../lib/core/widgets/cove_round_button.dart) for all circular header, back, add, sheet-close, and inline stepper actions, with a `40 dp` drawn circle (`CoveSize.buttonRound`) inside an invisible `48 dp` tap target (`CoveSize.hit`), `gold` and `ghost` variants, `accent.wash` press overlay (`CoveMotion.q`), and a `24 dp` `.stepper` sibling.
   - *Under the Hood*:
