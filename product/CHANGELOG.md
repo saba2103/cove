@@ -19,6 +19,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
 
 ### Added
+- **`CovePageHeader` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Built [`CovePageHeader`](../lib/core/widgets/cove_page_header.dart) (and the `28 dp` [`CoveHeaderPill`](../lib/core/widgets/cove_page_header.dart) EMI `"What if…"` exception) with a `56 dp` minimum height (`20 dp` top padding + `36 dp` `CoveType.title` line box) that grows cleanly when multi-word titles wrap, `CoveSpace.gutter` horizontal padding, baseline-aligned `CoveType.readout` in `text.tertiary` separated by `CoveSpace.md`, and leading/trailing [`CoveRoundButton`](../lib/core/widgets/cove_round_button.dart) slots whose `40 dp` drawn circles sit flush to the gutter while preserving their `48 dp` hit targets.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_page_header.dart`](../lib/core/widgets/cove_page_header.dart) (exported via [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) reading `context.cv`, `CoveType`, `CoveSpace`, `CoveSize`, `CoveRadius`, and `CoveMotion.q(context)` with zero raw style literals or `Brightness` branches.
+    - Added [`test/golden/page_header_golden_test.dart`](../test/golden/page_header_golden_test.dart) and generated all 6 `page_header.{cover,phone,wide}.{dark,light}.png` goldens plus geometry and alphabetic-baseline assertions.
 - **`CoveAvatar` Primitive & Multi-Rung Goldens (`Oct 22, 2026`)**:
   - *Outcome*: Built [`CoveAvatar`](../lib/core/widgets/cove_avatar.dart) across all four size rungs (`inline` 24, `row` 28, `header` 32, `profile` 64) and three household attribution states (`CovePerson.a` creator, `CovePerson.b` joiner, and `CovePerson.both` unfilled `1.5 dp` gradient ring with `&`), keyed strictly to `home.createdBy` with Libre Bodoni `w500` initials at `0.44 × diameter`.
   - *Under the Hood*:
