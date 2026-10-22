@@ -22,6 +22,7 @@ export 'cove_splash_screen.dart';
 export 'cove_streak_badge.dart';
 export 'cove_sync_tick.dart';
 export 'cove_tab_row.dart';
+export 'cove_toast.dart';
 export 'cove_toggle_switch.dart';
 export 'cove_undo_toast.dart';
 export 'cove_web_sidebar.dart';
