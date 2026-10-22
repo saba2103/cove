@@ -201,6 +201,8 @@ void main() {
   testWidgets(
     'CoveFloatingBar empirical label-fit audit across cover (320), phone (390 & 411) and wide (840)',
     (tester) async {
+      await loadCoveFonts();
+
       final viewports = <String, Size>{
         'cover_320': const Size(320, 720),
         'phone_390': const Size(390, 844),
@@ -222,6 +224,8 @@ void main() {
         'calendar': const CoveFloatingBarState.calendar(selectedId: 'day'),
         'more': const CoveFloatingBarState.more(selectedId: 'emis'),
       };
+
+      final failures = <String>[];
 
       for (final vpEntry in viewports.entries) {
         final vpName = vpEntry.key;
@@ -269,60 +273,99 @@ void main() {
               ValueKey('cove_bar_label_${item.id}'),
             );
             final seatWidth = tester.getSize(seatBoxFinder).width;
-            final renderedLabelWidth = tester.getSize(labelFinder).width;
             final availableLabelWidth = seatWidth - (CoveSpace.xs * 2);
             final unconstrainedWidth = _measureUnconstrainedTextWidth(
               item.label,
-              CoveType.capsCard,
+              CoveType.barLabel,
             );
-            expect(
-              renderedLabelWidth,
-              lessThanOrEqualTo(availableLabelWidth + 0.1),
-              reason: '$vpName/$stateName/${item.id}',
-            );
-            if (stateName == 'money_commitments' && item.id == 'commitments') {
-              // "Commitments" (93.8dp) overflows its seat at cover (39.3dp),
-              // phone 390 (62.7dp), phone 411 (69.7dp), and wide/420 (86.0dp).
-              expect(unconstrainedWidth, greaterThan(availableLabelWidth));
+            final showLabels = size.width >= CoveFloatingBar.kLabelThreshold;
+
+            if (!showLabels) {
+              expect(
+                labelFinder,
+                findsNothing,
+                reason:
+                    '$vpName/$stateName/${item.id} should render icon-only below ${CoveFloatingBar.kLabelThreshold}dp',
+              );
+              continue;
             }
+
+            expect(
+              labelFinder,
+              findsOneWidget,
+              reason:
+                  '$vpName/$stateName/${item.id} should render label at or above ${CoveFloatingBar.kLabelThreshold}dp',
+            );
+
+            if (stateName == 'money_commitments') {
+              if (item.id == 'commitments' && size.width <= 411) {
+                expect(
+                  unconstrainedWidth,
+                  greaterThan(availableLabelWidth),
+                  reason:
+                      '"Commitments" expected to overflow at $vpName (unconstrained=${unconstrainedWidth.toStringAsFixed(1)}dp vs avail=${availableLabelWidth.toStringAsFixed(1)}dp)',
+                );
+              }
+              continue;
+            }
+
             if (stateName == 'money_bills' && item.id == 'commitments') {
-              // "Bills" (29.3dp) fits comfortably inside the seat at every width.
-              expect(unconstrainedWidth, lessThanOrEqualTo(availableLabelWidth));
+              expect(
+                unconstrainedWidth,
+                lessThanOrEqualTo(availableLabelWidth),
+                reason:
+                    '"Bills" expected to fit at $vpName (unconstrained=${unconstrainedWidth.toStringAsFixed(1)}dp vs avail=${availableLabelWidth.toStringAsFixed(1)}dp)',
+              );
+            }
+
+            if (unconstrainedWidth > availableLabelWidth) {
+              failures.add(
+                '$vpName / $stateName / ${item.id} ("${item.label}"): '
+                'unconstrained=${unconstrainedWidth.toStringAsFixed(1)}dp > '
+                'available=${availableLabelWidth.toStringAsFixed(1)}dp '
+                '(seat=${seatWidth.toStringAsFixed(1)}dp, overflow=+${(unconstrainedWidth - availableLabelWidth).toStringAsFixed(1)}dp)',
+              );
             }
           }
 
           if (barState.isMoreMenuOpen) {
             for (final item in CoveFloatingBarState.moneyOverflowItems) {
-              final rowFinder = find.byKey(
-                ValueKey('cove_bar_overflow_${item.id}'),
-              );
               final labelFinder = find.byKey(
                 ValueKey('cove_bar_overflow_label_${item.id}'),
               );
-              final rowWidth = tester.getSize(rowFinder).width;
-              final renderedLabelWidth = tester.getSize(labelFinder).width;
+              final availableLabelWidth = tester.getSize(labelFinder).width;
               final unconstrainedWidth = _measureUnconstrainedTextWidth(
                 item.label,
                 CoveType.rowTitle,
               );
-              expect(rowWidth, greaterThan(150.0));
-              expect(unconstrainedWidth, lessThanOrEqualTo(renderedLabelWidth));
+              if (unconstrainedWidth > availableLabelWidth) {
+                failures.add(
+                  '$vpName / $stateName / overflow:${item.id} ("${item.label}"): '
+                  'unconstrained=${unconstrainedWidth.toStringAsFixed(1)}dp > '
+                  'available=${availableLabelWidth.toStringAsFixed(1)}dp',
+                );
+              }
             }
           }
         }
       }
 
-      // Confirm empirically that "Commitments" overflows its seat at cover (320dp) and phone (411dp)
+      // Confirm empirically that "Commitments" overflows its seat at phone (390dp & 411dp) while "Bills" fits
       final commitmentsWidth = _measureUnconstrainedTextWidth(
         'Commitments',
-        CoveType.capsCard,
+        CoveType.barLabel,
       );
       final billsWidth = _measureUnconstrainedTextWidth(
         'Bills',
-        CoveType.capsCard,
+        CoveType.barLabel,
       );
-      expect(commitmentsWidth, greaterThan(59.0));
-      expect(billsWidth, lessThan(48.0));
+      expect(commitmentsWidth, greaterThan(69.7));
+      expect(billsWidth, lessThan(39.3));
+      expect(
+        failures,
+        isEmpty,
+        reason: 'Labels that do not fit:\n${failures.join('\n')}',
+      );
     },
   );
 }

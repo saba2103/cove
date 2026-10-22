@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Fixed
+- **`CoveFloatingBar` `CoveType.barLabel` Role, `< 360dp` Icon-Only Threshold & Unconstrained Label-Fit Audit (`Oct 23, 2026`)**:
+  - *Outcome*: Added `CoveType.barLabel` (`11 sp` / `w600` / `lineHeight 14` / `letterSpacing 0`, `PlusJakartaSans`) to [`design/tokens.json`](../design/tokens.json) so mixed-case bar labels no longer inherit `CoveType.capsCard`'s `1.54 dp` uppercase tracking, added a `360 dp` viewport width threshold below which [`CoveFloatingBar`](../lib/core/widgets/cove_floating_bar.dart) renders icons only across all states, updated [`design/specs/09-floating-bar.md`](../design/specs/09-floating-bar.md) with the exact `320 dp` seat arithmetic (`47.3 dp` seat / `39.3 dp` label), and rewrote the label-fit audit in [`test/golden/floating_bar_golden_test.dart`](../test/golden/floating_bar_golden_test.dart) to assert unconstrained text width against available width across `320`, `390`, `411`, and `840 dp`.
+  - *Under the Hood*:
+    - Added `barLabel` under `type` in [`design/tokens.json`](../design/tokens.json) and regenerated [`lib/core/theme/cove_tokens.dart`](../lib/core/theme/cove_tokens.dart) via `dart run tool/gen_tokens.dart`.
+    - Updated [`lib/core/widgets/cove_floating_bar.dart`](../lib/core/widgets/cove_floating_bar.dart), [`design/specs/09-floating-bar.md`](../design/specs/09-floating-bar.md), [`test/golden/floating_bar_golden_test.dart`](../test/golden/floating_bar_golden_test.dart), and regenerated the 30 `floating_bar_{rest,money,tasks,calendar,more}.{cover,phone,wide}.{dark,light}.png` goldens.
 - **`CoveRoundButton` Gold Variant Pressed-State Darkening (`Oct 22, 2026`)**:
   - *Outcome*: Corrected the gold variant's press overlay in [`design/specs/04-round-button.md`](../design/specs/04-round-button.md) and [`lib/core/widgets/cove_round_button.dart`](../lib/core/widgets/cove_round_button.dart) so pressing the primary gold button visibly darkens the circle in both dark (`RGB(216, 185, 140)` → `RGB(190, 163, 123)`) and light (`RGB(169, 124, 79)` → `RGB(149, 109, 70)`) modes instead of laying `accent.wash` over `accent.fill`.
   - *Under the Hood*:

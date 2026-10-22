@@ -56,6 +56,8 @@ abstract final class CoveType {
   static const TextStyle body = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 15.0, fontWeight: FontWeight.w400, height: 1.4666666666666666, letterSpacing: 0.000);
   static const TextStyle readout = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 14.0, fontWeight: FontWeight.w400, height: 1.2857142857142858, letterSpacing: 0.000);
   static const TextStyle rowSub = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 12.0, fontWeight: FontWeight.w400, height: 1.3333333333333333, letterSpacing: 0.000);
+  /// Floating bar seat label — mixed-case, zero tracking.
+  static const TextStyle barLabel = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 11.0, fontWeight: FontWeight.w600, height: 1.2727272727272727, letterSpacing: 0.000);
   /// A section label on the page.
   static const TextStyle capsPage = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 12.0, fontWeight: FontWeight.w700, height: 1.3333333333333333, letterSpacing: 1.800);
   /// A label inside a card or object. Nothing in the app is smaller.
