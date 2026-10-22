@@ -113,6 +113,59 @@ void main() {
         (card1Rect.left + card2Rect.right) / 2,
         closeTo(screenRect.center.dx, 0.01),
       );
+
+      // 4. Below CoveSize.compactThreshold (360dp), at cover (320dp), renders as a single column
+      tester.view
+        ..physicalSize = CoveWidth.cover * 2
+        ..devicePixelRatio = 2.0;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: CoveWidth.cover,
+            textScaler: TextScaler.linear(1.0),
+          ),
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: coveThemeFor(Brightness.dark),
+            home: const _MetricCardShowcase(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final coverCard1 = tester.getRect(
+        find.byKey(const ValueKey('card_monthly')),
+      );
+      final coverCard2 = tester.getRect(
+        find.byKey(const ValueKey('card_due_soon')),
+      );
+      expect(coverCard1.width, closeTo(280.0, 0.01));
+      expect(coverCard2.width, closeTo(280.0, 0.01));
+      expect(coverCard2.top - coverCard1.bottom, closeTo(CoveSpace.md, 0.01));
+
+      // Measure candidate figures against the 254dp inner content width at 320dp
+      const innerWidth320 =
+          280.0 - (CoveSpace.md * 2) - (CoveMetricCard.kBorderWidth * 2);
+      expect(innerWidth320, equals(254.0));
+      for (final sample in [
+        '₹85,000',
+        '₹9,99,999.99',
+        '₹99,99,999.99',
+        '₹9,99,99,999.99',
+        '₹99,99,99,999.99',
+        '₹9,99,99,99,999.99',
+      ]) {
+        final tp = TextPainter(
+          text: TextSpan(text: sample, style: CoveType.cardFigure),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout();
+        expect(
+          tp.width,
+          lessThanOrEqualTo(innerWidth320),
+          reason: '$sample (${tp.width.toStringAsFixed(1)}dp) should fit in 254dp at 320dp',
+        );
+      }
     },
   );
 }

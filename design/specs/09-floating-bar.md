@@ -14,7 +14,7 @@ The navigation. Floats above the content rather than sitting in a well.
 | Seat | pill, `CoveSpace.sm` vertical / `CoveSpace.xs` horizontal padding, `CoveSpace.xs` icon→label gap |
 | Seat, selected | `accent.wash` fill, `accent.text` icon and label |
 | Icon | 20 `(literal)` · Label `CoveType.barLabel` (11sp / w600 / lineHeight 14 / letterSpacing 0) |
-| Label threshold | 360dp `(literal)` — below 360dp viewport width the bar renders icons only (no seat labels) in every state |
+| Label threshold | `CoveSize.compactThreshold` (360dp) — below 360dp viewport width the bar renders icons only (no seat labels) in every state |
 | Centre orb | 56 `(literal)`, `accent.fill`, `text.onAccent` |
 
 ## Structure

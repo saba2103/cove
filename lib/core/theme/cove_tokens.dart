@@ -31,6 +31,8 @@ abstract final class CoveSize {
   static const double avatarRow = 28.0;
   static const double avatarHeader = 32.0;
   static const double avatarProfile = 64.0;
+  /// Viewport width below which the floating bar renders icons only and the metric grid collapses to a single column.
+  static const double compactThreshold = 360.0;
   /// Page content never exceeds this; centred on anything wider - the Fold's inner screen, tablets, web.
   static const double maxContent = 420.0;
 }

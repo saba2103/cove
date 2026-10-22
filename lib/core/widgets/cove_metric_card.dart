@@ -103,11 +103,14 @@ class CoveMetricCard extends StatelessWidget {
   }
 }
 
-/// Two-per-row metric card grid (`design/specs/06-metric-card.md`).
+/// Metric card grid (`design/specs/06-metric-card.md`).
 ///
-/// Places up to two [CoveMetricCard] tiles per row with [CoveSpace.md] (`12dp`)
-/// horizontal and vertical gaps. At [CoveSize.maxContent] (`420dp`) and above,
-/// the grid does not grow past two columns — it constrains and centres.
+/// Below [CoveSize.compactThreshold] (`360dp`), renders as a single column with
+/// [CoveSpace.md] (`12dp`) vertical gaps so `28sp` Libre Bodoni figures never
+/// wrap mid-number at `320dp` (`cover`). At [CoveSize.compactThreshold] and
+/// above, places up to two [CoveMetricCard] tiles per row with [CoveSpace.md]
+/// (`12dp`) horizontal and vertical gaps, constrained to [CoveSize.maxContent]
+/// (`420dp`) and centred.
 class CoveMetricGrid extends StatelessWidget {
   final List<Widget> children;
 
@@ -118,27 +121,39 @@ class CoveMetricGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSingleColumn =
+        MediaQuery.sizeOf(context).width < CoveSize.compactThreshold;
     final rows = <Widget>[];
-    for (var i = 0; i < children.length; i += 2) {
-      if (i > 0) {
-        rows.add(const SizedBox(height: CoveSpace.md));
+
+    if (isSingleColumn) {
+      for (var i = 0; i < children.length; i++) {
+        if (i > 0) {
+          rows.add(const SizedBox(height: CoveSpace.md));
+        }
+        rows.add(children[i]);
       }
-      final first = children[i];
-      final second = i + 1 < children.length ? children[i + 1] : null;
-      rows.add(
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: first),
-              if (second != null) ...[
-                const SizedBox(width: CoveSpace.md),
-                Expanded(child: second),
+    } else {
+      for (var i = 0; i < children.length; i += 2) {
+        if (i > 0) {
+          rows.add(const SizedBox(height: CoveSpace.md));
+        }
+        final first = children[i];
+        final second = i + 1 < children.length ? children[i + 1] : null;
+        rows.add(
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: first),
+                if (second != null) ...[
+                  const SizedBox(width: CoveSpace.md),
+                  Expanded(child: second),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     return Center(

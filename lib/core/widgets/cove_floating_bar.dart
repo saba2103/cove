@@ -203,7 +203,7 @@ class CoveFloatingBarState {
 ///   horizontal padding, [CoveSpace.xs] (`4dp`) icon→label gap
 /// - Selected seat: `accent.wash` fill, `accent.text` icon and label
 /// - Icon: `20` `(literal)` · Label [CoveType.barLabel]
-/// - Below `360dp` `(literal)` viewport width: icons only, no seat labels
+/// - Below [CoveSize.compactThreshold] (`360dp`) viewport width: icons only, no seat labels
 /// - Centre orb: `56` `(literal)`, `accent.fill`, `text.onAccent`
 class CoveFloatingBar extends StatelessWidget {
   final CoveFloatingBarState state;
@@ -214,7 +214,7 @@ class CoveFloatingBar extends StatelessWidget {
   static const double kHeight = 56.0; // (literal) per 09-floating-bar.md
   static const double kIconSize = 20.0; // (literal) per 09-floating-bar.md
   static const double kOrbSize = 56.0; // (literal) per 09-floating-bar.md
-  static const double kLabelThreshold = 360.0; // (literal) per 09-floating-bar.md
+  static const double kLabelThreshold = CoveSize.compactThreshold; // 360dp per 09-floating-bar.md
   static const double _kSurfaceAlpha = 0.92; // (literal) 92% per 09-floating-bar.md
   static const double _kBlurSigma = 16.0; // (literal) backdrop blur sigma
   static const double _kBorderWidth = 1.0; // (literal) 1dp hairline border
