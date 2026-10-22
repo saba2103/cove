@@ -221,7 +221,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Activity'), findsOneWidget);
       expect(find.byType(CoveEmptyState), findsOneWidget);
       expect(find.text('No activity yet'), findsOneWidget);
       expect(
@@ -403,6 +403,8 @@ void main() {
       expect(find.textContaining("Netflix"), findsOneWidget);
 
       // Tap 'Expenses' filter pill
+      await tester.ensureVisible(find.text('Expenses'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Expenses'));
       await tester.pump();
 
@@ -412,6 +414,8 @@ void main() {
       expect(find.textContaining("Netflix"), findsNothing);
 
       // Tap 'Commitments' filter pill
+      await tester.ensureVisible(find.text('Commitments'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Commitments'));
       await tester.pump();
 
@@ -419,6 +423,8 @@ void main() {
       expect(find.textContaining("logged \$35.00"), findsNothing);
 
       // Tap 'Calendar' filter pill (empty)
+      await tester.ensureVisible(find.text('Calendar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Calendar'));
       await tester.pump();
 
@@ -720,8 +726,8 @@ void main() {
       expect(find.textContaining('added an item'), findsOneWidget);
       expect(find.textContaining('logged an expense'), findsOneWidget);
 
-      // Verify CoveActorAvatar displays the initials for Sarah ('S')
-      expect(find.text('S'), findsOneWidget);
+      // Verify CoveAvatar displays the initials for Sarah ('S')
+      expect(find.text('S'), findsWidgets);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));

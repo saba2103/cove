@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.4 — "Activity" (`ActivityScreen`) Converted to Cove Primitives (`Oct 23, 2026`)**:
+  - *Outcome*: Converted [`ActivityScreen`](../lib/features/activity/activity_screen.dart) to the v2 "Activity" layout (`design/screens/activity.md` & `design/screens/activity.png`), featuring `CovePageHeader` (back `CoveRoundButton`, "Activity" title, unread count readout, and `CoveHeaderPill` "Mark all read" action), the top Digest card (day stepper using `CoveRoundButton.stepper` and one paragraph per person with `CoveAvatar.inline` for `CovePerson.a` and `CovePerson.b`), and the day-grouped feed with left-aligned date + middle hairline + right-aligned `TODAY`/`YESTERDAY`/weekday headers, `CoveAvatar.row` unread gold rings + full-strength type vs read `text.secondary` type, batch-collapsed list additions (`"N things, in one go"`), and kind-specific artifacts (list item pills, Libre Bodoni ledger amounts via `formatCoveAmount()`, habit double-ring check-ins, and calendar event tickets).
+  - *Under the Hood*:
+    - Deleted `lib/features/activity/activity_screen.dart 12` from [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (63 files / 724 literals remaining) with zero raw style literals or `Brightness` branches.
+    - Wrapped page content in [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) with `CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom` scroll clearance and regenerated all 6 `activity_screen.{cover,phone,wide}.{dark,light}.png` goldens.
 - **Task 3.2 — "Routines" (`RoutineScreen`) Converted to Cove Primitives (`Oct 23, 2026`)**:
   - *Outcome*: Converted [`RoutineScreen`](../lib/features/routines/routine_screen.dart) to the v2 "Routines" layout (`design/screens/routines.md` & `design/screens/routines.png`), featuring `CovePageHeader` ("Routines" + gold `+` `CoveRoundButton`), pill-shaped routine filter chips with event counts, the two-person household legend (`CoveAvatar.inline` for `CovePerson.a` and `CovePerson.b` keyed strictly to `home.createdBy`), and the rounded 24-hour day canvas with a dusk-to-dawn sky gradient (`CoveTokens`-derived), real-time routine event bands, and a `NOW` indicator.
   - *Under the Hood*:
