@@ -177,6 +177,10 @@ class CoveApp extends ConsumerWidget {
       theme: CoveTheme.lightTheme,
       darkTheme: CoveTheme.darkTheme,
       themeMode: effectiveTheme,
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: CoveTheme.overlayStyleFor(Theme.of(context).brightness),
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: resolveScreen(),
     );
   }

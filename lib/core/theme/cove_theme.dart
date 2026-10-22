@@ -12,6 +12,23 @@ class CoveTheme {
   static ThemeData get darkTheme => _buildTheme(Brightness.dark);
   static ThemeData get lightTheme => _buildTheme(Brightness.light);
 
+  /// Single source of truth for system chrome overlay style.
+  /// Light status-bar icons on the dark theme, dark icons on the light theme,
+  /// and a transparent status bar so `surfaceCanvas` runs underneath it.
+  static SystemUiOverlayStyle overlayStyleFor(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final tokens = isDark ? CoveTokens.dark : CoveTokens.light;
+    final base = isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark;
+    return base.copyWith(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: tokens.surfaceCanvas,
+      systemNavigationBarIconBrightness:
+          isDark ? Brightness.light : Brightness.dark,
+    );
+  }
+
   static ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final colors = isDark ? CoveColors.dark : CoveColors.light;
@@ -76,15 +93,7 @@ class CoveTheme {
           color: colors.textPrimary,
           size: 20,
         ),
-        systemOverlayStyle: isDark
-            ? SystemUiOverlayStyle.light.copyWith(
-                statusBarColor: Colors.transparent,
-                systemNavigationBarColor: colors.background,
-              )
-            : SystemUiOverlayStyle.dark.copyWith(
-                statusBarColor: Colors.transparent,
-                systemNavigationBarColor: colors.background,
-              ),
+        systemOverlayStyle: overlayStyleFor(brightness),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.surfaceCard,

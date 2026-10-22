@@ -7,6 +7,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Added
+- **System Chrome Overlay Style, SafeArea Convention & `CoveMaxWidth` (`Oct 22, 2026`)**:
+  - *Outcome*: Established the single-source-of-truth `SystemUiOverlayStyle` from `CoveTheme` (light icons on dark mode, dark icons on light mode, transparent status bar so `surfaceCanvas` runs underneath), documented the `SafeArea` and `CoveSpace.barClearance` inset conventions in [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md), and added the [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) container widget with wide-viewport goldens.
+  - *Under the Hood*:
+    - Added `CoveTheme.overlayStyleFor(Brightness)` in [`lib/core/theme/cove_theme.dart`](../lib/core/theme/cove_theme.dart) and wired it into `AppBarTheme.systemOverlayStyle` and the root `AnnotatedRegion<SystemUiOverlayStyle>` in [`lib/main.dart`](../lib/main.dart); verified via [`test/theme_tokens_test.dart`](../test/theme_tokens_test.dart).
+    - Documented the system chrome and `SafeArea` inset rules (`MediaQuery.padding.top`, `CoveSpace.barClearance + MediaQuery.padding.bottom`, no extra top padding above page headers) in §5 of [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md).
+    - Added [`lib/core/widgets/cove_max_width.dart`](../lib/core/widgets/cove_max_width.dart) (exported from [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) constraining child width to `CoveSize.maxContent` (`420 dp`) and centring on wider viewports, plus [`test/golden/cove_max_width_golden_test.dart`](../test/golden/cove_max_width_golden_test.dart) (`cove_max_width.wide.{dark,light}.png`).
+    - Committed [`design/specs/`](../design/specs/) (`00-system-chrome.md` through `09-floating-bar.md`) and [`product/PROMPTS-PHASE2.md`](./PROMPTS-PHASE2.md).
 - **Version Bump to `2.0.0-alpha.1+1` & Screenshot Font Cleanup (`Oct 22, 2026`)**:
   - *Outcome*: Bumped Cove to `2.0.0-alpha.1+1` (`v2.0-alpha.1`) across `pubspec.yaml`, the in-app changelog, `AboutCoveScreen`, and the milestone ledger, and aligned the screenshot generation tests with `LibreBodoni`.
   - *Under the Hood*:

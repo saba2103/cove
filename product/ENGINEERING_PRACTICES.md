@@ -81,3 +81,17 @@ The assistant is strictly instructed to:
 1. Proactively run `flutter analyze` and targeted `flutter test` commands before completing tasks.
 2. Update [`product/CHANGELOG.md`](./CHANGELOG.md) as an atomic step of the task, rather than waiting for user reminders.
 3. Keep product documentation synchronized in the `product/` directory.
+
+---
+
+## 5. System Chrome & SafeArea Convention
+
+iOS and Android draw the status bar natively; the app must never draw a second status bar or fake status-bar chrome. See [`design/specs/00-system-chrome.md`](../design/specs/00-system-chrome.md).
+
+1. **System Overlay Style**: Set `SystemUiOverlayStyle` once from the theme (`CoveTheme.overlayStyleFor(Brightness)` in [`lib/core/theme/cove_theme.dart`](../lib/core/theme/cove_theme.dart) and the root `MaterialApp.builder` in [`lib/main.dart`](../lib/main.dart)), never per screen:
+   - Light icons (`SystemUiOverlayStyle.light`) on the dark theme; dark icons (`SystemUiOverlayStyle.dark`) on the light theme.
+   - Transparent status bar colour (`Colors.transparent`) so `surfaceCanvas` runs underneath it.
+2. **Top Inset**: Top inset comes from `MediaQuery.padding.top` (or `MediaQuery.paddingOf(context).top`), never a hardcoded height.
+3. **Bottom Inset with Floating Bar**: Pages wearing the floating bar add `MediaQuery.padding.bottom` (or `MediaQuery.paddingOf(context).bottom`) to `CoveSpace.barClearance` for their bottom scroll padding.
+4. **Header Spacing**: Content begins immediately below the top inset with no extra top padding of its own — the page header supplies its own top space.
+5. **Max-Content Width**: Page content is constrained to `CoveSize.maxContent` (`420 dp`) and centred on wider viewports via [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart).

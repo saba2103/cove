@@ -39,6 +39,12 @@ void main() {
       expect(resolvedTextTheme!.titleLarge?.fontFamily, equals(CoveType.title.fontFamily));
       expect(resolvedTextTheme!.bodyLarge?.fontFamily, equals(CoveType.body.fontFamily));
       expect(resolvedTextTheme!.bodyMedium?.fontFamily, equals(CoveType.readout.fontFamily));
+
+      final overlay = CoveTheme.darkTheme.appBarTheme.systemOverlayStyle;
+      expect(overlay, isNotNull);
+      expect(overlay!.statusBarColor, equals(Colors.transparent));
+      expect(overlay.statusBarIconBrightness, equals(Brightness.light));
+      expect(overlay.statusBarBrightness, equals(Brightness.dark));
     });
 
     testWidgets('context.cv resolves in Brightness.light and matches CoveTokens.light', (
@@ -76,6 +82,12 @@ void main() {
       expect(resolvedTextTheme!.titleLarge?.fontFamily, equals(CoveType.title.fontFamily));
       expect(resolvedTextTheme!.bodyLarge?.fontFamily, equals(CoveType.body.fontFamily));
       expect(resolvedTextTheme!.bodyMedium?.fontFamily, equals(CoveType.readout.fontFamily));
+
+      final overlay = CoveTheme.lightTheme.appBarTheme.systemOverlayStyle;
+      expect(overlay, isNotNull);
+      expect(overlay!.statusBarColor, equals(Colors.transparent));
+      expect(overlay.statusBarIconBrightness, equals(Brightness.dark));
+      expect(overlay.statusBarBrightness, equals(Brightness.light));
     });
   });
 }
