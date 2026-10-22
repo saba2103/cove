@@ -10,6 +10,7 @@ export 'cove_error_state.dart';
 export 'cove_grouped_list.dart';
 export 'cove_loading.dart';
 export 'cove_max_width.dart';
+export 'cove_metric_card.dart';
 export 'cove_page_header.dart';
 export 'cove_pill_button.dart';
 export 'cove_pill_input.dart';
