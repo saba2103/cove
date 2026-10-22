@@ -94,6 +94,20 @@ Future<void> loadCoveFonts() async {
   }
 }
 
+/// Wraps [child] in the same centred 540dp constraint that `AppShell` applies
+/// on non-web builds.
+Widget wrapInAppShellConstraint(Widget child) => Builder(
+      builder: (context) => ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: child,
+          ),
+        ),
+      ),
+    );
+
 /// Pumps [child] and writes one golden per (width x brightness) pair.
 ///
 ///   await goldenMatrix(tester, 'expenses', const ExpensesScreen());
@@ -106,33 +120,49 @@ Future<void> goldenMatrix(
   List<Size> widths = const [CoveWidth.phone, CoveWidth.cover, CoveWidth.wide],
   List<Brightness> modes = const [Brightness.dark, Brightness.light],
   List<Override> overrides = const [],
+  Widget Function(Widget)? wrap,
+  Set<String> allowedOverflows = const {},
 }) async {
   await loadCoveFonts();
   for (final size in widths) {
+    final w = size == CoveWidth.cover ? 'cover' : size == CoveWidth.wide ? 'wide' : 'phone';
+    final pairKey = '$name.$w';
     for (final mode in modes) {
-      tester.view
-        ..physicalSize = size * 2
-        ..devicePixelRatio = 2.0;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(ProviderScope(
-        overrides: overrides,
-        child: MediaQuery(
-          // Goldens pin textScaler. A separate 200% test covers WCAG 1.4.4.
-          data: MediaQueryData(size: size, textScaler: const TextScaler.linear(1.0)),
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: coveThemeFor(mode),
-            home: child,
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (FlutterErrorDetails details) {
+        final isOverflow =
+            details.exceptionAsString().contains('A RenderFlex overflowed by');
+        if (isOverflow && allowedOverflows.contains(pairKey)) {
+          return;
+        }
+        originalOnError?.call(details);
+      };
+      try {
+        tester.view
+          ..physicalSize = size * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(ProviderScope(
+          overrides: overrides,
+          child: MediaQuery(
+            // Goldens pin textScaler. A separate 200% test covers WCAG 1.4.4.
+            data: MediaQueryData(size: size, textScaler: const TextScaler.linear(1.0)),
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: coveThemeFor(mode),
+              home: wrap != null ? wrap(child) : child,
+            ),
           ),
-        ),
-      ));
-      await tester.pumpAndSettle();
-      final w = size == CoveWidth.cover ? 'cover' : size == CoveWidth.wide ? 'wide' : 'phone';
-      final m = mode == Brightness.dark ? 'dark' : 'light';
-      await expectLater(
-        find.byType(MaterialApp),
-        matchesGoldenFile('goldens/$name.$w.$m.png'),
-      );
+        ));
+        await tester.pumpAndSettle();
+        final m = mode == Brightness.dark ? 'dark' : 'light';
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('goldens/$name.$w.$m.png'),
+        );
+      } finally {
+        FlutterError.onError = originalOnError;
+      }
     }
   }
 }

@@ -621,27 +621,16 @@ List<Override> _createGoldenOverrides() {
   ];
 }
 
-/// Pre-revamp v1 screens were designed for >=360dp phones and have hardcoded
-/// header/card rows that overflow at CoveWidth.cover (320dp, Fold 7 cover).
-/// Since Prompt 0.3 forbids touching any screen or widget in `lib/`, we record
-/// their baseline goldens while filtering only RenderFlex layout overflow
-/// assertions on those four legacy screens until Phase 3 converts them.
-Future<void> _withLegacyCoverOverflowIgnored(
-  Future<void> Function() run,
-) async {
-  final originalOnError = FlutterError.onError;
-  FlutterError.onError = (FlutterErrorDetails details) {
-    if (details.exceptionAsString().contains('A RenderFlex overflowed by')) {
-      return;
-    }
-    originalOnError?.call(details);
-  };
-  try {
-    await run();
-  } finally {
-    FlutterError.onError = originalOnError;
-  }
-}
+/// Explicit allow-list of `<screen>.<width>` pairs known to overflow in the
+/// pre-revamp v1 layouts (Phase 3 overflow backlog). Any overflow on a pair
+/// not in this set fails the test immediately.
+const Set<String> _kKnownLegacyOverflows = {
+  'today_screen.cover',
+  'calendar_screen.cover',
+  'expenses_screen.cover',
+  'subscriptions_screen.phone',
+  'subscriptions_screen.cover',
+};
 
 void main() {
   setUpAll(() {
@@ -652,43 +641,51 @@ void main() {
 
   group('Baseline Screen Goldens (14 screens x 3 widths x 2 modes = 84 goldens)', () {
     testWidgets('today_screen', (tester) async {
-      await _withLegacyCoverOverflowIgnored(() => goldenMatrix(
-            tester,
-            'today_screen',
-            const TodayScreen(),
-            overrides: _createGoldenOverrides(),
-          ));
+      await goldenMatrix(
+        tester,
+        'today_screen',
+        const TodayScreen(),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
     });
 
     testWidgets('calendar_screen', (tester) async {
-      await _withLegacyCoverOverflowIgnored(() => goldenMatrix(
-            tester,
-            'calendar_screen',
-            CalendarScreen(
-              initialEvents: _kSeedCalendarEvents,
-              initialSubscriptions: _kSeedSubscriptions,
-              initialSelectedDate: _kFixedDate,
-            ),
-            overrides: _createGoldenOverrides(),
-          ));
+      await goldenMatrix(
+        tester,
+        'calendar_screen',
+        CalendarScreen(
+          initialEvents: _kSeedCalendarEvents,
+          initialSubscriptions: _kSeedSubscriptions,
+          initialSelectedDate: _kFixedDate,
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
     });
 
     testWidgets('expenses_screen', (tester) async {
-      await _withLegacyCoverOverflowIgnored(() => goldenMatrix(
-            tester,
-            'expenses_screen',
-            ExpensesScreen(initialExpenses: _kSeedExpenses),
-            overrides: _createGoldenOverrides(),
-          ));
+      await goldenMatrix(
+        tester,
+        'expenses_screen',
+        ExpensesScreen(initialExpenses: _kSeedExpenses),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
     });
 
     testWidgets('subscriptions_screen', (tester) async {
-      await _withLegacyCoverOverflowIgnored(() => goldenMatrix(
-            tester,
-            'subscriptions_screen',
-            const SubscriptionsScreen(),
-            overrides: _createGoldenOverrides(),
-          ));
+      await goldenMatrix(
+        tester,
+        'subscriptions_screen',
+        const SubscriptionsScreen(),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
     });
 
     testWidgets('emi_tracker_screen', (tester) async {
@@ -697,6 +694,8 @@ void main() {
         'emi_tracker_screen',
         EmiTrackerScreen(initialSubscriptions: _kSeedSubscriptions),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -709,6 +708,8 @@ void main() {
           initialYear: 2026,
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -718,6 +719,8 @@ void main() {
         'routine_screen',
         const RoutineScreen(),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -727,6 +730,8 @@ void main() {
         'activity_screen',
         ActivityScreen(initialActivities: _kSeedActivities),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -736,6 +741,8 @@ void main() {
         'home_settings_screen',
         const HomeSettingsScreen(),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -751,6 +758,8 @@ void main() {
           initialDriveBackupState: _kSeedBackupState,
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -765,6 +774,8 @@ void main() {
           ),
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -779,6 +790,8 @@ void main() {
           ),
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -791,6 +804,8 @@ void main() {
           initialItems: _kSeedListItems,
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -804,6 +819,8 @@ void main() {
           currentUser: _kAlexUser,
         ),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
   });

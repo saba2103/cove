@@ -6,6 +6,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ## [v2.0-alpha.1] — 2026-10-22
 
+### Fixed
+- **Golden Harness `AppShell` 540dp Constraint & Explicit Overflow Allow-List (`Oct 22, 2026`)**:
+  - *Outcome*: Screen goldens now wrap each screen in the same centred `540 dp` constraint that `AppShell` applies on device, and replaced the blanket `RenderFlex` overflow suppression with an explicit `<screen>.<width>` allow-list of the 5 known pre-revamp overflow pairs so any new overflow fails immediately.
+  - *Under the Hood*:
+    - Added optional `wrap` and `allowedOverflows` parameters (plus `wrapInAppShellConstraint`) to `goldenMatrix` in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart).
+    - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
+
 ### Added
 - **System Chrome Overlay Style, SafeArea Convention & `CoveMaxWidth` (`Oct 22, 2026`)**:
   - *Outcome*: Established the single-source-of-truth `SystemUiOverlayStyle` from `CoveTheme` (light icons on dark mode, dark icons on light mode, transparent status bar so `surfaceCanvas` runs underneath), documented the `SafeArea` and `CoveSpace.barClearance` inset conventions in [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md), and added the [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) container widget with wide-viewport goldens.
