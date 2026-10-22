@@ -17,6 +17,7 @@ export 'cove_pill_input.dart';
 export 'cove_round_button.dart';
 export 'cove_row.dart';
 export 'cove_section_label.dart';
+export 'cove_sheet.dart';
 export 'cove_splash_screen.dart';
 export 'cove_streak_badge.dart';
 export 'cove_sync_tick.dart';
