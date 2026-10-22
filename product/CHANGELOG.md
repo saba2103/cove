@@ -19,6 +19,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
 
 ### Added
+- **`CoveSectionLabel` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Built [`CoveSectionLabel`](../lib/core/widgets/cove_section_label.dart) with its two strict variants (`CoveSectionLabelVariant.page` on `CoveType.capsPage` `12 sp / .15 em / w700` followed by a full-width `line.hairline` rule, and `CoveSectionLabelVariant.card` on `CoveType.capsCard` `11 sp / .14 em / w700` for card/tile interiors) in `text.tertiary`, plus an optional right-hand `CoveType.readout` on the same alphabetic baseline.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_section_label.dart`](../lib/core/widgets/cove_section_label.dart) (exported via [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) reading `context.cv`, `CoveType`, and `CoveSpace` with zero raw style literals or `Brightness` branches.
+    - Added [`test/golden/section_label_golden_test.dart`](../test/golden/section_label_golden_test.dart) and generated all 6 `section_label.{cover,phone,wide}.{dark,light}.png` goldens plus typography, hairline-rule, and alphabetic-baseline assertions.
 - **`CovePageHeader` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
   - *Outcome*: Built [`CovePageHeader`](../lib/core/widgets/cove_page_header.dart) (and the `28 dp` [`CoveHeaderPill`](../lib/core/widgets/cove_page_header.dart) EMI `"What if…"` exception) with a `56 dp` minimum height (`20 dp` top padding + `36 dp` `CoveType.title` line box) that grows cleanly when multi-word titles wrap, `CoveSpace.gutter` horizontal padding, baseline-aligned `CoveType.readout` in `text.tertiary` separated by `CoveSpace.md`, and leading/trailing [`CoveRoundButton`](../lib/core/widgets/cove_round_button.dart) slots whose `40 dp` drawn circles sit flush to the gutter while preserving their `48 dp` hit targets.
   - *Under the Hood*:
