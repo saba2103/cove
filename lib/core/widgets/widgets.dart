@@ -7,6 +7,7 @@ export 'cove_card.dart';
 export 'cove_checkbox.dart';
 export 'cove_empty_state.dart';
 export 'cove_error_state.dart';
+export 'cove_floating_bar.dart';
 export 'cove_grouped_list.dart';
 export 'cove_loading.dart';
 export 'cove_max_width.dart';
