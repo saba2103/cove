@@ -14,6 +14,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
 
 ### Added
+- **`CoveRoundButton` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Built [`CoveRoundButton`](../lib/core/widgets/cove_round_button.dart) for all circular header, back, add, sheet-close, and inline stepper actions, with a `40 dp` drawn circle (`CoveSize.buttonRound`) inside an invisible `48 dp` tap target (`CoveSize.hit`), `gold` and `ghost` variants, `accent.wash` press overlay (`CoveMotion.q`), and a `24 dp` `.stepper` sibling.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_round_button.dart`](../lib/core/widgets/cove_round_button.dart) (exported via [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) reading `context.cv`, `CoveSize`, and `CoveMotion.q(context)` with zero raw style literals or `Brightness` branches.
+    - Added [`test/golden/round_button_golden_test.dart`](../test/golden/round_button_golden_test.dart) and generated all 6 `round_button.{cover,phone,wide}.{dark,light}.png` goldens plus hit-target ring assertions.
 - **System Chrome Overlay Style, SafeArea Convention & `CoveMaxWidth` (`Oct 22, 2026`)**:
   - *Outcome*: Established the single-source-of-truth `SystemUiOverlayStyle` from `CoveTheme` (light icons on dark mode, dark icons on light mode, transparent status bar so `surfaceCanvas` runs underneath), documented the `SafeArea` and `CoveSpace.barClearance` inset conventions in [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md), and added the [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) container widget with wide-viewport goldens.
   - *Under the Hood*:

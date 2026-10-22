@@ -11,6 +11,7 @@ export 'cove_loading.dart';
 export 'cove_max_width.dart';
 export 'cove_pill_button.dart';
 export 'cove_pill_input.dart';
+export 'cove_round_button.dart';
 export 'cove_splash_screen.dart';
 export 'cove_streak_badge.dart';
 export 'cove_sync_tick.dart';
