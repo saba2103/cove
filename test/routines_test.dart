@@ -212,15 +212,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Routine title and tab
-      expect(find.text('Daily Routines'), findsOneWidget);
+      expect(find.text('Routines'), findsOneWidget);
       expect(find.text('Weekday (Mon – Fri)'), findsOneWidget);
 
       // Verify event is displayed on 24h timeline
       expect(find.text('Morning Yoga'), findsOneWidget);
       expect(find.text('7:00 AM – 8:00 AM'), findsOneWidget);
 
-      // Verify Add Event FAB
-      expect(find.text('Add Event'), findsOneWidget);
+      // Verify Add Event header action
+      expect(find.bySemanticsLabel('Add Event'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));

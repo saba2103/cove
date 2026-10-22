@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.2 — "Routines" (`RoutineScreen`) Converted to Cove Primitives (`Oct 23, 2026`)**:
+  - *Outcome*: Converted [`RoutineScreen`](../lib/features/routines/routine_screen.dart) to the v2 "Routines" layout (`design/screens/routines.md` & `design/screens/routines.png`), featuring `CovePageHeader` ("Routines" + gold `+` `CoveRoundButton`), pill-shaped routine filter chips with event counts, the two-person household legend (`CoveAvatar.inline` for `CovePerson.a` and `CovePerson.b` keyed strictly to `home.createdBy`), and the rounded 24-hour day canvas with a dusk-to-dawn sky gradient (`CoveTokens`-derived), real-time routine event bands, and a `NOW` indicator.
+  - *Under the Hood*:
+    - Deleted `lib/features/routines/routine_screen.dart 8` from [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (64 files / 736 literals remaining) with zero raw style literals or `Brightness` branches.
+    - Wrapped page content in [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) with `CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom` scroll clearance and regenerated all 6 `routine_screen.{cover,phone,wide}.{dark,light}.png` goldens.
 - **Task 3.1 — "Our home" (`HomeSettingsScreen`) Converted to Cove Primitives (`Oct 23, 2026`)**:
   - *Outcome*: Converted [`HomeSettingsScreen`](../lib/features/home/home_settings_screen.dart) to the v2 "Our home" Front Door layout (`design/screens/our-home.md` & `design/screens/our-home.png`), featuring `CovePageHeader` (back + edit home actions), the double-line arch illustration with a scrolling radial glow, creator & joiner names (`CoveType.title` + italic `CoveType.heroFigure` `&`), Together / In Cove dates, four Almanac `CoveMetricCard` tiles in `CoveMetricGrid` (`Commitments`, `Budget` formatted via `formatCoveCurrency`, `Lists`, `Habits`), `Who lives here` profile avatars (`CoveAvatar.profile` for `CovePerson.a` and `CovePerson.b` without role captions), `This home` `CoveRow` list (`Name`, `Where`, `Our dates`, `Currency`, `Keys` invite QR sheet via `CoveSheet`, and `Leave Home`), and the encryption reassurance footer.
   - *Under the Hood*:
