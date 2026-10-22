@@ -19,6 +19,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Replaced `_withLegacyCoverOverflowIgnored` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) with `_kKnownLegacyOverflows` (`today_screen.cover`, `calendar_screen.cover`, `expenses_screen.cover`, `subscriptions_screen.phone`, `subscriptions_screen.cover`) and regenerated the 28 `.wide.` goldens in `test/golden/goldens/`.
 
 ### Added
+- **`CoveRow` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
+  - *Outcome*: Built [`CoveRow`](../lib/core/widgets/cove_row.dart) with a `52 dp` height (`CoveSize.row`, vertical padding derived as `(row - content) / 2`), a `-12 dp` (`-CoveSpace.hitPlate`) bleeding `surface.row` hit plate (`CoveRadius.inline` `16 dp`), optional `28 dp` leading [`CoveAvatar`](../lib/core/widgets/cove_avatar.dart) (`CoveSize.avatarRow`) separated by `CoveSpace.md` (`12 dp`), `CoveType.rowTitle` (`text.primary`) and `CoveType.rowSub` (`text.tertiary`) text stack, Libre Bodoni `CoveType.cardFigure` trailing amount (`text.primary`, `money.more`, `money.less`), and a `line.hairline` divider inset to the text edge (`40 dp` with avatar, `0 dp` without) omitted on the last row.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_row.dart`](../lib/core/widgets/cove_row.dart) (exported via [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)) reading `context.cv`, `CoveSize`, `CoveSpace`, `CoveRadius`, `CoveType`, and `CoveMotion.q(context)` with zero raw style literals or `Brightness` branches.
+    - Added [`test/golden/row_golden_test.dart`](../test/golden/row_golden_test.dart) and generated all 6 `row.{cover,phone,wide}.{dark,light}.png` goldens plus height, hit-plate bleed, and divider-inset assertions.
 - **`CoveSectionLabel` Primitive & Multi-State Goldens (`Oct 22, 2026`)**:
   - *Outcome*: Built [`CoveSectionLabel`](../lib/core/widgets/cove_section_label.dart) with its two strict variants (`CoveSectionLabelVariant.page` on `CoveType.capsPage` `12 sp / .15 em / w700` followed by a full-width `line.hairline` rule, and `CoveSectionLabelVariant.card` on `CoveType.capsCard` `11 sp / .14 em / w700` for card/tile interiors) in `text.tertiary`, plus an optional right-hand `CoveType.readout` on the same alphabetic baseline.
   - *Under the Hood*:
