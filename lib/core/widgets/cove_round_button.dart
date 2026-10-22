@@ -33,6 +33,7 @@ class CoveRoundButton extends StatefulWidget {
   static const double _kStepperDiameter = 24.0; // (literal) per 04-round-button.md
   static const double _kStepperIconSize = 14.0; // (literal)
   static const double _kBorderWidth = 1.0; // (literal) 1dp line.strong border
+  static const double _kGoldPressAlpha = 0.12; // (literal) 12% black overlay per 04-round-button.md
 
   const CoveRoundButton({
     super.key,
@@ -124,6 +125,10 @@ class _CoveRoundButtonState extends State<CoveRoundButton> {
           ),
     );
 
+    final pressOverlayColor = isGold
+        ? Colors.black.withValues(alpha: CoveRoundButton._kGoldPressAlpha)
+        : cv.accentWash;
+
     final Widget drawnCircle = SizedBox(
       width: drawnDiameter,
       height: drawnDiameter,
@@ -137,7 +142,7 @@ class _CoveRoundButtonState extends State<CoveRoundButton> {
           duration: duration,
           curve: CoveMotion.easing,
           decoration: BoxDecoration(
-            color: _showPressOverlay ? cv.accentWash : Colors.transparent,
+            color: _showPressOverlay ? pressOverlayColor : Colors.transparent,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,

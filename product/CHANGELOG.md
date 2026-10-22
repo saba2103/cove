@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Fixed
+- **`CoveRoundButton` Gold Variant Pressed-State Darkening (`Oct 22, 2026`)**:
+  - *Outcome*: Corrected the gold variant's press overlay in [`design/specs/04-round-button.md`](../design/specs/04-round-button.md) and [`lib/core/widgets/cove_round_button.dart`](../lib/core/widgets/cove_round_button.dart) so pressing the primary gold button visibly darkens the circle in both dark (`RGB(216, 185, 140)` → `RGB(190, 163, 123)`) and light (`RGB(169, 124, 79)` → `RGB(149, 109, 70)`) modes instead of laying `accent.wash` over `accent.fill`.
+  - *Under the Hood*:
+    - Updated [`design/specs/04-round-button.md`](../design/specs/04-round-button.md) to specify `accent.wash` for the ghost variant and `Colors.black` at `12%` alpha (`0.12`) over `accent.fill` for the gold variant.
+    - Updated `_CoveRoundButtonState` in [`lib/core/widgets/cove_round_button.dart`](../lib/core/widgets/cove_round_button.dart) and regenerated the 6 `round_button.{cover,phone,wide}.{dark,light}.png` goldens.
 - **Golden Harness `AppShell` 540dp Constraint & Explicit Overflow Allow-List (`Oct 22, 2026`)**:
   - *Outcome*: Screen goldens now wrap each screen in the same centred `540 dp` constraint that `AppShell` applies on device, and replaced the blanket `RenderFlex` overflow suppression with an explicit `<screen>.<width>` allow-list of the 5 known pre-revamp overflow pairs so any new overflow fails immediately.
   - *Under the Hood*:

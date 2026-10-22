@@ -10,7 +10,8 @@ sheet close, stepper chevrons.
 | Icon | 20 `(literal)`, 1.7 stroke |
 | Gold variant | fill `accent.fill`, icon `text.onAccent` |
 | Ghost variant | transparent fill, 1dp `line.strong` border, icon `text.secondary` |
-| Press | `accent.wash` overlay, `CoveMotion.quick` |
+| Press (Ghost) | `accent.wash` overlay, `CoveMotion.quick` |
+| Press (Gold) | `Colors.black` at 12% alpha (`0.12`) `(literal)` overlay over `accent.fill`, `CoveMotion.quick` |
 
 ## Rules
 
