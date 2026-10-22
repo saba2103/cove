@@ -541,8 +541,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Home Settings'), findsOneWidget);
-      expect(find.text('MEMBERS'), findsOneWidget);
+      expect(find.text('Sweet Home'), findsOneWidget);
+      expect(find.text('WHO LIVES HERE'), findsOneWidget);
       expect(find.text('View / Regenerate Invite QR'), findsOneWidget);
       expect(find.text('Leave Home'), findsOneWidget);
 

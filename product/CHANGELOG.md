@@ -6,6 +6,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ## [v2.0-alpha.1] — 2026-10-22
 
+### Changed
+- **Task 3.1 — "Our home" (`HomeSettingsScreen`) Converted to Cove Primitives (`Oct 23, 2026`)**:
+  - *Outcome*: Converted [`HomeSettingsScreen`](../lib/features/home/home_settings_screen.dart) to the v2 "Our home" Front Door layout (`design/screens/our-home.md` & `design/screens/our-home.png`), featuring `CovePageHeader` (back + edit home actions), the double-line arch illustration with a scrolling radial glow, creator & joiner names (`CoveType.title` + italic `CoveType.heroFigure` `&`), Together / In Cove dates, four Almanac `CoveMetricCard` tiles in `CoveMetricGrid` (`Commitments`, `Budget` formatted via `formatCoveCurrency`, `Lists`, `Habits`), `Who lives here` profile avatars (`CoveAvatar.profile` for `CovePerson.a` and `CovePerson.b` without role captions), `This home` `CoveRow` list (`Name`, `Where`, `Our dates`, `Currency`, `Keys` invite QR sheet via `CoveSheet`, and `Leave Home`), and the encryption reassurance footer.
+  - *Under the Hood*:
+    - Removed `lib/features/home/home_settings_screen.dart 4` from [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (65 files / 744 literals remaining) with zero raw style literals or `Brightness` branches.
+    - Wrapped page content in [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) with `CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom` scroll clearance and regenerated all 6 `home_settings_screen.{cover,phone,wide}.{dark,light}.png` goldens.
+
 ### Fixed
 - **`CoveFloatingBar` `CoveType.barLabel` Role, `< 360dp` Icon-Only Threshold & Unconstrained Label-Fit Audit (`Oct 23, 2026`)**:
   - *Outcome*: Added `CoveType.barLabel` (`11 sp` / `w600` / `lineHeight 14` / `letterSpacing 0`, `PlusJakartaSans`) to [`design/tokens.json`](../design/tokens.json) so mixed-case bar labels no longer inherit `CoveType.capsCard`'s `1.54 dp` uppercase tracking, added a `360 dp` viewport width threshold below which [`CoveFloatingBar`](../lib/core/widgets/cove_floating_bar.dart) renders icons only across all states, updated [`design/specs/09-floating-bar.md`](../design/specs/09-floating-bar.md) with the exact `320 dp` seat arithmetic (`47.3 dp` seat / `39.3 dp` label), and rewrote the label-fit audit in [`test/golden/floating_bar_golden_test.dart`](../test/golden/floating_bar_golden_test.dart) to assert unconstrained text width against available width across `320`, `390`, `411`, and `840 dp`.

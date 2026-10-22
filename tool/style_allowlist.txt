@@ -45,7 +45,6 @@ lib/features/habits/habit_form_sheet.dart 16
 lib/features/habits/habits_screen.dart 12
 lib/features/home/about_cove_screen.dart 15
 lib/features/home/create_home_screen.dart 3
-lib/features/home/home_settings_screen.dart 4
 lib/features/home/home_switcher_sheet.dart 5
 lib/features/home/join_home_screen.dart 10
 lib/features/home/onboarding_choice_screen.dart 5
