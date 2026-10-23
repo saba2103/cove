@@ -627,8 +627,6 @@ List<Override> _createGoldenOverrides() {
 const Set<String> _kKnownLegacyOverflows = {
   'today_screen.cover',
   'expenses_screen.cover',
-  'subscriptions_screen.phone',
-  'subscriptions_screen.cover',
 };
 
 void main() {

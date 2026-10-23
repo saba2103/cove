@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
-import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/subscriptions/commitment_models.dart';
 import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
@@ -283,9 +282,8 @@ void main() {
       // 2. Verify subscription renders in list with Bodoni Moda total
       expect(find.text('Spotify Duo'), findsOneWidget);
       expect(find.text('\$16.99.00'), findsNothing);
-      expect(find.text('\$16.99/mo'), findsOneWidget);
       expect(find.text('\$16.99'), findsWidgets); // Hero total and row
-      expect(find.byType(CoveSyncTick), findsOneWidget);
+      expect(find.textContaining('Monthly'), findsWidgets);
     });
 
     testWidgets('STRUCTURAL PRIVACY: Adding a PRIVATE-TO-ME subscription NEVER emits to sync engine',
@@ -336,8 +334,7 @@ void main() {
 
       // 1. Appears for the owner Alex with the Private tag
       expect(find.text('Secret Book Club'), findsOneWidget);
-      expect(find.text('Private'), findsOneWidget);
-      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
+      expect(find.textContaining('Private'), findsOneWidget);
 
       // 2. Default shared hero total remains $0 (excluded from shared burn!)
       expect(find.text('\$0'), findsWidgets);
@@ -399,11 +396,11 @@ void main() {
 
       // Sarah sees the shared fiber internet
       expect(find.text('Home Fiber'), findsOneWidget);
-      expect(find.text('\$70/mo'), findsOneWidget);
+      expect(find.text('\$70'), findsWidgets);
 
       // STRICT PRIVACY CHECK: Sarah NEVER sees the private subscription!
       expect(find.text('Surprise Anniversary Gift Box'), findsNothing);
-      expect(find.text('Private'), findsNothing);
+      expect(find.textContaining('Private'), findsNothing);
       expect(find.text('1 shared commitments'), findsOneWidget);
     });
 
@@ -440,7 +437,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Netflix'), findsOneWidget);
-      expect(find.text('\$15/mo'), findsOneWidget);
+      expect(find.text('\$15'), findsWidgets);
 
       // Tap Netflix row to open detail bottomsheet
       await tester.tap(find.text('Netflix'));
@@ -463,8 +460,8 @@ void main() {
         isTrue,
       );
 
-      // 2. Verified Netflix is moved to "Paused & Completed" section
-      expect(find.text('Paused & Completed'), findsOneWidget);
+      // 2. Verified Netflix is moved to "PAUSED & COMPLETED" section
+      expect(find.text('PAUSED & COMPLETED'), findsOneWidget);
       expect(find.textContaining('Paused'), findsWidgets);
 
       // 3. Hero total becomes $0 since active count is 0
@@ -502,8 +499,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verified categorized under "Renewing this week"
-      expect(find.text('Renewing this week'), findsOneWidget);
+      // Verified due-soon item carries status.alert mark + words
+      expect(find.text('next · due soon'), findsOneWidget);
+      expect(find.textContaining('Due soon'), findsOneWidget);
       expect(find.text('Electricity'), findsOneWidget);
     });
 
@@ -556,8 +554,8 @@ void main() {
       expect(find.text('\$10'), findsWidgets);
       expect(find.text('per month · monthly commitments only'), findsOneWidget);
 
-      // 2. Switch to Annual view (tap 'Monthly' / swap button)
-      await tester.tap(find.text('Monthly'));
+      // 2. Switch to Annual view (tap 'Annually')
+      await tester.tap(find.text('Annually'));
       await tester.pumpAndSettle();
 
       // In annual view by default, calculates annual commitments ONLY ($120, not $120 + 10*12 = $240)
@@ -574,7 +572,7 @@ void main() {
       expect(find.text('per year · combined monthly & annual'), findsOneWidget);
 
       // 4. Switch back to Monthly view with toggle still ON
-      await tester.tap(find.text('Annual'));
+      await tester.tap(find.text('Monthly'));
       await tester.pumpAndSettle();
 
       // Combined monthly total: $10 + (120 / 12) = $20

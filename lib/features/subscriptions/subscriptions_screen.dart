@@ -1,16 +1,21 @@
-import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
-import '../../core/widgets/cove_card.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+
+import '../../core/theme/cove_tokens.dart';
+import '../../core/utils/cove_currency_formatter.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_error_state.dart';
-import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_loading.dart';
+import '../../core/widgets/cove_max_width.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
-import '../../core/widgets/cove_sync_tick.dart';
-import '../../core/widgets/cove_toggle_switch.dart';
+import '../../core/widgets/cove_round_button.dart';
+import '../../core/widgets/cove_row.dart';
+import '../../core/widgets/cove_section_label.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -18,56 +23,162 @@ import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
-import '../../core/widgets/cove_tab_row.dart';
-import 'commitment_models.dart';
 import 'commitment_detail_sheet.dart';
+import 'commitment_models.dart';
 import 'commitments_helicopter_screen.dart';
 import 'emi_tracker_screen.dart';
 import 'subscription_form_sheet.dart';
-import '../../core/utils/cove_currency_formatter.dart';
 
+/// Segment filter modes for the Commitments screen (`design/screens/commitments.md`).
+enum CommitmentKindFilter {
+  all,
+  subs,
+  emis,
+  savings,
+}
+
+/// Commitments screen (`design/screens/commitments.md` & `design/screens/commitments.png`).
+///
+/// Order:
+/// 1. [CovePageHeader] — "Commitments", [CoveRoundButton] gold add.
+/// 2. Monthly total card with a split bar (EMIs / subs / savings).
+/// 3. "The runway" — caption with two icon buttons: EMIs page, full-year page.
+/// 4. Segment filter: All · Subs · EMIs · Savings.
+/// 5. Next-due block, then the list of commitments as [CoveRow], each with its
+///    kind tag, payer avatar, financed-through source and amount.
 class SubscriptionsScreen extends ConsumerStatefulWidget {
   final List<LocalSubscription>? initialSubscriptions;
 
   const SubscriptionsScreen({super.key, this.initialSubscriptions});
 
   @override
-  ConsumerState<SubscriptionsScreen> createState() => _SubscriptionsScreenState();
+  ConsumerState<SubscriptionsScreen> createState() =>
+      _SubscriptionsScreenState();
 }
 
 class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
+  static const double _kHairline = 1.0; // (literal) 1dp hairline border
+  static const double _kSplitBarHeight = 6.0; // (literal) hero split bar height
+  static const double _kSwatchSize = 8.0; // (literal) legend square swatch
+  static const double _kRunwayChartHeight =
+      112.0; // (literal) runway mini chart height
+  static const double _kPillHeight = 32.0; // (literal) filter pill height
+  static const double _kAlertDotSize = 6.0; // (literal) status.alert mark size
+  static const double _kAvatarOverlapOffset =
+      16.0; // (literal) dual avatar overlap
+  static const double _kInlineIconSize = 16.0; // (literal) inline icon size
+  static const double _kEmptyIconSize = 28.0; // (literal) empty card icon size
+
   bool _showAnnual = false;
   bool _includePrivateInHero = false;
   bool _combineCycles = false;
-  int _selectedAttributionTab = 0;
-  bool _distributeSplit5050 = false;
+  int _selectedAttributionTab = 0; // 0 = All, 1 = Me, 2 = Partner, 3 = Split
+  CommitmentKindFilter _selectedKindFilter = CommitmentKindFilter.all;
 
   Future<void> _handleRefresh() async {
     final homeId = ref.read(activeHomeIdProvider);
-    await ref.read(syncEngineProvider).pullLatestEvents(homeId: homeId, forceFullCatchup: true);
+    await ref
+        .read(syncEngineProvider)
+        .pullLatestEvents(homeId: homeId, forceFullCatchup: true);
+  }
+
+  static bool _isSavingsCommitment(LocalSubscription sub) {
+    if (sub.isEmi) return false;
+    final cat = (sub.category ?? '').trim().toLowerCase();
+    final name = sub.name.trim().toLowerCase();
+    if (cat == 'savings' ||
+        cat == 'sip' ||
+        cat == 'investment' ||
+        cat == 'investments' ||
+        cat == 'mutual_funds' ||
+        cat == 'gold_sip') {
+      return true;
+    }
+    return name.contains('sip') ||
+        name.contains('mutual fund') ||
+        name.contains('savings');
+  }
+
+  static String _kindTagFor(LocalSubscription sub) {
+    if (sub.isEmi) return 'EMI';
+    if (_isSavingsCommitment(sub)) return 'SIP';
+    final cat = (sub.category ?? '').trim().toLowerCase();
+    if (cat == 'rent') return 'RENT';
+    if (cat == 'service' || cat == 'services') return 'SERVICE';
+    if (cat == 'home' || cat == 'home & utilities' || cat == 'utilities') {
+      return 'HOME';
+    }
+    if (cat == 'insurance') return 'INSURANCE';
+    if (cat == 'pets') return 'PETS';
+    return 'SUB';
+  }
+
+  CovePerson _resolvePayerPerson(
+    LocalSubscription sub, {
+    required String creatorId,
+    required String myUserId,
+    required String partnerUserId,
+  }) {
+    final payer = sub.effectivePaidBy.trim();
+    final lower = payer.toLowerCase();
+    if (lower == 'split' || lower == '50/50') {
+      return CovePerson.both;
+    }
+
+    String? resolvedUserId;
+    if (lower == 'me' ||
+        payer == myUserId ||
+        (payer == 'user_alex' && myUserId == 'local_user')) {
+      resolvedUserId = myUserId;
+    } else if (lower == 'partner' ||
+        lower == 'partner_user' ||
+        payer == partnerUserId) {
+      resolvedUserId = partnerUserId;
+    } else if (payer == creatorId) {
+      resolvedUserId = creatorId;
+    } else if (sub.paidBy == null || payer.isEmpty) {
+      resolvedUserId = sub.createdBy ?? creatorId;
+    }
+
+    if (resolvedUserId != null) {
+      return resolvedUserId == creatorId ? CovePerson.a : CovePerson.b;
+    }
+    return CovePerson.b;
+  }
+
+  String _resolvePayerInitial(
+    LocalSubscription sub, {
+    required CovePerson person,
+    required String myName,
+    required String partnerName,
+    required String creatorId,
+    required String myUserId,
+  }) {
+    if (person == CovePerson.both) return '&';
+    final creatorIsMe = myUserId == creatorId || creatorId == 'user_alex';
+    if (person == CovePerson.a) {
+      return creatorIsMe ? myName : partnerName;
+    }
+    return creatorIsMe ? partnerName : myName;
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final outboxEvents = ref.watch(activeHomeOutboxProvider).value ?? [];
-    final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+    final cv = context.cv;
 
     if (widget.initialSubscriptions != null) {
-      return _buildContent(context, widget.initialSubscriptions!, outboxEvents, hasPartner: hasPartner);
+      return _buildContent(context, widget.initialSubscriptions!);
     }
 
     final subscriptionsAsync = ref.watch(activeHomeSubscriptionsProvider);
     return subscriptionsAsync.when(
-      data: (subscriptions) => _buildContent(context, subscriptions, outboxEvents, hasPartner: hasPartner),
+      data: (subscriptions) => _buildContent(context, subscriptions),
       loading: () => Scaffold(
-        backgroundColor: colors.background,
-        body: const Center(
-          child: CoveLoading(),
-        ),
+        backgroundColor: cv.surfaceCanvas,
+        body: const Center(child: CoveLoading()),
       ),
       error: (e, st) => Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: Center(
           child: CoveErrorState.generic(
             title: 'Subscriptions unavailable',
@@ -82,321 +193,525 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
   Widget _buildContent(
     BuildContext context,
     List<LocalSubscription> subscriptions,
-    List<LocalOutboxEvent> outboxEvents, {
-    bool hasPartner = true,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
+  ) {
+    final cv = context.cv;
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
 
     if (subscriptions.isEmpty) {
-      return _buildEmptyState(context);
+      return _buildEmptyState(context, bottomPadding: bottomPadding);
     }
 
-        // 1. Separate Active vs Inactive (Auto-move finished EMIs out of active list)
-        final activeSubs = subscriptions.where((s) => s.isActive && !s.isEmiFinished).toList();
-        final inactiveSubs = subscriptions.where((s) => !s.isActive || s.isEmiFinished).toList();
+    final home = ref.watch(activeHomeProvider).value;
+    final currentUser = ref.watch(authProvider).value;
+    final myUserId = currentUser?.id ?? 'local_user';
+    final creatorId = home?.createdBy ?? myUserId;
 
-        // 2. Separate Shared vs Private
-        final sharedActive = activeSubs.where((s) => !s.isPrivate).toList();
-        final privateActive = activeSubs.where((s) => s.isPrivate).toList();
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
 
-        // 3. Compute Totals & Breakdown (Subs vs EMIs)
-        final relevantActive = _includePrivateInHero ? activeSubs : sharedActive;
+    final myName = userProfile.displayName.trim().isNotEmpty
+        ? userProfile.displayName.trim()
+        : 'Me';
+    final partnerName = partnerProfile.displayName.trim().isNotEmpty
+        ? partnerProfile.displayName.trim()
+        : 'Partner';
+    final partnerUserId = partnerProfile.userId ?? 'partner_user';
+    final currency = ref.watch(currencyPreferenceProvider);
 
-        double subsMonthlyOnly = 0.0;
-        double emisMonthlyOnly = 0.0;
-        double subsAnnualOnly = 0.0;
-        double emisAnnualOnly = 0.0;
-        double subsCombinedMonthly = 0.0;
-        double emisCombinedMonthly = 0.0;
+    // 1. Separate Active vs Inactive (finished EMIs move out of active list)
+    final activeSubs = subscriptions
+        .where((s) => s.isActive && !s.isEmiFinished)
+        .toList();
+    final inactiveSubs = subscriptions
+        .where((s) => !s.isActive || s.isEmiFinished)
+        .toList();
 
-        for (final item in relevantActive) {
-          final months = getBillingCycleMonths(item.billingCycle);
-          final isAnnual = months == 12;
-          final isMonthly = months == 1;
+    // 2. Separate Shared vs Private
+    final sharedActive = activeSubs.where((s) => !s.isPrivate).toList();
+    final privateActive = activeSubs.where((s) => s.isPrivate).toList();
 
-          if (isAnnual) {
-            if (item.isEmi) {
-              emisAnnualOnly += item.amount;
-            } else {
-              subsAnnualOnly += item.amount;
-            }
-          } else if (isMonthly) {
-            if (item.isEmi) {
-              emisMonthlyOnly += item.amount;
-            } else {
-              subsMonthlyOnly += item.amount;
-            }
-          }
+    // 3. Compute Totals & Breakdown (EMIs / Subs / Savings)
+    final relevantActive = _includePrivateInHero ? activeSubs : sharedActive;
 
-          // Prorated monthly amount for combined calculations (works for 1 mo, 12 mo, 7 mo, etc.)
-          final monthlyAmount = item.amount / months;
-          if (item.isEmi) {
-            emisCombinedMonthly += monthlyAmount;
-          } else {
-            subsCombinedMonthly += monthlyAmount;
-          }
-        }
+    double subsMonthlyOnly = 0.0;
+    double emisMonthlyOnly = 0.0;
+    double savingsMonthlyOnly = 0.0;
 
-        final double displayedAmount;
-        final double displayedSubs;
-        final double displayedEmis;
+    double subsAnnualOnly = 0.0;
+    double emisAnnualOnly = 0.0;
+    double savingsAnnualOnly = 0.0;
 
-        if (_combineCycles) {
-          // Combined calculation for both monthly, annual, and custom commitments
-          if (_showAnnual) {
-            final combinedSubs = subsCombinedMonthly * 12.0;
-            final combinedEmis = emisCombinedMonthly * 12.0;
-            displayedSubs = combinedSubs;
-            displayedEmis = combinedEmis;
-            displayedAmount = combinedSubs + combinedEmis;
-          } else {
-            final combinedSubs = subsCombinedMonthly;
-            final combinedEmis = emisCombinedMonthly;
-            displayedSubs = combinedSubs;
-            displayedEmis = combinedEmis;
-            displayedAmount = combinedSubs + combinedEmis;
-          }
+    double subsCombinedMonthly = 0.0;
+    double emisCombinedMonthly = 0.0;
+    double savingsCombinedMonthly = 0.0;
+
+    for (final item in relevantActive) {
+      final months = getBillingCycleMonths(item.billingCycle);
+      final isAnnual = months == 12;
+      final isMonthly = months == 1;
+      final isSavings = _isSavingsCommitment(item);
+
+      if (isAnnual) {
+        if (item.isEmi) {
+          emisAnnualOnly += item.amount;
+        } else if (isSavings) {
+          savingsAnnualOnly += item.amount;
         } else {
-          // Strict cycle separation: monthly calculates monthly only, annual calculates annual only
-          if (_showAnnual) {
-            displayedSubs = subsAnnualOnly;
-            displayedEmis = emisAnnualOnly;
-            displayedAmount = subsAnnualOnly + emisAnnualOnly;
-          } else {
-            displayedSubs = subsMonthlyOnly;
-            displayedEmis = emisMonthlyOnly;
-            displayedAmount = subsMonthlyOnly + emisMonthlyOnly;
-          }
+          subsAnnualOnly += item.amount;
         }
-
-        final displayedAmountStr = formatCoveAmount(displayedAmount);
-        final displayedSubsStr = formatCoveAmount(displayedSubs);
-        final displayedEmisStr = formatCoveAmount(displayedEmis);
-
-        final myUserId = ref.watch(authProvider).value?.id ?? 'local_user';
-        final userProfile = ref.watch(userProfileProvider);
-        final partnerProfile = ref.watch(partnerProfileProvider);
-
-        final myName = userProfile.displayName.trim().isNotEmpty
-            ? userProfile.displayName.trim()
-            : 'Me';
-        final partnerName = partnerProfile.displayName.trim().isNotEmpty
-            ? partnerProfile.displayName.trim()
-            : 'Partner';
-        final partnerUserId = partnerProfile.userId ?? 'partner_user';
-
-        bool isMine(LocalSubscription item) {
-          final pb = (item.paidBy ?? '').trim().toLowerCase();
-          if (pb == 'split' || pb == '50/50') return false;
-          if (pb == 'me' || pb == myUserId.toLowerCase()) return true;
-          if (pb == partnerUserId.toLowerCase() || pb == 'partner_user') return false;
-          if (pb.isEmpty) {
-            return item.createdBy == myUserId || item.createdBy == 'local_user';
-          }
-          return true;
+      } else if (isMonthly) {
+        if (item.isEmi) {
+          emisMonthlyOnly += item.amount;
+        } else if (isSavings) {
+          savingsMonthlyOnly += item.amount;
+        } else {
+          subsMonthlyOnly += item.amount;
         }
+      }
 
-        bool isPartner(LocalSubscription item) {
-          final pb = (item.paidBy ?? '').trim().toLowerCase();
-          if (pb == 'split' || pb == '50/50') return false;
-          if (pb == partnerUserId.toLowerCase() || pb == 'partner_user') return true;
-          return false;
-        }
+      final monthlyAmount = item.amount / months;
+      if (item.isEmi) {
+        emisCombinedMonthly += monthlyAmount;
+      } else if (isSavings) {
+        savingsCombinedMonthly += monthlyAmount;
+      } else {
+        subsCombinedMonthly += monthlyAmount;
+      }
+    }
 
-        bool isSplit(LocalSubscription item) {
-          final pb = (item.paidBy ?? '').trim().toLowerCase();
-          return pb == 'split' || pb == '50/50';
-        }
+    final double displayedSubs;
+    final double displayedEmis;
+    final double displayedSavings;
 
-        double getItemAmount(LocalSubscription item) {
-          final months = getBillingCycleMonths(item.billingCycle);
-          if (_combineCycles) {
-            final monthly = item.amount / months;
-            return _showAnnual ? monthly * 12.0 : monthly;
-          } else {
-            if (_showAnnual) {
-              return months == 12 ? item.amount : 0.0;
-            } else {
-              return months == 1 ? item.amount : 0.0;
-            }
-          }
-        }
+    if (_combineCycles) {
+      if (_showAnnual) {
+        displayedSubs = subsCombinedMonthly * 12.0;
+        displayedEmis = emisCombinedMonthly * 12.0;
+        displayedSavings = savingsCombinedMonthly * 12.0;
+      } else {
+        displayedSubs = subsCombinedMonthly;
+        displayedEmis = emisCombinedMonthly;
+        displayedSavings = savingsCombinedMonthly;
+      }
+    } else {
+      if (_showAnnual) {
+        displayedSubs = subsAnnualOnly;
+        displayedEmis = emisAnnualOnly;
+        displayedSavings = savingsAnnualOnly;
+      } else {
+        displayedSubs = subsMonthlyOnly;
+        displayedEmis = emisMonthlyOnly;
+        displayedSavings = savingsMonthlyOnly;
+      }
+    }
 
-        double mineAmount = 0.0;
-        int mineSubs = 0;
-        int mineEmis = 0;
+    final double displayedAmount =
+        displayedSubs + displayedEmis + displayedSavings;
 
-        double partnerAmount = 0.0;
-        int partnerSubs = 0;
-        int partnerEmis = 0;
+    bool isMine(LocalSubscription item) {
+      final pb = (item.paidBy ?? '').trim().toLowerCase();
+      if (pb == 'split' || pb == '50/50') return false;
+      if (pb == 'me' || pb == myUserId.toLowerCase()) return true;
+      if (pb == partnerUserId.toLowerCase() || pb == 'partner_user') {
+        return false;
+      }
+      if (pb.isEmpty) {
+        return item.createdBy == myUserId || item.createdBy == 'local_user';
+      }
+      return true;
+    }
 
-        double splitAmount = 0.0;
-        int splitSubs = 0;
-        int splitEmis = 0;
+    bool isPartner(LocalSubscription item) {
+      final pb = (item.paidBy ?? '').trim().toLowerCase();
+      if (pb == 'split' || pb == '50/50') return false;
+      if (pb == partnerUserId.toLowerCase() || pb == 'partner_user') {
+        return true;
+      }
+      return false;
+    }
 
-        for (final item in relevantActive) {
-          final amt = getItemAmount(item);
-          if (isSplit(item)) {
-            splitAmount += amt;
-            if (item.isEmi) {
-              splitEmis++;
-            } else {
-              splitSubs++;
-            }
-          } else if (isPartner(item)) {
-            partnerAmount += amt;
-            if (item.isEmi) {
-              partnerEmis++;
-            } else {
-              partnerSubs++;
-            }
-          } else {
-            mineAmount += amt;
-            if (item.isEmi) {
-              mineEmis++;
-            } else {
-              mineSubs++;
-            }
-          }
-        }
+    bool isSplit(LocalSubscription item) {
+      final pb = (item.paidBy ?? '').trim().toLowerCase();
+      return pb == 'split' || pb == '50/50';
+    }
 
-        final effectiveMineAmount =
-            mineAmount + (_distributeSplit5050 ? splitAmount / 2.0 : 0.0);
-        final effectivePartnerAmount =
-            partnerAmount + (_distributeSplit5050 ? splitAmount / 2.0 : 0.0);
-        final totalAllocation = mineAmount + partnerAmount + splitAmount;
+    final attributionNames = <String>['All', myName, partnerName, 'Split'];
+    if (_selectedAttributionTab >= attributionNames.length) {
+      _selectedAttributionTab = 0;
+    }
 
-        final tabNames = ['All', myName, partnerName, 'Split'];
-        if (_selectedAttributionTab >= tabNames.length) {
-          _selectedAttributionTab = 0;
-        }
+    List<LocalSubscription> filterByAttribution(List<LocalSubscription> list) {
+      if (_selectedAttributionTab == 0) return list;
+      if (_selectedAttributionTab == 1) {
+        return list.where(isMine).toList();
+      }
+      if (_selectedAttributionTab == 2) {
+        return list.where(isPartner).toList();
+      }
+      if (_selectedAttributionTab == 3) {
+        return list.where(isSplit).toList();
+      }
+      return list;
+    }
 
-        List<LocalSubscription> filterByTab(List<LocalSubscription> list) {
-          if (_selectedAttributionTab == 0) return list;
-          if (_selectedAttributionTab == 1) {
-            return list.where((s) {
-              if (isMine(s)) return true;
-              if (_distributeSplit5050 && isSplit(s)) return true;
-              return false;
-            }).toList();
-          }
-          if (_selectedAttributionTab == 2) {
-            return list.where((s) {
-              if (isPartner(s)) return true;
-              if (_distributeSplit5050 && isSplit(s)) return true;
-              return false;
-            }).toList();
-          }
-          if (_selectedAttributionTab == 3) {
-            return list.where((s) => isSplit(s)).toList();
-          }
+    final attributionFilteredActive = filterByAttribution(activeSubs);
+    final attributionFilteredInactive = filterByAttribution(inactiveSubs);
+
+    final allCount = attributionFilteredActive.length;
+    final subsCount = attributionFilteredActive
+        .where((s) => !s.isEmi && !_isSavingsCommitment(s))
+        .length;
+    final emisCount =
+        attributionFilteredActive.where((s) => s.isEmi).length;
+    final savingsCount = attributionFilteredActive
+        .where(_isSavingsCommitment)
+        .length;
+
+    List<LocalSubscription> filterByKind(List<LocalSubscription> list) {
+      switch (_selectedKindFilter) {
+        case CommitmentKindFilter.all:
           return list;
-        }
+        case CommitmentKindFilter.subs:
+          return list
+              .where((s) => !s.isEmi && !_isSavingsCommitment(s))
+              .toList();
+        case CommitmentKindFilter.emis:
+          return list.where((s) => s.isEmi).toList();
+        case CommitmentKindFilter.savings:
+          return list.where(_isSavingsCommitment).toList();
+      }
+    }
 
-        final filteredActive = filterByTab(activeSubs);
-        final filteredInactive = filterByTab(inactiveSubs);
+    final filteredActive = filterByKind(attributionFilteredActive);
+    final filteredInactive = filterByKind(attributionFilteredInactive);
 
-        // 4. Group by Renewal / Payment Date (Strict Calendar Classification)
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final in7Days = today.add(const Duration(days: 7));
+    // Sort active commitments chronologically by nextBillingDate
+    final sortedActive = List<LocalSubscription>.from(filteredActive)
+      ..sort((a, b) {
+        final cmp = a.nextBillingDate.compareTo(b.nextBillingDate);
+        if (cmp != 0) return cmp;
+        return b.amount.compareTo(a.amount);
+      });
 
-        final overdue = <LocalSubscription>[];
-        final renewingThisWeek = <LocalSubscription>[];
-        final renewingThisMonth = <LocalSubscription>[];
-        final nextMonth = <LocalSubscription>[];
-        final later = <LocalSubscription>[];
+    // Group active commitments by calendar day (year, month, day)
+    final dateGroups = <_CommitmentDateGroup>[];
+    for (final sub in sortedActive) {
+      final dayKey = DateTime(
+        sub.nextBillingDate.year,
+        sub.nextBillingDate.month,
+        sub.nextBillingDate.day,
+      );
+      if (dateGroups.isEmpty || dateGroups.last.date != dayKey) {
+        dateGroups.add(_CommitmentDateGroup(date: dayKey, items: [sub]));
+      } else {
+        dateGroups.last.items.add(sub);
+      }
+    }
 
-        final nextMonthYear = today.month == 12 ? today.year + 1 : today.year;
-        final nextMonthValue = today.month == 12 ? 1 : today.month + 1;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
-        for (final sub in filteredActive) {
-          final ren = DateTime(
-            sub.nextBillingDate.year,
-            sub.nextBillingDate.month,
-            sub.nextBillingDate.day,
-          );
-
-          if (ren.isBefore(today)) {
-            // Past due date and not marked as paid / renewed
-            overdue.add(sub);
-          } else if (ren.year == today.year && ren.month == today.month) {
-            // Strictly within the current calendar month
-            if (ren.isBefore(in7Days) || ren.isAtSameMomentAs(in7Days)) {
-              renewingThisWeek.add(sub);
-            } else {
-              renewingThisMonth.add(sub);
-            }
-          } else if (ren.year == nextMonthYear && ren.month == nextMonthValue) {
-            // Strictly within the next calendar month
-            nextMonth.add(sub);
-          } else {
-            // Anything beyond next month
-            later.add(sub);
-          }
-        }
-
-        overdue.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-        renewingThisWeek.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-        renewingThisMonth.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-        nextMonth.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-        later.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-
-        final currency = ref.watch(currencyPreferenceProvider);
-
-        final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
-        final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 960;
-
-        final heroCard = CoveCard(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      _showAnnual ? 'ANNUAL COMMITMENTS' : 'MONTHLY COMMITMENTS',
-                      style: typography.caption.copyWith(
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+    return Scaffold(
+      backgroundColor: cv.surfaceCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: CoveMaxWidth(
+          child: RefreshIndicator(
+            color: cv.accentFill,
+            backgroundColor: cv.surfaceCard,
+            onRefresh: _handleRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              children: [
+                // 1. CovePageHeader — "Commitments", CoveRoundButton gold add.
+                CovePageHeader(
+                  title: 'Commitments',
+                  action: CoveRoundButton(
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    tooltip: 'Add Commitment',
+                    semanticLabel: 'Add Commitment',
+                    onPressed: () => SubscriptionFormSheet.show(context),
                   ),
+                ),
+                const SizedBox(height: CoveSpace.md),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.gutter,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 2. Monthly total card with a split bar (EMIs / subs / savings)
+                      _buildHeroTotalCard(
+                        context,
+                        currency: currency,
+                        displayedAmount: displayedAmount,
+                        displayedEmis: displayedEmis,
+                        displayedSubs: displayedSubs,
+                        displayedSavings: displayedSavings,
+                        sharedCount: sharedActive.length,
+                        privateCount: privateActive.length,
+                        attributionLabel:
+                            attributionNames[_selectedAttributionTab],
+                        onCycleAttribution: () {
+                          setState(() {
+                            _selectedAttributionTab =
+                                (_selectedAttributionTab + 1) %
+                                    attributionNames.length;
+                          });
+                        },
+                        myName: myName,
+                        partnerName: partnerName,
+                      ),
+                      const SizedBox(height: CoveSpace.section),
+
+                      // 3. "The runway" — caption with two icon buttons: EMIs page, full-year page
+                      _buildRunwaySection(
+                        context,
+                        subscriptions: subscriptions,
+                        activeSubs: relevantActive,
+                      ),
+                      const SizedBox(height: CoveSpace.section),
+
+                      // 4. Segment filter: All · Subs · EMIs · Savings
+                      _buildSegmentFilterRow(
+                        context,
+                        allCount: allCount,
+                        subsCount: subsCount,
+                        emisCount: emisCount,
+                        savingsCount: savingsCount,
+                      ),
+                      const SizedBox(height: CoveSpace.lg),
+
+                      // 5. Next-due block, then the list of commitments as CoveRow
+                      if (dateGroups.isEmpty && filteredInactive.isEmpty)
+                        _buildFilteredEmptyCard(
+                          context,
+                          filterLabel:
+                              attributionNames[_selectedAttributionTab],
+                        )
+                      else ...[
+                        for (var g = 0; g < dateGroups.length; g++) ...[
+                          if (g > 0) const SizedBox(height: CoveSpace.lg),
+                          _buildDateGroupBlock(
+                            context,
+                            group: dateGroups[g],
+                            isFirstGroup: g == 0,
+                            today: today,
+                            currency: currency,
+                            creatorId: creatorId,
+                            myUserId: myUserId,
+                            partnerUserId: partnerUserId,
+                            myName: myName,
+                            partnerName: partnerName,
+                          ),
+                        ],
+                      ],
+
+                      // Paused & Completed section when inactive commitments exist
+                      if (filteredInactive.isNotEmpty) ...[
+                        const SizedBox(height: CoveSpace.section),
+                        CoveSectionLabel.page(
+                          label: 'Paused & Completed',
+                          readout: '${filteredInactive.length}',
+                        ),
+                        const SizedBox(height: CoveSpace.sm),
+                        _buildInactiveGroupCard(
+                          context,
+                          inactiveSubs: filteredInactive,
+                          currency: currency,
+                          creatorId: creatorId,
+                          myUserId: myUserId,
+                          partnerUserId: partnerUserId,
+                          myName: myName,
+                          partnerName: partnerName,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroTotalCard(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required double displayedAmount,
+    required double displayedEmis,
+    required double displayedSubs,
+    required double displayedSavings,
+    required int sharedCount,
+    required int privateCount,
+    required String attributionLabel,
+    required VoidCallback onCycleAttribution,
+    required String myName,
+    required String partnerName,
+  }) {
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
+
+    final totalForBar =
+        displayedAmount > 0 ? displayedAmount : 1.0;
+    final emiFlex =
+        ((displayedEmis / totalForBar) * 1000).round().clamp(0, 1000);
+    final subsFlex =
+        ((displayedSubs / totalForBar) * 1000).round().clamp(0, 1000);
+    final savingsFlex =
+        ((displayedSavings / totalForBar) * 1000).round().clamp(0, 1000);
+    final hasAnyBar = emiFlex + subsFlex + savingsFlex > 0;
+
+    final String cycleCaption = _showAnnual
+        ? (_combineCycles
+            ? 'per year · combined monthly & annual'
+            : 'per year · annual commitments only')
+        : (_combineCycles
+            ? 'per month · combined monthly & annual'
+            : 'per month · monthly commitments only');
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.card)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cv.surfaceCard,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.card),
+          ),
+          border: Border.all(
+            color: cv.lineHairline,
+            width: _kHairline,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Subtle concentric arc rings in top-right corner
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _ConcentricArcsPainter(
+                    lineColor: cv.lineHairline,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(CoveSpace.gutter),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top row: Monthly / Annually toggle + Household payer pill
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.end,
+                    spacing: CoveSpace.sm,
+                    runSpacing: CoveSpace.sm,
+                    alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // Toggle Monthly / Annual
-                      InkWell(
-                        onTap: () => setState(() => _showAnnual = !_showAnnual),
-                        borderRadius: BorderRadius.circular(999),
+                      // Monthly / Annually segmented pill
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cv.surfaceRow,
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(CoveRadius.pill),
+                          ),
+                          border: Border.all(
+                            color: cv.lineHairline,
+                            width: _kHairline,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildCycleSegmentPill(
+                              context,
+                              label: 'Monthly',
+                              selected: !_showAnnual,
+                              duration: duration,
+                              onTap: () => setState(
+                                () => _showAnnual =
+                                    !_showAnnual ? true : false,
+                              ),
+                            ),
+                            _buildCycleSegmentPill(
+                              context,
+                              label: 'Annually',
+                              selected: _showAnnual,
+                              duration: duration,
+                              onTap: () => setState(
+                                () => _showAnnual =
+                                    _showAnnual ? false : true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Payer attribution filter pill with dual inline avatars
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onCycleAttribution,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          height: _kPillHeight,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CoveSpace.sm,
+                          ),
                           decoration: BoxDecoration(
-                            color: colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: colors.borderHairline, width: 1),
+                            color: cv.surfaceRow,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(CoveRadius.pill),
+                            ),
+                            border: Border.all(
+                              color: cv.lineHairline,
+                              width: _kHairline,
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                _showAnnual ? 'Annual' : 'Monthly',
-                                style: typography.caption.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.accentPrimary,
+                              SizedBox(
+                                width: CoveSize.avatarInline +
+                                    _kAvatarOverlapOffset,
+                                height: CoveSize.avatarInline,
+                                child: Stack(
+                                  children: [
+                                    Positioned(
+                                      left: _kAvatarOverlapOffset,
+                                      top: 0,
+                                      child: CoveAvatar.inline(
+                                        person: CovePerson.b,
+                                        nameOrInitial: partnerName,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      child: CoveAvatar.inline(
+                                        person: CovePerson.a,
+                                        nameOrInitial: myName,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 3),
+                              const SizedBox(width: CoveSpace.xs),
+                              Text(
+                                attributionLabel,
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: CoveSpace.xs),
                               Icon(
-                                Icons.swap_horiz,
-                                size: 14,
-                                color: colors.accentPrimary,
+                                Icons.keyboard_arrow_down_rounded,
+                                size: _kInlineIconSize,
+                                color: cv.textTertiary,
                               ),
                             ],
                           ),
@@ -404,1020 +719,792 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
+                  const SizedBox(height: CoveSpace.lg),
 
-              // Bodoni Moda Luminous Numerical Total
-              Text(
-                '${currency.symbol}$displayedAmountStr',
-                style: typography.largeNumber.copyWith(
-                  fontSize: 40,
-                  height: 1.1,
-                  color: colors.accentTint,
-                ),
-              ),
-              const SizedBox(height: 4),
-
-              // Label
-              Text(
-                _showAnnual
-                    ? (_combineCycles
-                        ? 'per year · combined monthly & annual'
-                        : 'per year · annual commitments only')
-                    : (_combineCycles
-                        ? 'per month · combined monthly & annual'
-                        : 'per month · monthly commitments only'),
-                style: typography.caption.copyWith(
-                  color: colors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              // Secondary Breakdown line
-              Text(
-                'Subs ${currency.symbol}$displayedSubsStr · EMIs ${currency.symbol}$displayedEmisStr',
-                style: typography.caption.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Combine Cycles Switcher Row
-              InkWell(
-                onTap: () => setState(() => _combineCycles = !_combineCycles),
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: colors.borderHairline),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Hero amount + "a month" / "a year"
+                  Wrap(
+                    spacing: CoveSpace.sm,
+                    crossAxisAlignment: WrapCrossAlignment.end,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Calculate monthly & annual together',
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            _combineCycles
-                                ? (_showAnnual
-                                    ? 'Monthly converted to annual'
-                                    : 'Annual converted to monthly')
-                                : 'Separate monthly and annual pools',
-                            style: typography.caption.copyWith(
-                              fontSize: 11,
-                              color: colors.textMuted,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '${currency.symbol}${formatCoveAmount(displayedAmount)}',
+                        style: CoveType.heroFigure.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
-                      CoveToggleSwitch(
-                        value: _combineCycles,
-                        onChanged: (val) => setState(() => _combineCycles = val),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: CoveSpace.xs),
+                        child: Text(
+                          _showAnnual ? 'a year' : 'a month',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                  const SizedBox(height: CoveSpace.xs),
                   Text(
-                    '${sharedActive.length} shared commitments${privateActive.isNotEmpty ? " • ${privateActive.length} private" : ""}',
-                    style: typography.caption.copyWith(
-                      color: colors.textSubtle,
-                      fontSize: 11,
+                    cycleCaption,
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textTertiary,
                     ),
                   ),
-                  if (privateActive.isNotEmpty)
-                    GestureDetector(
-                      onTap: () => setState(
-                          () => _includePrivateInHero = !_includePrivateInHero),
-                      child: Text(
-                        _includePrivateInHero
-                            ? 'Show shared only'
-                            : 'Include private',
-                        style: typography.caption.copyWith(
-                          color: colors.accentPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                  const SizedBox(height: CoveSpace.md),
+
+                  // Split bar (EMIs / Subs / Savings)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(CoveRadius.pill),
                     ),
-                ],
-              ),
-            ],
-          ),
-        );
-
-        final commitmentsList = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _selectedAttributionTab == 0
-                      ? 'ALL COMMITMENTS'
-                      : '${tabNames[_selectedAttributionTab].toUpperCase()} COMMITMENTS',
-                  style: typography.caption.copyWith(
-                    letterSpacing: 1.1,
-                    fontWeight: FontWeight.w600,
+                    child: SizedBox(
+                      height: _kSplitBarHeight,
+                      child: hasAnyBar
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (emiFlex > 0)
+                                  Expanded(
+                                    flex: emiFlex,
+                                    child: ColoredBox(color: cv.accentFill),
+                                  ),
+                                if (subsFlex > 0) ...[
+                                  if (emiFlex > 0)
+                                    const SizedBox(width: CoveSpace.xs),
+                                  Expanded(
+                                    flex: subsFlex,
+                                    child: ColoredBox(color: cv.lineStrong),
+                                  ),
+                                ],
+                                if (savingsFlex > 0) ...[
+                                  if (emiFlex > 0 || subsFlex > 0)
+                                    const SizedBox(width: CoveSpace.xs),
+                                  Expanded(
+                                    flex: savingsFlex,
+                                    child: ColoredBox(color: cv.statusGood),
+                                  ),
+                                ],
+                              ],
+                            )
+                          : ColoredBox(color: cv.surfaceRow),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: CoveSpace.md),
 
-            // Section: Overdue
-            if (overdue.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Overdue',
-                count: overdue.length,
-                highlight: true,
-                isWarning: true,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: overdue
-                    .map((sub) => _buildSubscriptionRow(
-                          sub,
-                          outboxEvents,
-                          hasPartner: hasPartner,
-                          isUrgent: true,
-                          isOverdue: true,
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Section: Renewing this week (strictly current month)
-            if (renewingThisWeek.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Renewing this week',
-                count: renewingThisWeek.length,
-                highlight: true,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: renewingThisWeek
-                    .map((sub) => _buildSubscriptionRow(
-                          sub,
-                          outboxEvents,
-                          hasPartner: hasPartner,
-                          isUrgent: true,
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Section: Renewing this month (strictly current month)
-            if (renewingThisMonth.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Renewing this month',
-                count: renewingThisMonth.length,
-                highlight: false,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: renewingThisMonth
-                    .map((sub) => _buildSubscriptionRow(
-                          sub,
-                          outboxEvents,
-                          hasPartner: hasPartner,
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Section: Next month
-            if (nextMonth.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Next month',
-                count: nextMonth.length,
-                highlight: false,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: nextMonth
-                    .map((sub) => _buildSubscriptionRow(
-                          sub,
-                          outboxEvents,
-                          hasPartner: hasPartner,
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Section: Later Renewals
-            if (later.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Later',
-                count: later.length,
-                highlight: false,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: later
-                    .map((sub) => _buildSubscriptionRow(
-                          sub,
-                          outboxEvents,
-                          hasPartner: hasPartner,
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Section: Inactive / Completed EMIs
-            if (filteredInactive.isNotEmpty) ...[
-              _buildSectionHeader(
-                title: 'Paused & Completed',
-                count: filteredInactive.length,
-                highlight: false,
-              ),
-              const SizedBox(height: 8),
-              CoveGroupedCard(
-                children: filteredInactive
-                    .map((sub) => _buildSubscriptionRow(sub, outboxEvents, hasPartner: hasPartner, isPaused: true))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // Empty state for filtered tab
-            if (filteredActive.isEmpty && filteredInactive.isEmpty) ...[
-              const SizedBox(height: 8),
-              CoveCard(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-                child: Center(
-                  child: Column(
+                  // Legend: EMIs · Subs · Savings
+                  Wrap(
+                    spacing: CoveSpace.md,
+                    runSpacing: CoveSpace.xs,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 28, color: colors.textMuted),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No commitments for ${tabNames[_selectedAttributionTab]}',
-                        style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                      _buildLegendItem(
+                        context,
+                        swatchColor: cv.accentFill,
+                        label: 'EMIs',
+                        amountText:
+                            '${currency.symbol}${formatCoveAmount(displayedEmis)}',
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap "+ EMI" or "Add" to assign a commitment to this category.',
-                        style: typography.caption.copyWith(color: colors.textMuted),
-                        textAlign: TextAlign.center,
+                      _buildLegendItem(
+                        context,
+                        swatchColor: cv.lineStrong,
+                        label: 'Subs',
+                        amountText:
+                            '${currency.symbol}${formatCoveAmount(displayedSubs)}',
+                      ),
+                      _buildLegendItem(
+                        context,
+                        swatchColor: cv.statusGood,
+                        label: 'Savings',
+                        amountText:
+                            '${currency.symbol}${formatCoveAmount(displayedSavings)}',
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ],
-        );
+                  const SizedBox(height: CoveSpace.md),
 
-        final allocationCard = CoveCard(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.pie_chart_outline_rounded,
-                          size: 16, color: colors.accentPrimary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'COMMITMENT ALLOCATION',
-                        style: typography.caption.copyWith(
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  InkWell(
-                    onTap: () => setState(
-                        () => _distributeSplit5050 = !_distributeSplit5050),
-                    borderRadius: BorderRadius.circular(8),
+                  // Cycle combination toggle + Shared / Private count footer
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () =>
+                        setState(() => _combineCycles = !_combineCycles),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
+                        vertical: CoveSpace.xs,
+                      ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Split 50/50',
-                            style: typography.caption.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              color: _distributeSplit5050
-                                  ? colors.accentPrimary
-                                  : colors.textMuted,
-                            ),
+                          Icon(
+                            _combineCycles
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            size: _kInlineIconSize,
+                            color: _combineCycles
+                                ? cv.accentFill
+                                : cv.textTertiary,
                           ),
-                          const SizedBox(width: 8),
-                          CoveToggleSwitch(
-                            value: _distributeSplit5050,
-                            onChanged: (val) =>
-                                setState(() => _distributeSplit5050 = val),
+                          const SizedBox(width: CoveSpace.xs),
+                          Expanded(
+                            child: Text(
+                              'Calculate monthly & annual together',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // Multi-segment horizontal progress bar
-              _buildAttributionProgressBar(
-                colors: colors,
-                total: totalAllocation,
-                mineAmount:
-                    _distributeSplit5050 ? effectiveMineAmount : mineAmount,
-                partnerAmount: _distributeSplit5050
-                    ? effectivePartnerAmount
-                    : partnerAmount,
-                splitAmount: _distributeSplit5050 ? 0.0 : splitAmount,
-              ),
-              const SizedBox(height: 14),
-
-              // Allocation Stats
-              if (_distributeSplit5050) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildAllocationStatTile(
-                        name: myName,
-                        amount: effectiveMineAmount,
-                        subsCount: mineSubs,
-                        emisCount: mineEmis,
-                        splitSubsCount: splitSubs,
-                        splitEmisCount: splitEmis,
-                        color: colors.accentPrimary,
-                        percent: totalAllocation > 0
-                            ? ((effectiveMineAmount / totalAllocation) * 100)
-                                .round()
-                            : 0,
-                        isSplitDistributed: true,
-                        currency: currency,
-                        typography: typography,
-                        colors: colors,
+                  const SizedBox(height: CoveSpace.xs),
+                  Wrap(
+                    spacing: CoveSpace.sm,
+                    runSpacing: CoveSpace.xs,
+                    alignment: WrapAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$sharedCount shared commitments${privateCount > 0 ? " • $privateCount private" : ""}',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildAllocationStatTile(
-                        name: partnerName,
-                        amount: effectivePartnerAmount,
-                        subsCount: partnerSubs,
-                        emisCount: partnerEmis,
-                        splitSubsCount: splitSubs,
-                        splitEmisCount: splitEmis,
-                        color: colors.accentSecondary,
-                        percent: totalAllocation > 0
-                            ? ((effectivePartnerAmount / totalAllocation) * 100)
-                                .round()
-                            : 0,
-                        isSplitDistributed: true,
-                        currency: currency,
-                        typography: typography,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildAllocationStatTile(
-                        name: myName,
-                        amount: mineAmount,
-                        subsCount: mineSubs,
-                        emisCount: mineEmis,
-                        color: colors.accentPrimary,
-                        percent: totalAllocation > 0
-                            ? ((mineAmount / totalAllocation) * 100).round()
-                            : 0,
-                        isSplitDistributed: false,
-                        currency: currency,
-                        typography: typography,
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAllocationStatTile(
-                        name: 'Split',
-                        amount: splitAmount,
-                        subsCount: splitSubs,
-                        emisCount: splitEmis,
-                        color: const Color(0xFFC49A45),
-                        percent: totalAllocation > 0
-                            ? ((splitAmount / totalAllocation) * 100).round()
-                            : 0,
-                        isSplitDistributed: false,
-                        currency: currency,
-                        typography: typography,
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAllocationStatTile(
-                        name: partnerName,
-                        amount: partnerAmount,
-                        subsCount: partnerSubs,
-                        emisCount: partnerEmis,
-                        color: colors.accentSecondary,
-                        percent: totalAllocation > 0
-                            ? ((partnerAmount / totalAllocation) * 100).round()
-                            : 0,
-                        isSplitDistributed: false,
-                        currency: currency,
-                        typography: typography,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        );
-
-        final tabRow = Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 4),
-          child: CoveTabRow(
-            tabs: tabNames,
-            selectedIndex: _selectedAttributionTab,
-            onTabSelected: (idx) =>
-                setState(() => _selectedAttributionTab = idx),
-          ),
-        );
-
-        return Scaffold(
-          backgroundColor: colors.background,
-          appBar: !isDesktop
-              ? AppBar(
-                  title: Text(
-                    'Commitments',
-                    style: typography.headline.copyWith(fontSize: 20),
-                  ),
-                  actions: [
-                    IconButton(
-                      tooltip: 'EMI Outstanding',
-                      icon: const Icon(Icons.account_balance_outlined, size: 20),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const EmiTrackerScreen(),
+                      if (privateCount > 0)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(
+                            () => _includePrivateInHero =
+                                !_includePrivateInHero,
                           ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      tooltip: 'Helicopter View',
-                      icon: const Icon(Icons.grid_view_rounded, size: 20),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => CommitmentsHelicopterScreen(
-                              subscriptions: subscriptions,
+                          child: Text(
+                            _includePrivateInHero
+                                ? 'Show shared only'
+                                : 'Include private',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.accentText,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: CovePillButton(
-                        label: '+ Add',
-                        variant: CoveButtonVariant.secondary,
-                        isCompact: true,
-                        onPressed: () => SubscriptionFormSheet.show(context),
-                      ),
-                    ),
-                  ],
-                )
-              : null,
-          body: RefreshIndicator(
-            color: colors.accentPrimary,
-            backgroundColor: colors.surfaceCard,
-            onRefresh: _handleRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.symmetric(
-                horizontal: isWide ? 36 : 20,
-                vertical: isWide ? 32 : 20,
-              ),
-              children: [
-                if (isWide) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          children: [
-                            heroCard,
-                            const SizedBox(height: 20),
-                            allocationCard,
-                          ],
                         ),
-                      ),
-                      const SizedBox(width: 32),
-                      Expanded(
-                        flex: 6,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            tabRow,
-                            const SizedBox(height: 16),
-                            commitmentsList,
-                          ],
-                        ),
-                      ),
                     ],
                   ),
-                ] else ...[
-                  heroCard,
-                  const SizedBox(height: 16),
-                  allocationCard,
-                  const SizedBox(height: 16),
-                  tabRow,
-                  const SizedBox(height: 16),
-                  commitmentsList,
                 ],
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
-          ),
-        );
-  }
-
-  Widget _buildAttributionProgressBar({
-    required CoveColors colors,
-    required double total,
-    required double mineAmount,
-    required double partnerAmount,
-    required double splitAmount,
-  }) {
-    if (total <= 0) {
-      return Container(
-        height: 8,
-        decoration: BoxDecoration(
-          color: colors.surfaceRow,
-          borderRadius: BorderRadius.circular(999),
-        ),
-      );
-    }
-
-    final mineWeight = (mineAmount / total).clamp(0.0, 1.0);
-    final partnerWeight = (partnerAmount / total).clamp(0.0, 1.0);
-    final splitWeight = (splitAmount / total).clamp(0.0, 1.0);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        height: 8,
-        color: colors.surfaceRow,
-        child: Row(
-          children: [
-            if (mineWeight > 0)
-              Expanded(
-                flex: (mineWeight * 1000).round().clamp(1, 1000),
-                child: Container(color: colors.accentPrimary),
-              ),
-            if (splitWeight > 0)
-              Expanded(
-                flex: (splitWeight * 1000).round().clamp(1, 1000),
-                child: Container(color: const Color(0xFFC49A45)),
-              ),
-            if (partnerWeight > 0)
-              Expanded(
-                flex: (partnerWeight * 1000).round().clamp(1, 1000),
-                child: Container(color: colors.accentSecondary),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAllocationStatTile({
-    required String name,
-    required double amount,
-    required int subsCount,
-    required int emisCount,
-    int splitSubsCount = 0,
-    int splitEmisCount = 0,
-    required Color color,
-    required int percent,
-    required bool isSplitDistributed,
-    required CurrencyOption currency,
-    required CoveTypography typography,
-    required CoveColors colors,
+  Widget _buildCycleSegmentPill(
+    BuildContext context, {
+    required String label,
+    required bool selected,
+    required Duration duration,
+    required VoidCallback onTap,
   }) {
-    final formattedAmt = formatCoveAmount(amount);
+    final cv = context.cv;
 
-    final String countLabel;
-    if (isSplitDistributed && (splitSubsCount > 0 || splitEmisCount > 0)) {
-      countLabel = '$subsCount subs (+$splitSubsCount split) · $emisCount EMIs (+$splitEmisCount split)';
-    } else {
-      countLabel = '$subsCount subs · $emisCount EMIs';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceRow,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.borderHairline),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  name,
-                  style: typography.caption.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
-                    fontSize: 11,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                '$percent%',
-                style: typography.caption.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                  color: color,
-                ),
-              ),
-            ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: duration,
+        curve: CoveMotion.easing,
+        height: _kPillHeight,
+        padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+        decoration: BoxDecoration(
+          color: selected ? cv.accentWash : Colors.transparent,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.pill),
           ),
-          const SizedBox(height: 5),
-          Text(
-            '${currency.symbol}$formattedAmt',
-            style: typography.bodyMedium.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: colors.textPrimary,
+          border: Border.all(
+            color: selected ? cv.accentFill : Colors.transparent,
+            width: _kHairline,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: CoveType.barLabel.copyWith(
+                color: selected ? cv.textPrimary : cv.textSecondary,
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            countLabel,
-            style: typography.caption.copyWith(
-              color: colors.textMuted,
-              fontSize: 10,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSectionHeader({
-    required String title,
-    required int count,
-    required bool highlight,
-    bool isWarning = false,
+  Widget _buildLegendItem(
+    BuildContext context, {
+    required Color swatchColor,
+    required String label,
+    required String amountText,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final dotColor = isWarning ? colors.accentSecondary : colors.accentPrimary;
-    final textColor = isWarning
-        ? colors.accentSecondary
-        : (highlight ? colors.accentPrimary : colors.textPrimary);
+    final cv = context.cv;
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (highlight || isWarning) ...[
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
+        Container(
+          width: _kSwatchSize,
+          height: _kSwatchSize,
+          decoration: BoxDecoration(
+            color: swatchColor,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveSpace.xs),
             ),
           ),
-          const SizedBox(width: 8),
-        ],
-        Text(
-          title,
-          style: typography.bodyMedium.copyWith(
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: CoveSpace.xs),
         Text(
-          '($count)',
-          style: typography.caption.copyWith(
-            color: isWarning ? colors.accentSecondary.withValues(alpha: 0.7) : colors.textMuted,
+          label,
+          style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+        ),
+        const SizedBox(width: CoveSpace.xs),
+        Text(
+          amountText,
+          style: CoveType.rowSub.copyWith(color: cv.textPrimary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRunwaySection(
+    BuildContext context, {
+    required List<LocalSubscription> subscriptions,
+    required List<LocalSubscription> activeSubs,
+  }) {
+    final cv = context.cv;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'THE RUNWAY',
+                style: CoveType.capsPage.copyWith(color: cv.textTertiary),
+              ),
+            ),
+            CoveRoundButton(
+              icon: Icons.stacked_line_chart_rounded,
+              variant: CoveRoundButtonVariant.ghost,
+              tooltip: 'EMI Outstanding',
+              semanticLabel: 'EMI Outstanding',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const EmiTrackerScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: CoveSpace.xs),
+            CoveRoundButton(
+              icon: Icons.calendar_month_outlined,
+              variant: CoveRoundButtonVariant.ghost,
+              tooltip: 'Helicopter View',
+              semanticLabel: 'The year',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CommitmentsHelicopterScreen(
+                      subscriptions: subscriptions,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const EmiTrackerScreen(),
+              ),
+            );
+          },
+          child: SizedBox(
+            height: _kRunwayChartHeight,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _RunwayMiniChartPainter(
+                activeSubs: activeSubs,
+                strokeColor: cv.accentFill,
+                fillColor: cv.accentWash,
+                gridColor: cv.lineHairline,
+                surfaceColor: cv.surfaceCanvas,
+                pillFillColor: cv.accentFill,
+                pillTextStyle: CoveType.barLabel.copyWith(
+                  color: cv.textOnAccent,
+                ),
+                axisTextStyle: CoveType.barLabel.copyWith(
+                  color: cv.textTertiary,
+                ),
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSubscriptionRow(
-    LocalSubscription sub,
-    List<LocalOutboxEvent> outbox, {
-    bool hasPartner = true,
-    bool isUrgent = false,
-    bool isOverdue = false,
-    bool isPaused = false,
+  Widget _buildSegmentFilterRow(
+    BuildContext context, {
+    required int allCount,
+    required int subsCount,
+    required int emisCount,
+    required int savingsCount,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final currency = ref.watch(currencyPreferenceProvider);
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
 
-    // Determine two-tick delivery status for shared items
-    final tickStatus = resolveCoveSyncStatus(
-      entityId: sub.id,
-      outbox: outbox,
-      isPrivate: sub.isPrivate,
-      hasPartner: hasPartner,
-    );
+    final segments = <(CommitmentKindFilter, String, int)>[
+      (CommitmentKindFilter.all, 'All', allCount),
+      (CommitmentKindFilter.subs, 'Subs', subsCount),
+      (CommitmentKindFilter.emis, 'EMIs', emisCount),
+      (CommitmentKindFilter.savings, 'Savings', savingsCount),
+    ];
 
-    final cycleSuffix = formatBillingCycleSuffix(sub.billingCycle);
-    final renewalFormatted = DateFormat('MMM d').format(sub.nextBillingDate);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final daysUntilNext = DateTime(
-      sub.nextBillingDate.year,
-      sub.nextBillingDate.month,
-      sub.nextBillingDate.day,
-    ).difference(today).inDays;
-
-    final String nextTiming;
-    final String renewsText;
-    if (daysUntilNext < 0) {
-      final daysOverdue = -daysUntilNext;
-      final overdueStr = daysOverdue == 1 ? 'overdue by 1 day' : 'overdue by $daysOverdue days';
-      nextTiming = overdueStr;
-      renewsText = overdueStr;
-    } else if (daysUntilNext == 0) {
-      nextTiming = 'next today';
-      renewsText = 'renews today';
-    } else if (daysUntilNext == 1) {
-      nextTiming = 'next tomorrow';
-      renewsText = 'renews tomorrow';
-    } else if (daysUntilNext <= 30) {
-      nextTiming = 'next in $daysUntilNext days';
-      renewsText = 'renews in $daysUntilNext days';
-    } else {
-      nextTiming = 'next $renewalFormatted';
-      renewsText = 'renews $renewalFormatted';
-    }
-
-    // Payer attribution
-    final currentUser = ref.watch(authProvider).value;
-    final partnerProfile = ref.watch(partnerProfileProvider);
-    final partnerName = partnerProfile.displayName.trim().isNotEmpty
-        ? partnerProfile.displayName.trim()
-        : 'Partner';
-    final isSplit = sub.effectivePaidBy == 'split' || sub.effectivePaidBy == '50/50';
-    final isMe = (sub.effectivePaidBy == currentUser?.id) ||
-        (currentUser?.id == null && sub.effectivePaidBy == 'user_alex') ||
-        (sub.effectivePaidBy == 'me') ||
-        (currentUser?.id != null && sub.createdBy == currentUser?.id && sub.paidBy == null);
-    final paidText = isSplit ? 'Split (50/50)' : (isMe ? 'Paid by You' : 'Paid by $partnerName');
-    final viaText = (sub.financedThrough != null && sub.financedThrough!.trim().isNotEmpty)
-        ? ' · via ${sub.financedThrough!.trim()}'
-        : '';
-
-    final String subtitleText;
-    if (isPaused) {
-      subtitleText = sub.isEmiFinished
-          ? '$paidText$viaText · Completed (${sub.emiProgress?.totalInstallments}/${sub.emiProgress?.totalInstallments} paid)'
-          : '$paidText$viaText · Paused';
-    } else if (sub.isEmi) {
-      final progress = sub.emiProgress;
-      subtitleText = progress != null
-          ? '$paidText$viaText · ${progress.caption} · $nextTiming'
-          : '$paidText$viaText · EMI · $nextTiming';
-    } else {
-      final cycleLabel = formatBillingCycleLabel(sub.billingCycle);
-      subtitleText = '$paidText$viaText · $renewsText · $cycleLabel';
-    }
-
-    return CoveGroupedRow(
-      onTap: () => CommitmentDetailSheet.show(context, sub),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: colors.surfaceRow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isOverdue
-                ? colors.accentSecondary.withValues(alpha: 0.5)
-                : (isUrgent
-                    ? colors.accentPrimary.withValues(alpha: 0.4)
-                    : colors.borderHairline),
-            width: 1,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Icon(
-          _getCategoryIcon(sub.category),
-          size: 18,
-          color: isOverdue
-              ? colors.accentSecondary
-              : (isUrgent ? colors.accentPrimary : colors.textMuted),
-        ),
-      ),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(
-              sub.name,
-              style: typography.bodyMedium.copyWith(
-                color: isPaused
-                    ? colors.textMuted
-                    : (isOverdue ? colors.accentSecondary : colors.textPrimary),
-                decoration: isPaused ? TextDecoration.lineThrough : null,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 6),
-          if (isOverdue) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.accentSecondary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: colors.accentSecondary.withValues(alpha: 0.3), width: 1),
-              ),
-              child: Text(
-                'OVERDUE',
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: colors.accentSecondary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-          ],
-          // "Sub" or "EMI" Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            decoration: BoxDecoration(
-              color: colors.surfaceRow,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: colors.borderHairline, width: 1),
-            ),
-            child: Text(
-              sub.commitmentTypeBadge,
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: colors.textMuted,
-              ),
-            ),
-          ),
-          if (sub.isPrivate) ...[
-            const SizedBox(width: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.surfaceRow,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: colors.borderHairline, width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.visibility_off_outlined,
-                    size: 11,
-                    color: colors.textMuted,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    'Private',
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: colors.textMuted,
+    return Wrap(
+      spacing: CoveSpace.sm,
+      runSpacing: CoveSpace.sm,
+      children: [
+        for (final seg in segments)
+          Builder(
+            builder: (context) {
+              final isSelected = _selectedKindFilter == seg.$1;
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label: '${seg.$2} ${seg.$3}',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () =>
+                      setState(() => _selectedKindFilter = seg.$1),
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: CoveMotion.easing,
+                    height: _kPillHeight,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected ? cv.accentWash : Colors.transparent,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(CoveRadius.pill),
+                      ),
+                      border: Border.all(
+                        color: isSelected ? cv.accentFill : cv.lineStrong,
+                        width: _kHairline,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          seg.$2,
+                          style: CoveType.rowSub.copyWith(
+                            color: isSelected
+                                ? cv.textPrimary
+                                : cv.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: CoveSpace.xs),
+                        Text(
+                          '${seg.$3}',
+                          style: CoveType.barLabel.copyWith(
+                            color: isSelected
+                                ? cv.accentTint
+                                : cv.textTertiary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDateGroupBlock(
+    BuildContext context, {
+    required _CommitmentDateGroup group,
+    required bool isFirstGroup,
+    required DateTime today,
+    required CurrencyOption currency,
+    required String creatorId,
+    required String myUserId,
+    required String partnerUserId,
+    required String myName,
+    required String partnerName,
+  }) {
+    final cv = context.cv;
+    final daysUntil = group.date.difference(today).inDays;
+    final isOverdue = daysUntil < 0;
+    final isDueSoon = daysUntil >= 0 && daysUntil <= 7;
+    final carriesAlert = isOverdue || isDueSoon;
+
+    final dayNum = '${group.date.day}';
+    final monthWeekday =
+        '${DateFormat('MMM').format(group.date)} · ${DateFormat('EEE').format(group.date)}';
+
+    final String? statusWords;
+    if (isOverdue) {
+      statusWords = 'overdue';
+    } else if (isDueSoon) {
+      statusWords = isFirstGroup ? 'next · due soon' : 'due soon';
+    } else if (isFirstGroup) {
+      statusWords = 'next';
+    } else {
+      statusWords = null;
+    }
+
+    final groupTotal = group.items.fold<double>(
+      0.0,
+      (sum, s) => sum + s.amount,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Date group header
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              dayNum,
+              style: CoveType.cardFigure.copyWith(
+                color: isFirstGroup ? cv.accentTint : cv.textSecondary,
+              ),
+            ),
+            const SizedBox(width: CoveSpace.sm),
+            Expanded(
+              child: Wrap(
+                spacing: CoveSpace.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    monthWeekday,
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textTertiary,
+                    ),
+                  ),
+                  if (carriesAlert)
+                    Container(
+                      width: _kAlertDotSize,
+                      height: _kAlertDotSize,
+                      decoration: BoxDecoration(
+                        color: cv.statusAlert,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  if (statusWords != null)
+                    Text(
+                      statusWords,
+                      style: CoveType.rowSub.copyWith(
+                        color: carriesAlert ? cv.statusAlert : cv.accentTint,
+                      ),
+                    ),
                 ],
               ),
             ),
+            const SizedBox(width: CoveSpace.sm),
+            Text(
+              '${currency.symbol}${formatCoveAmount(groupTotal)}',
+              style: CoveType.rowSub.copyWith(
+                color: isFirstGroup ? cv.accentTint : cv.textTertiary,
+              ),
+            ),
           ],
-        ],
-      ),
-      subtitle: Text(
-        subtitleText,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: typography.caption.copyWith(
-          color: isOverdue
-              ? colors.accentSecondary
-              : (isUrgent ? colors.accentPrimary : colors.textMuted),
-          fontWeight: (isUrgent || isOverdue) ? FontWeight.w500 : FontWeight.w400,
         ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '${currency.symbol}${formatCoveAmount(sub.amount)}$cycleSuffix',
-            style: typography.bodyMedium.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isPaused
-                  ? colors.textMuted
-                  : (isOverdue ? colors.accentSecondary : colors.textPrimary),
+        const SizedBox(height: CoveSpace.sm),
+
+        // Date group card containing CoveRow items
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
+          decoration: BoxDecoration(
+            color: cv.surfaceCard,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.card),
+            ),
+            border: Border.all(
+              color: cv.lineHairline,
+              width: _kHairline,
             ),
           ),
-          const SizedBox(width: 8),
-          CoveSyncTick(
-            status: tickStatus,
-            size: 13,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < group.items.length; i++)
+                _buildCommitmentRow(
+                  context,
+                  sub: group.items[i],
+                  isLast: i == group.items.length - 1,
+                  today: today,
+                  currency: currency,
+                  creatorId: creatorId,
+                  myUserId: myUserId,
+                  partnerUserId: partnerUserId,
+                  myName: myName,
+                  partnerName: partnerName,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommitmentRow(
+    BuildContext context, {
+    required LocalSubscription sub,
+    required bool isLast,
+    required DateTime today,
+    required CurrencyOption currency,
+    required String creatorId,
+    required String myUserId,
+    required String partnerUserId,
+    required String myName,
+    required String partnerName,
+    bool isPaused = false,
+  }) {
+    final person = _resolvePayerPerson(
+      sub,
+      creatorId: creatorId,
+      myUserId: myUserId,
+      partnerUserId: partnerUserId,
+    );
+    final initial = _resolvePayerInitial(
+      sub,
+      person: person,
+      myName: myName,
+      partnerName: partnerName,
+      creatorId: creatorId,
+      myUserId: myUserId,
+    );
+
+    final kindTag = _kindTagFor(sub);
+    final subParts = <String>[kindTag];
+
+    final renDay = DateTime(
+      sub.nextBillingDate.year,
+      sub.nextBillingDate.month,
+      sub.nextBillingDate.day,
+    );
+    final daysUntil = renDay.difference(today).inDays;
+
+    if (isPaused) {
+      if (sub.isEmiFinished) {
+        final progress = sub.emiProgress;
+        subParts.add(
+          progress != null
+              ? 'Completed (${progress.totalInstallments}/${progress.totalInstallments} paid)'
+              : 'Completed',
+        );
+      } else {
+        subParts.add('Paused');
+      }
+      if (sub.financedThrough != null &&
+          sub.financedThrough!.trim().isNotEmpty) {
+        subParts.add('via ${sub.financedThrough!.trim()}');
+      }
+    } else {
+      if (sub.isEmi) {
+        final progress = sub.emiProgress;
+        if (progress != null) {
+          subParts.add(progress.caption);
+        }
+      } else if (_isSavingsCommitment(sub)) {
+        subParts.add('auto-debit');
+      } else if (person == CovePerson.both) {
+        subParts.add(
+          'split · ${currency.symbol}${formatCoveAmount(sub.amount / 2)} each',
+        );
+      } else {
+        subParts.add(formatBillingCycleLabel(sub.billingCycle));
+      }
+
+      if (sub.financedThrough != null &&
+          sub.financedThrough!.trim().isNotEmpty) {
+        subParts.add('via ${sub.financedThrough!.trim()}');
+      }
+
+      if (daysUntil < 0) {
+        subParts.add('Overdue');
+      } else if (daysUntil <= 7) {
+        subParts.add('Due soon');
+      }
+    }
+
+    if (sub.isPrivate) {
+      subParts.add('Private');
+    }
+
+    final cycleSuffix = formatBillingCycleSuffix(sub.billingCycle);
+    final amountText = cycleSuffix == '/mo'
+        ? '${currency.symbol}${formatCoveAmount(sub.amount)}'
+        : '${currency.symbol}${formatCoveAmount(sub.amount)}$cycleSuffix';
+
+    return CoveRow(
+      avatar: CoveAvatar.row(
+        person: person,
+        nameOrInitial: person == CovePerson.both ? null : initial,
+      ),
+      title: sub.name,
+      subtitle: subParts.join(' · '),
+      amount: amountText,
+      isLast: isLast,
+      showDivider: !isLast,
+      onTap: () => CommitmentDetailSheet.show(context, sub),
+    );
+  }
+
+  Widget _buildInactiveGroupCard(
+    BuildContext context, {
+    required List<LocalSubscription> inactiveSubs,
+    required CurrencyOption currency,
+    required String creatorId,
+    required String myUserId,
+    required String partnerUserId,
+    required String myName,
+    required String partnerName,
+  }) {
+    final cv = context.cv;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < inactiveSubs.length; i++)
+            _buildCommitmentRow(
+              context,
+              sub: inactiveSubs[i],
+              isLast: i == inactiveSubs.length - 1,
+              today: today,
+              currency: currency,
+              creatorId: creatorId,
+              myUserId: myUserId,
+              partnerUserId: partnerUserId,
+              myName: myName,
+              partnerName: partnerName,
+              isPaused: true,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilteredEmptyCard(
+    BuildContext context, {
+    required String filterLabel,
+  }) {
+    final cv = context.cv;
+
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.gutter),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: _kEmptyIconSize,
+            color: cv.textTertiary,
+          ),
+          const SizedBox(height: CoveSpace.sm),
+          Text(
+            'No commitments for $filterLabel',
+            style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Text(
+            'Tap "+" above to add a commitment to this category.',
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    final colors = context.colors;
+  Widget _buildEmptyState(
+    BuildContext context, {
+    required double bottomPadding,
+  }) {
+    final cv = context.cv;
+
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(
-          'Commitments',
-          style: context.typography.headline.copyWith(fontSize: 20),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'EMI Outstanding',
-            icon: const Icon(Icons.account_balance_outlined, size: 20),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const EmiTrackerScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: colors.accentPrimary,
-        backgroundColor: colors.surfaceCard,
-        onRefresh: _handleRefresh,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
+      backgroundColor: cv.surfaceCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: CoveMaxWidth(
+          child: RefreshIndicator(
+            color: cv.accentFill,
+            backgroundColor: cv.surfaceCard,
+            onRefresh: _handleRefresh,
+            child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              children: [
+                CovePageHeader(
+                  title: 'Commitments',
+                  trailingAccessory: CoveRoundButton(
+                    icon: Icons.stacked_line_chart_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    tooltip: 'EMI Outstanding',
+                    semanticLabel: 'EMI Outstanding',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const EmiTrackerScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  action: CoveRoundButton(
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    tooltip: 'Add Commitment',
+                    semanticLabel: 'Add Commitment',
+                    onPressed: () => SubscriptionFormSheet.show(context),
+                  ),
+                ),
+                const SizedBox(height: CoveSpace.section),
+                Center(
                   child: CoveEmptyState(
                     icon: Icons.repeat_outlined,
                     title: 'No commitments yet',
@@ -1425,35 +1512,244 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                         'Track joint household commitments, renewals, and finite EMIs in one calm space.',
                     action: CovePillButton(
                       label: 'Add First Commitment',
-                      icon: const Icon(Icons.add, size: 16),
+                      icon: const Icon(
+                        Icons.add,
+                        size: _kInlineIconSize,
+                      ),
                       onPressed: () => SubscriptionFormSheet.show(context),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
 
-  IconData _getCategoryIcon(String? category) {
-    switch (category?.toLowerCase()) {
-      case 'streaming':
-        return Icons.play_circle_outline;
-      case 'utilities':
-        return Icons.bolt_outlined;
-      case 'software':
-        return Icons.devices_outlined;
-      case 'home':
-        return Icons.home_outlined;
-      case 'health':
-        return Icons.favorite_outline;
-      case 'news':
-        return Icons.newspaper_outlined;
-      default:
-        return Icons.repeat_outlined;
+class _CommitmentDateGroup {
+  final DateTime date;
+  final List<LocalSubscription> items;
+
+  _CommitmentDateGroup({
+    required this.date,
+    required this.items,
+  });
+}
+
+class _ConcentricArcsPainter extends CustomPainter {
+  final Color lineColor;
+
+  const _ConcentricArcsPainter({required this.lineColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = lineColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final center = Offset(size.width * 0.92, -size.height * 0.12);
+    for (int i = 1; i <= 7; i++) {
+      final radius = i * 24.0;
+      canvas.drawCircle(center, radius, paint);
     }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConcentricArcsPainter oldDelegate) {
+    return oldDelegate.lineColor != lineColor;
+  }
+}
+
+class _RunwayMiniChartPainter extends CustomPainter {
+  final List<LocalSubscription> activeSubs;
+  final Color strokeColor;
+  final Color fillColor;
+  final Color gridColor;
+  final Color surfaceColor;
+  final Color pillFillColor;
+  final TextStyle pillTextStyle;
+  final TextStyle axisTextStyle;
+
+  const _RunwayMiniChartPainter({
+    required this.activeSubs,
+    required this.strokeColor,
+    required this.fillColor,
+    required this.gridColor,
+    required this.surfaceColor,
+    required this.pillFillColor,
+    required this.pillTextStyle,
+    required this.axisTextStyle,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const topPad = 24.0;
+    const bottomPad = 20.0;
+    const rightPad = 8.0;
+    final chartHeight = math.max(1.0, size.height - topPad - bottomPad);
+    final chartBottom = topPad + chartHeight;
+    final plotWidth = math.max(1.0, size.width - rightPad);
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1.0;
+
+    // Baseline and left axis
+    canvas.drawLine(
+      Offset(0, topPad),
+      Offset(0, chartBottom),
+      gridPaint,
+    );
+    canvas.drawLine(
+      Offset(0, chartBottom),
+      Offset(size.width, chartBottom),
+      gridPaint,
+    );
+
+    // "TODAY" pill at top-left
+    final todayTp = TextPainter(
+      text: TextSpan(text: 'TODAY', style: pillTextStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final pillRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, todayTp.width + 12.0, todayTp.height + 4.0),
+      const Radius.circular(CoveRadius.pill),
+    );
+    canvas.drawRRect(
+      pillRect,
+      Paint()..color = pillFillColor,
+    );
+    todayTp.paint(canvas, const Offset(6.0, 2.0));
+
+    // Dashed vertical year guides
+    final baseYear = activeSubs.isNotEmpty
+        ? activeSubs.first.nextBillingDate.year
+        : DateTime.now().year;
+    for (int i = 1; i <= 3; i++) {
+      final x = (i / 3.4) * plotWidth;
+      for (double y = topPad; y < chartBottom; y += 6.0) {
+        canvas.drawLine(
+          Offset(x, y),
+          Offset(x, math.min(y + 3.0, chartBottom)),
+          gridPaint,
+        );
+      }
+      final yrShort = "'${(baseYear + i) % 100}";
+      final yrTp = TextPainter(
+        text: TextSpan(text: yrShort, style: axisTextStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      yrTp.paint(
+        canvas,
+        Offset(
+          (x - yrTp.width / 2).clamp(0.0, size.width - yrTp.width),
+          chartBottom + 4.0,
+        ),
+      );
+    }
+
+    // Build stepped runway curve
+    final emis = activeSubs.where((s) => s.isEmi).toList();
+    final stepPoints = <(double, double)>[];
+    if (emis.length >= 2) {
+      final totalMonthly = activeSubs.fold<double>(
+        0.0,
+        (sum, s) => sum + s.amount / getBillingCycleMonths(s.billingCycle),
+      );
+      final remList = <int>[];
+      for (final e in emis) {
+        final p = e.emiProgress;
+        final rem = p != null
+            ? math.max(1, p.totalInstallments - p.paidInstallments)
+            : 6;
+        if (!remList.contains(rem)) remList.add(rem);
+      }
+      remList.sort();
+      final maxM = math.max(1, remList.last);
+      for (final m in remList) {
+        double remAmt = 0.0;
+        for (final s in activeSubs) {
+          if (!s.isEmi) {
+            remAmt += s.amount / getBillingCycleMonths(s.billingCycle);
+          } else {
+            final p = s.emiProgress;
+            final r = p != null
+                ? math.max(1, p.totalInstallments - p.paidInstallments)
+                : 6;
+            if (r > m) {
+              remAmt += s.amount / getBillingCycleMonths(s.billingCycle);
+            }
+          }
+        }
+        final xFrac = (m / maxM).clamp(0.0, 1.0);
+        final yFrac = totalMonthly > 0
+            ? (1.0 - (remAmt / totalMonthly)).clamp(0.15, 0.85)
+            : 0.5;
+        stepPoints.add((xFrac, yFrac));
+      }
+    } else {
+      stepPoints.addAll(const <(double, double)>[
+        (0.18, 0.25),
+        (0.42, 0.48),
+        (0.72, 0.68),
+        (0.95, 0.84),
+      ]);
+    }
+
+    final stepPath = Path()..moveTo(0, topPad + 4.0);
+    double currentY = topPad + 4.0;
+    final nodes = <Offset>[];
+
+    for (final pt in stepPoints) {
+      final x = pt.$1 * plotWidth;
+      final nextY = topPad + chartHeight * pt.$2;
+      stepPath.lineTo(x, currentY);
+      stepPath.lineTo(x, nextY);
+      nodes.add(Offset(x, nextY));
+      currentY = nextY;
+    }
+    stepPath.lineTo(plotWidth, currentY);
+
+    final fillPath = Path.from(stepPath)
+      ..lineTo(plotWidth, chartBottom)
+      ..lineTo(0, chartBottom)
+      ..close();
+
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..color = fillColor
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      stepPath,
+      Paint()
+        ..color = strokeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    final nodeFill = Paint()
+      ..color = surfaceColor
+      ..style = PaintingStyle.fill;
+    final nodeStroke = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    for (final center in nodes) {
+      canvas.drawCircle(center, 3.0, nodeFill);
+      canvas.drawCircle(center, 3.0, nodeStroke);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RunwayMiniChartPainter oldDelegate) {
+    return oldDelegate.activeSubs != activeSubs ||
+        oldDelegate.strokeColor != strokeColor;
   }
 }
