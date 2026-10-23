@@ -1,16 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_error_state.dart';
 import '../../core/widgets/cove_loading.dart';
-import '../../core/widgets/cove_pill_button.dart';
+import '../../core/widgets/cove_max_width.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import 'calendar_create_sheet.dart';
 import 'views/calendar_agenda_view.dart';
-import 'views/calendar_month_view.dart';
 
 enum CalendarViewMode {
   day,
@@ -41,7 +39,6 @@ class CalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  late CalendarViewMode _viewMode;
   late DateTime _selectedDate;
 
   Future<void> _handleRefresh() async {
@@ -52,13 +49,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    _viewMode = widget.initialMode;
     _selectedDate = widget.initialSelectedDate ?? DateTime.now();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
     final outboxEvents = ref.watch(activeHomeOutboxProvider).value ?? [];
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
 
@@ -77,14 +73,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     if (eventsAsync.isLoading || subsAsync.isLoading) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: const Center(child: CoveLoading()),
       );
     }
 
     if (eventsAsync.hasError || subsAsync.hasError) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: Center(
           child: CoveErrorState.generic(
             title: 'Calendar unavailable',
@@ -117,151 +113,32 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     required List<LocalOutboxEvent> outboxEvents,
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
+    final cv = context.cv;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(
-          'Shared Calendar',
-          style: typography.headline.copyWith(fontSize: 20),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CovePillButton(
-              label: '+ Add',
-              icon: const Icon(Icons.add, size: 16),
-              variant: CoveButtonVariant.secondary,
-              isCompact: true,
-              onPressed: () => CalendarCreateSheet.show(
+      backgroundColor: cv.surfaceCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: CoveMaxWidth(
+          child: RefreshIndicator(
+            color: cv.accentFill,
+            backgroundColor: cv.surfaceCard,
+            onRefresh: _handleRefresh,
+            child: CalendarAgendaView(
+              events: events,
+              subscriptions: subscriptions,
+              outboxEvents: outboxEvents,
+              selectedDate: _selectedDate,
+              onSelectDate: (d) => setState(() => _selectedDate = d),
+              onAddEvent: () => CalendarCreateSheet.show(
                 context,
                 selectedDate: _selectedDate,
               ),
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            alignment: Alignment.center,
-            child: _buildSegmentedControl(context),
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isDesktop ? 1200 : 540),
-            child: RefreshIndicator(
-              color: colors.accentPrimary,
-              backgroundColor: colors.surfaceCard,
-              onRefresh: _handleRefresh,
-              child: _buildActiveView(
-                events: events,
-                subscriptions: subscriptions,
-                outboxEvents: outboxEvents,
-                hasPartner: hasPartner,
-              ),
+              hasPartner: hasPartner,
             ),
           ),
         ),
       ),
     );
-  }
-
-  Widget _buildSegmentedControl(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    final modes = [
-      (CalendarViewMode.day, 'Day'),
-      (CalendarViewMode.month, 'Month'),
-    ];
-
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.borderHairline),
-      ),
-      padding: const EdgeInsets.all(3),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: modes.map((m) {
-          final isSelected = _viewMode == m.$1;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _viewMode = m.$1;
-              });
-            },
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected ? colors.accentPrimary : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                m.$2,
-                style: typography.caption.copyWith(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? colors.background : colors.textSubtle,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildActiveView({
-    required List<LocalCalendarEvent> events,
-    required List<LocalSubscription> subscriptions,
-    required List<LocalOutboxEvent> outboxEvents,
-    bool hasPartner = true,
-  }) {
-    switch (_viewMode) {
-      case CalendarViewMode.day:
-        return CalendarAgendaView(
-          events: events,
-          subscriptions: subscriptions,
-          outboxEvents: outboxEvents,
-          selectedDate: _selectedDate,
-          onSelectDate: (d) => setState(() => _selectedDate = d),
-          onAddEvent: () => CalendarCreateSheet.show(
-            context,
-            selectedDate: _selectedDate,
-          ),
-          hasPartner: hasPartner,
-        );
-
-      case CalendarViewMode.month:
-        return CalendarMonthView(
-          events: events,
-          subscriptions: subscriptions,
-          outboxEvents: outboxEvents,
-          selectedDate: _selectedDate,
-          onSelectDate: (d) => setState(() {
-            _selectedDate = d;
-            _viewMode = CalendarViewMode.day;
-          }),
-          onAddEvent: () => CalendarCreateSheet.show(
-            context,
-            selectedDate: _selectedDate,
-          ),
-          hasPartner: hasPartner,
-        );
-    }
   }
 }

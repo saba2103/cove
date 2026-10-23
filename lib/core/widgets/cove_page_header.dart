@@ -75,6 +75,7 @@ class CovePageHeader extends StatelessWidget {
   final String title;
   final String? readout;
   final CoveRoundButton? leading;
+  final Widget? trailingAccessory;
   final CoveRoundButton? action;
   final CoveHeaderPill? trailingPill;
 
@@ -89,6 +90,7 @@ class CovePageHeader extends StatelessWidget {
     required this.title,
     this.readout,
     this.leading,
+    this.trailingAccessory,
     this.action,
     this.trailingPill,
   }) : assert(
@@ -153,6 +155,13 @@ class CovePageHeader extends StatelessWidget {
                     const SizedBox(width: CoveSpace.md),
                   ],
                   Expanded(child: titleAndReadout),
+                  if (trailingAccessory != null) ...[
+                    const SizedBox(width: CoveSpace.sm),
+                    SizedBox(
+                      height: _kLineBoxHeight,
+                      child: Center(child: trailingAccessory!),
+                    ),
+                  ],
                   if (hasTrailingRound) ...[
                     const SizedBox(width: CoveSpace.md),
                     const SizedBox(

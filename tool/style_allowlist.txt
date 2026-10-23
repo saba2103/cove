@@ -28,8 +28,6 @@ lib/features/backup/drive_backup_section.dart 1
 lib/features/backup/drive_backup_sheets.dart 4
 lib/features/calendar/calendar_create_sheet.dart 8
 lib/features/calendar/calendar_event_form_sheet.dart 6
-lib/features/calendar/calendar_screen.dart 4
-lib/features/calendar/views/calendar_agenda_view.dart 33
 lib/features/calendar/views/calendar_month_view.dart 7
 lib/features/changelog/changelog_screen.dart 17
 lib/features/changelog/whats_fresh_modal.dart 18

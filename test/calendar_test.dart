@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
-import 'package:cove/core/widgets/cove_pill_button.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/calendar/calendar_controller.dart';
@@ -294,41 +293,53 @@ void main() {
   }
 
   group('Shared Calendar Feature Tests', () {
-    testWidgets('1. Empty state renders correctly with Add Entry button',
+    testWidgets('1. Empty state renders CovePageHeader, fixed section order, and quiet empty lines',
         (tester) async {
+      final fixedDate = DateTime(2026, 10, 15);
       await tester.pumpWidget(
-        createWidgetUnderTest(child: const CalendarScreen()),
+        createWidgetUnderTest(
+          child: CalendarScreen(initialSelectedDate: fixedDate),
+        ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Shared Calendar'), findsOneWidget);
+      expect(find.text('October'), findsOneWidget);
+      expect(find.text('2026'), findsOneWidget);
       expect(find.byType(CalendarAgendaView), findsOneWidget);
-      expect(find.text('A quiet day in your sanctuary'), findsOneWidget);
-      expect(find.text('+ Add Entry'), findsOneWidget);
+      expect(find.text('EVENTS'), findsWidgets);
+      expect(find.text('HABITS'), findsWidgets);
+      expect(find.text('SPENT'), findsWidgets);
+      expect(find.text('THE LIST'), findsWidgets);
+      expect(find.text('Nothing on the calendar for this day.'), findsOneWidget);
     });
 
-    testWidgets('2. View switcher toggles between Day and Month modes',
+    testWidgets('2. Day view only (no month view) and month chevrons switch the displayed month',
         (tester) async {
+      final octDate = DateTime(2026, 10, 15);
       await tester.pumpWidget(
-        createWidgetUnderTest(child: const CalendarScreen()),
+        createWidgetUnderTest(
+          child: CalendarScreen(
+            initialMode: CalendarViewMode.month,
+            initialSelectedDate: octDate,
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
-      // Default is Day (Agenda)
+      // Always renders Day view (CalendarAgendaView), never CalendarMonthView
       expect(find.byType(CalendarAgendaView), findsOneWidget);
       expect(find.byType(CalendarMonthView), findsNothing);
+      expect(find.text('October'), findsOneWidget);
 
-      // Switch to Month
-      await tester.tap(find.text('Month'));
+      // Step to next month via header chevron
+      await tester.tap(find.byKey(const ValueKey('calendar_next_month')));
       await tester.pumpAndSettle();
-      expect(find.byType(CalendarAgendaView), findsNothing);
-      expect(find.byType(CalendarMonthView), findsOneWidget);
+      expect(find.text('November'), findsOneWidget);
 
-      // Switch back to Day
-      await tester.tap(find.text('Day'));
+      // Step back to October via header chevron
+      await tester.tap(find.byKey(const ValueKey('calendar_prev_month')));
       await tester.pumpAndSettle();
-      expect(find.byType(CalendarAgendaView), findsOneWidget);
-      expect(find.byType(CalendarMonthView), findsNothing);
+      expect(find.text('October'), findsOneWidget);
     });
 
     testWidgets('3. Adding a calendar event emits calendar_event_added and renders with CoveSyncTick',
@@ -338,8 +349,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open creation sheet via + Add
-      await tester.tap(find.widgetWithText(CovePillButton, '+ Add'));
+      // Open creation sheet via gold + Add round button
+      await tester.tap(find.byKey(const ValueKey('calendar_add_button')));
       await tester.pumpAndSettle();
 
       expect(find.text('Event'), findsOneWidget);
@@ -370,7 +381,7 @@ void main() {
       expect(find.byType(CoveSyncTick), findsOneWidget);
     });
 
-    testWidgets('4. Subscription renewals are surfaced inline with RENEWAL caption and NO sync tick',
+    testWidgets('4. Subscription renewals are surfaced in the prominent Commitments due card with RENEWAL caption and NO sync tick',
         (tester) async {
       final now = DateTime.now();
 
@@ -412,7 +423,13 @@ void main() {
       // 1. Dentist event is rendered
       expect(find.text('Dentist Checkup'), findsOneWidget);
 
-      // 2. Surfaced subscription is rendered with distinct caption and amount
+      // 2. Surfaced subscription is rendered in the Commitments due block
+      await tester.scrollUntilVisible(
+        find.text('Netflix Premium'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('Netflix Premium'), findsWidgets);
       expect(find.text('RENEWAL'), findsWidgets);
       expect(find.text('\$22.99'), findsWidgets);
@@ -421,139 +438,63 @@ void main() {
       expect(find.byType(CoveSyncTick), findsOneWidget);
     });
 
-    testWidgets('5. Month view shows Monday-first grid with dots and selected day panel',
+    testWidgets('5. Date strip shows only the selected month and allows selecting any day in the month',
         (tester) async {
-      final now = DateTime.now();
+      final oct15 = DateTime(2026, 10, 15);
       final flightEvent = LocalCalendarEvent(
         id: 'event_flight',
         homeId: homeId,
         title: 'Flight to Tokyo',
-        startTime: now,
-        endTime: now.add(const Duration(hours: 12)),
+        startTime: DateTime(2026, 10, 16, 10, 0),
+        endTime: DateTime(2026, 10, 16, 22, 0),
         isAllDay: false,
-        createdAt: now,
+        createdAt: oct15,
         createdBy: userIdAlex,
       );
-
-      await db.into(db.localCalendarEvents).insert(
-            LocalCalendarEventsCompanion.insert(
-              id: flightEvent.id,
-              homeId: homeId,
-              title: flightEvent.title,
-              startTime: flightEvent.startTime,
-              endTime: flightEvent.endTime,
-              isAllDay: const drift.Value(false),
-              createdAt: now,
-              createdBy: userIdAlex,
-            ),
-          );
-
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       await tester.pumpWidget(
         createWidgetUnderTest(
           child: CalendarScreen(
-            initialMode: CalendarViewMode.month,
             initialEvents: [flightEvent],
-            initialSelectedDate: flightEvent.startTime,
+            initialSelectedDate: oct15,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(CalendarMonthView), findsOneWidget);
+      expect(find.text('Thursday, Oct 15'), findsOneWidget);
+      expect(find.text('Flight to Tokyo'), findsNothing);
 
-      // Day of week headers Monday-first
-      expect(find.text('M'), findsOneWidget);
-      expect(find.text('W'), findsOneWidget);
-
-      // Selected day peek card shows item count
-      expect(find.text('1 items'), findsOneWidget);
-      expect(find.text('View Day'), findsOneWidget);
-    });
-
-    testWidgets('6. Month view day tap switches back to Day view',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final now = DateTime.now();
-      final annivEvent = LocalCalendarEvent(
-        id: 'event_anniversary',
-        homeId: homeId,
-        title: 'Our Anniversary',
-        startTime: now,
-        endTime: now.add(const Duration(hours: 2)),
-        isAllDay: true,
-        createdAt: now,
-        createdBy: userIdAlex,
-      );
-
-      await db.into(db.localCalendarEvents).insert(
-            LocalCalendarEventsCompanion.insert(
-              id: annivEvent.id,
-              homeId: homeId,
-              title: annivEvent.title,
-              startTime: annivEvent.startTime,
-              endTime: annivEvent.endTime,
-              isAllDay: const drift.Value(true),
-              createdAt: now,
-              createdBy: userIdAlex,
-            ),
-          );
-
-      await tester.pumpWidget(
-        createWidgetUnderTest(
-          child: CalendarScreen(
-            initialMode: CalendarViewMode.month,
-            initialEvents: [annivEvent],
-            initialSelectedDate: now,
-          ),
-        ),
-      );
+      // Tap Oct 16 in the horizontal date strip
+      await tester.tap(find.byKey(const ValueKey('calendar_day_2026_10_16')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(CalendarMonthView), findsOneWidget);
-      expect(find.text('View Day'), findsOneWidget);
-
-      await tester.ensureVisible(find.text('View Day'));
-      await tester.tap(find.text('View Day'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(CalendarAgendaView), findsOneWidget);
-      expect(find.text('Our Anniversary'), findsOneWidget);
+      expect(find.text('Friday, Oct 16'), findsOneWidget);
+      expect(find.text('Flight to Tokyo'), findsOneWidget);
     });
 
-    testWidgets('7. Dual-theme verification: renders correctly in light and dark themes',
+    testWidgets('6. Dual-theme verification: renders correctly in light and dark themes',
         (tester) async {
+      final fixedDate = DateTime(2026, 10, 15);
       // Light theme
       await tester.pumpWidget(
         createWidgetUnderTest(
-          child: const CalendarScreen(),
+          child: CalendarScreen(initialSelectedDate: fixedDate),
           theme: CoveTheme.lightTheme,
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Shared Calendar'), findsOneWidget);
+      expect(find.text('October'), findsOneWidget);
 
       // Dark theme
       await tester.pumpWidget(
         createWidgetUnderTest(
-          child: const CalendarScreen(),
+          child: CalendarScreen(initialSelectedDate: fixedDate),
           theme: CoveTheme.darkTheme,
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Shared Calendar'), findsOneWidget);
+      expect(find.text('October'), findsOneWidget);
     });
   });
 }

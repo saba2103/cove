@@ -1,20 +1,28 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/cove_theme.dart';
+import '../../../core/theme/cove_tokens.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
-import '../../../core/widgets/cove_checkbox.dart';
-import '../../../core/widgets/cove_empty_state.dart';
-import '../../../core/widgets/cove_grouped_list.dart';
-import '../../../core/widgets/cove_pill_button.dart';
+import '../../../core/widgets/cove_avatar.dart';
+import '../../../core/widgets/cove_max_width.dart';
+import '../../../core/widgets/cove_metric_card.dart';
+import '../../../core/widgets/cove_page_header.dart';
+import '../../../core/widgets/cove_round_button.dart';
+import '../../../core/widgets/cove_row.dart';
+import '../../../core/widgets/cove_section_label.dart';
 import '../../../core/widgets/cove_sync_tick.dart';
 import '../../../sync/db/app_database.dart';
+import '../../../sync/providers/active_home_provider.dart';
 import '../../activity/activity_formatter.dart';
+import '../../auth/auth_controller.dart';
 import '../../expenses/expense_detail_sheet.dart';
 import '../../habits/habit_controller.dart';
 import '../../lists/list_controller.dart';
 import '../../lists/list_item_detail_sheet.dart';
+import '../../profile/partner_profile_controller.dart';
 import '../../profile/preferences_controller.dart';
+import '../../profile/user_profile_controller.dart';
 import '../../subscriptions/commitment_detail_sheet.dart';
 import '../calendar_controller.dart';
 import '../calendar_event_form_sheet.dart';
@@ -45,811 +53,600 @@ class CalendarAgendaView extends ConsumerStatefulWidget {
 }
 
 class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
-  late DateTime _displayedWeekStart;
-  bool _isMonthExpanded = false;
-  CalendarLayer _selectedLayer = CalendarLayer.all;
+  static const double _kDayPillWidth = CoveSize.buttonRound;
+  static const double _kDayPillGap = CoveSpace.xs;
+  static const double _kDayPillStride = _kDayPillWidth + _kDayPillGap;
+  static const double _kHairline = 1.0; // (literal)
+  static const double _kCheckBorder = 1.5; // (literal)
+  static const double _kTaskCheckboxSize = 20.0; // (literal)
+  static const double _kCheckIconSize = 14.0; // (literal)
+  static const double _kRenewalIconSize = 16.0; // (literal)
+  static const double _kPipDiameter = 4.0; // (literal)
+  static const double _kPipCommitmentWidth = 10.0; // (literal)
+  static const double _kPipSpacing = 2.0; // (literal)
+
+  late ScrollController _dateStripController;
 
   @override
   void initState() {
     super.initState();
-    _displayedWeekStart = CalendarDateUtils.startOfWeek(widget.selectedDate);
+    _dateStripController = ScrollController(
+      initialScrollOffset: _computeStripOffset(widget.selectedDate.day),
+    );
   }
 
   @override
   void didUpdateWidget(covariant CalendarAgendaView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!CalendarDateUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate)) {
-      _displayedWeekStart = CalendarDateUtils.startOfWeek(widget.selectedDate);
+    if (!CalendarDateUtils.isSameDay(
+          oldWidget.selectedDate,
+          widget.selectedDate,
+        ) &&
+        _dateStripController.hasClients) {
+      final target = _computeStripOffset(widget.selectedDate.day).clamp(
+        0.0,
+        _dateStripController.position.maxScrollExtent,
+      );
+      _dateStripController.jumpTo(target);
     }
-  }
-
-  void _prevPeriod() {
-    setState(() {
-      if (_isMonthExpanded) {
-        _displayedWeekStart = DateTime(
-          _displayedWeekStart.year,
-          _displayedWeekStart.month - 1,
-          1,
-        );
-      } else {
-        _displayedWeekStart = _displayedWeekStart.subtract(const Duration(days: 7));
-      }
-    });
-  }
-
-  void _nextPeriod() {
-    setState(() {
-      if (_isMonthExpanded) {
-        _displayedWeekStart = DateTime(
-          _displayedWeekStart.year,
-          _displayedWeekStart.month + 1,
-          1,
-        );
-      } else {
-        _displayedWeekStart = _displayedWeekStart.add(const Duration(days: 7));
-      }
-    });
-  }
-
-  int _getDistinctLayerCount(
-    Map<DateTime, List<CalendarEntry>> entriesMap,
-    DateTime date,
-  ) {
-    final dayEntries = entriesMap[CalendarDateUtils.dateOnly(date)] ?? [];
-    final layers = <CalendarLayer>{};
-    for (final e in dayEntries) {
-      if (e is CalendarHabitEntry) {
-        // Daily recurring habits do not contribute a dot on every day
-        final h = e.habit;
-        if (h.cadence.toLowerCase() == 'daily' || h.targetDaysPerWeek == 7) {
-          continue;
-        }
-      }
-      layers.add(e.layer);
-    }
-    return layers.length;
   }
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final now = DateTime.now();
+  void dispose() {
+    _dateStripController.dispose();
+    super.dispose();
+  }
 
-    final windowStart = DateTime(_displayedWeekStart.year, _displayedWeekStart.month - 1, 1);
-    final windowEnd = DateTime(_displayedWeekStart.year, _displayedWeekStart.month + 2, 0);
+  double _computeStripOffset(int dayOfMonth) {
+    // Center the selected day roughly 3 pills in from the left gutter.
+    final index = math.max(0, dayOfMonth - 4);
+    return index * _kDayPillStride;
+  }
 
-    final entriesMap = ref.watch(
+  void _stepMonth(int deltaMonths) {
+    final targetFirst = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month + deltaMonths,
+      1,
+    );
+    final daysInTargetMonth =
+        DateTime(targetFirst.year, targetFirst.month + 1, 0).day;
+    final clampedDay = math.min(widget.selectedDate.day, daysInTargetMonth);
+    widget.onSelectDate(
+      DateTime(targetFirst.year, targetFirst.month, clampedDay),
+    );
+  }
+
+  Map<DateTime, List<CalendarEntry>> _resolveEntriesMap({
+    required DateTime windowStart,
+    required DateTime windowEnd,
+  }) {
+    final baseMap = ref.watch(
       unifiedCalendarEntriesProvider(
         CalendarWindow(startDate: windowStart, endDate: windowEnd),
       ),
     );
 
-    final weekDays = List.generate(
-      7,
-      (i) => _displayedWeekStart.add(Duration(days: i)),
+    final merged = <DateTime, List<CalendarEntry>>{
+      for (final e in baseMap.entries) e.key: List<CalendarEntry>.from(e.value),
+    };
+
+    // Ensure initialEvents / initialSubscriptions passed directly to CalendarScreen
+    // are also projected if not already present in the stream provider map.
+    if (widget.events.isNotEmpty) {
+      final projectedEvents = CalendarDateUtils.projectCalendarEvents(
+        events: widget.events,
+        startDate: windowStart,
+        endDate: windowEnd,
+      );
+      for (final ev in projectedEvents) {
+        final d = CalendarDateUtils.dateOnly(ev.date);
+        final list = merged.putIfAbsent(d, () => []);
+        if (!list.any((x) => x.id == ev.id)) {
+          list.add(ev);
+        }
+      }
+    }
+
+    if (widget.subscriptions.isNotEmpty) {
+      final projectedSubs = CalendarDateUtils.projectSubscriptions(
+        subscriptions: widget.subscriptions,
+        startDate: windowStart,
+        endDate: windowEnd,
+      );
+      for (final sub in projectedSubs) {
+        final d = CalendarDateUtils.dateOnly(sub.date);
+        final list = merged.putIfAbsent(d, () => []);
+        if (!list.any((x) => x.id == sub.id)) {
+          list.add(sub);
+        }
+      }
+    }
+
+    return merged;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    final now = DateTime.now();
+    final selectedDateOnly = CalendarDateUtils.dateOnly(widget.selectedDate);
+
+    final monthStart = DateTime(selectedDateOnly.year, selectedDateOnly.month, 1);
+    final monthEnd = DateTime(selectedDateOnly.year, selectedDateOnly.month + 1, 0);
+    final windowEnd = monthEnd.add(const Duration(days: 60));
+
+    final entriesMap = _resolveEntriesMap(
+      windowStart: monthStart,
+      windowEnd: windowEnd,
     );
 
-    final selectedDateOnly = CalendarDateUtils.dateOnly(widget.selectedDate);
-    final dayEntries = entriesMap[selectedDateOnly] ?? [];
+    final daysInMonth = monthEnd.day;
+    final monthDays = List<DateTime>.generate(
+      daysInMonth,
+      (i) => DateTime(selectedDateOnly.year, selectedDateOnly.month, i + 1),
+    );
 
-    // Filtered entries for selected layer
-    final filteredEntries = _selectedLayer == CalendarLayer.all
-        ? dayEntries
-        : dayEntries.where((e) => e.layer == _selectedLayer).toList();
+    final dayEntries = entriesMap[selectedDateOnly] ?? const <CalendarEntry>[];
 
-    // Layer counts for chips
-    final eventsCount = dayEntries.whereType<CalendarEventEntry>().length;
-    final commitmentsCount = dayEntries.whereType<CalendarSubscriptionEntry>().length;
-    final moneyCount = dayEntries.whereType<CalendarExpenseEntry>().length;
-    final rhythms = dayEntries.whereType<CalendarHabitEntry>().toList();
-    final rhythmsCount = rhythms.length;
-    final tasksCount = dayEntries
-        .where((e) => e is CalendarTaskEntry || e is CalendarRoutineEntry || e is CalendarReminderEntry)
-        .length;
+    final events = dayEntries.whereType<CalendarEventEntry>().toList();
+    final habits = dayEntries.whereType<CalendarHabitEntry>().toList();
+    final expenses = dayEntries.whereType<CalendarExpenseEntry>().toList();
+    final tasks = dayEntries.whereType<CalendarTaskEntry>().toList();
+    final commitmentsDue =
+        dayEntries.whereType<CalendarSubscriptionEntry>().toList();
 
-    final completedRhythms = rhythms.where((r) => r.userCheckedIn).length;
-    final totalSpent = dayEntries.whereType<CalendarExpenseEntry>().fold<double>(
-          0.0,
-          (sum, exp) => sum + exp.amount,
-        );
+    final completedHabits = habits.where((h) => h.userCheckedIn).length;
+    final completedTasks = tasks.where((t) => t.isCompleted).length;
+    final totalSpent = expenses.fold<double>(
+      0.0,
+      (sum, exp) => sum + exp.amount,
+    );
 
     final currencyPref = ref.watch(currencyPreferenceProvider);
-    final isToday = CalendarDateUtils.isSameDay(selectedDateOnly, now);
+    final home = ref.watch(activeHomeProvider).value;
+    final currentUserId = ref.watch(authProvider).value?.id ?? 'local_user';
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
 
-    return Column(
-      children: [
-        // Month Navigation Header with chevron expand/collapse
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 12, 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _isMonthExpanded = !_isMonthExpanded),
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+    final myName =
+        userProfile.displayName.isNotEmpty ? userProfile.displayName : 'You';
+    final partnerName = partnerProfile.displayName.isNotEmpty
+        ? partnerProfile.displayName
+        : 'Partner';
+    final creatorId = home?.createdBy ?? currentUserId;
+
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+
+    return CoveMaxWidth(
+      child: ListView(
+        padding: EdgeInsets.only(bottom: bottomPadding),
+        children: [
+          // 1. CovePageHeader — month name + year, chevrons for month switching, gold add
+          CovePageHeader(
+            title: DateFormat('MMMM').format(monthStart),
+            readout: '${monthStart.year}',
+            trailingAccessory: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CoveRoundButton.stepper(
+                  key: const ValueKey('calendar_prev_month'),
+                  icon: Icons.chevron_left_rounded,
+                  tooltip: 'Previous month',
+                  semanticLabel: 'Previous month',
+                  onPressed: () => _stepMonth(-1),
+                ),
+                const SizedBox(width: CoveSpace.xs),
+                CoveRoundButton.stepper(
+                  key: const ValueKey('calendar_next_month'),
+                  icon: Icons.chevron_right_rounded,
+                  tooltip: 'Next month',
+                  semanticLabel: 'Next month',
+                  onPressed: () => _stepMonth(1),
+                ),
+              ],
+            ),
+            action: CoveRoundButton(
+              key: const ValueKey('calendar_add_button'),
+              icon: Icons.add_rounded,
+              variant: CoveRoundButtonVariant.gold,
+              tooltip: 'Add',
+              semanticLabel: 'Add',
+              onPressed: widget.onAddEvent,
+            ),
+          ),
+          const SizedBox(height: CoveSpace.md),
+
+          // 2. Date strip — selected month's dates only, horizontally scrollable, pips under days that have content
+          _buildMonthDateStrip(
+            context,
+            monthDays: monthDays,
+            selectedDateOnly: selectedDateOnly,
+            today: CalendarDateUtils.dateOnly(now),
+            entriesMap: entriesMap,
+          ),
+          const SizedBox(height: CoveSpace.md),
+          ColoredBox(
+            color: cv.lineHairline,
+            child: const SizedBox(
+              width: double.infinity,
+              height: _kHairline,
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: CoveSpace.lg),
+
+                // 3. Selected day line: "Wednesday, Oct 21 · today"
+                _buildSelectedDayLine(
+                  context,
+                  selectedDateOnly: selectedDateOnly,
+                  now: now,
+                ),
+                const SizedBox(height: CoveSpace.lg),
+
+                // 4. CoveMetricCard row — spent, events, habits, the list
+                CoveMetricGrid(
                   children: [
-                    Text(
-                      DateFormat('MMMM yyyy').format(_displayedWeekStart),
-                      style: typography.headline.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    CoveMetricCard(
+                      label: 'SPENT',
+                      value:
+                          '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
+                      subtitle: expenses.isEmpty
+                          ? 'no spends'
+                          : '${expenses.length} ${expenses.length == 1 ? 'spend' : 'spends'}',
                     ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      _isMonthExpanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      size: 22,
-                      color: colors.accentPrimary,
+                    CoveMetricCard(
+                      label: 'EVENTS',
+                      value: '${events.length}',
+                      subtitle: events.isEmpty
+                          ? 'nothing scheduled'
+                          : 'on the calendar',
+                    ),
+                    CoveMetricCard(
+                      label: 'HABITS',
+                      value: '$completedHabits/${habits.length}',
+                      subtitle: habits.isEmpty ? 'none due' : 'kept today',
+                    ),
+                    CoveMetricCard(
+                      label: 'THE LIST',
+                      value: '$completedTasks/${tasks.length}',
+                      subtitle:
+                          tasks.isEmpty ? 'nothing on the list' : 'struck off',
                     ),
                   ],
                 ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 22),
-                    tooltip: _isMonthExpanded ? 'Previous month' : 'Previous week',
-                    onPressed: _prevPeriod,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 22),
-                    tooltip: _isMonthExpanded ? 'Next month' : 'Next week',
-                    onPressed: _nextPeriod,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                const SizedBox(height: CoveSpace.section),
 
-        // Date Row Strip (Collapsed 1-Week Strip or Expanded Month Grid)
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 200),
-          crossFadeState: _isMonthExpanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          firstChild: _buildWeekStrip(
-            context,
-            weekDays: weekDays,
-            entriesMap: entriesMap,
-            today: now,
-          ),
-          secondChild: _buildMonthGrid(
-            context,
-            year: _displayedWeekStart.year,
-            month: _displayedWeekStart.month,
-            entriesMap: entriesMap,
-            today: now,
-          ),
-        ),
+                // 5. Fixed Section 1: EVENTS
+                CoveSectionLabel.page(
+                  label: 'EVENTS',
+                  readout: '${events.length}',
+                ),
+                const SizedBox(height: CoveSpace.xs),
+                if (events.isEmpty)
+                  _buildQuietEmptyLine(
+                    context,
+                    'Nothing on the calendar for this day.',
+                  )
+                else
+                  for (var i = 0; i < events.length; i++)
+                    _buildEventRow(
+                      context,
+                      entry: events[i],
+                      isLast: i == events.length - 1,
+                      creatorId: creatorId,
+                      currentUserId: currentUserId,
+                      myName: myName,
+                      partnerName: partnerName,
+                    ),
+                const SizedBox(height: CoveSpace.section),
 
-        // Layer Filter Chips Row (All, Events, Commitments, Money, Rhythms, Tasks)
-        _buildLayerFilterChips(
-          context,
-          allCount: dayEntries.length,
-          eventsCount: eventsCount,
-          commitmentsCount: commitmentsCount,
-          moneyCount: moneyCount,
-          rhythmsCount: rhythmsCount,
-          tasksCount: tasksCount,
-        ),
+                // 5. Fixed Section 2: HABITS
+                CoveSectionLabel.page(
+                  label: 'HABITS',
+                  readout: habits.isEmpty
+                      ? '0'
+                      : '$completedHabits of ${habits.length}',
+                ),
+                const SizedBox(height: CoveSpace.xs),
+                if (habits.isEmpty)
+                  _buildQuietEmptyLine(
+                    context,
+                    'No habits due on this day.',
+                  )
+                else
+                  for (var i = 0; i < habits.length; i++)
+                    _buildHabitRow(
+                      context,
+                      entry: habits[i],
+                      isLast: i == habits.length - 1,
+                    ),
+                const SizedBox(height: CoveSpace.section),
 
-        const Divider(height: 1, thickness: 1),
+                // 5. Fixed Section 3: SPENT
+                CoveSectionLabel.page(
+                  label: 'SPENT',
+                  readout:
+                      '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
+                ),
+                const SizedBox(height: CoveSpace.xs),
+                if (expenses.isEmpty)
+                  _buildQuietEmptyLine(
+                    context,
+                    'No expenses logged on this day.',
+                  )
+                else
+                  for (var i = 0; i < expenses.length; i++)
+                    _buildExpenseRow(
+                      context,
+                      entry: expenses[i],
+                      isLast: i == expenses.length - 1,
+                      defaultSymbol: currencyPref.symbol,
+                      creatorId: creatorId,
+                      currentUserId: currentUserId,
+                      myName: myName,
+                      partnerName: partnerName,
+                    ),
+                const SizedBox(height: CoveSpace.section),
 
-        // Selected Day Events & Content
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            children: [
-              // Date Heading & Bodoni Summary Line
-              _buildDayHeaderAndSummary(
-                context,
-                selectedDateOnly: selectedDateOnly,
-                isToday: isToday,
-                now: now,
-                eventsCount: eventsCount,
-                completedRhythms: completedRhythms,
-                totalRhythms: rhythmsCount,
-                totalSpent: totalSpent,
-                currencySymbol: currencyPref.symbol,
-              ),
-              const SizedBox(height: 14),
+                // 5. Fixed Section 4: THE LIST
+                CoveSectionLabel.page(
+                  label: 'THE LIST',
+                  readout: tasks.isEmpty ? null : '${tasks.length}',
+                ),
+                const SizedBox(height: CoveSpace.xs),
+                if (tasks.isEmpty)
+                  _buildQuietEmptyLine(
+                    context,
+                    'Nothing added or struck on this day.',
+                  )
+                else
+                  for (var i = 0; i < tasks.length; i++)
+                    _buildTaskRow(
+                      context,
+                      entry: tasks[i],
+                      isLast: i == tasks.length - 1,
+                      currentUserId: currentUserId,
+                      myName: myName,
+                      partnerName: partnerName,
+                    ),
+                const SizedBox(height: CoveSpace.section),
 
-              // Rhythms Strip (shown if All or Rhythms layer selected and rhythms exist)
-              if ((_selectedLayer == CalendarLayer.all || _selectedLayer == CalendarLayer.rhythms) &&
-                  rhythms.isNotEmpty) ...[
-                _buildRhythmsStrip(context, rhythms),
-                const SizedBox(height: 18),
-              ],
-
-              // Filtered Timeline Entries or Empty State
-              if (filteredEntries.isEmpty)
-                _buildEmptyLayerState(context, selectedDateOnly)
-              else
-                _buildTimelineList(
+                // 6. Commitments due, given prominence — this is where renewals are noticed
+                _buildCommitmentsDueCard(
                   context,
-                  entries: _selectedLayer == CalendarLayer.all
-                      ? filteredEntries.where((e) => e is! CalendarHabitEntry).toList()
-                      : filteredEntries,
+                  commitmentsDue: commitmentsDue,
+                  entriesMap: entriesMap,
+                  selectedDateOnly: selectedDateOnly,
+                  windowEnd: windowEnd,
+                  defaultSymbol: currencyPref.symbol,
                 ),
-              const SizedBox(height: 48),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWeekStrip(
-    BuildContext context, {
-    required List<DateTime> weekDays,
-    required Map<DateTime, List<CalendarEntry>> entriesMap,
-    required DateTime today,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    return Container(
-      color: colors.surfaceCard,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: weekDays.map((day) {
-          final isSelected = CalendarDateUtils.isSameDay(day, widget.selectedDate);
-          final isToday = CalendarDateUtils.isSameDay(day, today);
-          final dotCount = _getDistinctLayerCount(entriesMap, day);
-
-          return GestureDetector(
-            onTap: () => widget.onSelectDate(day),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 42,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? colors.accentPrimary
-                    : (isToday
-                        ? colors.accentPrimary.withValues(alpha: 0.12)
-                        : Colors.transparent),
-                borderRadius: BorderRadius.circular(12),
-                border: isToday && !isSelected
-                    ? Border.all(color: colors.accentPrimary, width: 1)
-                    : null,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    CalendarDateUtils.formatDayOfWeek(day).substring(0, 2),
-                    style: typography.caption.copyWith(
-                      fontSize: 11,
-                      color: isSelected ? colors.background : colors.textSubtle,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${day.day}',
-                    style: TextStyle(
-                      fontFamily: 'LibreBodoni',
-                      fontSize: 16,
-                      fontWeight: isSelected || isToday ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? colors.background
-                          : (isToday ? colors.accentPrimary : colors.textPrimary),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  // Stepped champagne opacity density dots
-                  _buildDensityDots(
-                    colors: colors,
-                    count: dotCount,
-                    isSelected: isSelected,
-                  ),
-                ],
-              ),
+              ],
             ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildMonthGrid(
-    BuildContext context, {
-    required int year,
-    required int month,
-    required Map<DateTime, List<CalendarEntry>> entriesMap,
-    required DateTime today,
-  }) {
-    final colors = context.colors;
-    final gridDays = CalendarDateUtils.getMonthGridDays(year, month);
-
-    return Container(
-      color: colors.surfaceCard,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: const ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                .map((letter) => SizedBox(
-                      width: 36,
-                      child: Center(
-                        child: Text(
-                          letter,
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF8E8E93),
-                          ),
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
-          const SizedBox(height: 8),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1.05,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-            ),
-            itemCount: gridDays.length,
-            itemBuilder: (ctx, idx) {
-              final day = gridDays[idx];
-              if (day == null) return const SizedBox.shrink();
-
-              final isSelected = CalendarDateUtils.isSameDay(day, widget.selectedDate);
-              final isToday = CalendarDateUtils.isSameDay(day, today);
-              final dotCount = _getDistinctLayerCount(entriesMap, day);
-
-              return GestureDetector(
-                onTap: () {
-                  widget.onSelectDate(day);
-                  setState(() {
-                    _displayedWeekStart = CalendarDateUtils.startOfWeek(day);
-                  });
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Center(
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colors.accentPrimary
-                          : (isToday
-                              ? colors.accentPrimary.withValues(alpha: 0.15)
-                              : Colors.transparent),
-                      shape: BoxShape.circle,
-                      border: isToday && !isSelected
-                          ? Border.all(color: colors.accentPrimary, width: 1)
-                          : null,
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${day.day}',
-                          style: TextStyle(
-                            fontFamily: 'LibreBodoni',
-                            fontSize: 13,
-                            fontWeight: isSelected || isToday
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: isSelected
-                                ? colors.background
-                                : (isToday ? colors.accentPrimary : colors.textPrimary),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        _buildDensityDots(
-                          colors: colors,
-                          count: dotCount,
-                          isSelected: isSelected,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
           ),
         ],
       ),
     );
   }
 
-  /// Up to 3 density dots based on distinct layers at stepped champagne opacity
-  Widget _buildDensityDots({
-    required CoveColors colors,
-    required int count,
-    required bool isSelected,
-  }) {
-    if (count <= 0) {
-      return const SizedBox(height: 4);
-    }
-
-    final dotColor = isSelected ? colors.background : colors.accentPrimary;
-    final effectiveCount = count > 3 ? 3 : count;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(effectiveCount, (i) {
-        double opacity = 1.0;
-        if (i == 1) opacity = 0.55;
-        if (i == 2) opacity = 0.30;
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          width: 3.5,
-          height: 3.5,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: dotColor.withValues(alpha: isSelected ? (opacity * 0.9) : opacity),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildLayerFilterChips(
+  Widget _buildMonthDateStrip(
     BuildContext context, {
-    required int allCount,
-    required int eventsCount,
-    required int commitmentsCount,
-    required int moneyCount,
-    required int rhythmsCount,
-    required int tasksCount,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    final chips = [
-      (layer: CalendarLayer.all, count: allCount),
-      (layer: CalendarLayer.events, count: eventsCount),
-      (layer: CalendarLayer.commitments, count: commitmentsCount),
-      (layer: CalendarLayer.money, count: moneyCount),
-      (layer: CalendarLayer.rhythms, count: rhythmsCount),
-      (layer: CalendarLayer.tasks, count: tasksCount),
-    ];
-
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: chips.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (ctx, idx) {
-          final item = chips[idx];
-          final isSelected = _selectedLayer == item.layer;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedLayer = item.layer),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? colors.accentPrimary
-                    : colors.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? colors.accentPrimary : colors.borderHairline,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.layer.label,
-                    style: typography.caption.copyWith(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected ? colors.background : colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${item.count}',
-                    style: TextStyle(
-                      fontFamily: 'LibreBodoni',
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                      color: isSelected
-                          ? colors.background
-                          : colors.textSubtle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildDayHeaderAndSummary(
-    BuildContext context, {
+    required List<DateTime> monthDays,
     required DateTime selectedDateOnly,
-    required bool isToday,
-    required DateTime now,
-    required int eventsCount,
-    required int completedRhythms,
-    required int totalRhythms,
-    required double totalSpent,
-    required String currencySymbol,
+    required DateTime today,
+    required Map<DateTime, List<CalendarEntry>> entriesMap,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              CalendarDateUtils.getRelativeDateLabel(selectedDateOnly, now: now),
-              style: typography.caption.copyWith(
-                color: isToday ? colors.accentPrimary : colors.textSubtle,
-                fontWeight: isToday ? FontWeight.w600 : FontWeight.w500,
-                letterSpacing: 0.8,
-              ),
-            ),
-            if (isToday) ...[
-              const SizedBox(width: 6),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors.accentPrimary,
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 4),
-        // Figures in Bodoni Moda
-        Row(
-          children: [
-            Text(
-              '$eventsCount',
-              style: const TextStyle(
-                fontFamily: 'LibreBodoni',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              ' ${eventsCount == 1 ? 'event' : 'events'}  ·  ',
-              style: typography.caption.copyWith(color: colors.textSubtle),
-            ),
-            Text(
-              '$completedRhythms/$totalRhythms',
-              style: const TextStyle(
-                fontFamily: 'LibreBodoni',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              ' rhythms  ·  ',
-              style: typography.caption.copyWith(color: colors.textSubtle),
-            ),
-            Text(
-              '$currencySymbol${formatCoveAmount(totalSpent)}',
-              style: const TextStyle(
-                fontFamily: 'LibreBodoni',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              ' logged',
-              style: typography.caption.copyWith(color: colors.textSubtle),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+    return SingleChildScrollView(
+      controller: _dateStripController,
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
+      child: Row(
+        children: [
+          for (var i = 0; i < monthDays.length; i++) ...[
+            if (i > 0) const SizedBox(width: _kDayPillGap),
+            Builder(
+              builder: (context) {
+                final day = monthDays[i];
+                final isSelected =
+                    CalendarDateUtils.isSameDay(day, selectedDateOnly);
+                final isToday = CalendarDateUtils.isSameDay(day, today);
+                final dayEntries =
+                    entriesMap[CalendarDateUtils.dateOnly(day)] ?? const [];
+                final weekdayLetter = DateFormat('E')
+                    .format(day)
+                    .substring(0, 1)
+                    .toUpperCase();
 
-  Widget _buildRhythmsStrip(BuildContext context, List<CalendarHabitEntry> habits) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 8),
-          child: Text(
-            'RHYTHMS DUE TODAY',
-            style: typography.caption.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.0,
-              color: colors.textSubtle,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 80,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: habits.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (ctx, idx) {
-              final habitEntry = habits[idx];
-              final isChecked = habitEntry.userCheckedIn;
-
-              return Container(
-                width: 190,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colors.borderHairline),
-                ),
-                child: Row(
-                  children: [
-                    CoveCheckbox(
-                      value: isChecked,
-                      onChanged: (val) async {
-                        await ref.read(habitControllerProvider).toggleCheckin(
-                              habit: habitEntry.habit,
-                              date: habitEntry.date,
-                              checked: val,
-                            );
-                      },
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
+                return Semantics(
+                  button: true,
+                  selected: isSelected,
+                  label: DateFormat('EEEE, MMMM d').format(day),
+                  child: GestureDetector(
+                    key: ValueKey('calendar_day_${day.year}_${day.month}_${day.day}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => widget.onSelectDate(day),
+                    child: AnimatedContainer(
+                      duration: duration,
+                      curve: CoveMotion.easing,
+                      width: _kDayPillWidth,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CoveSpace.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? cv.accentFill : Colors.transparent,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveRadius.inline),
+                        ),
+                        border: isToday && !isSelected
+                            ? Border.all(
+                                color: cv.lineStrong,
+                                width: _kHairline,
+                              )
+                            : null,
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            habitEntry.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: typography.bodyMedium.copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              // Dropping to textMuted without strikethrough
-                              color: isChecked ? colors.textMuted : colors.textPrimary,
+                            weekdayLetter,
+                            style: CoveType.capsCard.copyWith(
+                              color: isSelected
+                                  ? cv.textOnAccent
+                                  : cv.textTertiary,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Text(
-                                '🔥 ',
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                              Text(
-                                '${habitEntry.streak}',
-                                style: const TextStyle(
-                                  fontFamily: 'LibreBodoni',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                ' streak',
-                                style: typography.caption.copyWith(
-                                  fontSize: 11,
-                                  color: colors.textSubtle,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: CoveSpace.xs),
+                          Text(
+                            '${day.day}',
+                            style: CoveType.rowTitle.copyWith(
+                              color: isSelected
+                                  ? cv.textOnAccent
+                                  : (isToday ? cv.accentTint : cv.textPrimary),
+                            ),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildDayPips(
+                            context,
+                            dayEntries: dayEntries,
+                            isSelected: isSelected,
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimelineList(
-    BuildContext context, {
-    required List<CalendarEntry> entries,
-  }) {
-    return CoveGroupedCard(
-      children: entries.map((entry) {
-        return _buildTimelineRow(context, entry);
-      }).toList(),
-    );
-  }
-
-  Widget _buildTimelineRow(BuildContext context, CalendarEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final currency = ref.watch(currencyPreferenceProvider);
-
-    // Left gutter time in Bodoni Moda
-    String gutterText;
-    if (entry.isAllDay) {
-      gutterText = 'ALL DAY';
-    } else {
-      gutterText = DateFormat('h:mm a').format(entry.startTime);
-    }
-
-    Widget content;
-    if (entry is CalendarEventEntry) {
-      content = _buildEventContent(context, entry);
-    } else if (entry is CalendarSubscriptionEntry) {
-      content = _buildSubscriptionContent(context, entry, currency.symbol);
-    } else if (entry is CalendarExpenseEntry) {
-      content = _buildExpenseContent(context, entry, currency.symbol);
-    } else if (entry is CalendarTaskEntry) {
-      content = _buildTaskContent(context, entry);
-    } else if (entry is CalendarRoutineEntry) {
-      content = _buildRoutineContent(context, entry);
-    } else if (entry is CalendarReminderEntry) {
-      content = _buildReminderContent(context, entry);
-    } else {
-      content = Text(entry.title, style: typography.bodyMedium);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Bodoni Tabular Time Gutter
-          SizedBox(
-            width: 72,
-            child: Text(
-              gutterText,
-              style: entry.isAllDay
-                  ? typography.caption.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: colors.textSubtle,
-                    )
-                  : const TextStyle(
-                      fontFamily: 'LibreBodoni',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: content),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildEventContent(BuildContext context, CalendarEventEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
+  Widget _buildDayPips(
+    BuildContext context, {
+    required List<CalendarEntry> dayEntries,
+    required bool isSelected,
+  }) {
+    final cv = context.cv;
+    final hasEvent = dayEntries.any((e) => e is CalendarEventEntry);
+    final hasExpense = dayEntries.any((e) => e is CalendarExpenseEntry);
+    final hasTask = dayEntries.any((e) => e is CalendarTaskEntry);
+    final hasCommitment =
+        dayEntries.any((e) => e is CalendarSubscriptionEntry);
+
+    final pipKinds = <bool>[
+      if (hasEvent) false,
+      if (hasExpense) false,
+      if (hasTask) false,
+      if (hasCommitment) true, // true = wider commitment bar pip
+    ];
+
+    if (pipKinds.isEmpty) {
+      return const SizedBox(height: _kPipDiameter);
+    }
+
+    final pipColor = isSelected ? cv.textOnAccent : cv.accentTint;
+    final visiblePips = pipKinds.take(3).toList();
+
+    return SizedBox(
+      height: _kPipDiameter,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < visiblePips.length; i++) ...[
+            if (i > 0) const SizedBox(width: _kPipSpacing),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: pipColor,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.pill),
+                ),
+              ),
+              child: SizedBox(
+                width:
+                    visiblePips[i] ? _kPipCommitmentWidth : _kPipDiameter,
+                height: _kPipDiameter,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedDayLine(
+    BuildContext context, {
+    required DateTime selectedDateOnly,
+    required DateTime now,
+  }) {
+    final cv = context.cv;
+    final todayOnly = CalendarDateUtils.dateOnly(now);
+    final diffDays = selectedDateOnly.difference(todayOnly).inDays;
+
+    String? relativeWord;
+    if (diffDays == 0) {
+      relativeWord = 'today';
+    } else if (diffDays == 1) {
+      relativeWord = 'tomorrow';
+    } else if (diffDays == -1) {
+      relativeWord = 'yesterday';
+    }
+
+    final formattedDate = DateFormat('EEEE, MMM d').format(selectedDateOnly);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Flexible(
+          child: Text(
+            formattedDate,
+            style: CoveType.title.copyWith(color: cv.textPrimary),
+          ),
+        ),
+        if (relativeWord != null) ...[
+          const SizedBox(width: CoveSpace.sm),
+          Text(
+            relativeWord,
+            style: CoveType.readout.copyWith(color: cv.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildQuietEmptyLine(BuildContext context, String message) {
+    final cv = context.cv;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
+      child: Text(
+        message,
+        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+      ),
+    );
+  }
+
+  Widget _buildEventRow(
+    BuildContext context, {
+    required CalendarEventEntry entry,
+    required bool isLast,
+    required String creatorId,
+    required String currentUserId,
+    required String myName,
+    required String partnerName,
+  }) {
+    final cv = context.cv;
     final event = entry.event;
 
     final syncStatus = resolveCoveSyncStatus(
@@ -858,406 +655,407 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
       hasPartner: widget.hasPartner,
     );
 
-    return InkWell(
-      onTap: () => CalendarEventFormSheet.show(context, existing: event),
-      child: Row(
+    final String topTime = entry.isAllDay
+        ? 'ALL'
+        : DateFormat('h').format(entry.startTime);
+    final String bottomTime = entry.isAllDay
+        ? 'DAY'
+        : DateFormat('a').format(entry.startTime).toUpperCase();
+
+    final subtitleParts = <String>[
+      if (event.location != null && event.location!.trim().isNotEmpty)
+        event.location!.trim(),
+      'Both of you',
+    ];
+
+    return CoveRow(
+      leading: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildLayerIcon(
-            icon: entry.isRecurring ? Icons.repeat : Icons.calendar_today_outlined,
-            color: colors.accentPrimary,
+          Text(
+            topTime,
+            style: CoveType.rowSub.copyWith(color: cv.textSecondary),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildMicroLabel('EVENT', colors),
-                const SizedBox(height: 2),
-                Text(
-                  event.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                if (event.location != null && event.location!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    event.location!,
-                    style: typography.caption.copyWith(
-                      fontSize: 11,
-                      color: colors.textSubtle,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          Text(
+            bottomTime,
+            style: CoveType.barLabel.copyWith(color: cv.textTertiary),
           ),
-          const SizedBox(width: 8),
+        ],
+      ),
+      title: event.title,
+      subtitle: subtitleParts.join(' · '),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           CoveSyncTick(status: syncStatus),
+          const SizedBox(width: CoveSpace.sm),
+          const CoveAvatar.inline(person: CovePerson.both),
         ],
       ),
+      isLast: isLast,
+      onTap: () => CalendarEventFormSheet.show(context, existing: event),
     );
   }
 
-  Widget _buildSubscriptionContent(
-    BuildContext context,
-    CalendarSubscriptionEntry entry,
-    String defaultSymbol,
-  ) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final sub = entry.subscription;
-    final sym = ActivityFormatter.getCurrencySymbol(sub.currency, fallbackSymbol: defaultSymbol);
-    final viaText = (sub.financedThrough != null && sub.financedThrough!.trim().isNotEmpty)
-        ? ' · via ${sub.financedThrough!.trim()}'
-        : '';
+  Widget _buildHabitRow(
+    BuildContext context, {
+    required CalendarHabitEntry entry,
+    required bool isLast,
+  }) {
+    final cv = context.cv;
+    final isKept = entry.userCheckedIn;
+    final cadenceText = _formatHabitCadence(entry.habit);
+    final scopeText = entry.isPrivate ? 'just you' : 'both of you';
 
-    return InkWell(
-      onTap: () => CommitmentDetailSheet.show(context, sub),
-      child: Row(
-        children: [
-          _buildLayerIcon(
-            icon: Icons.autorenew_rounded,
-            color: colors.accentSecondary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildMicroLabel('RENEWAL', colors),
-                const SizedBox(height: 2),
-                Text(
-                  sub.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
-                  ),
+    Future<void> handleToggle() async {
+      await ref.read(habitControllerProvider).toggleCheckin(
+            habit: entry.habit,
+            date: entry.date,
+            checked: !isKept,
+          );
+    }
+
+    return CoveRow(
+      leading: Container(
+        width: CoveSize.avatarInline,
+        height: CoveSize.avatarInline,
+        decoration: BoxDecoration(
+          color: isKept ? cv.accentFill : Colors.transparent,
+          shape: BoxShape.circle,
+          border: isKept
+              ? null
+              : Border.all(
+                  color: cv.accentFill,
+                  width: _kCheckBorder,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  '${sub.billingCycle} commitment$viaText',
-                  style: typography.caption.copyWith(
-                    fontSize: 11,
-                    color: colors.textSubtle,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$sym${formatCoveAmount(sub.amount)}',
-            style: const TextStyle(
-              fontFamily: 'LibreBodoni',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+        ),
+        alignment: Alignment.center,
+        child: isKept
+            ? Icon(
+                Icons.check_rounded,
+                size: _kCheckIconSize,
+                color: cv.textOnAccent,
+              )
+            : null,
       ),
+      title: entry.title,
+      subtitle: '$cadenceText · $scopeText',
+      trailing: Text(
+        isKept ? 'KEPT' : 'NOT YET',
+        style: CoveType.capsCard.copyWith(
+          color: isKept ? cv.accentText : cv.textTertiary,
+        ),
+      ),
+      isLast: isLast,
+      onTap: handleToggle,
     );
   }
 
-  Widget _buildExpenseContent(
-    BuildContext context,
-    CalendarExpenseEntry entry,
-    String defaultSymbol,
-  ) {
-    final colors = context.colors;
-    final typography = context.typography;
+  String _formatHabitCadence(LocalHabit habit) {
+    final c = habit.cadence.trim().toLowerCase();
+    if (c == 'daily' || habit.targetDaysPerWeek >= 7) {
+      return 'every day';
+    }
+    if (habit.targetDaysPerWeek > 0) {
+      return '${habit.targetDaysPerWeek}x a week';
+    }
+    return c.isEmpty ? 'every day' : c;
+  }
+
+  Widget _buildExpenseRow(
+    BuildContext context, {
+    required CalendarExpenseEntry entry,
+    required bool isLast,
+    required String defaultSymbol,
+    required String creatorId,
+    required String currentUserId,
+    required String myName,
+    required String partnerName,
+  }) {
     final exp = entry.expense;
-    final sym = ActivityFormatter.getCurrencySymbol(exp.currency, fallbackSymbol: defaultSymbol);
+    final sym = ActivityFormatter.getCurrencySymbol(
+      exp.currency,
+      fallbackSymbol: defaultSymbol,
+    );
 
-    return InkWell(
-      onTap: () => ExpenseDetailSheet.show(context, exp),
-      child: Row(
-        children: [
-          _buildLayerIcon(
-            icon: Icons.receipt_long_outlined,
-            color: colors.accentPrimary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    _buildMicroLabel('EXPENSE', colors),
-                    const SizedBox(width: 6),
-                    _buildAttributionChip(entry.payerName, colors),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  exp.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                if (exp.category != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    exp.category!,
-                    style: typography.caption.copyWith(
-                      fontSize: 11,
-                      color: colors.textSubtle,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$sym${formatCoveAmount(exp.amount)}',
-            style: const TextStyle(
-              fontFamily: 'LibreBodoni',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+    final isCreator = exp.paidBy == creatorId ||
+        (exp.paidBy == 'local_user' && currentUserId == creatorId);
+    final person = isCreator ? CovePerson.a : CovePerson.b;
+    final payerDisplay =
+        (exp.paidBy == currentUserId || exp.paidBy == 'local_user')
+            ? myName
+            : partnerName;
+
+    final subParts = <String>[
+      if (exp.category != null && exp.category!.trim().isNotEmpty)
+        exp.category!.trim(),
+      if (exp.paymentMethod != null && exp.paymentMethod!.trim().isNotEmpty)
+        _formatPaymentMethod(exp.paymentMethod!.trim()),
+    ];
+
+    return CoveRow(
+      avatar: CoveAvatar.row(
+        person: person,
+        nameOrInitial: payerDisplay,
       ),
+      title: exp.title,
+      subtitle: subParts.isEmpty ? payerDisplay : subParts.join(' · '),
+      amount: '$sym${formatCoveAmount(exp.amount)}',
+      isLast: isLast,
+      onTap: () => ExpenseDetailSheet.show(context, exp),
     );
   }
 
-  Widget _buildTaskContent(BuildContext context, CalendarTaskEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
+  String _formatPaymentMethod(String method) {
+    final lower = method.toLowerCase();
+    if (lower == 'upi') return 'UPI';
+    if (lower == 'card') return 'Card';
+    if (lower == 'cash') return 'Cash';
+    return method;
+  }
+
+  Widget _buildTaskRow(
+    BuildContext context, {
+    required CalendarTaskEntry entry,
+    required bool isLast,
+    required String currentUserId,
+    required String myName,
+    required String partnerName,
+  }) {
+    final cv = context.cv;
     final item = entry.item;
     final isDone = item.isCompleted;
+    final actorId = isDone ? (item.completedBy ?? item.createdBy) : item.createdBy;
+    final actorName =
+        (actorId == currentUserId || actorId == 'local_user') ? myName : partnerName;
 
-    return InkWell(
+    return CoveRow(
+      leading: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () async {
+          await ref.read(listControllerProvider).toggleItem(
+                itemId: item.id,
+                isCompleted: !isDone,
+                itemTitle: item.title,
+                listName: entry.listName,
+              );
+        },
+        child: Container(
+          width: _kTaskCheckboxSize,
+          height: _kTaskCheckboxSize,
+          decoration: BoxDecoration(
+            color: isDone ? cv.accentFill : Colors.transparent,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveSpace.xs),
+            ),
+            border: isDone
+                ? null
+                : Border.all(
+                    color: cv.accentFill,
+                    width: _kCheckBorder,
+                  ),
+          ),
+          alignment: Alignment.center,
+          child: isDone
+              ? Icon(
+                  Icons.check_rounded,
+                  size: _kCheckIconSize,
+                  color: cv.textOnAccent,
+                )
+              : null,
+        ),
+      ),
+      title: item.title,
+      subtitle: '${entry.listName} · $actorName',
+      trailing: Text(
+        isDone ? 'STRUCK' : 'WENT ON',
+        style: CoveType.capsCard.copyWith(
+          color: isDone ? cv.accentText : cv.textTertiary,
+        ),
+      ),
+      isLast: isLast,
       onTap: () => ListItemDetailSheet.show(
         context,
         item: item,
         listName: entry.listName,
       ),
-      child: Row(
-        children: [
-          CoveCheckbox(
-            value: isDone,
-            onChanged: (val) async {
-              await ref.read(listControllerProvider).toggleItem(
-                    itemId: item.id,
-                    isCompleted: val,
-                    itemTitle: item.title,
-                    listName: entry.listName,
-                  );
-            },
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    _buildMicroLabel('TASK', colors),
-                    const SizedBox(width: 6),
-                    _buildAttributionChip(entry.listName, colors),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: isDone ? colors.textMuted : colors.textPrimary,
-                    // Strikethrough for tasks
-                    decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildRoutineContent(BuildContext context, CalendarRoutineEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
+  Widget _buildCommitmentsDueCard(
+    BuildContext context, {
+    required List<CalendarSubscriptionEntry> commitmentsDue,
+    required Map<DateTime, List<CalendarEntry>> entriesMap,
+    required DateTime selectedDateOnly,
+    required DateTime windowEnd,
+    required String defaultSymbol,
+  }) {
+    final cv = context.cv;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceRow.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colors.borderHairline,
-          style: BorderStyle.solid,
+    if (commitmentsDue.isNotEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(CoveSpace.md),
+        decoration: BoxDecoration(
+          color: cv.surfaceCard,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.card),
+          ),
+          border: Border.all(
+            color: cv.lineStrong,
+            width: _kHairline,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.schedule_outlined, size: 16, color: colors.textSubtle),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _buildMicroLabel('ROUTINE', colors),
-                    const SizedBox(width: 6),
-                    Text(
-                      entry.routine.name,
-                      style: typography.caption.copyWith(
-                        fontSize: 10,
-                        color: colors.textSubtle,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CoveSectionLabel.card(
+              label: 'RENEWAL',
+              readout: '${commitmentsDue.length} due',
+            ),
+            const SizedBox(height: CoveSpace.xs),
+            for (var i = 0; i < commitmentsDue.length; i++)
+              Builder(
+                builder: (context) {
+                  final entry = commitmentsDue[i];
+                  final sub = entry.subscription;
+                  final sym = ActivityFormatter.getCurrencySymbol(
+                    sub.currency,
+                    fallbackSymbol: defaultSymbol,
+                  );
+                  final viaText = (sub.financedThrough != null &&
+                          sub.financedThrough!.trim().isNotEmpty)
+                      ? ' · via ${sub.financedThrough!.trim()}'
+                      : '';
+
+                  return CoveRow(
+                    leading: Container(
+                      width: CoveSize.avatarRow,
+                      height: CoveSize.avatarRow,
+                      decoration: BoxDecoration(
+                        color: cv.surfaceRow,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveRadius.inline),
+                        ),
+                        border: Border.all(
+                          color: cv.lineHairline,
+                          width: _kHairline,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.autorenew_rounded,
+                        size: _kRenewalIconSize,
+                        color: cv.accentTint,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  entry.title,
-                  style: typography.bodyMedium.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReminderContent(BuildContext context, CalendarReminderEntry entry) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    return Row(
-      children: [
-        _buildLayerIcon(
-          icon: Icons.notifications_none_outlined,
-          color: colors.accentSecondary,
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildMicroLabel('CHECK-IN', colors),
-              const SizedBox(height: 2),
-              Text(
-                entry.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: typography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
-                ),
+                    title: sub.name,
+                    subtitle: '${sub.billingCycle} commitment$viaText',
+                    amount: '$sym${formatCoveAmount(sub.amount)}',
+                    isLast: i == commitmentsDue.length - 1,
+                    onTap: () => CommitmentDetailSheet.show(context, sub),
+                  );
+                },
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLayerIcon({required IconData icon, required Color color}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16, color: color),
-    );
-  }
-
-  Widget _buildMicroLabel(String label, CoveColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(
-        color: colors.surfaceRow,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: colors.borderHairline),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontFamily: 'GeneralSans',
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
-          color: colors.textSubtle,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAttributionChip(String text, CoveColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: colors.accentPrimary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontFamily: 'GeneralSans',
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: colors.accentPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyLayerState(BuildContext context, DateTime date) {
-    if (_selectedLayer == CalendarLayer.all) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: CoveEmptyState(
-          icon: Icons.spa_outlined,
-          title: 'A quiet day in your sanctuary',
-          description: 'No events, rhythms, or tasks scheduled for today.',
-          action: CovePillButton(
-            label: '+ Add Entry',
-            icon: const Icon(Icons.add, size: 16),
-            onPressed: widget.onAddEvent,
-          ),
+          ],
         ),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: CoveEmptyState(
-        icon: Icons.event_available_outlined,
-        title: 'No ${_selectedLayer.label.toLowerCase()} on this day',
-        description: 'Keep your household rhythms and commitments in sync together.',
-        action: CovePillButton(
-          label: 'Add to Sanctuary',
-          icon: const Icon(Icons.add, size: 16),
-          onPressed: widget.onAddEvent,
+    // Find next date after selectedDateOnly that has commitment renewals
+    DateTime? nextRenewalDate;
+    List<CalendarSubscriptionEntry> nextRenewalSubs = const [];
+    final maxDays = windowEnd.difference(selectedDateOnly).inDays;
+    for (var d = 1; d <= maxDays; d++) {
+      final candidate = selectedDateOnly.add(Duration(days: d));
+      final candidateSubs = (entriesMap[candidate] ?? const [])
+          .whereType<CalendarSubscriptionEntry>()
+          .toList();
+      if (candidateSubs.isNotEmpty) {
+        nextRenewalDate = candidate;
+        nextRenewalSubs = candidateSubs;
+        break;
+      }
+    }
+
+    final Widget summaryText;
+    if (nextRenewalDate != null && nextRenewalSubs.isNotEmpty) {
+      final firstSub = nextRenewalSubs.first.subscription;
+      final extraCount = nextRenewalSubs.length - 1;
+      final totalAmount = nextRenewalSubs.fold<double>(
+        0.0,
+        (sum, s) => sum + s.amount,
+      );
+      final sym = ActivityFormatter.getCurrencySymbol(
+        firstSub.currency,
+        fallbackSymbol: defaultSymbol,
+      );
+      final dateStr = DateFormat('MMM d').format(nextRenewalDate);
+
+      summaryText = Text.rich(
+        TextSpan(
+          style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+          children: [
+            const TextSpan(text: 'Nothing due today. Next: '),
+            TextSpan(
+              text: firstSub.name,
+              style: CoveType.rowSub.copyWith(color: cv.accentTint),
+            ),
+            if (extraCount > 0) TextSpan(text: ' and $extraCount more'),
+            const TextSpan(text: ' on '),
+            TextSpan(
+              text: dateStr,
+              style: CoveType.rowSub.copyWith(color: cv.textPrimary),
+            ),
+            TextSpan(text: ', $sym${formatCoveAmount(totalAmount)} in all.'),
+          ],
         ),
+      );
+    } else {
+      summaryText = Text(
+        'Nothing due today. No upcoming commitments scheduled.',
+        style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.md),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineStrong,
+          width: _kHairline,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: CoveSize.avatarRow,
+            height: CoveSize.avatarRow,
+            decoration: BoxDecoration(
+              color: cv.surfaceRow,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.inline),
+              ),
+              border: Border.all(
+                color: cv.lineHairline,
+                width: _kHairline,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.autorenew_rounded,
+              size: _kRenewalIconSize,
+              color: cv.accentTint,
+            ),
+          ),
+          const SizedBox(width: CoveSpace.md),
+          Expanded(child: summaryText),
+        ],
       ),
     );
   }

@@ -553,7 +553,12 @@ class CalendarDateUtils {
     return entries;
   }
 
-  /// Projects list tasks with due dates between [startDate] and [endDate].
+  /// Projects list tasks between [startDate] and [endDate].
+  ///
+  /// Per `design/screens/calendar.md`:
+  /// - A task with a due date appears on its due date.
+  /// - A task with no due date appears on the day it was **added** (`createdAt`).
+  /// - When ticked, it also appears on the day it was **struck** (`completedAt`).
   static List<CalendarTaskEntry> projectTasks({
     required List<LocalListItem> items,
     required Map<String, String> listNames,
@@ -565,14 +570,27 @@ class CalendarDateUtils {
     final end = dateOnly(endDate);
 
     for (final item in items) {
-      if (item.dueDate == null) continue;
-      final due = dateOnly(item.dueDate!);
-      if (!due.isBefore(start) && !due.isAfter(end)) {
+      final listName = listNames[item.listId] ?? 'List';
+      final primaryDate = dateOnly(item.dueDate ?? item.createdAt);
+      if (!primaryDate.isBefore(start) && !primaryDate.isAfter(end)) {
         entries.add(CalendarTaskEntry(
           item: item,
-          listName: listNames[item.listId] ?? 'List',
-          dueDate: due,
+          listName: listName,
+          dueDate: primaryDate,
         ));
+      }
+
+      if (item.isCompleted && item.completedAt != null) {
+        final struckDate = dateOnly(item.completedAt!);
+        if (struckDate != primaryDate &&
+            !struckDate.isBefore(start) &&
+            !struckDate.isAfter(end)) {
+          entries.add(CalendarTaskEntry(
+            item: item,
+            listName: listName,
+            dueDate: struckDate,
+          ));
+        }
       }
     }
 

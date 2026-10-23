@@ -177,7 +177,6 @@ class _CoveRowState extends State<CoveRow> {
                       if (hasLeading) ...[
                         SizedBox(
                           width: CoveSize.avatarRow,
-                          height: CoveSize.avatarRow,
                           child: Center(child: leadingWidget),
                         ),
                         const SizedBox(width: CoveSpace.md),
