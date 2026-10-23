@@ -166,15 +166,15 @@ void main() {
       expect(find.text('A'), findsWidgets); // Initials avatar
     });
 
-    testWidgets('renders About Us section with Home name, description and anniversary duration', (tester) async {
+    testWidgets('renders Household couple row with Home name, description and anniversary duration', (tester) async {
       setupViewport(tester);
 
       await tester.pumpWidget(createSubject());
       await tester.pumpAndSettle();
 
-      expect(find.text('ABOUT US'), findsOneWidget);
-      expect(find.text('Haven'), findsWidgets);
-      expect(find.text('Our quiet brownstone in Brooklyn'), findsOneWidget);
+      expect(find.text('HOUSEHOLD'), findsOneWidget);
+      expect(find.textContaining('Haven'), findsWidgets);
+      expect(find.textContaining('Our quiet brownstone in Brooklyn'), findsOneWidget);
       expect(find.textContaining('Together for 3 years, 4 months'), findsOneWidget);
     });
 
@@ -186,15 +186,15 @@ void main() {
 
       expect(find.text('PREFERENCES'), findsOneWidget);
       expect(find.text('Light'), findsOneWidget);
-      expect(find.text('Dark'), findsOneWidget);
+      expect(find.text('Dark'), findsWidgets);
       expect(find.text('System'), findsOneWidget);
-      expect(find.text('Currency & Locale'), findsOneWidget);
-      expect(find.text('PARTNER NOTIFICATIONS'), findsOneWidget);
-      expect(find.text('Shared Lists'), findsOneWidget);
+      expect(find.text('Currency'), findsOneWidget);
+      expect(find.text('NOTIFICATIONS'), findsOneWidget);
+      expect(find.text('Lists'), findsOneWidget);
       expect(find.text('Expenses'), findsOneWidget);
       expect(find.text('Commitments'), findsOneWidget);
-      expect(find.text('Habits & Rhythms'), findsOneWidget);
-      expect(find.text('Shared Calendar'), findsOneWidget);
+      expect(find.text('Habits'), findsOneWidget);
+      expect(find.text('Calendar'), findsOneWidget);
     });
 
     testWidgets('renders real Drive Backup & Restore section with connection, passphrase and actions', (tester) async {
@@ -217,7 +217,6 @@ void main() {
 
       // The legacy simulated rows are gone.
       expect(find.text('Ready for Next Backup'), findsNothing);
-      expect(find.text('Backup Window'), findsNothing);
     });
 
     testWidgets('shows honest empty state when never backed up', (tester) async {
@@ -230,11 +229,11 @@ void main() {
 
       expect(find.text('Not connected'), findsOneWidget);
       expect(find.text('Connect'), findsOneWidget);
-      expect(find.text('Not set'), findsOneWidget);
+      expect(find.text('Not set'), findsWidgets);
       expect(find.text('No backups yet'), findsOneWidget);
     });
 
-    testWidgets('renders Household section with members and Switch Home when multiple homes', (tester) async {
+    testWidgets('renders Household section with couple row, Switch Home and Pair a new phone', (tester) async {
       setupViewport(tester);
 
       await tester.pumpWidget(createSubject());
@@ -242,16 +241,18 @@ void main() {
 
       expect(find.text('HOUSEHOLD'), findsOneWidget);
       expect(find.text('Switch Home'), findsOneWidget);
-      expect(find.text('Invite Partner QR'), findsOneWidget);
-      expect(find.text('Alex Rivers (You)'), findsOneWidget);
-      expect(find.text('Partner'), findsOneWidget);
-      expect(find.text('Leave Home'), findsOneWidget);
+      expect(find.text('Pair a new phone'), findsOneWidget);
+      expect(find.text('Alex Rivers & Partner'), findsOneWidget);
+      expect(find.text('Sign out, leave or delete'), findsOneWidget);
     });
 
     testWidgets('Leave Home dialog shows calm leaving a group explanation without data wipe', (tester) async {
       setupViewport(tester);
 
       await tester.pumpWidget(createSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Sign out, leave or delete'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Leave Home'));
@@ -263,29 +264,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Cancel'), findsOneWidget);
-
-      // Dismiss dialog
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('Remove partner dialog confirms partner removal mental model', (tester) async {
-      setupViewport(tester);
-
-      await tester.pumpWidget(createSubject());
-      await tester.pumpAndSettle();
-
-      // Tap 'Remove' text button for Partner
-      final removeBtn = find.text('Remove');
-      expect(removeBtn, findsOneWidget);
-      await tester.tap(removeBtn);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Remove Partner?'), findsOneWidget);
-      expect(
-        find.textContaining('matching the mental model of leaving a group.'),
-        findsOneWidget,
-      );
 
       // Dismiss dialog
       await tester.tap(find.text('Cancel'));

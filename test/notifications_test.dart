@@ -1023,15 +1023,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Header & subtitle
-      expect(find.text('PARTNER NOTIFICATIONS'), findsOneWidget);
-      expect(find.text('Quietly grouped'), findsOneWidget);
+      expect(find.text('NOTIFICATIONS'), findsOneWidget);
+      expect(find.text('5 of 5 on'), findsOneWidget);
 
       // 5 Modules
-      expect(find.text('Shared Lists'), findsOneWidget);
+      expect(find.text('Lists'), findsOneWidget);
       expect(find.text('Expenses'), findsOneWidget);
       expect(find.text('Commitments'), findsOneWidget);
-      expect(find.text('Habits & Rhythms'), findsOneWidget);
-      expect(find.text('Shared Calendar'), findsOneWidget);
+      expect(find.text('Habits'), findsOneWidget);
+      expect(find.text('Calendar'), findsOneWidget);
 
       // Verify toggle switches exist
       expect(find.byType(CoveToggleSwitch), findsWidgets);
@@ -1055,8 +1055,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('PARTNER NOTIFICATIONS'), findsOneWidget);
-      expect(find.text('Shared Lists'), findsOneWidget);
+      expect(find.text('NOTIFICATIONS'), findsOneWidget);
+      expect(find.text('Lists'), findsOneWidget);
       expect(find.text('Expenses'), findsOneWidget);
     });
 

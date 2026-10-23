@@ -55,7 +55,6 @@ lib/features/profile/delete_data_dialog.dart 2
 lib/features/profile/edit_home_dialog.dart 4
 lib/features/profile/edit_partner_profile_dialog.dart 2
 lib/features/profile/edit_profile_dialog.dart 8
-lib/features/profile/profile_screen.dart 14
 lib/features/reminders/reminders_screen.dart 10
 lib/features/roadmap/roadmap_screen.dart 8
 lib/features/routines/routine_event_form_sheet.dart 8
