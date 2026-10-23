@@ -102,33 +102,38 @@ void main() {
       await tester.pumpWidget(buildTestWidget(subscriptions: [emi1, emi2]));
       await tester.pumpAndSettle();
 
+      // Header & cards
+      expect(find.text('EMIs'), findsOneWidget);
+      expect(find.text('What if…'), findsOneWidget);
+      expect(find.text('FREE OF ALL 2 IN'), findsOneWidget);
+      expect(find.text('EACH MONTH'), findsOneWidget);
+      expect(find.text('LEFT TO PAY'), findsOneWidget);
+
       // Total outstanding: 1200 + 6000 = 7200
       expect(find.text('\$7,200'), findsOneWidget);
       // Total monthly: 200 + 500 = 700
-      expect(find.text('Monthly: \$700/mo'), findsOneWidget);
-      // Paid total: 800 + 4000 = 4800
-      expect(find.textContaining('Paid: \$4,800'), findsOneWidget);
-      // Active count badge
-      expect(find.text('2 active loans'), findsOneWidget);
+      expect(find.text('\$700'), findsOneWidget);
+      expect(find.textContaining('2 EMIs running', findRichText: true), findsOneWidget);
+      // Paid percentage: 4800 / 12000 = 40%
+      expect(
+        find.textContaining('40% already paid (\$4,800)', findRichText: true),
+        findsOneWidget,
+      );
 
-      // Card 1
+      // Staircase graph section
+      expect(find.text('WHEN IT GETS LIGHTER'), findsOneWidget);
+      expect(find.text('tap the steps'), findsOneWidget);
+
+      // Ledger rows & payer group headers
       expect(find.text('MacBook Pro'), findsOneWidget);
-      expect(find.text('Apple Card'), findsOneWidget);
-      expect(find.text('\$1,200'), findsOneWidget);
-      expect(find.text('\$800'), findsOneWidget);
-      expect(find.text('4/10 mo'), findsOneWidget);
-      expect(find.text('You'), findsOneWidget); // Payer badge for emi1
-
-      // Card 2
       expect(find.text('Car Loan'), findsOneWidget);
-      expect(find.text('Chase'), findsOneWidget);
-      expect(find.text('\$6,000'), findsOneWidget);
-      expect(find.text('\$4,000'), findsOneWidget);
-      expect(find.text('8/20 mo'), findsOneWidget);
-      expect(find.text('Sophia'), findsOneWidget); // Payer badge for emi2
+      expect(find.text('6 left (4/10 mo)'), findsOneWidget);
+      expect(find.text('12 left (8/20 mo)'), findsOneWidget);
+      expect(find.text('YOU · 1'), findsOneWidget);
+      expect(find.text('SOPHIA · 1'), findsOneWidget);
     });
 
-    testWidgets('Long press selects card and displays sticky selected burden row card', (tester) async {
+    testWidgets('Long press or What if… pill enters what-if mode and displays tray', (tester) async {
       final emi1 = createMockEmi(
         id: 'emi_1',
         name: 'MacBook Pro',
@@ -147,101 +152,121 @@ void main() {
       await tester.pumpWidget(buildTestWidget(subscriptions: [emi1, emi2]));
       await tester.pumpAndSettle();
 
-      // Initially no sticky banner
-      expect(find.text('SELECTED BURDEN'), findsNothing);
+      // Initially no what-if tray
+      expect(find.text('IF WE CLOSE THESE'), findsNothing);
 
-      // Long press on MacBook Pro card
+      // Scroll down so MacBook Pro is visible and long-press it
+      await tester.scrollUntilVisible(find.text('MacBook Pro'), 150);
+      await tester.pumpAndSettle();
+
       await tester.longPress(find.text('MacBook Pro'));
       await tester.pumpAndSettle();
 
-      // Sticky banner appears with 1 selected: EMI $200/mo, Outst $1,200
-      expect(find.text('SELECTED BURDEN'), findsOneWidget);
+      // What-if tray appears with 1 selected: Frees $200/mo, Payoff $1,200
+      expect(find.text('IF WE CLOSE THESE'), findsOneWidget);
       expect(find.text('(1)'), findsOneWidget);
-      expect(find.text('\$200/mo'), findsOneWidget);
-      expect(find.text('\$1,200'), findsNWidgets(2)); // Card + sticky card
+      expect(find.text('Frees \$200/mo'), findsOneWidget);
+      expect(find.text('Payoff \$1,200'), findsOneWidget);
 
       // Tap second card (Car Loan) to add to selection
+      await tester.ensureVisible(find.text('Car Loan'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Car Loan'));
       await tester.pumpAndSettle();
 
-      // Now 2 selected: EMI 200 + 500 = $700/mo, Outst 1200 + 6000 = $7,200
+      // Now 2 selected: Frees $700/mo, Payoff $7,200
       expect(find.text('(2)'), findsOneWidget);
-      expect(find.text('\$700/mo'), findsOneWidget);
-      expect(find.text('\$7,200'), findsNWidgets(2)); // Hero total + sticky card
+      expect(find.text('Frees \$700/mo'), findsOneWidget);
+      expect(find.text('Payoff \$7,200'), findsOneWidget);
 
-      // Clear selection using the close icon in the sticky card
-      final closeBtn = find.byIcon(Icons.close_rounded).first;
-      await tester.tap(closeBtn);
+      // Clear selection using the close button in the tray
+      final clearBtn = find.byKey(const ValueKey('emi_clear_what_if'));
+      await tester.ensureVisible(clearBtn);
+      await tester.pumpAndSettle();
+      await tester.tap(clearBtn);
       await tester.pumpAndSettle();
 
-      expect(find.text('SELECTED BURDEN'), findsNothing);
+      expect(find.text('IF WE CLOSE THESE'), findsNothing);
     });
 
-    testWidgets('Toggles universal progress mode between Tenure Paid and EMI Share', (tester) async {
-      final emi = createMockEmi(
+    testWidgets('Tapping step on staircase graph displays step callout', (tester) async {
+      final emi1 = createMockEmi(
         id: 'emi_1',
         name: 'MacBook Pro',
         amount: 200.0,
         totalInstallments: 10,
-        paidInstallments: 4,
-        financedThrough: 'Apple Financial',
+        paidInstallments: 4, // 6 left
+      );
+      final emi2 = createMockEmi(
+        id: 'emi_2',
+        name: 'Car Loan',
+        amount: 500.0,
+        totalInstallments: 20,
+        paidInstallments: 8, // 12 left
       );
 
-      await tester.pumpWidget(buildTestWidget(subscriptions: [emi]));
+      await tester.pumpWidget(buildTestWidget(subscriptions: [emi1, emi2]));
       await tester.pumpAndSettle();
 
-      // Default is Tenure Paid mode
-      expect(find.text('4 of 10 months paid'), findsOneWidget);
-      expect(find.text('40% tenure done'), findsOneWidget);
-
-      // Tap 'EMI Share'
-      await tester.tap(find.text('EMI Share'));
+      // Tap near the left-center of the staircase graph (6 months out of 12)
+      final graphFinder = find.byKey(const ValueKey('emi_staircase_graph'));
+      await tester.ensureVisible(graphFinder);
+      await tester.pumpAndSettle();
+      final graphRect = tester.getRect(graphFinder);
+      await tester.tapAt(
+        Offset(graphRect.left + graphRect.width * 0.4, graphRect.center.dy),
+      );
       await tester.pumpAndSettle();
 
-      // Now should show relative EMI share
-      expect(find.text('100.0% of monthly EMI total'), findsOneWidget);
-      expect(find.text('\$200 / \$200'), findsOneWidget);
-
-      // Switch back to 'Tenure Paid'
-      await tester.tap(find.text('Tenure Paid'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('4 of 10 months paid'), findsOneWidget);
+      expect(find.textContaining('MacBook Pro closes'), findsOneWidget);
+      expect(find.textContaining('drops to \$500/mo'), findsOneWidget);
     });
 
-    testWidgets('Toggles sort order between Descending and Ascending', (tester) async {
+    testWidgets('Switches sort mode between By who, Ends first, and Biggest', (tester) async {
       final emiSmall = createMockEmi(
         id: 'emi_1',
         name: 'Small EMI',
         amount: 100.0,
         totalInstallments: 5,
-        paidInstallments: 4, // 1 rem * 100 = 100 outstanding
+        paidInstallments: 4, // 1 left
+        paidBy: 'Sophia',
       );
       final emiBig = createMockEmi(
         id: 'emi_2',
         name: 'Big EMI',
         amount: 1000.0,
         totalInstallments: 10,
-        paidInstallments: 2, // 8 rem * 1000 = 8000 outstanding
+        paidInstallments: 2, // 8 left
+        paidBy: 'me',
       );
 
       await tester.pumpWidget(buildTestWidget(subscriptions: [emiSmall, emiBig]));
       await tester.pumpAndSettle();
 
-      // Default is High → Low (Big EMI first)
-      expect(find.text('High → Low'), findsOneWidget);
-      var smallPos = tester.getTopLeft(find.text('Small EMI')).dy;
-      var bigPos = tester.getTopLeft(find.text('Big EMI')).dy;
-      expect(bigPos, lessThan(smallPos));
+      // Default is 'By who' ('Big EMI' first seen in list? No, emiSmall is Sophia, emiBig is me — first seen in [emiSmall, emiBig] is Sophia, or let's check positions)
+      expect(find.text('By who'), findsOneWidget);
+      expect(find.text('Ends first'), findsOneWidget);
+      expect(find.text('Biggest'), findsOneWidget);
 
-      // Tap to sort Low → High
-      await tester.tap(find.text('High → Low'));
+      // Tap 'Ends first' (Small EMI has 1 left vs Big EMI 8 left)
+      await tester.ensureVisible(find.text('Ends first'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ends first'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Low → High'), findsOneWidget);
+      var smallPos = tester.getTopLeft(find.text('Small EMI')).dy;
+      var bigPos = tester.getTopLeft(find.text('Big EMI')).dy;
+      expect(smallPos, lessThan(bigPos));
+
+      // Tap 'Biggest' (Big EMI $8000 left vs Small EMI $100 left)
+      await tester.ensureVisible(find.text('Biggest'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Biggest'));
+      await tester.pumpAndSettle();
+
       smallPos = tester.getTopLeft(find.text('Small EMI')).dy;
       bigPos = tester.getTopLeft(find.text('Big EMI')).dy;
-      expect(smallPos, lessThan(bigPos));
+      expect(bigPos, lessThan(smallPos));
     });
 
     testWidgets('AppBar icon in SubscriptionsScreen navigates to EmiTrackerScreen', (tester) async {
@@ -274,7 +299,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(EmiTrackerScreen), findsOneWidget);
-      expect(find.text('EMI Outstanding'), findsOneWidget);
+      expect(find.text('EMIs'), findsOneWidget);
     });
 
     testWidgets('CommitmentDetailSheet shows foreclosure button beside close only for active EMIs', (tester) async {

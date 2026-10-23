@@ -1,14 +1,20 @@
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
-import '../../core/widgets/cove_card.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_loading.dart';
+import '../../core/widgets/cove_max_width.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
+import '../../core/widgets/cove_round_button.dart';
+import '../../core/widgets/cove_section_label.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
@@ -18,9 +24,24 @@ import 'commitment_detail_sheet.dart';
 import 'commitment_models.dart';
 import 'subscription_form_sheet.dart';
 
-enum EmiProgressDisplayMode {
-  tenure, // n / total months paid
-  relativeShare, // EMI amount relative to other loans / monthly outflow
+enum EmiSortMode {
+  byWho,
+  endsFirst,
+  biggest,
+}
+
+class _StaircaseStep {
+  final int monthsFromNow;
+  final DateTime date;
+  final double remainingMonthly;
+  final List<LocalSubscription> closedAtStep;
+
+  const _StaircaseStep({
+    required this.monthsFromNow,
+    required this.date,
+    required this.remainingMonthly,
+    required this.closedAtStep,
+  });
 }
 
 class EmiTrackerScreen extends ConsumerStatefulWidget {
@@ -36,56 +57,175 @@ class EmiTrackerScreen extends ConsumerStatefulWidget {
 }
 
 class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
-  EmiProgressDisplayMode _progressMode = EmiProgressDisplayMode.tenure;
-  bool _sortAscending = false; // default descending: largest outstanding balance first
-  final Set<String> _selectedEmiIds = {};
+  static const double _kHairline = 1.0; // (literal)
+  static const double _kSelectedBorder = 1.5; // (literal)
+  static const double _kBarHeight = 4.0; // (literal)
+  static const double _kStaircaseHeight = 164.0; // (literal)
+  static const double _kHeroSilhouetteHeight = 44.0; // (literal)
+  static const double _kTickTrackHeight = 6.0; // (literal)
+  static const double _kSortPillHeight = 32.0; // (literal)
+  static const double _kCheckIconSize = 14.0; // (literal)
 
-  void _toggleSelection(String emiId) {
+  EmiSortMode _sortMode = EmiSortMode.byWho;
+  bool _whatIfMode = false;
+  final Set<String> _selectedEmiIds = <String>{};
+  int? _selectedStepIndex;
+
+  void _toggleWhatIfMode() {
+    setState(() {
+      if (_whatIfMode || _selectedEmiIds.isNotEmpty) {
+        _whatIfMode = false;
+        _selectedEmiIds.clear();
+      } else {
+        _whatIfMode = true;
+      }
+    });
+  }
+
+  void _toggleEmiSelection(String emiId) {
     setState(() {
       if (_selectedEmiIds.contains(emiId)) {
         _selectedEmiIds.remove(emiId);
       } else {
         _selectedEmiIds.add(emiId);
+        _whatIfMode = true;
       }
     });
   }
 
-  String _getPayerBadgeText(
+  int _remainingInstallmentsOf(LocalSubscription emi) {
+    final paid = emi.emiProgress?.paidInstallments ?? (emi.paidInstallments ?? 0);
+    final total =
+        emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
+    return (total - paid).clamp(0, total);
+  }
+
+  int _paidInstallmentsOf(LocalSubscription emi) {
+    final paid = emi.emiProgress?.paidInstallments ?? (emi.paidInstallments ?? 0);
+    final total =
+        emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
+    return paid.clamp(0, total);
+  }
+
+  int _totalInstallmentsOf(LocalSubscription emi) {
+    return math.max(
+      1,
+      emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1),
+    );
+  }
+
+  DateTime _endDateOf(LocalSubscription emi) {
+    if (emi.endDate != null) {
+      return emi.endDate!;
+    }
+    final rem = math.max(1, _remainingInstallmentsOf(emi));
+    return DateTime(
+      emi.nextBillingDate.year,
+      emi.nextBillingDate.month + rem - 1,
+      emi.nextBillingDate.day,
+    );
+  }
+
+  CovePerson _resolvePayerPerson(
     LocalSubscription emi, {
-    required dynamic currentUser,
-    required String myName,
-    required String partnerName,
+    required String creatorId,
+    required String? currentUserId,
     required String? partnerUserId,
   }) {
-    final payer = emi.effectivePaidBy;
-    if (payer == 'split' || payer == '50/50') {
-      return 'Split (50/50)';
+    final payer = emi.effectivePaidBy.trim();
+    final lower = payer.toLowerCase();
+    if (lower == 'split' || lower == '50/50') {
+      return CovePerson.both;
     }
 
-    final isMe = (payer == currentUser?.id) ||
-        (currentUser?.id == null && payer == 'user_alex') ||
-        (payer == 'me') ||
-        (currentUser?.id != null && emi.createdBy == currentUser?.id && emi.paidBy == null);
+    String? resolvedUserId;
+    if (lower == 'me') {
+      resolvedUserId = currentUserId ?? creatorId;
+    } else if (lower == 'partner') {
+      resolvedUserId = partnerUserId ?? 'partner_user';
+    } else if (payer == currentUserId || payer == partnerUserId || payer == creatorId) {
+      resolvedUserId = payer;
+    } else if (emi.paidBy == null || payer.isEmpty) {
+      resolvedUserId = emi.createdBy;
+    }
 
+    if (resolvedUserId != null) {
+      return resolvedUserId == creatorId ? CovePerson.a : CovePerson.b;
+    }
+    return CovePerson.b;
+  }
+
+  String _resolvePayerGroupName(
+    LocalSubscription emi, {
+    required String creatorId,
+    required String? currentUserId,
+    required String? partnerUserId,
+    required String myName,
+    required String partnerName,
+  }) {
+    final payer = emi.effectivePaidBy.trim();
+    final lower = payer.toLowerCase();
+    if (lower == 'split' || lower == '50/50') {
+      return 'BOTH · SPLIT 50/50';
+    }
+    final isMe = (payer == currentUserId) ||
+        (currentUserId == null && payer == 'user_alex') ||
+        lower == 'me' ||
+        (currentUserId != null &&
+            emi.createdBy == currentUserId &&
+            (emi.paidBy == null || payer.isEmpty));
     if (isMe) {
-      return myName.isNotEmpty ? myName : 'You';
+      return myName;
     }
-
     if (partnerUserId != null && payer == partnerUserId) {
       return partnerName;
     }
-
-    if (payer.isNotEmpty && payer != 'partner') {
+    if (payer.isNotEmpty && lower != 'partner') {
       return payer;
     }
-
     return partnerName;
+  }
+
+  List<_StaircaseStep> _computeStaircaseSteps(
+    List<LocalSubscription> activeEmis,
+    DateTime referenceDate,
+  ) {
+    if (activeEmis.isEmpty) return const [];
+
+    final byMonths = <int, List<LocalSubscription>>{};
+    for (final emi in activeEmis) {
+      final rem = math.max(1, _remainingInstallmentsOf(emi));
+      byMonths.putIfAbsent(rem, () => []).add(emi);
+    }
+
+    final sortedMonths = byMonths.keys.toList()..sort();
+    final steps = <_StaircaseStep>[];
+
+    for (final m in sortedMonths) {
+      double remainingAfter = 0.0;
+      for (final emi in activeEmis) {
+        final rem = math.max(1, _remainingInstallmentsOf(emi));
+        if (rem > m) {
+          remainingAfter += emi.amount;
+        }
+      }
+      final stepDate = DateTime(referenceDate.year, referenceDate.month + m, 1);
+      steps.add(
+        _StaircaseStep(
+          monthsFromNow: m,
+          date: stepDate,
+          remainingMonthly: remainingAfter,
+          closedAtStep: byMonths[m]!,
+        ),
+      );
+    }
+
+    return steps;
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currency = ref.watch(currencyPreferenceProvider);
 
     if (widget.initialSubscriptions != null) {
@@ -96,27 +236,15 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     return subscriptionsAsync.when(
       data: (subscriptions) => _buildScaffold(context, subscriptions, currency),
       loading: () => Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          title: Text(
-            'EMI Outstanding',
-            style: typography.headline.copyWith(fontSize: 20),
-          ),
-        ),
+        backgroundColor: cv.surfaceCanvas,
         body: const Center(child: CoveLoading()),
       ),
       error: (e, st) => Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          title: Text(
-            'EMI Outstanding',
-            style: typography.headline.copyWith(fontSize: 20),
-          ),
-        ),
+        backgroundColor: cv.surfaceCanvas,
         body: Center(
           child: Text(
             'Could not load EMIs right now',
-            style: typography.bodyRegular.copyWith(color: colors.textMuted),
+            style: CoveType.body.copyWith(color: cv.textTertiary),
           ),
         ),
       ),
@@ -126,13 +254,15 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
   Widget _buildScaffold(
     BuildContext context,
     List<LocalSubscription> subscriptions,
-    dynamic currency,
+    CurrencyOption currency,
   ) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
-    // Profiles for payer resolution
+    final home = ref.watch(activeHomeProvider).value;
     final currentUser = ref.watch(authProvider).value;
+    final currentUserId = currentUser?.id;
+    final creatorId = home?.createdBy ?? currentUserId ?? 'user_alex';
+
     final myProfile = ref.watch(userProfileProvider);
     final myName = myProfile.displayName.trim().isNotEmpty
         ? myProfile.displayName.trim()
@@ -143,7 +273,6 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
         : 'Partner';
     final partnerUserId = partnerProfile.userId;
 
-    // Filter active and completed EMIs
     final allActiveEmis = subscriptions
         .where((s) => s.isEmi && s.isActive && !s.isEmiFinished)
         .toList();
@@ -151,30 +280,47 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
         .where((s) => s.isEmi && s.isEmiFinished)
         .toList();
 
-    // Sort active EMIs
-    final sortedEmis = List<LocalSubscription>.from(allActiveEmis);
-    sortedEmis.sort((a, b) {
-      final remA = (a.emiProgress?.totalInstallments ?? 1) - (a.emiProgress?.paidInstallments ?? 0);
-      final outA = remA * a.amount;
-      final remB = (b.emiProgress?.totalInstallments ?? 1) - (b.emiProgress?.paidInstallments ?? 0);
-      final outB = remB * b.amount;
-      return _sortAscending ? outA.compareTo(outB) : outB.compareTo(outA);
-    });
+    // Effective EMIs after excluding any simulated "What if…" closures
+    final effectiveEmis = allActiveEmis
+        .where((e) => !_selectedEmiIds.contains(e.id))
+        .toList();
 
-    // Compute totals across all active EMIs
     double totalOutstanding = 0.0;
     double totalPaid = 0.0;
     double totalMonthlyOutflow = 0.0;
-    double maxMonthlyEmi = 0.0;
+    double personAMonthly = 0.0;
+    double personBMonthly = 0.0;
+    double bothMonthly = 0.0;
 
-    for (final emi in allActiveEmis) {
-      final paid = emi.emiProgress?.paidInstallments ?? 0;
-      final total = emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
-      final rem = (total - paid).clamp(0, total);
+    LocalSubscription? longestEmi;
+    int maxRemainingMonths = 0;
+
+    for (final emi in effectiveEmis) {
+      final paid = _paidInstallmentsOf(emi);
+      final rem = _remainingInstallmentsOf(emi);
       totalOutstanding += rem * emi.amount;
       totalPaid += paid * emi.amount;
       totalMonthlyOutflow += emi.amount;
-      maxMonthlyEmi = max(maxMonthlyEmi, emi.amount);
+
+      if (rem >= maxRemainingMonths) {
+        maxRemainingMonths = rem;
+        longestEmi = emi;
+      }
+
+      final person = _resolvePayerPerson(
+        emi,
+        creatorId: creatorId,
+        currentUserId: currentUserId,
+        partnerUserId: partnerUserId,
+      );
+      switch (person) {
+        case CovePerson.a:
+          personAMonthly += emi.amount;
+        case CovePerson.b:
+          personBMonthly += emi.amount;
+        case CovePerson.both:
+          bothMonthly += emi.amount;
+      }
     }
 
     final totalLoanValue = totalOutstanding + totalPaid;
@@ -182,404 +328,507 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
         ? (totalPaid / totalLoanValue).clamp(0.0, 1.0)
         : 0.0;
 
-    // Compute totals for SELECTED EMIs
     double selectedOutstanding = 0.0;
     double selectedMonthlyOutflow = 0.0;
     for (final emi in allActiveEmis) {
       if (_selectedEmiIds.contains(emi.id)) {
-        final paid = emi.emiProgress?.paidInstallments ?? 0;
-        final total = emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
-        final rem = (total - paid).clamp(0, total);
+        final rem = _remainingInstallmentsOf(emi);
         selectedOutstanding += rem * emi.amount;
         selectedMonthlyOutflow += emi.amount;
       }
     }
 
-    final hasSelection = _selectedEmiIds.isNotEmpty;
+    final referenceDate = allActiveEmis.isNotEmpty
+        ? allActiveEmis.first.nextBillingDate
+        : DateTime.now();
+    final freeByDate = longestEmi != null
+        ? _endDateOf(longestEmi)
+        : referenceDate;
+
+    final steps = _computeStaircaseSteps(effectiveEmis, referenceDate);
+
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(
-          hasSelection
-              ? '${_selectedEmiIds.length} Selected'
-              : 'EMI Outstanding',
-          style: typography.headline.copyWith(fontSize: 20),
-        ),
-        actions: [
-          if (hasSelection)
-            IconButton(
-              tooltip: 'Clear selection',
-              icon: const Icon(Icons.close_rounded, size: 22),
-              onPressed: () => setState(() => _selectedEmiIds.clear()),
-            )
-          else
-            IconButton(
-              tooltip: 'Add Loan or EMI',
-              icon: const Icon(Icons.add, size: 22),
-              onPressed: () => SubscriptionFormSheet.show(context),
-            ),
-        ],
-      ),
-      body: allActiveEmis.isEmpty && completedEmis.isEmpty
-          ? _buildEmptyState(context)
-          : CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                // 1. Total Outstanding Hero & Controls Row
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildTotalHeroCard(
-                          context,
-                          currency: currency,
-                          totalOutstanding: totalOutstanding,
-                          totalPaid: totalPaid,
-                          totalMonthlyOutflow: totalMonthlyOutflow,
-                          activeCount: allActiveEmis.length,
-                          payoffRatio: overallPayoffPercent,
-                        ),
-                        if (allActiveEmis.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          _buildControlsRow(context),
-                        ],
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // 2. Sticky Selected Burden / Loan Closure Row Card
-                if (hasSelection)
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _StickySelectedSummaryDelegate(
-                      height: 72,
-                      child: Container(
-                        color: colors.background,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                        child: _buildSelectedSummaryCard(
-                          context,
-                          currency: currency,
-                          selectedCount: _selectedEmiIds.length,
-                          selectedOutstanding: selectedOutstanding,
-                          selectedMonthlyOutflow: selectedMonthlyOutflow,
-                        ),
+      backgroundColor: cv.surfaceCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: CoveMaxWidth(
+          child: allActiveEmis.isEmpty && completedEmis.isEmpty
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    CovePageHeader(
+                      leading: CoveRoundButton(
+                        icon: Icons.arrow_back_rounded,
+                        variant: CoveRoundButtonVariant.ghost,
+                        tooltip: 'Back',
+                        semanticLabel: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      title: 'EMIs',
+                      trailingPill: CoveHeaderPill(
+                        key: const ValueKey('emi_what_if_pill'),
+                        label: 'What if…',
+                        isActive: _whatIfMode,
+                        onPressed: _toggleWhatIfMode,
                       ),
                     ),
-                  ),
+                    Expanded(child: _buildEmptyState(context)),
+                  ],
+                )
+              : ListView(
+                  padding: EdgeInsets.only(bottom: bottomPadding),
+                  children: [
+                    // 1. CovePageHeader — back button, "EMIs", and the "What if…" pill (28dp)
+                    CovePageHeader(
+                      leading: CoveRoundButton(
+                        icon: Icons.arrow_back_rounded,
+                        variant: CoveRoundButtonVariant.ghost,
+                        tooltip: 'Back',
+                        semanticLabel: 'Back',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                      title: 'EMIs',
+                      trailingPill: CoveHeaderPill(
+                        key: const ValueKey('emi_what_if_pill'),
+                        label: 'What if…',
+                        isActive: _whatIfMode || _selectedEmiIds.isNotEmpty,
+                        onPressed: _toggleWhatIfMode,
+                      ),
+                    ),
+                    const SizedBox(height: CoveSpace.md),
 
-                // 3. Active EMIs List
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-                  sliver: allActiveEmis.isEmpty
-                      ? SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            child: Center(
-                              child: Text(
-                                'All EMIs and loans are paid off!',
-                                style: typography.bodyRegular.copyWith(
-                                  color: colors.textMuted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final emi = sortedEmis[index];
-                              final isSelected = _selectedEmiIds.contains(emi.id);
-                              final payerName = _getPayerBadgeText(
-                                emi,
-                                currentUser: currentUser,
-                                myName: myName,
-                                partnerName: partnerName,
-                                partnerUserId: partnerUserId,
-                              );
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildEmiCard(
-                                  context,
-                                  emi: emi,
-                                  currency: currency,
-                                  totalMonthlyOutflow: totalMonthlyOutflow,
-                                  maxMonthlyEmi: maxMonthlyEmi,
-                                  isSelected: isSelected,
-                                  payerBadgeText: payerName,
-                                  hasActiveSelection: hasSelection,
-                                ),
-                              );
-                            },
-                            childCount: sortedEmis.length,
-                          ),
-                        ),
-                ),
-
-                // 4. Completed EMIs Section
-                if (completedEmis.isNotEmpty)
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                    sliver: SliverToBoxAdapter(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.gutter,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle_outline_rounded,
-                                  size: 16, color: Color(0xFF4CAF50)),
-                              const SizedBox(width: 8),
-                              Text(
-                                'COMPLETED LOANS (${completedEmis.length})',
-                                style: typography.caption.copyWith(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
-                                  color: colors.textSubtle,
-                                ),
-                              ),
-                            ],
+                          // What-if interactive tray when active or when rows are selected
+                          if (_whatIfMode || _selectedEmiIds.isNotEmpty) ...[
+                            _buildWhatIfTray(
+                              context,
+                              currency: currency,
+                              selectedCount: _selectedEmiIds.length,
+                              selectedMonthlyOutflow: selectedMonthlyOutflow,
+                              selectedOutstanding: selectedOutstanding,
+                            ),
+                            const SizedBox(height: CoveSpace.md),
+                          ],
+
+                          // 2. Three cards:
+                          //    Card 1: when it all closes
+                          _buildFreeByHeroCard(
+                            context,
+                            effectiveEmis: effectiveEmis,
+                            longestEmi: longestEmi,
+                            maxRemainingMonths: maxRemainingMonths,
+                            freeByDate: freeByDate,
+                            hasWhatIfSelection: _selectedEmiIds.isNotEmpty,
+                            steps: steps,
+                            initialMonthly: totalMonthlyOutflow,
                           ),
-                          const SizedBox(height: 10),
-                          ...completedEmis.map((emi) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: _buildCompletedEmiCard(context, emi: emi, currency: currency),
-                              )),
+                          const SizedBox(height: CoveSpace.md),
+
+                          //    Card 2 & Card 3: the monthly EMI with a who-split bar · left-to-pay with a paid-% bar
+                          _buildSecondaryCardsRow(
+                            context,
+                            currency: currency,
+                            effectiveCount: effectiveEmis.length,
+                            totalMonthlyOutflow: totalMonthlyOutflow,
+                            totalOutstanding: totalOutstanding,
+                            totalPaid: totalPaid,
+                            overallPayoffPercent: overallPayoffPercent,
+                            personAMonthly: personAMonthly,
+                            personBMonthly: personBMonthly,
+                            bothMonthly: bothMonthly,
+                          ),
+                          const SizedBox(height: CoveSpace.section),
+
+                          // 3. The staircase graph — "tap the steps"
+                          if (effectiveEmis.isNotEmpty) ...[
+                            const CoveSectionLabel.page(
+                              label: 'WHEN IT GETS LIGHTER',
+                              readout: 'tap the steps',
+                            ),
+                            const SizedBox(height: CoveSpace.md),
+                            _buildStaircaseGraph(
+                              context,
+                              currency: currency,
+                              initialMonthly: totalMonthlyOutflow,
+                              referenceDate: referenceDate,
+                              steps: steps,
+                            ),
+                            const SizedBox(height: CoveSpace.section),
+                          ],
+
+                          // 4. Sort controls + Ledger rows grouped by who pays
+                          if (allActiveEmis.isNotEmpty) ...[
+                            _buildSortModeRow(context),
+                            const SizedBox(height: CoveSpace.lg),
+                            _buildLedgerSection(
+                              context,
+                              allActiveEmis: allActiveEmis,
+                              currency: currency,
+                              creatorId: creatorId,
+                              currentUserId: currentUserId,
+                              partnerUserId: partnerUserId,
+                              myName: myName,
+                              partnerName: partnerName,
+                            ),
+                          ],
+
+                          if (completedEmis.isNotEmpty) ...[
+                            const SizedBox(height: CoveSpace.section),
+                            CoveSectionLabel.page(
+                              label: 'COMPLETED LOANS',
+                              readout: '${completedEmis.length}',
+                            ),
+                            const SizedBox(height: CoveSpace.sm),
+                            _buildCompletedGroupCard(
+                              context,
+                              completedEmis: completedEmis,
+                              currency: currency,
+                            ),
+                          ],
+
+                          const SizedBox(height: CoveSpace.lg),
+                          Text(
+                            'One tick per instalment — a sixty-month loan with nine left still looks like a sixty-month loan. Press and hold any loan — or use What if… above — to see the month without it.',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  )
-                else
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildTotalHeroCard(
-    BuildContext context, {
-    required dynamic currency,
-    required double totalOutstanding,
-    required double totalPaid,
-    required double totalMonthlyOutflow,
-    required int activeCount,
-    required double payoffRatio,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
-
-    return CoveCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TOTAL OUTSTANDING',
-                style: typography.caption.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                  color: colors.textSubtle,
+                  ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.accentPrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$activeCount active ${activeCount == 1 ? 'loan' : 'loans'}',
-                  style: typography.caption.copyWith(
-                    color: colors.accentPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Large Bodoni Moda Total Outstanding
-          Text(
-            '${currency.symbol}${formatCoveAmount(totalOutstanding)}',
-            style: TextStyle(
-              fontFamily: 'LibreBodoni',
-              fontSize: 34,
-              fontWeight: FontWeight.w600,
-              color: colors.accentTint,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Progress Bar: Paid vs Outstanding
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              height: 8,
-              child: LinearProgressIndicator(
-                value: payoffRatio,
-                backgroundColor: colors.surfaceRow,
-                valueColor: AlwaysStoppedAnimation<Color>(colors.accentPrimary),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Paid: ${currency.symbol}${formatCoveAmount(totalPaid)} (${(payoffRatio * 100).toStringAsFixed(0)}%)',
-                style: typography.caption.copyWith(
-                  color: colors.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-              Text(
-                'Monthly: ${currency.symbol}${formatCoveAmount(totalMonthlyOutflow)}/mo',
-                style: typography.caption.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildSelectedSummaryCard(
+  Widget _buildWhatIfTray(
     BuildContext context, {
-    required dynamic currency,
+    required CurrencyOption currency,
     required int selectedCount,
-    required double selectedOutstanding,
     required double selectedMonthlyOutflow,
+    required double selectedOutstanding,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.all(CoveSpace.md),
       decoration: BoxDecoration(
-        color: colors.surfaceRow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colors.accentPrimary.withValues(alpha: 0.4),
-          width: 1.2,
+        color: cv.surfaceRow,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.inline),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(
+          color: cv.accentFill,
+          width: _kHairline,
+        ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: colors.accentPrimary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+          Expanded(
+            child: selectedCount == 0
+                ? Text(
+                    'Tap any EMI below to see the month and free-by date without it.',
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'IF WE CLOSE THESE',
+                            style: CoveType.capsCard.copyWith(
+                              color: cv.accentTint,
+                            ),
+                          ),
+                          const SizedBox(width: CoveSpace.xs),
+                          Text(
+                            '($selectedCount)',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Wrap(
+                        spacing: CoveSpace.md,
+                        runSpacing: CoveSpace.xs,
+                        children: [
+                          Text(
+                            'Frees ${currency.symbol}${formatCoveAmount(selectedMonthlyOutflow)}/mo',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Payoff ${currency.symbol}${formatCoveAmount(selectedOutstanding)}',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.accentTint,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(width: CoveSpace.sm),
+          CoveRoundButton.stepper(
+            key: const ValueKey('emi_clear_what_if'),
+            icon: Icons.close_rounded,
+            tooltip: 'Clear what-if selection',
+            semanticLabel: 'Clear what-if selection',
+            onPressed: () {
+              setState(() {
+                _whatIfMode = false;
+                _selectedEmiIds.clear();
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFreeByHeroCard(
+    BuildContext context, {
+    required List<LocalSubscription> effectiveEmis,
+    required LocalSubscription? longestEmi,
+    required int maxRemainingMonths,
+    required DateTime freeByDate,
+    required bool hasWhatIfSelection,
+    required List<_StaircaseStep> steps,
+    required double initialMonthly,
+  }) {
+    final cv = context.cv;
+
+    final String label = hasWhatIfSelection
+        ? 'IF CLOSED · FREE OF ALL ${effectiveEmis.length} IN'
+        : 'FREE OF ALL ${effectiveEmis.length} IN';
+
+    final String heroText = effectiveEmis.isEmpty
+        ? 'Right now'
+        : DateFormat('MMMM yyyy').format(freeByDate);
+
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.gutter),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (steps.isNotEmpty) ...[
+            SizedBox(
+              height: _kHeroSilhouetteHeight,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _MiniStaircaseSilhouettePainter(
+                  steps: steps,
+                  initialMonthly: initialMonthly,
+                  strokeColor: cv.lineStrong,
+                  fillColor: cv.accentWash,
+                ),
+              ),
             ),
-            child: Icon(
-              Icons.check_rounded,
-              size: 16,
-              color: colors.accentPrimary,
+            const SizedBox(height: CoveSpace.sm),
+          ],
+          CoveSectionLabel.card(label: label),
+          const SizedBox(height: CoveSpace.xs),
+          Text(
+            heroText,
+            style: CoveType.heroFigure.copyWith(color: cv.accentTint),
+          ),
+          const SizedBox(height: CoveSpace.sm),
+          if (longestEmi != null)
+            Text.rich(
+              TextSpan(
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                children: [
+                  TextSpan(
+                    text:
+                        '$maxRemainingMonths more ${maxRemainingMonths == 1 ? 'EMI' : 'EMIs'}',
+                    style: CoveType.rowSub.copyWith(color: cv.textPrimary),
+                  ),
+                  TextSpan(
+                    text:
+                        ' on the longest — ${longestEmi.name}. Everything else is gone before it.',
+                  ),
+                ],
+              ),
+            )
+          else
+            Text(
+              'Every active loan is cleared in this scenario.',
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondaryCardsRow(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required int effectiveCount,
+    required double totalMonthlyOutflow,
+    required double totalOutstanding,
+    required double totalPaid,
+    required double overallPayoffPercent,
+    required double personAMonthly,
+    required double personBMonthly,
+    required double bothMonthly,
+  }) {
+    final isCompact =
+        MediaQuery.sizeOf(context).width < CoveSize.compactThreshold;
+
+    final eachMonthCard = _buildEachMonthCard(
+      context,
+      currency: currency,
+      effectiveCount: effectiveCount,
+      totalMonthlyOutflow: totalMonthlyOutflow,
+      personAMonthly: personAMonthly,
+      personBMonthly: personBMonthly,
+      bothMonthly: bothMonthly,
+    );
+
+    final leftToPayCard = _buildLeftToPayCard(
+      context,
+      currency: currency,
+      totalOutstanding: totalOutstanding,
+      totalPaid: totalPaid,
+      overallPayoffPercent: overallPayoffPercent,
+    );
+
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          eachMonthCard,
+          const SizedBox(height: CoveSpace.md),
+          leftToPayCard,
+        ],
+      );
+    }
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: eachMonthCard),
+          const SizedBox(width: CoveSpace.md),
+          Expanded(child: leftToPayCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEachMonthCard(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required int effectiveCount,
+    required double totalMonthlyOutflow,
+    required double personAMonthly,
+    required double personBMonthly,
+    required double bothMonthly,
+  }) {
+    final cv = context.cv;
+    final total = totalMonthlyOutflow > 0 ? totalMonthlyOutflow : 1.0;
+    final aFlex = ((personAMonthly / total) * 1000).round().clamp(0, 1000);
+    final bothFlex = ((bothMonthly / total) * 1000).round().clamp(0, 1000);
+    final bFlex = ((personBMonthly / total) * 1000).round().clamp(0, 1000);
+    final hasAny = aFlex + bothFlex + bFlex > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.md),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CoveSectionLabel.card(label: 'EACH MONTH'),
+          const SizedBox(height: CoveSpace.sm),
+          Text(
+            '${currency.symbol}${formatCoveAmount(totalMonthlyOutflow)}',
+            style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
+          ),
+          const SizedBox(height: CoveSpace.sm),
+          ClipRRect(
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.pill),
+            ),
+            child: SizedBox(
+              height: _kBarHeight,
+              child: hasAny
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (aFlex > 0)
+                          Expanded(
+                            flex: aFlex,
+                            child: ColoredBox(color: cv.accentFill),
+                          ),
+                        if (bothFlex > 0) ...[
+                          if (aFlex > 0) const SizedBox(width: CoveSpace.xs),
+                          Expanded(
+                            flex: bothFlex,
+                            child: ColoredBox(color: cv.accentTint),
+                          ),
+                        ],
+                        if (bFlex > 0) ...[
+                          if (aFlex > 0 || bothFlex > 0)
+                            const SizedBox(width: CoveSpace.xs),
+                          Expanded(
+                            flex: bFlex,
+                            child: ColoredBox(color: cv.statusGood),
+                          ),
+                        ],
+                      ],
+                    )
+                  : ColoredBox(color: cv.surfaceRow),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          const SizedBox(height: CoveSpace.xs),
+          Text.rich(
+            TextSpan(
+              style: CoveType.rowSub.copyWith(color: cv.textTertiary),
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'SELECTED BURDEN',
-                      style: typography.caption.copyWith(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                        color: colors.accentTint,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '($selectedCount)',
-                      style: typography.caption.copyWith(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textSubtle,
-                      ),
-                    ),
-                  ],
+                TextSpan(
+                  text: '$effectiveCount',
+                  style: CoveType.rowSub.copyWith(color: cv.textPrimary),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      'EMI: ',
-                      style: typography.caption.copyWith(
-                        fontSize: 12,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    Text(
-                      '${currency.symbol}${formatCoveAmount(selectedMonthlyOutflow)}/mo',
-                      style: typography.caption.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Outst: ',
-                      style: typography.caption.copyWith(
-                        fontSize: 12,
-                        color: colors.textMuted,
-                      ),
-                    ),
-                    Text(
-                      '${currency.symbol}${formatCoveAmount(selectedOutstanding)}',
-                      style: typography.caption.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: colors.accentTint,
-                      ),
-                    ),
-                  ],
+                TextSpan(
+                  text: ' ${effectiveCount == 1 ? 'EMI' : 'EMIs'} running',
                 ),
               ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => _selectedEmiIds.clear()),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(
-                Icons.close_rounded,
-                size: 18,
-                color: colors.textMuted,
-              ),
             ),
           ),
         ],
@@ -587,487 +836,629 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     );
   }
 
-  Widget _buildControlsRow(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+  Widget _buildLeftToPayCard(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required double totalOutstanding,
+    required double totalPaid,
+    required double overallPayoffPercent,
+  }) {
+    final cv = context.cv;
+    final paidPct = (overallPayoffPercent * 100).round();
 
-    return Row(
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.md),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CoveSectionLabel.card(label: 'LEFT TO PAY'),
+          const SizedBox(height: CoveSpace.sm),
+          Text(
+            '${currency.symbol}${formatCoveAmount(totalOutstanding)}',
+            style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
+          ),
+          const SizedBox(height: CoveSpace.sm),
+          ClipRRect(
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.pill),
+            ),
+            child: SizedBox(
+              height: _kBarHeight,
+              child: LinearProgressIndicator(
+                value: overallPayoffPercent,
+                backgroundColor: cv.surfaceRow,
+                valueColor: AlwaysStoppedAnimation<Color>(cv.accentFill),
+              ),
+            ),
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Text.rich(
+            TextSpan(
+              style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              children: [
+                TextSpan(
+                  text: '$paidPct%',
+                  style: CoveType.rowSub.copyWith(color: cv.textPrimary),
+                ),
+                TextSpan(
+                  text:
+                      ' already paid (${currency.symbol}${formatCoveAmount(totalPaid)})',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaircaseGraph(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required double initialMonthly,
+    required DateTime referenceDate,
+    required List<_StaircaseStep> steps,
+  }) {
+    final cv = context.cv;
+    final effectiveIdx = (_selectedStepIndex != null &&
+            _selectedStepIndex! >= 0 &&
+            _selectedStepIndex! < steps.length)
+        ? _selectedStepIndex
+        : null;
+    final selectedStep = effectiveIdx != null ? steps[effectiveIdx] : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Mode Switch (Tenure vs Relative Share)
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.borderHairline),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildSegmentButton(
-                    context,
-                    label: 'Tenure Paid',
-                    isSelected: _progressMode == EmiProgressDisplayMode.tenure,
-                    onTap: () {
-                      if (_progressMode != EmiProgressDisplayMode.tenure) {
-                        setState(() => _progressMode = EmiProgressDisplayMode.tenure);
-                      }
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: _buildSegmentButton(
-                    context,
-                    label: 'EMI Share',
-                    isSelected: _progressMode == EmiProgressDisplayMode.relativeShare,
-                    onTap: () {
-                      if (_progressMode != EmiProgressDisplayMode.relativeShare) {
-                        setState(() => _progressMode = EmiProgressDisplayMode.relativeShare);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
+        SizedBox(
+          height: _kStaircaseHeight,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final maxMonths = steps.isNotEmpty ? steps.last.monthsFromNow : 1;
 
-        // Sort Direction Button
-        InkWell(
-          onTap: () => setState(() => _sortAscending = !_sortAscending),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.borderHairline),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                  size: 16,
-                  color: colors.accentPrimary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _sortAscending ? 'Low → High' : 'High → Low',
-                  style: typography.caption.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+              return GestureDetector(
+                key: const ValueKey('emi_staircase_graph'),
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (details) {
+                  if (steps.isEmpty || width <= 0) return;
+                  final tapX = details.localPosition.dx;
+                  int closestIdx = 0;
+                  double closestDist = double.infinity;
+                  for (var i = 0; i < steps.length; i++) {
+                    final stepX = (steps[i].monthsFromNow / maxMonths) * width;
+                    final dist = (stepX - tapX).abs();
+                    if (dist < closestDist) {
+                      closestDist = dist;
+                      closestIdx = i;
+                    }
+                  }
+                  setState(() {
+                    _selectedStepIndex =
+                        _selectedStepIndex == closestIdx ? null : closestIdx;
+                  });
+                },
+                child: CustomPaint(
+                  size: Size(width, _kStaircaseHeight),
+                  painter: _StaircaseGraphPainter(
+                    steps: steps,
+                    initialMonthly: initialMonthly,
+                    referenceDate: referenceDate,
+                    currencySymbol: currency.symbol,
+                    selectedIndex: effectiveIdx,
+                    strokeColor: cv.accentFill,
+                    fillColor: cv.accentWash,
+                    gridColor: cv.lineHairline,
+                    surfaceColor: cv.surfaceCanvas,
+                    labelStyle: CoveType.rowSub.copyWith(
+                      color: cv.textSecondary,
+                    ),
+                    axisStyle: CoveType.barLabel.copyWith(
+                      color: cv.textTertiary,
+                    ),
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
+        if (selectedStep != null) ...[
+          const SizedBox(height: CoveSpace.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: CoveSpace.sm,
+            ),
+            decoration: BoxDecoration(
+              color: cv.surfaceCard,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.inline),
+              ),
+              border: Border.all(
+                color: cv.lineHairline,
+                width: _kHairline,
+              ),
+            ),
+            child: Text(
+              selectedStep.remainingMonthly <= 0
+                  ? '${DateFormat("MMM yyyy").format(selectedStep.date)}: ${selectedStep.closedAtStep.map((e) => e.name).join(", ")} closes — free of all EMIs.'
+                  : '${DateFormat("MMM yyyy").format(selectedStep.date)}: ${selectedStep.closedAtStep.map((e) => e.name).join(", ")} closes → drops to ${currency.symbol}${formatCoveAmount(selectedStep.remainingMonthly)}/mo.',
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildSegmentButton(
-    BuildContext context, {
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
+  Widget _buildSortModeRow(BuildContext context) {
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? colors.surfaceRow : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
+    final modes = <(EmiSortMode, String)>[
+      (EmiSortMode.byWho, 'By who'),
+      (EmiSortMode.endsFirst, 'Ends first'),
+      (EmiSortMode.biggest, 'Biggest'),
+    ];
+
+    return Wrap(
+      spacing: CoveSpace.sm,
+      runSpacing: CoveSpace.sm,
+      children: [
+        for (final item in modes)
+          Builder(
+            builder: (context) {
+              final isSelected = _sortMode == item.$1;
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label: item.$2,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _sortMode = item.$1),
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: CoveMotion.easing,
+                    height: _kSortPillHeight,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.md,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected ? cv.accentWash : Colors.transparent,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(CoveRadius.pill),
+                      ),
+                      border: Border.all(
+                        color: isSelected ? cv.accentFill : cv.lineStrong,
+                        width: _kHairline,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          item.$2,
+                          style: CoveType.rowSub.copyWith(
+                            color: isSelected
+                                ? cv.textPrimary
+                                : cv.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: typography.caption.copyWith(
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? colors.accentPrimary : colors.textMuted,
-            fontSize: 12,
+                ),
+              );
+            },
           ),
-        ),
-      ),
+      ],
     );
   }
 
-  Widget _buildEmiCard(
+  Widget _buildLedgerSection(
     BuildContext context, {
-    required LocalSubscription emi,
-    required dynamic currency,
-    required double totalMonthlyOutflow,
-    required double maxMonthlyEmi,
-    required bool isSelected,
-    required String payerBadgeText,
-    required bool hasActiveSelection,
+    required List<LocalSubscription> allActiveEmis,
+    required CurrencyOption currency,
+    required String creatorId,
+    required String? currentUserId,
+    required String? partnerUserId,
+    required String myName,
+    required String partnerName,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    if (_sortMode != EmiSortMode.byWho) {
+      final sorted = List<LocalSubscription>.from(allActiveEmis);
+      if (_sortMode == EmiSortMode.endsFirst) {
+        sorted.sort(
+          (a, b) =>
+              _remainingInstallmentsOf(a).compareTo(_remainingInstallmentsOf(b)),
+        );
+      } else {
+        sorted.sort((a, b) {
+          final outA = _remainingInstallmentsOf(a) * a.amount;
+          final outB = _remainingInstallmentsOf(b) * b.amount;
+          return outB.compareTo(outA);
+        });
+      }
 
-    final paidInstallments = emi.emiProgress?.paidInstallments ?? 0;
-    final totalInstallments = emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
-    final remainingInstallments = (totalInstallments - paidInstallments).clamp(0, totalInstallments);
-    final outstanding = remainingInstallments * emi.amount;
-    final paidAmount = paidInstallments * emi.amount;
-
-    // Progress bar calculation based on mode
-    final double progressValue;
-    final String progressLeftText;
-    final String progressRightText;
-
-    if (_progressMode == EmiProgressDisplayMode.tenure) {
-      progressValue = totalInstallments > 0
-          ? (paidInstallments / totalInstallments).clamp(0.0, 1.0)
-          : 0.0;
-      progressLeftText = '$paidInstallments of $totalInstallments months paid';
-      progressRightText = '${(progressValue * 100).toStringAsFixed(0)}% tenure done';
-    } else {
-      // Relative share: percentage of monthly outflow
-      final shareRatio = totalMonthlyOutflow > 0
-          ? (emi.amount / totalMonthlyOutflow).clamp(0.0, 1.0)
-          : 0.0;
-      progressValue = maxMonthlyEmi > 0
-          ? (emi.amount / maxMonthlyEmi).clamp(0.0, 1.0)
-          : 0.0;
-      final percentStr = (shareRatio * 100).toStringAsFixed(1);
-      progressLeftText = '$percentStr% of monthly EMI total';
-      progressRightText = '${currency.symbol}${formatCoveAmount(emi.amount)} / ${currency.symbol}${formatCoveAmount(totalMonthlyOutflow)}';
+      return _buildEmiGroupCard(
+        context,
+        emis: sorted,
+        currency: currency,
+        isSplitGroup: false,
+      );
     }
 
-    return GestureDetector(
-      onLongPress: () => _toggleSelection(emi.id),
-      onTap: () {
-        if (hasActiveSelection) {
-          _toggleSelection(emi.id);
-        } else {
-          CommitmentDetailSheet.show(context, emi);
-        }
-      },
-      child: CoveCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: isSelected
-            ? Border.all(color: colors.accentPrimary, width: 1.5)
-            : null,
-        backgroundColor: isSelected
-            ? colors.surfaceCard.withValues(alpha: 0.9)
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Header: Name, Financed Through Badge, and Payer Attribution Badge
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isSelected) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8, top: 2),
-                    child: Icon(
-                      Icons.check_circle_rounded,
-                      size: 18,
-                      color: colors.accentPrimary,
-                    ),
-                  ),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    // Group by who pays, preserving first-seen payer order
+    final groupOrder = <String>[];
+    final groupedEmis = <String, List<LocalSubscription>>{};
+    final groupPerson = <String, CovePerson>{};
+
+    for (final emi in allActiveEmis) {
+      final groupLabel = _resolvePayerGroupName(
+        emi,
+        creatorId: creatorId,
+        currentUserId: currentUserId,
+        partnerUserId: partnerUserId,
+        myName: myName,
+        partnerName: partnerName,
+      );
+      if (!groupedEmis.containsKey(groupLabel)) {
+        groupOrder.add(groupLabel);
+        groupedEmis[groupLabel] = <LocalSubscription>[];
+        groupPerson[groupLabel] = _resolvePayerPerson(
+          emi,
+          creatorId: creatorId,
+          currentUserId: currentUserId,
+          partnerUserId: partnerUserId,
+        );
+      }
+      groupedEmis[groupLabel]!.add(emi);
+    }
+
+    // Sort items within each group by monthly amount descending
+    for (final list in groupedEmis.values) {
+      list.sort((a, b) => b.amount.compareTo(a.amount));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var g = 0; g < groupOrder.length; g++) ...[
+          if (g > 0) const SizedBox(height: CoveSpace.lg),
+          Builder(
+            builder: (context) {
+              final cv = context.cv;
+              final groupName = groupOrder[g];
+              final emis = groupedEmis[groupName]!;
+              final person = groupPerson[groupName]!;
+              final isSplitGroup = person == CovePerson.both;
+              final groupMonthly = emis.fold<double>(
+                0.0,
+                (sum, e) => sum + e.amount,
+              );
+              final headerTitle = isSplitGroup
+                  ? groupName
+                  : '${groupName.toUpperCase()} · ${emis.length}';
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        emi.name,
-                        style: typography.title.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      CoveAvatar.inline(
+                        person: person,
+                        nameOrInitial: isSplitGroup ? null : groupName,
                       ),
-                      if (emi.financedThrough != null && emi.financedThrough!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                      const SizedBox(width: CoveSpace.sm),
+                      Expanded(
+                        child: Text(
+                          headerTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.capsCard.copyWith(
+                            color: cv.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Text.rich(
+                        TextSpan(
                           children: [
-                            Icon(
-                              Icons.account_balance_outlined,
-                              size: 12,
-                              color: colors.textSubtle,
+                            TextSpan(
+                              text:
+                                  '${currency.symbol}${formatCoveAmount(groupMonthly)}',
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.accentTint,
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                emi.financedThrough!.trim(),
-                                style: typography.caption.copyWith(
-                                  color: colors.textMuted,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            TextSpan(
+                              text: ' /mo',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textTertiary,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Payer Badge: shows the name of who is paying
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: colors.borderHairline,
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person_outline_rounded,
-                        size: 11,
-                        color: colors.accentTint,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        payerBadgeText,
-                        style: typography.caption.copyWith(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: CoveSpace.sm),
+                  _buildEmiGroupCard(
+                    context,
+                    emis: emis,
+                    currency: currency,
+                    isSplitGroup: isSplitGroup,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
 
-            // 2. Metrics 4-Column / Grid Row
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: colors.surfaceRow.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10),
+  Widget _buildEmiGroupCard(
+    BuildContext context, {
+    required List<LocalSubscription> emis,
+    required CurrencyOption currency,
+    required bool isSplitGroup,
+  }) {
+    final cv = context.cv;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < emis.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CoveSpace.md,
+                ),
+                child: ColoredBox(
+                  color: cv.lineHairline,
+                  child: const SizedBox(
+                    width: double.infinity,
+                    height: _kHairline,
+                  ),
+                ),
               ),
-              child: Row(
+            _buildPunchedEmiVoucherRow(
+              context,
+              emi: emis[i],
+              currency: currency,
+              isSplitGroup: isSplitGroup,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPunchedEmiVoucherRow(
+    BuildContext context, {
+    required LocalSubscription emi,
+    required CurrencyOption currency,
+    required bool isSplitGroup,
+  }) {
+    final cv = context.cv;
+    final isSelected = _selectedEmiIds.contains(emi.id);
+    final paid = _paidInstallmentsOf(emi);
+    final total = _totalInstallmentsOf(emi);
+    final remaining = _remainingInstallmentsOf(emi);
+    final endDate = _endDateOf(emi);
+    final endStr = DateFormat("MMM ''yy").format(endDate);
+
+    final metaParts = <String>[
+      if (emi.financedThrough != null &&
+          emi.financedThrough!.trim().isNotEmpty)
+        emi.financedThrough!.trim(),
+      if (isSplitGroup)
+        'your half ${currency.symbol}${formatCoveAmount(emi.amount / 2)}',
+      'ends $endStr',
+    ];
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: emi.name,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: () => _toggleEmiSelection(emi.id),
+        onTap: () {
+          if (_whatIfMode || _selectedEmiIds.isNotEmpty) {
+            _toggleEmiSelection(emi.id);
+          } else {
+            CommitmentDetailSheet.show(context, emi);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(CoveSpace.md),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: cv.accentWash,
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(CoveRadius.inline),
+                  ),
+                  border: Border.all(
+                    color: cv.accentFill,
+                    width: _kSelectedBorder,
+                  ),
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  // Outstanding (Emphasized)
+                  if (isSelected) ...[
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: _kCheckIconSize,
+                      color: cv.accentFill,
+                    ),
+                    const SizedBox(width: CoveSpace.xs),
+                  ],
                   Expanded(
-                    child: _buildMetricItem(
-                      context,
-                      label: 'Outstanding',
-                      value: '${currency.symbol}${formatCoveAmount(outstanding)}',
-                      valueColor: colors.accentTint,
-                      isEmphasized: true,
+                    child: Text(
+                      emi.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowTitle.copyWith(
+                        color: cv.textPrimary,
+                      ),
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: colors.borderHairline,
-                  ),
-                  // EMI Amount
-                  Expanded(
-                    child: _buildMetricItem(
-                      context,
-                      label: 'Monthly EMI',
-                      value: '${currency.symbol}${formatCoveAmount(emi.amount)}',
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: colors.borderHairline,
-                  ),
-                  // Paid Total
-                  Expanded(
-                    child: _buildMetricItem(
-                      context,
-                      label: 'Paid Total',
-                      value: '${currency.symbol}${formatCoveAmount(paidAmount)}',
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: colors.borderHairline,
-                  ),
-                  // Tenure
-                  Expanded(
-                    child: _buildMetricItem(
-                      context,
-                      label: 'Tenure',
-                      value: '$paidInstallments/$totalInstallments mo',
+                  const SizedBox(width: CoveSpace.sm),
+                  Text(
+                    '${currency.symbol}${formatCoveAmount(emi.amount)}',
+                    style: CoveType.rowTitle.copyWith(
+                      color: cv.textPrimary,
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 10),
-
-            // 3. Dynamic Progress Bar Track
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: SizedBox(
-                height: 5,
-                child: LinearProgressIndicator(
-                  value: progressValue,
-                  backgroundColor: colors.surfaceRow,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _progressMode == EmiProgressDisplayMode.tenure
-                        ? colors.accentPrimary
-                        : colors.accentPrimary.withValues(alpha: 0.85),
+              const SizedBox(height: CoveSpace.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      metaParts.join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.textTertiary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
+                  Text(
+                    '$remaining left ($paid/$total mo)',
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: CoveSpace.sm),
+              // Punched installment tick strip (one tick per installment)
+              SizedBox(
+                height: _kTickTrackHeight,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _PunchedInstallmentTicksPainter(
+                    totalInstallments: total,
+                    paidInstallments: paid,
+                    punchedColor: cv.accentFill,
+                    unpunchedColor: cv.lineStrong,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 5),
-
-            // Progress Bar Labels
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  progressLeftText,
-                  style: typography.caption.copyWith(
-                    color: colors.textMuted,
-                    fontSize: 11,
-                  ),
-                ),
-                Text(
-                  progressRightText,
-                  style: typography.caption.copyWith(
-                    color: colors.textSubtle,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildMetricItem(
+  Widget _buildCompletedGroupCard(
     BuildContext context, {
-    required String label,
-    required String value,
-    Color? valueColor,
-    bool isEmphasized = false,
+    required List<LocalSubscription> completedEmis,
+    required CurrencyOption currency,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
-    return Column(
-      children: [
-        Text(
-          label,
-          style: typography.caption.copyWith(
-            fontSize: 10,
-            color: colors.textSubtle,
-            fontWeight: FontWeight.w500,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+    return Container(
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.card),
         ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: typography.caption.copyWith(
-            fontSize: isEmphasized ? 12 : 11,
-            fontWeight: isEmphasized ? FontWeight.w700 : FontWeight.w600,
-            color: valueColor ?? colors.textPrimary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kHairline,
         ),
-      ],
-    );
-  }
-
-  Widget _buildCompletedEmiCard(
-    BuildContext context, {
-    required LocalSubscription emi,
-    required dynamic currency,
-  }) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final totalInstallments = emi.emiProgress?.totalInstallments ?? (emi.totalInstallments ?? 1);
-    final totalAmount = totalInstallments * emi.amount;
-
-    return InkWell(
-      onTap: () => CommitmentDetailSheet.show(context, emi),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.borderHairline),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF4CAF50)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    emi.name,
-                    style: typography.bodyRegular.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < completedEmis.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+                child: ColoredBox(
+                  color: cv.lineHairline,
+                  child: const SizedBox(
+                    width: double.infinity,
+                    height: _kHairline,
+                  ),
+                ),
+              ),
+            Builder(
+              builder: (context) {
+                final emi = completedEmis[i];
+                final total = _totalInstallmentsOf(emi);
+                final totalAmount = total * emi.amount;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => CommitmentDetailSheet.show(context, emi),
+                  child: Padding(
+                    padding: const EdgeInsets.all(CoveSpace.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: _kCheckIconSize,
+                          color: cv.statusGood,
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Expanded(
+                          child: Text(
+                            emi.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Text(
+                          '${currency.symbol}${formatCoveAmount(totalAmount)} paid',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (emi.financedThrough != null && emi.financedThrough!.isNotEmpty)
-                    Text(
-                      emi.financedThrough!,
-                      style: typography.caption.copyWith(
-                        fontSize: 10,
-                        color: colors.textSubtle,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Text(
-              '${currency.symbol}${formatCoveAmount(totalAmount)} paid',
-              style: typography.caption.copyWith(
-                color: colors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+                );
+              },
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -1077,7 +1468,8 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
       child: CoveEmptyState(
         icon: Icons.account_balance_outlined,
         title: 'No EMIs or loans active',
-        description: 'Track your home, vehicle, gadget or personal loans with automatic payoff tracking.',
+        description:
+            'Track your home, vehicle, gadget or personal loans with automatic payoff tracking.',
         action: CovePillButton(
           label: 'Add Loan or EMI',
           icon: const Icon(Icons.add, size: 16),
@@ -1088,31 +1480,299 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
   }
 }
 
-class _StickySelectedSummaryDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-  final double height;
+class _MiniStaircaseSilhouettePainter extends CustomPainter {
+  final List<_StaircaseStep> steps;
+  final double initialMonthly;
+  final Color strokeColor;
+  final Color fillColor;
 
-  _StickySelectedSummaryDelegate({
-    required this.child,
-    this.height = 72.0,
+  const _MiniStaircaseSilhouettePainter({
+    required this.steps,
+    required this.initialMonthly,
+    required this.strokeColor,
+    required this.fillColor,
   });
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox(
-      height: height,
-      child: child,
-    );
+  void paint(Canvas canvas, Size size) {
+    if (steps.isEmpty || initialMonthly <= 0) return;
+
+    final maxMonths = math.max(1, steps.last.monthsFromNow);
+    final maxWidth = size.width * 0.65;
+
+    final strokePaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    final path = Path()..moveTo(0, 0);
+    double currentY = 0.0;
+
+    if (steps.length == 1) {
+      // Render a 4-step descending staircase silhouette when a single loan is active
+      const fractions = <(double, double)>[
+        (0.22, 0.30),
+        (0.46, 0.56),
+        (0.72, 0.78),
+        (0.92, 1.0),
+      ];
+      for (final f in fractions) {
+        final x = f.$1 * maxWidth;
+        final nextY = size.height * f.$2;
+        path.lineTo(x, currentY);
+        path.lineTo(x, nextY);
+        currentY = nextY;
+      }
+      path.lineTo(maxWidth, size.height);
+    } else {
+      for (final step in steps) {
+        final x = (step.monthsFromNow / maxMonths) * maxWidth;
+        final nextY = size.height *
+            (1.0 - (step.remainingMonthly / initialMonthly).clamp(0.0, 1.0));
+        path.lineTo(x, currentY);
+        path.lineTo(x, nextY);
+        currentY = nextY;
+      }
+    }
+
+    final fillPath = Path.from(path)
+      ..lineTo(maxWidth, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, strokePaint);
   }
 
   @override
-  double get maxExtent => height;
+  bool shouldRepaint(covariant _MiniStaircaseSilhouettePainter oldDelegate) {
+    return oldDelegate.steps != steps ||
+        oldDelegate.initialMonthly != initialMonthly ||
+        oldDelegate.strokeColor != strokeColor ||
+        oldDelegate.fillColor != fillColor;
+  }
+}
+
+class _StaircaseGraphPainter extends CustomPainter {
+  final List<_StaircaseStep> steps;
+  final double initialMonthly;
+  final DateTime referenceDate;
+  final String currencySymbol;
+  final int? selectedIndex;
+  final Color strokeColor;
+  final Color fillColor;
+  final Color gridColor;
+  final Color surfaceColor;
+  final TextStyle labelStyle;
+  final TextStyle axisStyle;
+
+  const _StaircaseGraphPainter({
+    required this.steps,
+    required this.initialMonthly,
+    required this.referenceDate,
+    required this.currencySymbol,
+    required this.selectedIndex,
+    required this.strokeColor,
+    required this.fillColor,
+    required this.gridColor,
+    required this.surfaceColor,
+    required this.labelStyle,
+    required this.axisStyle,
+  });
 
   @override
-  double get minExtent => height;
+  void paint(Canvas canvas, Size size) {
+    if (steps.isEmpty || initialMonthly <= 0) return;
+
+    const topPad = 8.0;
+    const bottomPad = 24.0;
+    const rightPad = 12.0;
+    final chartHeight = math.max(1.0, size.height - topPad - bottomPad);
+    final chartBottom = topPad + chartHeight;
+    final plotWidth = math.max(1.0, size.width - rightPad);
+    final maxMonths = math.max(1, steps.last.monthsFromNow);
+
+    // Baseline rule
+    final axisPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1.0;
+    canvas.drawLine(
+      Offset(0, chartBottom),
+      Offset(size.width, chartBottom),
+      axisPaint,
+    );
+
+    // Year markers along the horizontal axis
+    final endYear = steps.last.date.year;
+    for (var year = referenceDate.year + 1; year <= endYear; year++) {
+      final monthsToJan =
+          (year - referenceDate.year) * 12 - referenceDate.month + 1;
+      if (monthsToJan > 0 && monthsToJan <= maxMonths) {
+        final x = (monthsToJan / maxMonths) * plotWidth;
+        for (double y = topPad; y < chartBottom; y += 6.0) {
+          canvas.drawLine(
+            Offset(x, y),
+            Offset(x, math.min(y + 3.0, chartBottom)),
+            axisPaint,
+          );
+        }
+        final tp = TextPainter(
+          text: TextSpan(text: '$year', style: axisStyle),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final labelX = (x - tp.width / 2).clamp(0.0, size.width - tp.width);
+        tp.paint(canvas, Offset(labelX, chartBottom + 6.0));
+      }
+    }
+
+    // Staircase path
+    final stepPath = Path()..moveTo(0, topPad);
+    double currentY = topPad;
+    final nodeCenters = <Offset>[];
+
+    for (final step in steps) {
+      final x = (step.monthsFromNow / maxMonths) * plotWidth;
+      final ratio = (step.remainingMonthly / initialMonthly).clamp(0.0, 1.0);
+      final nextY = topPad + chartHeight * (1.0 - ratio);
+      stepPath.lineTo(x, currentY);
+      stepPath.lineTo(x, nextY);
+      nodeCenters.add(Offset(x, nextY));
+      currentY = nextY;
+    }
+
+    final fillPath = Path.from(stepPath)
+      ..lineTo(plotWidth, chartBottom)
+      ..lineTo(0, chartBottom)
+      ..close();
+    stepPath.lineTo(size.width, currentY);
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(stepPath, strokePaint);
+
+    // Draw nodes and annotations
+    final nodeFillPaint = Paint()
+      ..color = surfaceColor
+      ..style = PaintingStyle.fill;
+    final selectedNodeFillPaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < steps.length; i++) {
+      final center = nodeCenters[i];
+      final isSelected = selectedIndex == i;
+      canvas.drawCircle(
+        center,
+        isSelected ? 5.0 : 3.5,
+        isSelected ? selectedNodeFillPaint : nodeFillPaint,
+      );
+      canvas.drawCircle(center, isSelected ? 5.0 : 3.5, strokePaint);
+    }
+
+    // Annotate final step ("free · MMM 'yy") and up to 2 intermediate steps
+    final indicesToAnnotate = <int>{steps.length - 1};
+    if (steps.length >= 2) {
+      indicesToAnnotate.add(0);
+    }
+    if (steps.length >= 3) {
+      indicesToAnnotate.add(steps.length ~/ 2);
+    }
+    if (selectedIndex != null) {
+      indicesToAnnotate.add(selectedIndex!);
+    }
+
+    for (final idx in indicesToAnnotate) {
+      final step = steps[idx];
+      final center = nodeCenters[idx];
+      final dateStr = DateFormat("MMM ''yy").format(step.date);
+      final text = step.remainingMonthly <= 0
+          ? 'free · $dateStr'
+          : '$currencySymbol${formatCoveAmount(step.remainingMonthly)} · $dateStr';
+
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: labelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: size.width);
+
+      final dx = (center.dx - tp.width - 6.0).clamp(0.0, size.width - tp.width);
+      final dy = (center.dy - tp.height - 4.0).clamp(topPad, chartBottom - tp.height - 2.0);
+      tp.paint(canvas, Offset(dx, dy));
+    }
+  }
 
   @override
-  bool shouldRebuild(covariant _StickySelectedSummaryDelegate oldDelegate) {
-    return oldDelegate.child != child || oldDelegate.height != height;
+  bool shouldRepaint(covariant _StaircaseGraphPainter oldDelegate) {
+    return oldDelegate.steps != steps ||
+        oldDelegate.initialMonthly != initialMonthly ||
+        oldDelegate.selectedIndex != selectedIndex ||
+        oldDelegate.strokeColor != strokeColor;
+  }
+}
+
+class _PunchedInstallmentTicksPainter extends CustomPainter {
+  final int totalInstallments;
+  final int paidInstallments;
+  final Color punchedColor;
+  final Color unpunchedColor;
+
+  const _PunchedInstallmentTicksPainter({
+    required this.totalInstallments,
+    required this.paidInstallments,
+    required this.punchedColor,
+    required this.unpunchedColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final count = totalInstallments.clamp(1, 120);
+    final gap = count > 36 ? 2.0 : 3.0;
+    final totalGaps = (count - 1) * gap;
+    final tickWidth = math.max(2.0, (size.width - totalGaps) / count);
+    final tickHeight = size.height;
+    final radius = Radius.circular(tickHeight / 2);
+
+    final punchedPaint = Paint()
+      ..color = punchedColor
+      ..style = PaintingStyle.fill;
+    final unpunchedPaint = Paint()
+      ..color = unpunchedColor
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < count; i++) {
+      final x = i * (tickWidth + gap);
+      if (x > size.width) break;
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          x,
+          0,
+          math.min(tickWidth, size.width - x),
+          tickHeight,
+        ),
+        radius,
+      );
+      canvas.drawRRect(
+        rrect,
+        i < paidInstallments ? punchedPaint : unpunchedPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PunchedInstallmentTicksPainter oldDelegate) {
+    return oldDelegate.totalInstallments != totalInstallments ||
+        oldDelegate.paidInstallments != paidInstallments ||
+        oldDelegate.punchedColor != punchedColor ||
+        oldDelegate.unpunchedColor != unpunchedColor;
   }
 }
