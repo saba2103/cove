@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
-import 'package:cove/core/widgets/cove_grouped_list.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
+import 'package:cove/core/widgets/cove_row.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
@@ -500,15 +500,29 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Category breakdown section is present
-      expect(find.text('CATEGORY BREAKDOWN'), findsOneWidget);
+      // Where it went category breakdown section is present
+      expect(find.text('WHERE IT WENT'), findsOneWidget);
       expect(find.text('Groceries'), findsWidgets);
       expect(find.text('\$200'), findsOneWidget); // 150 + 50 in category breakdown
       expect(find.text('Home & Utilities'), findsWidgets);
       expect(find.text('\$80'), findsWidgets);
 
-      // Verify plain list structure using CoveGroupedRow
-      expect(find.byType(CoveGroupedRow), findsWidgets);
+      // Verify purchase rows use CoveRow
+      expect(find.byType(CoveRow), findsWidgets);
+
+      // Tap Groceries pill to isolate category in the bar and purchase rows
+      await tester.ensureVisible(find.byKey(const ValueKey('category_pill_Groceries')));
+      await tester.tap(find.byKey(const ValueKey('category_pill_Groceries')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Whole Foods Market'), findsOneWidget);
+      expect(find.text('Trader Joes'), findsOneWidget);
+      expect(find.text('Electric & Gas Bill'), findsNothing);
+
+      // Tap Groceries pill again to restore all categories
+      await tester.tap(find.byKey(const ValueKey('category_pill_Groceries')));
+      await tester.pumpAndSettle();
+      expect(find.text('Electric & Gas Bill'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));

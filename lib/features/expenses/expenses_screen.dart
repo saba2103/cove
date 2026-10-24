@@ -1,30 +1,47 @@
-import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
-import '../../core/widgets/cove_card.dart';
+import '../../core/theme/cove_tokens.dart';
+import '../../core/utils/cove_currency_formatter.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_error_state.dart';
-import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_loading.dart';
-import '../../core/widgets/cove_undo_toast.dart';
+import '../../core/widgets/cove_max_width.dart';
+import '../../core/widgets/cove_metric_card.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
+import '../../core/widgets/cove_round_button.dart';
+import '../../core/widgets/cove_row.dart';
+import '../../core/widgets/cove_section_label.dart';
 import '../../core/widgets/cove_sync_tick.dart';
+import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'category_detail_sheet.dart';
 import 'expense_controller.dart';
 import 'expense_detail_sheet.dart';
 import 'expense_form_sheet.dart';
 import 'monthly_budget_controller.dart';
 import 'monthly_budget_sheet.dart';
-import '../../core/utils/cove_currency_formatter.dart';
 
+/// v2 "Expenses" screen (`design/screens/expenses.md` & `design/screens/expenses.png`).
+///
+/// Order:
+/// 1. [CovePageHeader] — "Expenses", month + total as the baseline readout, gold add.
+/// 2. Hero card: month total in [CoveType.heroFigure], pace line against last month,
+///    budget bar with a `TODAY` marker, and household person split bar.
+/// 3. Every day this month — bar chart annotated on the graph itself.
+/// 4. Pace cards ([CoveMetricGrid]): Pace now / On this pace / Budget runs out / Per day from here.
+/// 5. Where it went — categories with `category.*` token colours; tap one to isolate
+///    it in the bar and the purchase rows below.
+/// 6. Every purchase — independent ledger month switcher + date-grouped [CoveRow] list.
 class ExpensesScreen extends ConsumerStatefulWidget {
   final List<LocalExpense>? initialExpenses;
 
@@ -35,34 +52,149 @@ class ExpensesScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
-  final DateTime _selectedMonth = DateTime.now();
+  static const double _kBorderWidth = 1.0; // (literal)
+  static const double _kBarHeight = 8.0; // (literal)
+  static const double _kCategoryBarHeight = 10.0; // (literal)
+  static const double _kCategorySegmentGap = 2.0; // (literal)
+  static const double _kCategoryDotSize = 8.0; // (literal)
+  static const double _kTodayMarkerHeight = 14.0; // (literal)
+  static const double _kTodayMarkerWidth = 2.0; // (literal)
+  static const double _kChartHeight = 112.0; // (literal)
+  static const double _kBadgeVertPad = 2.0; // (literal)
+  static const double _kBadgeHorizPad = 6.0; // (literal)
+  static const double _kDimmedAlpha = 0.25; // (literal)
+
+  DateTime? _ledgerMonthOverride;
   bool _showTransfers = false;
+  String? _selectedCategory;
 
   Future<void> _handleRefresh() async {
     final homeId = ref.read(activeHomeIdProvider);
     await ref.read(syncEngineProvider).pullLatestEvents(homeId: homeId);
   }
 
+  DateTime _resolveReferenceDate(List<LocalExpense> allExpenses) {
+    if (widget.initialExpenses != null && widget.initialExpenses!.isNotEmpty) {
+      DateTime latest = widget.initialExpenses!.first.expenseDate;
+      for (final exp in widget.initialExpenses!) {
+        if (exp.expenseDate.isAfter(latest)) {
+          latest = exp.expenseDate;
+        }
+      }
+      return latest;
+    }
+    return DateTime.now();
+  }
+
+  void _stepLedgerMonth(DateTime currentLedgerMonth, int deltaMonths) {
+    setState(() {
+      _ledgerMonthOverride = DateTime(
+        currentLedgerMonth.year,
+        currentLedgerMonth.month + deltaMonths,
+        1,
+      );
+    });
+  }
+
+  static String _cleanCategoryName(String? rawCategory) {
+    final raw = (rawCategory == null || rawCategory.trim().isEmpty)
+        ? 'Uncategorized'
+        : rawCategory.trim();
+    return raw.contains(' • ') ? raw.split(' • ').first.trim() : raw;
+  }
+
+  static Color _resolveCategoryColor(
+    String category,
+    int index,
+    CoveTokens cv,
+  ) {
+    final lower = category.toLowerCase().trim();
+    if (lower.contains('travel') ||
+        lower.contains('flight') ||
+        lower.contains('trip')) {
+      return cv.categoryTravel;
+    }
+    if (lower.contains('grocer') || lower.contains('market')) {
+      return cv.categoryGroceries;
+    }
+    if (lower.contains('health') ||
+        lower.contains('dentist') ||
+        lower.contains('med') ||
+        lower.contains('shop')) {
+      return cv.categoryHealth;
+    }
+    if (lower.contains('eat') ||
+        lower.contains('dining') ||
+        lower.contains('restaurant') ||
+        lower.contains('cafe')) {
+      return cv.categoryEatingOut;
+    }
+    if (lower.contains('home') ||
+        lower.contains('utilit') ||
+        lower.contains('electric') ||
+        lower.contains('rent')) {
+      return cv.categoryHome;
+    }
+    if (lower.contains('pet') ||
+        lower.contains('lyla') ||
+        lower.contains('cabo') ||
+        lower.contains('luca')) {
+      return cv.categoryPets;
+    }
+    if (lower.contains('fuel') ||
+        lower.contains('petrol') ||
+        lower.contains('auto') ||
+        lower.contains('transport')) {
+      return cv.categoryFuel;
+    }
+    if (lower.contains('gift') ||
+        lower.contains('entertain') ||
+        lower.contains('stream')) {
+      return cv.categoryGifts;
+    }
+    final palette = <Color>[
+      cv.categoryGroceries,
+      cv.categoryHome,
+      cv.categoryTravel,
+      cv.categoryEatingOut,
+      cv.categoryHealth,
+      cv.categoryFuel,
+      cv.categoryPets,
+      cv.categoryGifts,
+    ];
+    return palette[index % palette.length];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
     final outboxEvents = ref.watch(activeHomeOutboxProvider).value ?? [];
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
 
     if (widget.initialExpenses != null) {
-      return _buildContent(context, widget.initialExpenses!, outboxEvents, hasPartner: hasPartner);
+      return _buildContent(
+        context,
+        widget.initialExpenses!,
+        outboxEvents,
+        hasPartner: hasPartner,
+      );
     }
 
     final expensesAsync = ref.watch(activeHomeExpensesProvider);
 
     return expensesAsync.when(
-      data: (expenses) => _buildContent(context, expenses, outboxEvents, hasPartner: hasPartner),
+      data: (expenses) => _buildContent(
+        context,
+        expenses,
+        outboxEvents,
+        hasPartner: hasPartner,
+      ),
       loading: () => Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: const Center(child: CoveLoading()),
       ),
       error: (e, st) => Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: Center(
           child: CoveErrorState.generic(
             title: 'Expenses unavailable',
@@ -80,81 +212,113 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     List<LocalOutboxEvent> outboxEvents, {
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
+    final home = ref.watch(activeHomeProvider).value;
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
 
     if (allExpenses.isEmpty) {
       return Scaffold(
-        backgroundColor: colors.background,
-        body: RefreshIndicator(
-          color: colors.accentPrimary,
-          backgroundColor: colors.surfaceCard,
-          onRefresh: _handleRefresh,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
+        backgroundColor: cv.surfaceCanvas,
+        body: SafeArea(
+          bottom: false,
+          child: CoveMaxWidth(
+            child: RefreshIndicator(
+              color: cv.accentFill,
+              backgroundColor: cv.surfaceCard,
+              onRefresh: _handleRefresh,
+              child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
+                padding: EdgeInsets.only(bottom: bottomPadding),
+                children: [
+                  CovePageHeader(
+                    title: 'Expenses',
+                    actions: [
+                      CoveRoundButton(
+                        icon: Icons.add_rounded,
+                        variant: CoveRoundButtonVariant.gold,
+                        tooltip: 'Log Expense',
+                        semanticLabel: 'Log Expense',
+                        onPressed: () => ExpenseFormSheet.show(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+                  Center(
                     child: CoveEmptyState(
                       icon: Icons.receipt_long_outlined,
                       title: 'No expenses recorded yet',
-                      description: 'Track shared groceries, utilities, and household expenses together.',
+                      description:
+                          'Track shared groceries, utilities, and household expenses together.',
                       action: CovePillButton(
                         label: 'Log First Expense',
-                        icon: const Icon(Icons.add, size: 16),
+                        icon: const Icon(Icons.add, size: CoveSpace.md),
                         onPressed: () => ExpenseFormSheet.show(context),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                ],
+              ),
+            ),
           ),
         ),
       );
     }
 
-    // Filter expenses for selected month
-    final currentYear = _selectedMonth.year;
-    final currentMonth = _selectedMonth.month;
-    final monthName = DateFormat('MMMM y').format(_selectedMonth);
+    final referenceDate = _resolveReferenceDate(allExpenses);
+    final standingMonth = DateTime(referenceDate.year, referenceDate.month, 1);
+    final daysInStandingMonth = DateUtils.getDaysInMonth(
+      standingMonth.year,
+      standingMonth.month,
+    );
+    final standingDay = referenceDate.day.clamp(1, daysInStandingMonth);
+    final daysRemaining = math.max(0, daysInStandingMonth - standingDay);
+    final standingMonthName = DateFormat('MMMM').format(standingMonth);
 
-    final monthExpenses = allExpenses.where((e) {
-      return e.expenseDate.year == currentYear && e.expenseDate.month == currentMonth;
+    // Standing month expenses (used by Hero, Daily Chart, Pace Cards, Where It Went)
+    final standingMonthExpenses = allExpenses.where((e) {
+      return e.expenseDate.year == standingMonth.year &&
+          e.expenseDate.month == standingMonth.month;
     }).toList();
 
-    // Separate expenditures from transfers so expenditures remain completely separate
-    final monthActualExpenses = monthExpenses.where((e) => !e.isTransfer).toList();
-    final monthTransfers = monthExpenses.where((e) => e.isTransfer).toList();
+    final standingActualExpenses =
+        standingMonthExpenses.where((e) => !e.isTransfer).toList();
+    final standingTransfers =
+        standingMonthExpenses.where((e) => e.isTransfer).toList();
 
-    // Compute Shared Monthly Total:
-    // Only includes shared expenses (splitRatio > 0)
-    // Excludes partnerCanSee (splitRatio == 0) and privateToMe (splitRatio < 0) from the shared pool
-    // Strictly excludes transfers!
     double sharedMonthlyTotal = 0.0;
+    double paidByMeSharedTotal = 0.0;
+    double paidByPartnerSharedTotal = 0.0;
     int sharedCount = 0;
     int personalCount = 0;
 
-    for (final exp in monthActualExpenses) {
+    for (final exp in standingActualExpenses) {
+      final isMe = (exp.paidBy == currentUser?.id) ||
+          (currentUser?.id == null && exp.paidBy == 'user_alex') ||
+          (exp.paidBy == 'me');
       if (exp.splitRatio > 0.0) {
         sharedMonthlyTotal += exp.amount;
         sharedCount++;
+        if (isMe) {
+          paidByMeSharedTotal += exp.amount;
+        } else {
+          paidByPartnerSharedTotal += exp.amount;
+        }
       } else {
         personalCount++;
       }
     }
 
-    // Compute Monthly Transfers Total:
     double transfersMonthlyTotal = 0.0;
     double sentByMeTotal = 0.0;
     double sentByPartnerTotal = 0.0;
-    final int transfersCount = monthTransfers.length;
+    final int transfersCount = standingTransfers.length;
 
-    for (final t in monthTransfers) {
+    for (final t in standingTransfers) {
       transfersMonthlyTotal += t.amount;
       final isMe = (t.paidBy == currentUser?.id) ||
           (currentUser?.id == null && t.paidBy == 'user_alex') ||
@@ -166,71 +330,339 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       }
     }
 
-    // Attribution for partner
-    final partnerProfile = ref.watch(partnerProfileProvider);
-    final partnerName =
-        partnerProfile.displayName.isNotEmpty ? partnerProfile.displayName : 'Partner';
+    // Previous month comparison
+    final prevMonth = DateTime(standingMonth.year, standingMonth.month - 1, 1);
+    final prevMonthName = DateFormat('MMMM').format(prevMonth);
+    final daysInPrevMonth = DateUtils.getDaysInMonth(
+      prevMonth.year,
+      prevMonth.month,
+    );
+    final prevMonthActualExpenses = allExpenses.where((e) {
+      return !e.isTransfer &&
+          e.splitRatio > 0.0 &&
+          e.expenseDate.year == prevMonth.year &&
+          e.expenseDate.month == prevMonth.month;
+    }).toList();
 
-    // Compute category breakdown strictly for actual expenses (transfers are excluded)
+    final double prevMonthTotal = prevMonthActualExpenses.fold<double>(
+      0.0,
+      (acc, e) => acc + e.amount,
+    );
+    final double prevMonthByThisDay = prevMonthActualExpenses
+        .where((e) => e.expenseDate.day <= standingDay)
+        .fold<double>(0.0, (acc, e) => acc + e.amount);
+
+    final partnerName = partnerProfile.displayName.isNotEmpty
+        ? partnerProfile.displayName
+        : 'Partner';
+    final myName =
+        userProfile.displayName.isNotEmpty ? userProfile.displayName : 'You';
+    final creatorId = home?.createdBy ?? currentUser?.id ?? 'user_alex';
+
+    // Category breakdown for standing month actual expenses
     final categoryTotals = <String, double>{};
-    for (final exp in monthActualExpenses) {
-      // Clean category title (strip notes if appended via " • ")
-      final rawCat = exp.category ?? 'Uncategorized';
-      final cleanCat = rawCat.contains(' • ') ? rawCat.split(' • ').first : rawCat;
+    for (final exp in standingActualExpenses) {
+      final cleanCat = _cleanCategoryName(exp.category);
       categoryTotals[cleanCat] = (categoryTotals[cleanCat] ?? 0.0) + exp.amount;
     }
-
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    final totalSpendAll =
+        categoryTotals.values.fold<double>(0.0, (acc, v) => acc + v);
 
-    final totalSpendAll = categoryTotals.values.fold<double>(0.0, (acc, v) => acc + v);
+    final categoryColorMap = <String, Color>{};
+    for (var i = 0; i < sortedCategories.length; i++) {
+      categoryColorMap[sortedCategories[i].key] = _resolveCategoryColor(
+        sortedCategories[i].key,
+        i,
+        cv,
+      );
+    }
 
-    final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 960;
+    // Daily spend map for standing month (respecting isolated category if active)
+    final dailyTotals = List<double>.filled(daysInStandingMonth, 0.0);
+    for (final exp in standingActualExpenses) {
+      if (exp.splitRatio <= 0.0) continue;
+      if (_selectedCategory != null &&
+          _cleanCategoryName(exp.category) != _selectedCategory) {
+        continue;
+      }
+      final dayIdx = (exp.expenseDate.day - 1).clamp(0, daysInStandingMonth - 1);
+      dailyTotals[dayIdx] += exp.amount;
+    }
 
-    final heroCard = CoveCard(
-      padding: const EdgeInsets.all(20),
+    final double activeSharedTotal = _selectedCategory != null
+        ? dailyTotals.fold<double>(0.0, (a, b) => a + b)
+        : sharedMonthlyTotal;
+    final double dailyPace =
+        standingDay > 0 ? activeSharedTotal / standingDay : 0.0;
+    final double projectedMonthTotal = dailyPace * daysInStandingMonth;
+    final double prevDailyPace =
+        daysInPrevMonth > 0 ? prevMonthTotal / daysInPrevMonth : 0.0;
+
+    final monthlyBudget = ref.watch(monthlyBudgetProvider);
+
+    // Independent ledger month state (Rule 2: browsing ledger month never disturbs standing hero)
+    final ledgerMonth = _ledgerMonthOverride ?? standingMonth;
+    final isLedgerAtStandingMonth =
+        ledgerMonth.year == standingMonth.year &&
+            ledgerMonth.month == standingMonth.month;
+    final ledgerMonthExpenses = allExpenses.where((e) {
+      return e.expenseDate.year == ledgerMonth.year &&
+          e.expenseDate.month == ledgerMonth.month;
+    }).toList();
+
+    final ledgerFilteredExpenses = _selectedCategory == null
+        ? ledgerMonthExpenses
+        : ledgerMonthExpenses
+            .where((e) => _cleanCategoryName(e.category) == _selectedCategory)
+            .toList();
+
+    final double ledgerMonthSharedTotal = ledgerFilteredExpenses
+        .where((e) => !e.isTransfer && e.splitRatio > 0.0)
+        .fold<double>(0.0, (acc, e) => acc + e.amount);
+
+    return Scaffold(
+      backgroundColor: cv.surfaceCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: CoveMaxWidth(
+          child: RefreshIndicator(
+            color: cv.accentFill,
+            backgroundColor: cv.surfaceCard,
+            onRefresh: _handleRefresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. CovePageHeader — "Expenses", month + total as baseline readout, gold add
+                  CovePageHeader(
+                    title: 'Expenses',
+                    readout:
+                        '$standingMonthName · ${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)}',
+                    actions: [
+                      CoveRoundButton(
+                        key: const ValueKey('expenses_add_button'),
+                        icon: Icons.add_rounded,
+                        variant: CoveRoundButtonVariant.gold,
+                        tooltip: 'Log Expense',
+                        semanticLabel: 'Log Expense',
+                        onPressed: () => ExpenseFormSheet.show(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CoveSpace.md),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 2. Hero card
+                        _buildHeroCard(
+                          context,
+                          cv: cv,
+                          currency: currency,
+                          standingMonthName: standingMonthName,
+                          standingDay: standingDay,
+                          daysInStandingMonth: daysInStandingMonth,
+                          sharedMonthlyTotal: sharedMonthlyTotal,
+                          transfersMonthlyTotal: transfersMonthlyTotal,
+                          sharedCount: sharedCount,
+                          personalCount: personalCount,
+                          transfersCount: transfersCount,
+                          sentByMeTotal: sentByMeTotal,
+                          sentByPartnerTotal: sentByPartnerTotal,
+                          paidByMeSharedTotal: paidByMeSharedTotal,
+                          paidByPartnerSharedTotal: paidByPartnerSharedTotal,
+                          partnerName: partnerName,
+                          prevMonthName: prevMonthName,
+                          prevMonthByThisDay: prevMonthByThisDay,
+                          monthlyBudget: monthlyBudget,
+                        ),
+
+                        if (!_showTransfers) ...[
+                          if (sharedMonthlyTotal > 0) ...[
+                            const SizedBox(height: CoveSpace.section),
+
+                            // 3. Every day this month — annotated bar chart
+                            const CoveSectionLabel.page(
+                              label: 'Every day this month',
+                            ),
+                            const SizedBox(height: CoveSpace.md),
+                            _DailySpendBarChart(
+                              dailyTotals: dailyTotals,
+                              standingDay: standingDay,
+                              daysInMonth: daysInStandingMonth,
+                              daysRemaining: daysRemaining,
+                              dailyPace: dailyPace,
+                              currencySymbol: currency.symbol,
+                              isolatedColor: _selectedCategory != null
+                                  ? categoryColorMap[_selectedCategory!]
+                                  : null,
+                            ),
+
+                            const SizedBox(height: CoveSpace.lg),
+
+                            // 4. Pace cards
+                            _buildPaceCards(
+                              context,
+                              currency: currency,
+                              standingMonth: standingMonth,
+                              standingDay: standingDay,
+                              daysInStandingMonth: daysInStandingMonth,
+                              daysRemaining: daysRemaining,
+                              sharedMonthlyTotal: sharedMonthlyTotal,
+                              dailyPace: dailyPace,
+                              projectedMonthTotal: projectedMonthTotal,
+                              prevMonthName: prevMonthName,
+                              prevMonthTotal: prevMonthTotal,
+                              prevDailyPace: prevDailyPace,
+                              monthlyBudget: monthlyBudget,
+                            ),
+                          ],
+
+                          if (sortedCategories.isNotEmpty) ...[
+                            const SizedBox(height: CoveSpace.section),
+
+                            // 5. Where it went — categories with category.* colours
+                            _buildWhereItWentSection(
+                              context,
+                              cv: cv,
+                              currency: currency,
+                              sortedCategories: sortedCategories,
+                              totalSpendAll: totalSpendAll,
+                              categoryColorMap: categoryColorMap,
+                              standingMonthExpenses: standingMonthExpenses,
+                            ),
+                          ],
+                        ],
+
+                        const SizedBox(height: CoveSpace.section),
+
+                        // 6. Every purchase — independent month switcher + date-grouped CoveRow list
+                        _buildEveryPurchaseSection(
+                          context,
+                          cv: cv,
+                          currency: currency,
+                          ledgerMonth: ledgerMonth,
+                          isLedgerAtStandingMonth: isLedgerAtStandingMonth,
+                          ledgerExpenses: ledgerFilteredExpenses,
+                          ledgerMonthSharedTotal: ledgerMonthSharedTotal,
+                          currentUser: currentUser,
+                          myName: myName,
+                          partnerName: partnerName,
+                          creatorId: creatorId,
+                          outboxEvents: outboxEvents,
+                          hasPartner: hasPartner,
+                          categoryColorMap: categoryColorMap,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required String standingMonthName,
+    required int standingDay,
+    required int daysInStandingMonth,
+    required double sharedMonthlyTotal,
+    required double transfersMonthlyTotal,
+    required int sharedCount,
+    required int personalCount,
+    required int transfersCount,
+    required double sentByMeTotal,
+    required double sentByPartnerTotal,
+    required double paidByMeSharedTotal,
+    required double paidByPartnerSharedTotal,
+    required String partnerName,
+    required String prevMonthName,
+    required double prevMonthByThisDay,
+    required double? monthlyBudget,
+  }) {
+    final daysLeft = math.max(0, daysInStandingMonth - standingDay);
+    final hasPrevComparison = !_showTransfers && prevMonthByThisDay > 0;
+    final double prevDelta = sharedMonthlyTotal - prevMonthByThisDay;
+    final bool isSpendingLess = prevDelta <= 0;
+    final int prevPct = prevMonthByThisDay > 0
+        ? ((prevDelta.abs() / prevMonthByThisDay) * 100).round()
+        : 0;
+
+    return Container(
+      padding: const EdgeInsets.all(CoveSpace.gutter),
+      decoration: BoxDecoration(
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.hero),
+        ),
+        border: Border.all(
+          color: cv.lineHairline,
+          width: _kBorderWidth,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Top caption line: MONTH · SHARED and DAY N OF M
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _showTransfers
-                    ? '${monthName.toUpperCase()} TRANSFERS TOTAL'
-                    : '${monthName.toUpperCase()} SHARED TOTAL',
-                style: typography.caption.copyWith(
-                  letterSpacing: 1.1,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  _showTransfers
+                      ? '${standingMonthName.toUpperCase()} · TRANSFERS'
+                      : '${standingMonthName.toUpperCase()} · SHARED',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
                 ),
               ),
-              CovePillButton(
-                label: '+ Log',
-                isCompact: true,
-                onPressed: () => ExpenseFormSheet.show(context),
+              const SizedBox(width: CoveSpace.sm),
+              Text(
+                'DAY $standingDay OF $daysInStandingMonth',
+                style: CoveType.capsCard.copyWith(color: cv.textTertiary),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: CoveSpace.sm),
 
-          // Switcher pill row (Expenditure | Transfers)
+          // Expenditure | Transfers segmented pill
           Container(
-            height: 34,
             decoration: BoxDecoration(
-              color: colors.surfaceRow,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: colors.borderHairline, width: 1),
+              color: cv.surfaceRow,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.pill),
+              ),
+              border: Border.all(
+                color: cv.lineHairline,
+                width: _kBorderWidth,
+              ),
             ),
-            padding: const EdgeInsets.all(2),
+            padding: const EdgeInsets.all(_kBadgeVertPad),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildCardSegment(
+                  cv: cv,
                   label: 'Expenditure',
                   isSelected: !_showTransfers,
                   onTap: () => setState(() => _showTransfers = false),
                 ),
                 _buildCardSegment(
+                  cv: cv,
                   label: 'Transfers',
                   isSelected: _showTransfers,
                   onTap: () => setState(() => _showTransfers = true),
@@ -238,385 +670,860 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: CoveSpace.md),
 
-          // Bodoni Moda Editorial Number
+          // Hero figure in CoveType.heroFigure
           Text(
             _showTransfers
                 ? '${currency.symbol}${formatCoveAmount(transfersMonthlyTotal)}'
                 : '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)}',
-            style: typography.largeNumber.copyWith(
-              fontSize: 38,
-              height: 1.1,
-              color: colors.accentTint,
-            ),
+            style: CoveType.heroFigure.copyWith(color: cv.accentTint),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: CoveSpace.xs),
 
-          Text(
-            _showTransfers
-                ? '$transfersCount transfer${transfersCount == 1 ? "" : "s"} • You sent ${currency.symbol}${formatCoveAmount(sentByMeTotal)}${sentByPartnerTotal > 0 ? " • $partnerName sent ${currency.symbol}${formatCoveAmount(sentByPartnerTotal)}" : ""}'
-                : '$sharedCount shared item${sharedCount == 1 ? "" : "s"}${personalCount > 0 ? " • $personalCount personal" : ""}',
-            style: typography.caption.copyWith(
-              color: colors.textMuted,
-            ),
-          ),
+          // Pace comparison line against last month + item counts
+          if (_showTransfers)
+            Text(
+              '$transfersCount transfer${transfersCount == 1 ? "" : "s"} • You sent ${currency.symbol}${formatCoveAmount(sentByMeTotal)}${sentByPartnerTotal > 0 ? " • $partnerName sent ${currency.symbol}${formatCoveAmount(sentByPartnerTotal)}" : ""}',
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            )
+          else ...[
+            if (hasPrevComparison)
+              RichText(
+                text: TextSpan(
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  children: [
+                    TextSpan(
+                      text:
+                          '${currency.symbol}${formatCoveAmount(prevDelta.abs())} ${isSpendingLess ? "less" : "more"}',
+                      style: CoveType.rowSub.copyWith(
+                        color: isSpendingLess ? cv.moneyLess : cv.moneyMore,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    TextSpan(
+                      text:
+                          ' than $prevMonthName by this day · $prevPct% ${isSpendingLess ? "down" : "up"}',
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                '$sharedCount shared item${sharedCount == 1 ? "" : "s"}${personalCount > 0 ? " • $personalCount personal" : ""} · vs ${currency.symbol}0 in $prevMonthName',
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+              ),
+          ],
 
+          // Budget bar with TODAY marker
           if (!_showTransfers) ...[
-            Builder(
-              builder: (context) {
-                final monthlyBudget = ref.watch(monthlyBudgetProvider);
-                if (monthlyBudget != null && monthlyBudget > 0) {
-                  final isOverBudget = sharedMonthlyTotal > monthlyBudget;
-                  final remaining = (monthlyBudget - sharedMonthlyTotal).clamp(0.0, double.infinity);
-                  final overshoot = (sharedMonthlyTotal - monthlyBudget).clamp(0.0, double.infinity);
-                  final percentUsed = (sharedMonthlyTotal / monthlyBudget).clamp(0.0, 1.0);
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            if (monthlyBudget != null && monthlyBudget > 0) ...[
+              const SizedBox(height: CoveSpace.md),
+              _buildBudgetBlock(
+                context,
+                cv: cv,
+                currency: currency,
+                sharedMonthlyTotal: sharedMonthlyTotal,
+                monthlyBudget: monthlyBudget,
+                standingDay: standingDay,
+                daysInStandingMonth: daysInStandingMonth,
+                daysLeft: daysLeft,
+              ),
+            ] else ...[
+              const SizedBox(height: CoveSpace.sm),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => MonthlyBudgetSheet.show(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: CoveSpace.xs),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 14),
-                      InkWell(
-                        onTap: () => MonthlyBudgetSheet.show(context),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isOverBudget
-                                ? colors.accentSecondary.withValues(alpha: 0.1)
-                                : colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isOverBudget
-                                  ? colors.accentSecondary.withValues(alpha: 0.35)
-                                  : colors.borderHairline,
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        isOverBudget
-                                            ? Icons.trending_up_rounded
-                                            : Icons.pie_chart_outline_rounded,
-                                        size: 15,
-                                        color: isOverBudget
-                                            ? colors.accentSecondary
-                                            : colors.accentPrimary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isOverBudget ? 'SHOT UP · OVER BUDGET' : 'MONTHLY BUDGET',
-                                        style: typography.caption.copyWith(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.8,
-                                          color: isOverBudget
-                                              ? colors.accentSecondary
-                                              : colors.accentTint,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        isOverBudget
-                                            ? 'Shot up by ${currency.symbol}${formatCoveAmount(overshoot)}'
-                                            : '${currency.symbol}${formatCoveAmount(remaining)} remaining',
-                                        style: typography.caption.copyWith(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: isOverBudget
-                                              ? colors.accentSecondary
-                                              : colors.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Icon(Icons.edit_outlined, size: 12, color: colors.textMuted),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // Progress bar
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: Stack(
-                                  children: [
-                                    Container(
-                                      height: 6,
-                                      width: double.infinity,
-                                      color: colors.borderHairline.withValues(alpha: 0.6),
-                                    ),
-                                    FractionallySizedBox(
-                                      widthFactor: isOverBudget ? 1.0 : percentUsed,
-                                      child: Container(
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: isOverBudget
-                                              ? colors.accentSecondary
-                                              : colors.accentPrimary,
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
-                                    style: typography.caption.copyWith(
-                                      fontSize: 11,
-                                      color: colors.textMuted,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
-                                    style: typography.caption.copyWith(
-                                      fontSize: 11,
-                                      color: colors.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                      Icon(
+                        Icons.add_circle_outline_rounded,
+                        size: CoveSpace.md,
+                        color: cv.accentText,
+                      ),
+                      const SizedBox(width: CoveSpace.xs),
+                      Text(
+                        'Set monthly budget target',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
-                  );
-                } else {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: InkWell(
-                      onTap: () => MonthlyBudgetSheet.show(context),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_circle_outline_rounded, size: 14, color: colors.accentPrimary),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Set monthly budget target',
-                              style: typography.caption.copyWith(
-                                color: colors.accentPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                  ),
+                ),
+              ),
+            ],
+
+            // Person A / Person B split bar at foot of hero card
+            if (sharedMonthlyTotal > 0) ...[
+              const SizedBox(height: CoveSpace.md),
+              ClipRRect(
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.pill),
+                ),
+                child: SizedBox(
+                  height: _kBarHeight,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (paidByMeSharedTotal > 0)
+                        Expanded(
+                          flex: ((paidByMeSharedTotal / sharedMonthlyTotal) *
+                                  1000)
+                              .round()
+                              .clamp(1, 1000),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(gradient: cv.personA),
+                            child: const SizedBox.expand(),
+                          ),
                         ),
+                      if (paidByMeSharedTotal > 0 &&
+                          paidByPartnerSharedTotal > 0)
+                        const SizedBox(width: _kCategorySegmentGap),
+                      if (paidByPartnerSharedTotal > 0)
+                        Expanded(
+                          flex: ((paidByPartnerSharedTotal /
+                                      sharedMonthlyTotal) *
+                                  1000)
+                              .round()
+                              .clamp(1, 1000),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(gradient: cv.personB),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: CoveSpace.xs),
+              Row(
+                children: [
+                  Expanded(
+                    child: RichText(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      text: TextSpan(
+                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                        children: [
+                          const TextSpan(text: 'You '),
+                          TextSpan(
+                            text:
+                                '${currency.symbol}${formatCoveAmount(paidByMeSharedTotal)}',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  );
-                }
-              },
-            ),
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
+                  Flexible(
+                    child: RichText(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      text: TextSpan(
+                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                        children: [
+                          TextSpan(text: '$partnerName '),
+                          TextSpan(
+                            text:
+                                '${currency.symbol}${formatCoveAmount(paidByPartnerSharedTotal)}',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ],
       ),
     );
+  }
 
-    final categorySection = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (sortedCategories.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('CATEGORY BREAKDOWN', style: typography.caption),
-              Text(
-                '${sortedCategories.length} categories',
-                style: typography.caption.copyWith(color: colors.textSubtle),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          CoveGroupedCard(
-            children: sortedCategories.asMap().entries.map((item) {
-              final idx = item.key;
-              final entry = item.value;
-              final percent = totalSpendAll > 0
-                  ? ((entry.value / totalSpendAll) * 100).toStringAsFixed(0)
-                  : '0';
-              final catColor = _getCategoryColor(entry.key, idx, colors);
-              return CoveGroupedRow(
-                title: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(right: 10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: catColor,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        style: typography.bodyMedium.copyWith(fontSize: 15),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                subtitle: Text(
-                  '$percent% of monthly spend',
-                  style: typography.caption.copyWith(color: colors.textSubtle),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${currency.symbol}${formatCoveAmount(entry.value)}',
-                      style: TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(Icons.chevron_right, size: 16, color: colors.textSubtle),
-                  ],
-                ),
-                onTap: () {
-                  CategoryDetailSheet.show(
-                    context,
-                    categoryName: entry.key,
-                    allExpenses: monthExpenses,
-                    totalMonthSpend: totalSpendAll,
-                  );
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      ],
-    );
+  Widget _buildBudgetBlock(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required double sharedMonthlyTotal,
+    required double monthlyBudget,
+    required int standingDay,
+    required int daysInStandingMonth,
+    required int daysLeft,
+  }) {
+    final isOverBudget = sharedMonthlyTotal > monthlyBudget;
+    final remaining =
+        (monthlyBudget - sharedMonthlyTotal).clamp(0.0, double.infinity);
+    final overshoot =
+        (sharedMonthlyTotal - monthlyBudget).clamp(0.0, double.infinity);
+    final percentUsed = (sharedMonthlyTotal / monthlyBudget).clamp(0.0, 1.0);
+    final todayFraction =
+        (standingDay / daysInStandingMonth).clamp(0.05, 0.95);
 
-    final purchasesSection = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => MonthlyBudgetSheet.show(context),
+      child: Container(
+        padding: const EdgeInsets.all(CoveSpace.md),
+        decoration: BoxDecoration(
+          color: cv.surfaceRow,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.inline),
+          ),
+          border: Border.all(
+            color: isOverBudget ? cv.statusAlert : cv.lineHairline,
+            width: _kBorderWidth,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('RECENT PURCHASES', style: typography.caption),
-            Text(
-              '${allExpenses.length} total',
-              style: typography.caption.copyWith(color: colors.textSubtle),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isOverBudget ? 'SHOT UP · OVER BUDGET' : 'MONTHLY BUDGET',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.capsCard.copyWith(
+                      color: isOverBudget ? cv.statusAlertText : cv.textTertiary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Flexible(
+                  child: Text(
+                    isOverBudget
+                        ? 'Shot up by ${currency.symbol}${formatCoveAmount(overshoot)}'
+                        : '${currency.symbol}${formatCoveAmount(remaining)} remaining',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.rowSub.copyWith(
+                      color: isOverBudget ? cv.moneyMore : cv.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        CoveGroupedCard(
-          children: allExpenses.map((expense) {
-            return _buildExpenseRow(
-              context,
-              expense,
-              currentUser,
-              outboxEvents,
-              hasPartner: hasPartner,
-            );
-          }).toList(),
-        ),
-      ],
-    );
+            const SizedBox(height: CoveSpace.sm),
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: RefreshIndicator(
-        color: colors.accentPrimary,
-        backgroundColor: colors.surfaceCard,
-        onRefresh: _handleRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(
-            horizontal: isWide ? 36 : 20,
-            vertical: isWide ? 32 : 20,
-          ),
-          children: [
-            if (isWide) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        heroCard,
-                        if (!_showTransfers && sortedCategories.isNotEmpty && totalSpendAll > 0) ...[
-                          const SizedBox(height: 16),
-                          _buildCategorySplitBar(context, sortedCategories, totalSpendAll, monthExpenses),
+            // Progress bar with TODAY marker
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final markerX = constraints.maxWidth * todayFraction;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: _kTodayMarkerHeight,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(CoveRadius.pill),
+                            ),
+                            child: SizedBox(
+                              height: _kBarHeight,
+                              width: double.infinity,
+                              child: ColoredBox(
+                                color: cv.lineStrong,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor:
+                                        isOverBudget ? 1.0 : percentUsed,
+                                    child: ColoredBox(
+                                      color: isOverBudget
+                                          ? cv.statusAlert
+                                          : cv.accentFill,
+                                      child: const SizedBox.expand(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            left: (markerX - _kTodayMarkerWidth / 2).clamp(
+                              0.0,
+                              constraints.maxWidth - _kTodayMarkerWidth,
+                            ),
+                            top: 0,
+                            bottom: 0,
+                            child: ColoredBox(
+                              color: cv.textPrimary,
+                              child: const SizedBox(width: _kTodayMarkerWidth),
+                            ),
+                          ),
                         ],
-                        const SizedBox(height: 28),
-                        categorySection,
+                      ),
+                    ),
+                    const SizedBox(height: CoveSpace.xs),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'TODAY',
+                          style: CoveType.capsCard.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
                       ],
                     ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: CoveSpace.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
                   ),
-                  const SizedBox(width: 32),
-                  Expanded(
-                    flex: 6,
-                    child: purchasesSection,
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Flexible(
+                  child: Text(
+                    'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
                   ),
-                ],
-              ),
-            ] else ...[
-              heroCard,
-              if (!_showTransfers && sortedCategories.isNotEmpty && totalSpendAll > 0) ...[
-                const SizedBox(height: 16),
-                _buildCategorySplitBar(context, sortedCategories, totalSpendAll, monthExpenses),
+                ),
               ],
-              const SizedBox(height: 24),
-              categorySection,
-              const SizedBox(height: 28),
-              purchasesSection,
-            ],
-            const SizedBox(height: 32),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildExpenseRow(
-    BuildContext context,
-    LocalExpense expense,
-    CoveUser? currentUser,
-    List<LocalOutboxEvent> outbox, {
-    bool hasPartner = true,
+  Widget _buildPaceCards(
+    BuildContext context, {
+    required CurrencyOption currency,
+    required DateTime standingMonth,
+    required int standingDay,
+    required int daysInStandingMonth,
+    required int daysRemaining,
+    required double sharedMonthlyTotal,
+    required double dailyPace,
+    required double projectedMonthTotal,
+    required String prevMonthName,
+    required double prevMonthTotal,
+    required double prevDailyPace,
+    required double? monthlyBudget,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    // 1. PACE NOW
+    final roundedDailyPace = dailyPace.roundToDouble();
+    final roundedPrevDailyPace = prevDailyPace.roundToDouble();
+    final roundedProjected = projectedMonthTotal.roundToDouble();
 
-    // Determine visibility
-    final visibility = ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
+    final String paceNowSub = prevDailyPace > 0
+        ? '$prevMonthName ran at ${currency.symbol}${formatCoveAmount(roundedPrevDailyPace)}/day'
+        : 'vs ${currency.symbol}0/day in $prevMonthName';
 
-    // Attribution
-    final partnerProfile = ref.watch(partnerProfileProvider);
+    // 2. ON THIS PACE
+    final bool hasBudget = monthlyBudget != null && monthlyBudget > 0;
+    final bool isProjOverBudget =
+        hasBudget && projectedMonthTotal > monthlyBudget;
+    final String onThisPaceSub;
+    if (hasBudget) {
+      final diffPct =
+          (((projectedMonthTotal - monthlyBudget) / monthlyBudget) * 100)
+              .round();
+      final sign = diffPct >= 0 ? '+$diffPct%' : '$diffPct%';
+      onThisPaceSub = '$sign against the budget';
+    } else if (prevMonthTotal > 0) {
+      final diffPct =
+          (((projectedMonthTotal - prevMonthTotal) / prevMonthTotal) * 100)
+              .round();
+      final sign = diffPct >= 0 ? '+$diffPct%' : '$diffPct%';
+      onThisPaceSub = '$sign vs $prevMonthName';
+    } else {
+      onThisPaceSub =
+          'across $daysInStandingMonth days at ${currency.symbol}${formatCoveAmount(roundedDailyPace)}/day';
+    }
+
+    // 3. BUDGET RUNS OUT
+    final String budgetRunsOutValue;
+    final String budgetRunsOutSub;
+    final CoveMetricValueTone budgetRunsOutTone;
+    if (hasBudget && dailyPace > 0) {
+      final int runOutDay = (monthlyBudget / dailyPace).floor();
+      if (runOutDay < daysInStandingMonth) {
+        final clampedDay = runOutDay.clamp(1, daysInStandingMonth);
+        final runOutDate = DateTime(
+          standingMonth.year,
+          standingMonth.month,
+          clampedDay,
+        );
+        final daysShort = daysInStandingMonth - clampedDay;
+        budgetRunsOutValue = DateFormat('MMM d').format(runOutDate);
+        budgetRunsOutSub =
+            '$daysShort day${daysShort == 1 ? "" : "s"} before the month does';
+        budgetRunsOutTone = CoveMetricValueTone.moneyMore;
+      } else {
+        final endOfMonthDate = DateTime(
+          standingMonth.year,
+          standingMonth.month,
+          daysInStandingMonth,
+        );
+        budgetRunsOutValue = DateFormat('MMM d').format(endOfMonthDate);
+        budgetRunsOutSub =
+            'lasts all $daysInStandingMonth days of the month';
+        budgetRunsOutTone = CoveMetricValueTone.moneyLess;
+      }
+    } else {
+      budgetRunsOutValue = '$daysRemaining days';
+      budgetRunsOutSub = 'left in ${DateFormat('MMMM').format(standingMonth)}';
+      budgetRunsOutTone = CoveMetricValueTone.accentTint;
+    }
+
+    // 4. PER DAY FROM HERE
+    final double perDayFromHere;
+    final String perDayFromHereSub;
+    if (hasBudget && daysRemaining > 0) {
+      final remainingBudget =
+          (monthlyBudget - sharedMonthlyTotal).clamp(0.0, double.infinity);
+      perDayFromHere = remainingBudget / daysRemaining;
+      final delta = perDayFromHere - dailyPace;
+      final word = delta < 0 ? 'less' : 'more';
+      perDayFromHereSub =
+          '${currency.symbol}${formatCoveAmount(delta.abs().roundToDouble())} $word than now, each day';
+    } else {
+      perDayFromHere = dailyPace;
+      perDayFromHereSub =
+          'matching your ${currency.symbol}${formatCoveAmount(roundedDailyPace)}/day pace';
+    }
+    final roundedPerDayFromHere = perDayFromHere.roundToDouble();
+
+    return CoveMetricGrid(
+      children: [
+        CoveMetricCard(
+          label: 'Pace now',
+          value: '${currency.symbol}${formatCoveAmount(roundedDailyPace)}/day',
+          subtitle: paceNowSub,
+        ),
+        CoveMetricCard(
+          label: 'On this pace',
+          value: '${currency.symbol}${formatCoveAmount(roundedProjected)}',
+          subtitle: onThisPaceSub,
+          valueTone: isProjOverBudget
+              ? CoveMetricValueTone.moneyMore
+              : CoveMetricValueTone.accentTint,
+        ),
+        CoveMetricCard(
+          label: 'Budget runs out',
+          value: budgetRunsOutValue,
+          subtitle: budgetRunsOutSub,
+          valueTone: budgetRunsOutTone,
+        ),
+        CoveMetricCard(
+          label: 'Per day from here',
+          value:
+              '${currency.symbol}${formatCoveAmount(roundedPerDayFromHere)}/day',
+          subtitle: perDayFromHereSub,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWhereItWentSection(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required List<MapEntry<String, double>> sortedCategories,
+    required double totalSpendAll,
+    required Map<String, Color> categoryColorMap,
+    required List<LocalExpense> standingMonthExpenses,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveSectionLabel.page(
+          label: 'Where it went',
+          readout: '${sortedCategories.length} categories',
+        ),
+        const SizedBox(height: CoveSpace.md),
+
+        // Proportional category split bar
+        if (totalSpendAll > 0) ...[
+          ClipRRect(
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.pill),
+            ),
+            child: SizedBox(
+              height: _kCategoryBarHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: List.generate(sortedCategories.length, (idx) {
+                  final entry = sortedCategories[idx];
+                  final fraction =
+                      (entry.value / totalSpendAll).clamp(0.01, 1.0);
+                  final baseColor =
+                      categoryColorMap[entry.key] ?? cv.categoryGroceries;
+                  final isDimmed = _selectedCategory != null &&
+                      _selectedCategory != entry.key;
+                  final barColor = isDimmed
+                      ? baseColor.withValues(alpha: _kDimmedAlpha)
+                      : baseColor;
+
+                  return Expanded(
+                    flex: (fraction * 1000).round().clamp(1, 1000),
+                    child: Container(
+                      margin: EdgeInsets.only(
+                        right: idx < sortedCategories.length - 1
+                            ? _kCategorySegmentGap
+                            : 0.0,
+                      ),
+                      color: barColor,
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          const SizedBox(height: CoveSpace.md),
+        ],
+
+        // Tappable category pills (tap to isolate in bar & rows, long-press for CategoryDetailSheet)
+        Wrap(
+          spacing: CoveSpace.sm,
+          runSpacing: CoveSpace.sm,
+          children: List.generate(sortedCategories.length, (idx) {
+            final entry = sortedCategories[idx];
+            final catColor =
+                categoryColorMap[entry.key] ?? cv.categoryGroceries;
+            final isSelected = _selectedCategory == entry.key;
+
+            return Semantics(
+              button: true,
+              selected: isSelected,
+              label:
+                  '${entry.key}, ${currency.symbol}${formatCoveAmount(entry.value)}',
+              child: GestureDetector(
+                key: ValueKey('category_pill_${entry.key}'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = isSelected ? null : entry.key;
+                  });
+                },
+                onLongPress: () {
+                  CategoryDetailSheet.show(
+                    context,
+                    categoryName: entry.key,
+                    allExpenses: standingMonthExpenses,
+                    totalMonthSpend: totalSpendAll,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: CoveMotion.q(context),
+                  curve: CoveMotion.easing,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.md,
+                    vertical: CoveSpace.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? cv.accentWash : cv.surfaceCard,
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(CoveRadius.pill),
+                    ),
+                    border: Border.all(
+                      color: isSelected ? cv.accentFill : cv.lineHairline,
+                      width: _kBorderWidth,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: _kCategoryDotSize,
+                        height: _kCategoryDotSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: catColor,
+                        ),
+                      ),
+                      const SizedBox(width: CoveSpace.xs),
+                      Text(
+                        entry.key,
+                        style: CoveType.rowSub.copyWith(
+                          color: isSelected ? cv.accentText : cv.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: CoveSpace.xs),
+                      Text(
+                        '${currency.symbol}${formatCoveAmount(entry.value)}',
+                        style: CoveType.rowSub.copyWith(
+                          color: isSelected ? cv.accentText : cv.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEveryPurchaseSection(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required DateTime ledgerMonth,
+    required bool isLedgerAtStandingMonth,
+    required List<LocalExpense> ledgerExpenses,
+    required double ledgerMonthSharedTotal,
+    required CoveUser? currentUser,
+    required String myName,
+    required String partnerName,
+    required String creatorId,
+    required List<LocalOutboxEvent> outboxEvents,
+    required bool hasPartner,
+    required Map<String, Color> categoryColorMap,
+  }) {
+    final ledgerMonthLabel = DateFormat('MMMM y').format(ledgerMonth);
+    final count = ledgerExpenses.length;
+    final soFarSuffix = isLedgerAtStandingMonth ? ' · so far' : '';
+
+    // Group ledger expenses by calendar date descending
+    final sortedExpenses = List<LocalExpense>.from(ledgerExpenses)
+      ..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+
+    final dayGroups = <DateTime, List<LocalExpense>>{};
+    for (final exp in sortedExpenses) {
+      final dayKey = DateTime(
+        exp.expenseDate.year,
+        exp.expenseDate.month,
+        exp.expenseDate.day,
+      );
+      dayGroups.putIfAbsent(dayKey, () => <LocalExpense>[]).add(exp);
+    }
+    final sortedDayKeys = dayGroups.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveSectionLabel.page(
+          label: 'Every purchase',
+          readout: _selectedCategory != null ? _selectedCategory! : '$count total',
+        ),
+        const SizedBox(height: CoveSpace.md),
+
+        // Independent ledger month switcher
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CoveSpace.md,
+            vertical: CoveSpace.sm,
+          ),
+          decoration: BoxDecoration(
+            color: cv.surfaceCard,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.card),
+            ),
+            border: Border.all(
+              color: cv.lineHairline,
+              width: _kBorderWidth,
+            ),
+          ),
+          child: Row(
+            children: [
+              CoveRoundButton.stepper(
+                key: const ValueKey('ledger_prev_month'),
+                icon: Icons.chevron_left_rounded,
+                tooltip: 'Previous ledger month',
+                semanticLabel: 'Previous ledger month',
+                onPressed: () => _stepLedgerMonth(ledgerMonth, -1),
+              ),
+              const SizedBox(width: CoveSpace.sm),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      ledgerMonthLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                    ),
+                    Text(
+                      '${currency.symbol}${formatCoveAmount(ledgerMonthSharedTotal)} · $count purchase${count == 1 ? "" : "s"}$soFarSuffix',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: CoveSpace.sm),
+              CoveRoundButton.stepper(
+                key: const ValueKey('ledger_next_month'),
+                icon: Icons.chevron_right_rounded,
+                tooltip: 'Next ledger month',
+                semanticLabel: 'Next ledger month',
+                onPressed: () => _stepLedgerMonth(ledgerMonth, 1),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: CoveSpace.lg),
+
+        if (sortedDayKeys.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: CoveSpace.lg),
+            child: Text(
+              'No purchases recorded in $ledgerMonthLabel.',
+              style: CoveType.body.copyWith(color: cv.textTertiary),
+            ),
+          )
+        else
+          for (var gIdx = 0; gIdx < sortedDayKeys.length; gIdx++) ...[
+            if (gIdx > 0) const SizedBox(height: CoveSpace.lg),
+            _buildDayGroup(
+              context,
+              cv: cv,
+              currency: currency,
+              dayDate: sortedDayKeys[gIdx],
+              dayExpenses: dayGroups[sortedDayKeys[gIdx]]!,
+              currentUser: currentUser,
+              myName: myName,
+              partnerName: partnerName,
+              creatorId: creatorId,
+              outboxEvents: outboxEvents,
+              hasPartner: hasPartner,
+            ),
+          ],
+      ],
+    );
+  }
+
+  Widget _buildDayGroup(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required DateTime dayDate,
+    required List<LocalExpense> dayExpenses,
+    required CoveUser? currentUser,
+    required String myName,
+    required String partnerName,
+    required String creatorId,
+    required List<LocalOutboxEvent> outboxEvents,
+    required bool hasPartner,
+  }) {
+    final dayLabel = DateFormat('MMM d').format(dayDate).toUpperCase();
+    final dayTotal = dayExpenses
+        .where((e) => !e.isTransfer)
+        .fold<double>(0.0, (acc, e) => acc + e.amount);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              dayLabel,
+              style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+            ),
+            const SizedBox(width: CoveSpace.md),
+            Expanded(
+              child: ColoredBox(
+                color: cv.lineHairline,
+                child: const SizedBox(height: _kBorderWidth),
+              ),
+            ),
+            const SizedBox(width: CoveSpace.md),
+            Text(
+              '${currency.symbol}${formatCoveAmount(dayTotal)}',
+              style: CoveType.readout.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(width: CoveSpace.sm),
+            CoveRoundButton.stepper(
+              icon: Icons.add_rounded,
+              tooltip: 'Log Expense',
+              semanticLabel: 'Log Expense',
+              onPressed: () => ExpenseFormSheet.show(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: CoveSpace.xs),
+        for (var i = 0; i < dayExpenses.length; i++)
+          _buildExpenseRow(
+            context,
+            cv: cv,
+            currency: currency,
+            expense: dayExpenses[i],
+            currentUser: currentUser,
+            myName: myName,
+            partnerName: partnerName,
+            creatorId: creatorId,
+            outbox: outboxEvents,
+            hasPartner: hasPartner,
+            isLast: i == dayExpenses.length - 1,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildExpenseRow(
+    BuildContext context, {
+    required CoveTokens cv,
+    required CurrencyOption currency,
+    required LocalExpense expense,
+    required CoveUser? currentUser,
+    required String myName,
+    required String partnerName,
+    required String creatorId,
+    required List<LocalOutboxEvent> outbox,
+    required bool hasPartner,
+    required bool isLast,
+  }) {
+    final visibility =
+        ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
     final isMe = (expense.paidBy == currentUser?.id) ||
         (currentUser?.id == null && expense.paidBy == 'user_alex') ||
         (expense.paidBy == 'me');
-    final partnerName =
-        partnerProfile.displayName.isNotEmpty ? partnerProfile.displayName : 'Partner';
-    final paidText = isMe ? 'Paid by You' : 'Paid by $partnerName';
+    final effectiveActorId = isMe
+        ? (currentUser?.id ?? 'user_alex')
+        : (expense.paidBy == 'user_alex' ? 'user_sarah' : expense.paidBy);
+    final person = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: effectiveActorId,
+    );
+    final payerInitialName = isMe ? myName : partnerName;
     final dateFormatted = DateFormat('MMM d').format(expense.expenseDate);
 
-    // Two-tick sync status
     final tickStatus = resolveCoveSyncStatus(
       entityId: expense.id,
       outbox: outbox,
@@ -625,45 +1532,53 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
 
     final isTransfer = expense.isTransfer;
+    final String? pmLabel =
+        (expense.paymentMethod != null && expense.paymentMethod!.isNotEmpty)
+            ? (expense.paymentMethod == 'upi'
+                ? 'UPI'
+                : (expense.paymentMethod == 'cash' ? 'Cash' : 'Card'))
+            : null;
 
-    // Subtitle text:
     final String subtitleText;
     if (isTransfer) {
       final directionText = isMe
           ? 'You transferred to $partnerName'
           : '$partnerName transferred to You';
-      String sub = '$directionText • $dateFormatted';
-      if (expense.paymentMethod != null && expense.paymentMethod!.isNotEmpty) {
-        final pmLabel = expense.paymentMethod == 'upi'
-            ? 'UPI'
-            : (expense.paymentMethod == 'cash' ? 'Cash' : 'Card/Bank');
-        sub += ' • $pmLabel';
-      }
-      subtitleText = sub;
+      subtitleText = [
+        directionText,
+        dateFormatted,
+        ?pmLabel,
+      ].join(' · ');
     } else {
-      String sub = '$paidText • $dateFormatted';
-      if (expense.category != null && expense.category!.isNotEmpty) {
-        sub += ' • ${expense.category}';
-      }
-      if (expense.paymentMethod != null && expense.paymentMethod!.isNotEmpty) {
-        final pmLabel = expense.paymentMethod == 'upi'
-            ? 'UPI'
-            : (expense.paymentMethod == 'cash' ? 'Cash' : 'Card');
-        sub += ' • $pmLabel';
-      }
-      subtitleText = sub;
+      final cleanCat = _cleanCategoryName(expense.category);
+      subtitleText = [
+        cleanCat,
+        ?pmLabel,
+        dateFormatted,
+      ].join(' · ');
     }
 
-    final currency = ref.watch(currencyPreferenceProvider);
+    String? badgeLabel;
+    if (isTransfer) {
+      badgeLabel = 'Transfer';
+    } else if (visibility == ExpenseVisibility.partnerCanSee) {
+      badgeLabel = '$partnerName sees';
+    } else if (visibility == ExpenseVisibility.privateToMe) {
+      badgeLabel = 'Private';
+    }
 
     return Dismissible(
       key: ValueKey('exp_${expense.id}'),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: colors.accentSecondary.withValues(alpha: 0.15),
-        child: Icon(Icons.delete_outline, color: colors.accentSecondary, size: 20),
+        padding: const EdgeInsets.only(right: CoveSpace.gutter),
+        color: cv.statusAlert,
+        child: Icon(
+          Icons.delete_outline,
+          color: cv.textPrimary,
+          size: CoveSpace.gutter,
+        ),
       ),
       onDismissed: (_) async {
         try {
@@ -679,303 +1594,254 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             context,
             message: 'Deleted "${expense.title}"',
             onUndo: () async {
-              await ref.read(expenseControllerProvider).restoreExpense(expense);
+              await ref
+                  .read(expenseControllerProvider)
+                  .restoreExpense(expense);
             },
           );
         }
       },
-      child: CoveGroupedRow(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                expense.title,
-                style: typography.bodyMedium.copyWith(fontSize: 15),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (isTransfer) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.accentPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: colors.accentPrimary.withValues(alpha: 0.35),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.swap_horiz, size: 12, color: colors.accentPrimary),
-                    const SizedBox(width: 3),
-                    Text(
-                      'Transfer',
-                      style: typography.caption.copyWith(
-                        fontSize: 10,
-                        color: colors.accentPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else if (visibility == ExpenseVisibility.partnerCanSee) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: colors.borderHairline, width: 1),
-                ),
-                child: Text(
-                  '${partnerProfile.displayName} sees',
-                  style: typography.caption.copyWith(
-                    fontSize: 10,
-                    color: colors.textSubtle,
-                  ),
-                ),
-              ),
-            ] else if (visibility == ExpenseVisibility.privateToMe) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: colors.accentPrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Private',
-                  style: typography.caption.copyWith(
-                    fontSize: 10,
-                    color: colors.accentPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ],
+      child: CoveRow(
+        avatar: CoveAvatar.row(
+          person: person,
+          nameOrInitial: payerInitialName,
         ),
-        subtitle: Text(
-          subtitleText,
-          style: typography.caption.copyWith(color: colors.textMuted),
-        ),
+        title: expense.title,
+        subtitle: subtitleText,
+        isLast: isLast,
+        onTap: () => ExpenseDetailSheet.show(context, expense),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            if (badgeLabel != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _kBadgeHorizPad,
+                  vertical: _kBadgeVertPad,
+                ),
+                decoration: BoxDecoration(
+                  color: cv.accentWash,
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(CoveRadius.pill),
+                  ),
+                  border: Border.all(
+                    color: cv.lineStrong,
+                    width: _kBorderWidth,
+                  ),
+                ),
+                child: Text(
+                  badgeLabel,
+                  style: CoveType.barLabel.copyWith(color: cv.accentText),
+                ),
+              ),
+              const SizedBox(width: CoveSpace.xs),
+            ],
             Text(
               '${currency.symbol}${formatCoveAmount(expense.amount)}',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
-              ),
+              style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
             ),
-            const SizedBox(width: 8),
-            CoveSyncTick(status: tickStatus, size: 13),
+            const SizedBox(width: CoveSpace.xs),
+            CoveSyncTick(status: tickStatus),
           ],
         ),
-        onTap: () => ExpenseDetailSheet.show(context, expense),
       ),
     );
   }
 
   Widget _buildCardSegment({
+    required CoveTokens cv,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
+        duration: CoveMotion.q(context),
+        curve: CoveMotion.easing,
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.md,
+          vertical: CoveSpace.xs,
+        ),
         decoration: BoxDecoration(
-          color: isSelected ? colors.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          color: isSelected ? cv.surfaceCard : Colors.transparent,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.pill),
+          ),
           border: isSelected
-              ? Border.all(color: colors.accentPrimary.withValues(alpha: 0.35), width: 1)
+              ? Border.all(color: cv.accentFill, width: _kBorderWidth)
               : null,
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 12,
+          style: CoveType.rowSub.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? colors.accentPrimary : colors.textMuted,
+            color: isSelected ? cv.accentText : cv.textTertiary,
           ),
         ),
       ),
     );
   }
+}
 
-  static Color _getCategoryColor(String category, int index, CoveColors colors) {
-    final lower = category.toLowerCase().trim();
-    if (lower.contains('grocer') || lower.contains('food')) {
-      return const Color(0xFF7A9E8A); // Soft Sage Green
-    }
-    if (lower.contains('home') || lower.contains('utilit')) {
-      return colors.accentPrimary; // Cove Warm Gold / Amber
-    }
-    if (lower.contains('dining') || lower.contains('restaurant')) {
-      return const Color(0xFFDF9E5F); // Warm Apricot
-    }
-    if (lower.contains('travel') || lower.contains('transport')) {
-      return const Color(0xFF6B8CAE); // Slate Blue
-    }
-    if (lower.contains('health') || lower.contains('personal')) {
-      return const Color(0xFF4A877F); // Deep Teal
-    }
-    if (lower.contains('entertainment') || lower.contains('stream')) {
-      return const Color(0xFFA27896); // Dusty Plum
-    }
-    if (lower.contains('shopping')) {
-      return const Color(0xFFC46D5E); // Warm Brick Red
-    }
-    const fallbackPalette = [
-      Color(0xFF7A9E8A),
-      Color(0xFFD8B98C),
-      Color(0xFFDF9E5F),
-      Color(0xFF6B8CAE),
-      Color(0xFF4A877F),
-      Color(0xFFA27896),
-      Color(0xFFC46D5E),
-      Color(0xFF8A9A9E),
-    ];
-    return fallbackPalette[index % fallbackPalette.length];
-  }
+/// Annotated bar chart for "Every day this month" (`design/screens/expenses.md`).
+class _DailySpendBarChart extends StatelessWidget {
+  final List<double> dailyTotals;
+  final int standingDay;
+  final int daysInMonth;
+  final int daysRemaining;
+  final double dailyPace;
+  final String currencySymbol;
+  final Color? isolatedColor;
 
-  Widget _buildCategorySplitBar(
-    BuildContext context,
-    List<MapEntry<String, double>> sortedCategories,
-    double totalSpend,
-    List<LocalExpense> monthExpenses,
-  ) {
-    final colors = context.colors;
-    final typography = context.typography;
-    if (sortedCategories.isEmpty || totalSpend <= 0) return const SizedBox.shrink();
+  static const double _kChartHeight =
+      _ExpensesScreenState._kChartHeight; // 112.0dp
+  static const double _kBarRadius = 3.0; // (literal)
+  static const double _kBorderWidth = 1.0; // (literal)
+  static const double _kMinElapsedBarHeight = 4.0; // (literal)
 
-    return CoveCard(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'SPENDING BREAKDOWN',
-                style: typography.caption.copyWith(
-                  letterSpacing: 1.0,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
+  const _DailySpendBarChart({
+    required this.dailyTotals,
+    required this.standingDay,
+    required this.daysInMonth,
+    required this.daysRemaining,
+    required this.dailyPace,
+    required this.currencySymbol,
+    this.isolatedColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    double maxVal = dailyPace * 1.6;
+    for (final v in dailyTotals) {
+      if (v > maxVal) maxVal = v;
+    }
+    if (maxVal <= 0) maxVal = 1.0;
+
+    final paceFraction = (dailyPace / maxVal).clamp(0.12, 0.85);
+    final activeBarColor = isolatedColor ?? cv.accentFill;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Top-right graph annotation for remaining future days
+        if (daysRemaining > 0)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$daysRemaining DAY${daysRemaining == 1 ? "" : "S"} STILL TO COME',
+                  style: CoveType.capsCard.copyWith(color: cv.accentText),
                 ),
-              ),
-              Text(
-                '${sortedCategories.length} categories',
-                style: typography.caption.copyWith(
-                  fontSize: 11,
-                  color: colors.textSubtle,
+                Text(
+                  'drawn at the pace you are keeping',
+                  style: CoveType.rowSub.copyWith(color: cv.textTertiary),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
+        const SizedBox(height: CoveSpace.xs),
 
-          // Multi-segment horizontal split progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 10,
-              child: Row(
-                children: List.generate(sortedCategories.length, (idx) {
-                  final entry = sortedCategories[idx];
-                  final fraction = (entry.value / totalSpend).clamp(0.01, 1.0);
-                  final catColor = _getCategoryColor(entry.key, idx, colors);
+        SizedBox(
+          height: _kChartHeight,
+          child: Stack(
+            alignment: Alignment.bottomLeft,
+            children: [
+              // Horizontal dashed pace line + inline pace annotation on the graph
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: _kChartHeight * paceFraction,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$currencySymbol${formatCoveAmount(dailyPace.roundToDouble())} A DAY',
+                      style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+                    ),
+                    const SizedBox(height: 2.0), // (literal)
+                    ColoredBox(
+                      color: cv.lineStrong,
+                      child: const SizedBox(
+                        width: double.infinity,
+                        height: _kBorderWidth,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Daily bars (1 .. daysInMonth)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(daysInMonth, (index) {
+                  final dayNum = index + 1;
+                  final isFuture = dayNum > standingDay;
+                  final value = dailyTotals[index];
+                  final double barHeight;
+                  if (isFuture) {
+                    barHeight = (_kChartHeight * paceFraction).clamp(
+                      _kMinElapsedBarHeight,
+                      _kChartHeight,
+                    );
+                  } else if (value <= 0) {
+                    barHeight = _kMinElapsedBarHeight;
+                  } else {
+                    barHeight = ((value / maxVal) * (_kChartHeight - 16.0))
+                        .clamp(_kMinElapsedBarHeight, _kChartHeight - 16.0);
+                  }
 
                   return Expanded(
-                    flex: (fraction * 1000).toInt().clamp(1, 1000),
-                    child: Container(
-                      margin: EdgeInsets.only(
-                        right: idx < sortedCategories.length - 1 ? 2.0 : 0.0,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 1.0, // (literal)
                       ),
-                      decoration: BoxDecoration(
-                        color: catColor,
+                      child: Container(
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          color: isFuture
+                              ? Colors.transparent
+                              : (value > 0 ? activeBarColor : cv.lineStrong),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(_kBarRadius),
+                          ),
+                          border: isFuture
+                              ? Border.all(
+                                  color: cv.lineStrong,
+                                  width: _kBorderWidth,
+                                )
+                              : null,
+                        ),
                       ),
                     ),
                   );
                 }),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: CoveSpace.xs),
+
+        // Day axis ticks: 1, 7, 14, 21, daysInMonth
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('1', style: CoveType.rowSub.copyWith(color: cv.textTertiary)),
+            Text('7', style: CoveType.rowSub.copyWith(color: cv.textTertiary)),
+            Text('14', style: CoveType.rowSub.copyWith(color: cv.textTertiary)),
+            Text('21', style: CoveType.rowSub.copyWith(color: cv.textTertiary)),
+            Text(
+              '$daysInMonth',
+              style: CoveType.rowSub.copyWith(color: cv.textTertiary),
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // Category legend chips
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: List.generate(sortedCategories.length, (idx) {
-              final entry = sortedCategories[idx];
-              final percent = ((entry.value / totalSpend) * 100).toStringAsFixed(0);
-              final catColor = _getCategoryColor(entry.key, idx, colors);
-
-              return InkWell(
-                onTap: () {
-                  CategoryDetailSheet.show(
-                    context,
-                    categoryName: entry.key,
-                    allExpenses: monthExpenses,
-                    totalMonthSpend: totalSpend,
-                  );
-                },
-                borderRadius: BorderRadius.circular(6),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: catColor,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        entry.key,
-                        style: typography.caption.copyWith(
-                          color: colors.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$percent%',
-                        style: typography.caption.copyWith(
-                          color: colors.textSubtle,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 }

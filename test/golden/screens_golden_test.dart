@@ -626,7 +626,6 @@ List<Override> _createGoldenOverrides() {
 /// not in this set fails the test immediately.
 const Set<String> _kKnownLegacyOverflows = {
   'today_screen.cover',
-  'expenses_screen.cover',
 };
 
 void main() {
