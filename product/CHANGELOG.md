@@ -7,6 +7,10 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.11b — `CoveDial` Category Spending Share Slip (`Oct 25, 2026`)**:
+  - *Outcome*: Built [`CoveDial`](../lib/core/widgets/slips/cove_dial.dart) (`CoveCategory`) on [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) to [`design/specs/10b-dial.md`](../design/specs/10b-dial.md), featuring the `COVE · CATEGORY` caps line (`CoveType.capsSlip`), category title (`CoveType.slipTitle`), `160dp` `(literal)` donut dial with `12dp` `(literal)` stroke (track in `palette.rule`, clockwise spending-share arc from 12 o'clock), centred month total in `CoveType.slipFigure` with `"THIS MONTH"` in `CoveType.capsSlip` beneath, receipt-style recent purchase rows below a `1dp` `4/4` dashed rule, light-token category colour resolution on paper (`CoveTokens.light`, never `context.cv`, so every arc clears `>= 3:1` in both dark and light app themes), and WCAG 4.1.2 semantics (`"Category, Groceries, ₹12,400 this month, 68% of spending, 14 purchases"`).
+  - *Under the Hood*:
+    - Added [`test/golden/dial_golden_test.dart`](../test/golden/dial_golden_test.dart) and generated 12 goldens (`dial` and `dial_zero` across `cover`, `phone`, `wide` and both brightnesses) covering large-share (`68%`), small-share (`12%` Travel), and `0%` share categories on paper.
 - **Task 3.11a — Paper Slip `accentFill` Contrast Fix & Paper Stop Contrast Gate (`Oct 25, 2026`)**:
   - *Outcome*: Updated [`CoveSlipPalette.resolve()`](../lib/core/widgets/slips/cove_slip.dart) so `CoveSlipVariant.paper` uses `cv.paperAccent` (`#76532D`, `4.57:1` on `paper.to`) for `accentFill` instead of `CoveTokens.light.accentFill` (`#A97C4F`, which measured `2.45:1` on `paper.to`), ensuring the receipt's viewer-share bar, the habit grid's done cells, the voucher's due ring, and the EMI's paid punches clear the `3:1` mark contrast floor on paper.
   - *Under the Hood*:
