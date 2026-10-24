@@ -7,6 +7,10 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.10b — `CoveSlip` Shared Frame & `CoveTicket` Event Slip (`Oct 25, 2026`)**:
+  - *Outcome*: Built [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) (`CoveSlipVariant { paper, ink }`, `CoveSlipPalette`, `CoveSlipScope`) and [`CoveTicket`](../lib/core/widgets/slips/cove_ticket.dart) in `lib/core/widgets/slips/` to the contract in [`design/specs/10-paper-objects.md`](../design/specs/10-paper-objects.md), with caller-selected `paper` / `ink` variants (never inferred from ambient brightness), `168°` 3-stop gradient fills (`46%` middle stop), `slip.inkText3` tertiary and `slip.inkAlertText` alert text on ink, light-mode-only `paper.edge` hairline + `elevationPaper` on paper, `112dp` right stub with `16dp` top/bottom semicircle perforation notches and `1dp` `4/4` dashed perforation line, `2dp` left accent spine, and full WCAG 4.1.2 semantics.
+  - *Under the Hood*:
+    - Added [`test/golden/ticket_golden_test.dart`](../test/golden/ticket_golden_test.dart) and generated all 6 `ticket.{cover,phone,wide}.{dark,light}.png` goldens covering `paper` and `ink` variants across both brightnesses.
 - **Task 3.10a — Paper Object & Letter Tokens, `LibreBodoni-Italic` Font & Ink Contrast Gate (`Oct 25, 2026`)**:
   - *Outcome*: Registered `assets/fonts/LibreBodoni-Italic.ttf` (`weight: 400`, `style: italic`) in [`pubspec.yaml`](../pubspec.yaml) and [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart), added the flat `slip` colour group (`inkFrom`, `inkVia`, `inkTo`, `inkText3`, `inkAlertText`, `inkMark`) and four display typography roles (`greeting`, `letter`, `slipTitle`, `slipFigure`) to [`design/tokens.json`](../design/tokens.json), regenerated [`lib/core/theme/cove_tokens.dart`](../lib/core/theme/cove_tokens.dart), and extended [`tool/check_contrast.py`](../tool/check_contrast.py) to verify all text (`>= 4.5:1`) and mark (`>= 3.0:1`) pairs across all three ink gradient stops.
   - *Under the Hood*:
