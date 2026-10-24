@@ -7,6 +7,24 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.10h — "Today" (`TodayScreen`) Converted to Cove Slip Primitives, `CoveCarousel`, and `CoveLetter` (`Oct 25, 2026`)**:
+  - *Outcome*: Converted [`TodayScreen`](../lib/features/today/today_screen.dart) to the v2 "Today" morning briefing layout ([`design/screens/today.md`](../design/screens/today.md) & [`design/screens/today.png`](../design/screens/today.png)), arranged top to bottom as:
+    1. Screen-local `_TodayHeader` (home name with chevron, token-styled weather chip, ghost `CoveRoundButton` bell with an `8dp` `(literal)` `accent.fill` unread dot, and `CoveAvatar.header` for the viewer — never `CovePerson.both`, without modifying `CovePageHeader`).
+    2. Date line (`CoveSectionLabel.page` with city readout).
+    3. Greeting (`CoveType.greeting`: `"Good morning,"` italic in `accent.tint`, then viewer's name in roman `text.primary`).
+    4. 2×2 `CoveMetricGrid` (`Spent today`, `Events`, `Habits`, `The list`, collapsing to 1 column below `CoveSize.compactThreshold`).
+    5. `On the calendar` — `CoveTicket`s in a `CoveCarousel` (`CoveSlipVariant.ink` in dark mode, `CoveSlipVariant.paper` in light mode).
+    6. `Habits` — `CoveHabitCard`s in a `CoveCarousel` with 21-day streak grids and interactive check-in toggles.
+    7. `Spent today` — one `CoveReceipt` holding the day's purchases, `CovePerson.a` / `CovePerson.b` split bar, and deterministic barcode.
+    8. `The list` — one `CoveNote` holding the open tasks with ruled lines and interactive completion checkboxes.
+    9. `Due tomorrow` — `CoveVoucher`s in a `CoveCarousel` reading the existing subscriptions/commitments provider.
+    10. `The Letter` — `CoveLetter` recomposed on every build via `composeDayLetter()` over today's live data, passing the home's actual currency symbol (`currency.symbol`) and each commitment's real `nextBillingDate` (`dueDate`), with tappable inline links navigating to the corresponding item or section.
+    11. Footer (`"Two lives. One calm home."` italic in `CoveType.slipTitle` + encryption reassurance line).
+    - **Intentional Design Change**: Removed the legacy **Recent activity** section from `TodayScreen` per [`design/screens/today.md`](../design/screens/today.md); activity is now reached exclusively from the notification bell in `_TodayHeader`.
+  - *Under the Hood*:
+    - Deleted `lib/features/today/today_screen.dart 34` from [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (55 files / 518 literals remaining) with zero raw style literals in `today_screen.dart`.
+    - Removed `'today_screen.cover'` from `_kKnownLegacyOverflows` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart), emptying the legacy screen overflow backlog (`_kKnownLegacyOverflows = {}`).
+    - Updated [`test/today_and_cove_page_test.dart`](../test/today_and_cove_page_test.dart) and regenerated all 6 `today_screen.{cover,phone,wide}.{dark,light}.png` goldens.
 - **Task 3.10g — `composeDayLetter()` Pure Rule-Based Day Letter Composer & `CoveLetter` Widget (`Oct 25, 2026`)**:
   - *Outcome*: Built the pure, deterministic [`composeDayLetter(DayLetterInput)`](../lib/features/today/letter/compose_day_letter.dart) composer (`LetterSpan`, `LetterSpanStyle`, `LetterTarget`, `LetterTargetKind`) and [`CoveLetter`](../lib/features/today/letter/cove_letter.dart) widget in `lib/features/today/letter/` to [`design/specs/11-day-letter.md`](../design/specs/11-day-letter.md), producing up to six sentences in fixed order (`The day`, `The calendar`, `Habits`, `Money`, `Commitments`, `Lists`) with verbatim record names, numbers 1–9 as words and 10+ as digits, disambiguated times with relative part of the day (`"at seven this evening"` / `"at 7:30 this morning"`, `<12:00` morning, `12:00–16:59` afternoon, `17:00–20:59` evening, `21:00+` tonight), required `currencySymbol` formatted via `formatCoveCurrency()`, top-two expense joining with `"and"` only when neither title contains `—`, `–`, `,`, or `;` (otherwise naming only the larger item), `DayLetterCommitment.dueDate` filtered against the injected clock for `"today"` vs `"tomorrow"` (and `"₹X goes out today and ₹Y tomorrow."` when both exist), tappable `accent.fill`-underlined links (`CoveType.letter`), and `Libre Bodoni Italic` (`text.secondary` for lists, `text.tertiary` for the first-run empty-home prompt).
   - *Under the Hood*:

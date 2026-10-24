@@ -624,9 +624,7 @@ List<Override> _createGoldenOverrides() {
 /// Explicit allow-list of `<screen>.<width>` pairs known to overflow in the
 /// pre-revamp v1 layouts (Phase 3 overflow backlog). Any overflow on a pair
 /// not in this set fails the test immediately.
-const Set<String> _kKnownLegacyOverflows = {
-  'today_screen.cover',
-};
+const Set<String> _kKnownLegacyOverflows = {};
 
 void main() {
   setUpAll(() {

@@ -170,10 +170,10 @@ void main() {
 
     // Verify TodayScreen is shown
     expect(find.byType(TodayScreen), findsOneWidget);
-    expect(find.textContaining('TODAY\'S FLOW'), findsOneWidget);
-    expect(find.textContaining('DAILY RHYTHMS'), findsOneWidget);
-    expect(find.textContaining('FOCUS TASKS'), findsOneWidget);
-    expect(find.textContaining('TODAY\'S SPEND'), findsOneWidget);
+    expect(find.textContaining('ON THE CALENDAR'), findsOneWidget);
+    expect(find.textContaining('HABITS'), findsWidgets);
+    expect(find.textContaining('THE LIST'), findsWidgets);
+    expect(find.textContaining('SPENT TODAY'), findsWidgets);
 
     // Clean up
     await tester.pumpWidget(const SizedBox());
@@ -321,12 +321,12 @@ void main() {
 
     // Verify event is displayed
     expect(find.text('Farmers Market'), findsOneWidget);
-    expect(find.text('10:00 AM · Union Square'), findsOneWidget);
+    expect(find.textContaining('Union Square'), findsOneWidget);
 
     // Verify habit is displayed with streak & partner status
     expect(find.text('Morning Run'), findsOneWidget);
-    expect(find.textContaining('5d streak 🔥'), findsOneWidget);
-    expect(find.textContaining('Sophia checked in ✓'), findsOneWidget);
+    expect(find.text('DAYS RUNNING'), findsOneWidget);
+    expect(find.textContaining('Sophia checked in'), findsOneWidget);
 
     // Verify spend card
     expect(find.text('\$45'), findsWidgets);
@@ -389,7 +389,7 @@ void main() {
 
     // Focus tasks section renders active item
     expect(find.text('Organic Almond Milk'), findsOneWidget);
-    expect(find.text('Groceries'), findsWidgets);
+    expect(find.textContaining('GROCERIES'), findsWidgets);
 
     // Old task from deleted list is strictly NOT rendered
     expect(find.text('Old Task From Deleted List'), findsNothing);
