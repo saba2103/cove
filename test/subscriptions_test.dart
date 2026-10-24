@@ -443,9 +443,9 @@ void main() {
       await tester.tap(find.text('Netflix'));
       await tester.pumpAndSettle();
 
-      // Verify detail sheet is shown with "Edit Commitment"
-      expect(find.text('Edit Commitment'), findsOneWidget);
-      await tester.tap(find.text('Edit Commitment'));
+      // Verify detail sheet is shown with "Edit" verb button
+      expect(find.text('Edit'), findsOneWidget);
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
       // Now inside edit form: Tap Cancel / Pause Commitment
@@ -936,12 +936,11 @@ void main() {
       expect(find.text('ChatGPT Plus'), findsOneWidget);
       expect(find.textContaining('via Amex Gold'), findsOneWidget);
 
-      // 3. Open CommitmentDetailSheet and verify Financed Through row is displayed
+      // 3. Open CommitmentDetailSheet and verify Financed Through is displayed in the meaning panel
       await tester.tap(find.text('ChatGPT Plus'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Financed Through'), findsOneWidget);
-      expect(find.text('Amex Gold'), findsOneWidget);
+      expect(find.textContaining('via Amex Gold'), findsWidgets);
     });
 
     testWidgets('Tapping commitment opens CommitmentDetailSheet with full details and edit button', (tester) async {
@@ -984,18 +983,17 @@ void main() {
       await tester.tap(find.text('MacBook Pro M3'));
       await tester.pumpAndSettle();
 
-      // Verify CommitmentDetailSheet is displayed
-      expect(find.text('EMI FINANCING'), findsOneWidget);
+      // Verify CommitmentDetailSheet is displayed with CoveVoucher & meaning panel
+      expect(find.textContaining('COMMITMENT · EVERY MONTH'), findsOneWidget);
       expect(find.textContaining('\$150'), findsWidgets);
-      expect(find.text('Installments Progress'), findsOneWidget);
-      expect(find.text('3/12 paid'), findsOneWidget);
-      expect(find.text('9 remaining'), findsOneWidget);
-      expect(find.text('Apple Card'), findsOneWidget);
-      expect(find.text('Split (50/50)'), findsOneWidget);
-      expect(find.text('Edit Commitment'), findsOneWidget);
+      expect(find.text('3 OF 12 PAID'), findsOneWidget);
+      expect(find.text('9 LEFT'), findsOneWidget);
+      expect(find.text('3 of 12 paid'), findsOneWidget);
+      expect(find.textContaining('Apple Card'), findsWidgets);
+      expect(find.text('Edit'), findsOneWidget);
 
-      // Verify tapping "Edit Commitment" opens SubscriptionFormSheet
-      await tester.tap(find.text('Edit Commitment'));
+      // Verify tapping "Edit" opens SubscriptionFormSheet
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
       expect(find.byType(SubscriptionFormSheet), findsOneWidget);
@@ -1042,9 +1040,12 @@ void main() {
       await tester.tap(find.text('Gym Membership'));
       await tester.pumpAndSettle();
 
-      // Tap delete icon in detail sheet
-      final deleteBtn = find.byIcon(Icons.delete_outline);
-      await tester.tap(deleteBtn);
+      // Open ⋯ overflow menu and select "Delete this commitment"
+      await tester.tap(
+        find.byKey(const ValueKey('cove_detail_sheet_menu_button')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete this commitment'));
       await tester.pumpAndSettle();
 
       // Confirmation dialog appears
@@ -1242,11 +1243,12 @@ void main() {
       await tester.tap(find.text('Spotify Family'));
       await tester.pumpAndSettle();
 
-      // Verify "Mark as Renewed" button is present
-      expect(find.text('Mark as Renewed'), findsOneWidget);
+      // Verify "Mark paid" verb button is present and PAID stamp is not yet shown
+      expect(find.text('Mark paid'), findsOneWidget);
+      expect(find.text('PAID'), findsNothing);
 
-      // Tap button
-      await tester.tap(find.text('Mark as Renewed'));
+      // Tap Mark paid button
+      await tester.tap(find.text('Mark paid'));
       await tester.pumpAndSettle();
 
       // Confirm dialog appears with Log to household Expenses
@@ -1256,6 +1258,9 @@ void main() {
       // Tap Confirm Renewal
       await tester.tap(find.widgetWithText(ElevatedButton, 'Confirm Renewal'));
       await tester.pumpAndSettle();
+
+      // Verify PAID stamp dropped onto the voucher inside the sheet
+      expect(find.text('PAID'), findsOneWidget);
 
       // Verify subscription updated event dispatched
       expect(

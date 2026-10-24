@@ -1,16 +1,15 @@
-import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
-import '../../core/widgets/cove_card.dart';
-import '../../core/widgets/cove_grouped_list.dart';
-import '../../core/widgets/cove_pill_button.dart';
-import '../../core/widgets/cove_sync_tick.dart';
+
+import '../../core/theme/cove_tokens.dart';
+import '../../core/utils/cove_currency_formatter.dart';
+import '../../core/widgets/cove_checkbox.dart';
+import '../../core/widgets/cove_detail_sheet.dart';
 import '../../core/widgets/cove_undo_toast.dart';
+import '../../core/widgets/slips/cove_slip.dart';
+import '../../core/widgets/slips/cove_voucher.dart';
 import '../../sync/db/app_database.dart';
-import '../../sync/providers/active_home_provider.dart';
-import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
@@ -18,17 +17,24 @@ import '../profile/user_profile_controller.dart';
 import 'commitment_models.dart';
 import 'subscription_controller.dart';
 import 'subscription_form_sheet.dart';
-import '../../core/utils/cove_currency_formatter.dart';
 
-class CommitmentDetailSheet extends ConsumerWidget {
+class CommitmentDetailSheet extends ConsumerStatefulWidget {
   final LocalSubscription subscription;
+
+  static const double _kDialogBorderWidth =
+      1.0; // (literal) 1dp dialog hairline border
+  static const double _kDialogIconSize =
+      20.0; // (literal) 20dp dialog title icon
 
   const CommitmentDetailSheet({
     super.key,
     required this.subscription,
   });
 
-  static Future<void> show(BuildContext context, LocalSubscription subscription) {
+  static Future<void> show(
+    BuildContext context,
+    LocalSubscription subscription,
+  ) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -37,125 +43,188 @@ class CommitmentDetailSheet extends ConsumerWidget {
     );
   }
 
-  IconData _getCategoryIcon(String? category) {
-    switch (category?.toLowerCase()) {
-      case 'entertainment':
-      case 'streaming':
-        return Icons.movie_outlined;
-      case 'productivity':
-      case 'software':
-        return Icons.laptop_chromebook_outlined;
-      case 'utilities':
-        return Icons.power_outlined;
-      case 'fitness':
-      case 'health':
-        return Icons.fitness_center_outlined;
-      case 'music':
-        return Icons.headphones_outlined;
-      case 'gaming':
-        return Icons.sports_esports_outlined;
-      case 'news':
-        return Icons.menu_book_outlined;
-      case 'cloud':
-      case 'storage':
-        return Icons.cloud_outlined;
-      case 'electronics':
-        return Icons.devices_outlined;
-      case 'finance':
-      case 'loan':
-      case 'vehicle':
-        return Icons.directions_car_outlined;
-      default:
-        return Icons.receipt_long_outlined;
+  @override
+  ConsumerState<CommitmentDetailSheet> createState() =>
+      _CommitmentDetailSheetState();
+}
+
+class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
+  bool _markedPaidInSession = false;
+  int? _sessionPaidInstallments;
+  DateTime? _sessionNextBillingDate;
+
+  LocalSubscription get _sub => widget.subscription;
+
+  String _formatContextCadence(String cycle) {
+    final lower = cycle.toLowerCase().trim();
+    if (lower == 'monthly' || lower == 'month') return 'EVERY MONTH';
+    if (lower == 'annual' || lower == 'yearly' || lower == 'year') {
+      return 'EVERY YEAR';
     }
+    if (lower == 'quarterly') return 'EVERY QUARTER';
+    final months = getBillingCycleMonths(cycle);
+    if (months == 1) return 'EVERY MONTH';
+    if (months == 12) return 'EVERY YEAR';
+    if (months == 3) return 'EVERY QUARTER';
+    return 'EVERY $months MONTHS';
+  }
+
+  String _formatCadencePhrase(String cycle) {
+    final lower = cycle.toLowerCase().trim();
+    if (lower == 'monthly' || lower == 'month') return 'a month';
+    if (lower == 'annual' || lower == 'yearly' || lower == 'year') {
+      return 'a year';
+    }
+    if (lower == 'quarterly') return 'a quarter';
+    final months = getBillingCycleMonths(cycle);
+    if (months == 1) return 'a month';
+    if (months == 12) return 'a year';
+    if (months == 3) return 'a quarter';
+    return 'every $months months';
+  }
+
+  String _resolvePaidByLabel({
+    required String? currentUserId,
+    required String? partnerUserId,
+    required String myDisplayName,
+    required String partnerDisplayName,
+  }) {
+    final pDisplayName =
+        partnerDisplayName.isNotEmpty ? partnerDisplayName : 'Partner';
+    final rawPaidBy = _sub.paidBy?.trim();
+    final pBy = rawPaidBy?.toLowerCase();
+
+    if (pBy == 'split' ||
+        pBy == 'split_50_50' ||
+        pBy == 'split (50/50)' ||
+        pBy == '50/50') {
+      return 'Split (50/50)';
+    }
+    if (pBy != null && pBy.isNotEmpty) {
+      if (pBy == 'me' ||
+          pBy == 'you' ||
+          pBy == 'user_alex' ||
+          (currentUserId != null &&
+              currentUserId.isNotEmpty &&
+              pBy == currentUserId) ||
+          (myDisplayName.isNotEmpty &&
+              myDisplayName != 'you' &&
+              pBy == myDisplayName)) {
+        return 'You';
+      }
+      if (pBy == 'partner' ||
+          pBy == 'partner_user' ||
+          pBy == 'partner-user-sarah' ||
+          (partnerUserId != null &&
+              partnerUserId.isNotEmpty &&
+              pBy == partnerUserId) ||
+          (pDisplayName.isNotEmpty && pBy == pDisplayName.toLowerCase())) {
+        return pDisplayName;
+      }
+      if (pBy.contains('-') || (pBy.length >= 16 && !pBy.contains(' '))) {
+        if (currentUserId != null && pBy == currentUserId) {
+          return 'You';
+        }
+        return pDisplayName;
+      }
+      return rawPaidBy!;
+    }
+
+    final creator = _sub.createdBy?.trim().toLowerCase();
+    if (creator != null && creator.isNotEmpty) {
+      if (currentUserId != null && creator == currentUserId) {
+        return 'You';
+      }
+      if (partnerUserId != null && creator == partnerUserId) {
+        return pDisplayName;
+      }
+      if (creator.contains('-') || creator.length >= 16) {
+        return pDisplayName;
+      }
+    }
+    return 'You';
   }
 
   Future<void> _handleEdit(BuildContext context) async {
     Navigator.of(context).pop();
-    await SubscriptionFormSheet.show(context, existing: subscription);
+    await SubscriptionFormSheet.show(context, existing: _sub);
   }
 
   Future<void> _handleTogglePause(BuildContext context, WidgetRef ref) async {
-    final isPaused = !subscription.isActive;
+    final isPaused = !_sub.isActive;
     if (isPaused) {
       await ref.read(subscriptionControllerProvider).reactivateSubscription(
-            subscription.id,
-            isPrivate: subscription.isPrivate,
+            _sub.id,
+            isPrivate: _sub.isPrivate,
           );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
-          message: 'Resumed "${subscription.name}"',
-          onUndo: () => ref.read(subscriptionControllerProvider).cancelSubscription(
-                subscription.id,
-                isPrivate: subscription.isPrivate,
-              ),
+          message: 'Resumed "${_sub.name}"',
+          onUndo: () =>
+              ref.read(subscriptionControllerProvider).cancelSubscription(
+                    _sub.id,
+                    isPrivate: _sub.isPrivate,
+                  ),
         );
       }
     } else {
       await ref.read(subscriptionControllerProvider).cancelSubscription(
-            subscription.id,
-            isPrivate: subscription.isPrivate,
+            _sub.id,
+            isPrivate: _sub.isPrivate,
           );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
-          message: 'Paused "${subscription.name}"',
-          onUndo: () => ref.read(subscriptionControllerProvider).reactivateSubscription(
-                subscription.id,
-                isPrivate: subscription.isPrivate,
-              ),
+          message: 'Paused "${_sub.name}"',
+          onUndo: () =>
+              ref.read(subscriptionControllerProvider).reactivateSubscription(
+                    _sub.id,
+                    isPrivate: _sub.isPrivate,
+                  ),
         );
       }
     }
   }
 
   Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
-    final colors = context.colors;
+    final cv = context.cv;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.inline),
+          ),
+          side: BorderSide(
+            color: cv.lineHairline,
+            width: CommitmentDetailSheet._kDialogBorderWidth,
+          ),
         ),
         title: Text(
-          'Delete ${subscription.isEmi ? 'EMI' : 'Subscription'}?',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
-          ),
+          'Delete ${_sub.isEmi ? 'EMI' : 'Subscription'}?',
+          style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
         ),
         content: Text(
-          'Are you sure you want to remove "${subscription.name}"? This action cannot be undone.',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 14,
-            color: colors.textMuted,
-          ),
+          'Are you sure you want to remove "${_sub.name}"? This action cannot be undone.',
+          style: CoveType.readout.copyWith(color: cv.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Cancel',
-              style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Delete',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontWeight: FontWeight.w600,
-                color: colors.accentSecondary,
-              ),
+              style: CoveType.rowTitle.copyWith(color: cv.statusAlertText),
             ),
           ),
         ],
@@ -164,48 +233,52 @@ class CommitmentDetailSheet extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       await ref.read(subscriptionControllerProvider).deleteSubscription(
-            subscription.id,
-            isPrivate: subscription.isPrivate,
+            _sub.id,
+            isPrivate: _sub.isPrivate,
           );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
-          message: 'Deleted "${subscription.name}"',
-          onUndo: () => ref.read(subscriptionControllerProvider).createSubscription(
-                name: subscription.name,
-                amount: subscription.amount,
-                currency: subscription.currency,
-                billingCycle: subscription.billingCycle,
-                nextBillingDate: subscription.nextBillingDate,
-                category: subscription.category,
-                isPrivate: subscription.isPrivate,
-                endDate: subscription.endDate,
-                paidBy: subscription.paidBy,
-                financedThrough: subscription.financedThrough,
-                totalInstallments: subscription.totalInstallments,
-                paidInstallments: subscription.paidInstallments,
-              ),
+          message: 'Deleted "${_sub.name}"',
+          onUndo: () =>
+              ref.read(subscriptionControllerProvider).createSubscription(
+                    name: _sub.name,
+                    amount: _sub.amount,
+                    currency: _sub.currency,
+                    billingCycle: _sub.billingCycle,
+                    nextBillingDate: _sub.nextBillingDate,
+                    category: _sub.category,
+                    isPrivate: _sub.isPrivate,
+                    endDate: _sub.endDate,
+                    paidBy: _sub.paidBy,
+                    financedThrough: _sub.financedThrough,
+                    totalInstallments: _sub.totalInstallments,
+                    paidInstallments: _sub.paidInstallments,
+                  ),
         );
       }
     }
   }
 
   Future<void> _handleRenewOrPay(BuildContext context, WidgetRef ref) async {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currency = ref.read(currencyPreferenceProvider);
-    final isEmi = subscription.isEmi;
-    final cycleMonths = getBillingCycleMonths(subscription.billingCycle);
-    final currentNext = subscription.nextBillingDate;
+    final isEmi = _sub.isEmi;
+    final cycleMonths = getBillingCycleMonths(_sub.billingCycle);
+    final currentNext = _sessionNextBillingDate ?? _sub.nextBillingDate;
     final advancedNext = DateTime(
       currentNext.year,
       currentNext.month + cycleMonths,
       currentNext.day,
     );
 
-    final total = subscription.totalInstallments ?? 12;
-    final currentPaid = subscription.paidInstallments ?? 0;
+    final emiProg = _sub.emiProgress;
+    final total = _sub.totalInstallments ?? emiProg?.totalInstallments ?? 12;
+    final currentPaid = _sessionPaidInstallments ??
+        _sub.paidInstallments ??
+        emiProg?.paidInstallments ??
+        0;
     final nextPaid = isEmi ? (currentPaid + 1).clamp(0, total) : null;
     final willComplete = isEmi && nextPaid != null && nextPaid >= total;
 
@@ -216,28 +289,28 @@ class CommitmentDetailSheet extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            backgroundColor: colors.surfaceCard,
+            backgroundColor: cv.surfaceCard,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: colors.borderHairline, width: 1),
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.inline),
+              ),
+              side: BorderSide(
+                color: cv.lineHairline,
+                width: CommitmentDetailSheet._kDialogBorderWidth,
+              ),
             ),
             title: Row(
               children: [
                 Icon(
                   isEmi ? Icons.payments_outlined : Icons.autorenew_rounded,
-                  color: colors.accentPrimary,
-                  size: 22,
+                  color: cv.accentTint,
+                  size: CommitmentDetailSheet._kDialogIconSize,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: CoveSpace.sm),
                 Expanded(
                   child: Text(
                     isEmi ? 'Record Installment Payment' : 'Record Renewal',
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                    ),
+                    style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                   ),
                 ),
               ],
@@ -248,62 +321,81 @@ class CommitmentDetailSheet extends ConsumerWidget {
               children: [
                 Text(
                   isEmi
-                      ? 'Mark installment #$nextPaid of $total paid for "${subscription.name}"?'
-                      : 'Mark "${subscription.name}" as renewed?',
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 14,
-                    color: colors.textPrimary,
-                  ),
+                      ? 'Mark installment #$nextPaid of $total paid for "${_sub.name}"?'
+                      : 'Mark "${_sub.name}" as renewed?',
+                  style: CoveType.readout.copyWith(color: cv.textPrimary),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: CoveSpace.md),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(CoveSpace.md),
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.borderHairline),
+                    color: cv.surfaceRow,
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(CoveRadius.card),
+                    ),
+                    border: Border.all(
+                      color: cv.lineHairline,
+                      width: CommitmentDetailSheet._kDialogBorderWidth,
+                    ),
                   ),
                   child: Column(
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Amount', style: typography.caption.copyWith(color: colors.textMuted)),
                           Text(
-                            '${currency.symbol}${formatCoveAmount(subscription.amount)}',
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.accentTint,
+                            'Amount',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${currency.symbol}${formatCoveAmount(_sub.amount)}',
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.accentTint,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Next Due Date', style: typography.caption.copyWith(color: colors.textMuted)),
                           Text(
-                            willComplete ? 'Final installment' : DateFormat('MMM d, y').format(advancedNext),
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
+                            'Next Due Date',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            willComplete
+                                ? 'Final installment'
+                                : DateFormat('MMM d, y').format(advancedNext),
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
                             ),
                           ),
                         ],
                       ),
                       if (isEmi) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: CoveSpace.sm),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Progress', style: typography.caption.copyWith(color: colors.textMuted)),
                             Text(
-                              willComplete ? '$total/$total (Complete!)' : '$nextPaid/$total paid',
-                              style: typography.bodyMedium.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: willComplete ? colors.accentPrimary : colors.textPrimary,
+                              'Progress',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              willComplete
+                                  ? '$total/$total (Complete!)'
+                                  : '$nextPaid/$total paid',
+                              style: CoveType.rowTitle.copyWith(
+                                color: willComplete
+                                    ? cv.accentTint
+                                    : cv.textPrimary,
                               ),
                             ),
                           ],
@@ -312,36 +404,27 @@ class CommitmentDetailSheet extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                InkWell(
+                const SizedBox(height: CoveSpace.md),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => setDialogState(() => logExpense = !logExpense),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Checkbox(
-                            value: logExpense,
-                            activeColor: colors.accentPrimary,
-                            checkColor: const Color(0xFF0B1F1E),
-                            onChanged: (val) => setDialogState(() => logExpense = val ?? true),
+                  child: Row(
+                    children: [
+                      CoveCheckbox(
+                        value: logExpense,
+                        onChanged: (val) =>
+                            setDialogState(() => logExpense = val),
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Expanded(
+                        child: Text(
+                          'Log to household Expenses',
+                          style: CoveType.readout.copyWith(
+                            color: cv.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Log to household Expenses',
-                            style: typography.bodyRegular.copyWith(
-                              fontSize: 13,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -351,22 +434,23 @@ class CommitmentDetailSheet extends ConsumerWidget {
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+                  style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
                 ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accentPrimary,
-                  foregroundColor: const Color(0xFF0B1F1E),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                  backgroundColor: cv.accentFill,
+                  foregroundColor: cv.textOnAccent,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(CoveRadius.pill),
+                    ),
+                  ),
                 ),
                 child: Text(
                   isEmi ? 'Confirm Payment' : 'Confirm Renewal',
-                  style: const TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: CoveType.rowTitle.copyWith(color: cv.textOnAccent),
                 ),
               ),
             ],
@@ -377,36 +461,51 @@ class CommitmentDetailSheet extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       await ref.read(subscriptionControllerProvider).renewOrPaySubscription(
-            subscription.id,
-            isPrivate: subscription.isPrivate,
+            _sub.id,
+            isPrivate: _sub.isPrivate,
             logExpense: logExpense,
           );
+      if (mounted) {
+        setState(() {
+          _markedPaidInSession = true;
+          if (isEmi && nextPaid != null) {
+            _sessionPaidInstallments = nextPaid;
+          }
+          _sessionNextBillingDate = advancedNext;
+        });
+      }
       if (context.mounted) {
-        Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
           message: isEmi
               ? (willComplete
-                  ? 'Completed all installments for "${subscription.name}"!'
-                  : 'Recorded installment #$nextPaid for "${subscription.name}"')
-              : 'Renewed "${subscription.name}" for another cycle',
+                  ? 'Completed all installments for "${_sub.name}"!'
+                  : 'Recorded installment #$nextPaid for "${_sub.name}"')
+              : 'Renewed "${_sub.name}" for another cycle',
           icon: Icons.check_circle_outline_rounded,
           onUndo: () async {
             await ref.read(subscriptionControllerProvider).updateSubscription(
-                  id: subscription.id,
-                  name: subscription.name,
-                  amount: subscription.amount,
-                  currency: subscription.currency,
-                  billingCycle: subscription.billingCycle,
-                  nextBillingDate: subscription.nextBillingDate,
-                  category: subscription.category,
-                  isPrivate: subscription.isPrivate,
-                  endDate: subscription.endDate,
-                  paidBy: subscription.paidBy,
-                  financedThrough: subscription.financedThrough,
-                  totalInstallments: subscription.totalInstallments,
-                  paidInstallments: subscription.paidInstallments,
+                  id: _sub.id,
+                  name: _sub.name,
+                  amount: _sub.amount,
+                  currency: _sub.currency,
+                  billingCycle: _sub.billingCycle,
+                  nextBillingDate: _sub.nextBillingDate,
+                  category: _sub.category,
+                  isPrivate: _sub.isPrivate,
+                  endDate: _sub.endDate,
+                  paidBy: _sub.paidBy,
+                  financedThrough: _sub.financedThrough,
+                  totalInstallments: _sub.totalInstallments,
+                  paidInstallments: _sub.paidInstallments,
                 );
+            if (mounted) {
+              setState(() {
+                _markedPaidInSession = false;
+                _sessionPaidInstallments = null;
+                _sessionNextBillingDate = null;
+              });
+            }
           },
         );
       }
@@ -414,14 +513,17 @@ class CommitmentDetailSheet extends ConsumerWidget {
   }
 
   Future<void> _handleForecloseEmi(BuildContext context, WidgetRef ref) async {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currency = ref.read(currencyPreferenceProvider);
 
-    final total = subscription.totalInstallments ?? 12;
-    final currentPaid = subscription.paidInstallments ?? 0;
+    final emiProg = _sub.emiProgress;
+    final total = _sub.totalInstallments ?? emiProg?.totalInstallments ?? 12;
+    final currentPaid = _sessionPaidInstallments ??
+        _sub.paidInstallments ??
+        emiProg?.paidInstallments ??
+        0;
     final remainingInstallments = (total - currentPaid).clamp(0, total);
-    final outstandingAmount = remainingInstallments * subscription.amount;
+    final outstandingAmount = remainingInstallments * _sub.amount;
 
     bool logExpense = false;
 
@@ -430,35 +532,28 @@ class CommitmentDetailSheet extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            backgroundColor: colors.surfaceCard,
+            backgroundColor: cv.surfaceCard,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: colors.borderHairline, width: 1),
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.inline),
+              ),
+              side: BorderSide(
+                color: cv.lineHairline,
+                width: CommitmentDetailSheet._kDialogBorderWidth,
+              ),
             ),
             title: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: colors.accentPrimary.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.task_alt_rounded,
-                    color: colors.accentPrimary,
-                    size: 20,
-                  ),
+                Icon(
+                  Icons.task_alt_rounded,
+                  color: cv.accentTint,
+                  size: CommitmentDetailSheet._kDialogIconSize,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: CoveSpace.sm),
                 Expanded(
                   child: Text(
                     'Foreclose EMI',
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
-                    ),
+                    style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                   ),
                 ),
               ],
@@ -468,99 +563,120 @@ class CommitmentDetailSheet extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Are you sure you want to foreclose "${subscription.name}"? This will settle all remaining installments and close this loan.',
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 14,
-                    color: colors.textMuted,
-                    height: 1.4,
-                  ),
+                  'Are you sure you want to foreclose "${_sub.name}"? This will settle all remaining installments and close this loan.',
+                  style: CoveType.readout.copyWith(color: cv.textSecondary),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(CoveSpace.md),
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colors.borderHairline),
+                    color: cv.surfaceRow,
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(CoveRadius.card),
+                    ),
+                    border: Border.all(
+                      color: cv.lineHairline,
+                      width: CommitmentDetailSheet._kDialogBorderWidth,
+                    ),
                   ),
                   child: Column(
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Loan Name', style: typography.caption.copyWith(color: colors.textMuted)),
                           Text(
-                            subscription.name,
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
+                            'Loan Name',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              _sub.name,
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                      if (subscription.financedThrough != null &&
-                          subscription.financedThrough!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                      if (_sub.financedThrough != null &&
+                          _sub.financedThrough!.trim().isNotEmpty) ...[
+                        const SizedBox(height: CoveSpace.sm),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Financed Via', style: typography.caption.copyWith(color: colors.textMuted)),
                             Text(
-                              subscription.financedThrough!.trim(),
-                              style: typography.bodyMedium.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colors.textPrimary,
+                              'Financed Via',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              _sub.financedThrough!.trim(),
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.textPrimary,
                               ),
                             ),
                           ],
                         ),
                       ],
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Monthly EMI', style: typography.caption.copyWith(color: colors.textMuted)),
                           Text(
-                            '${currency.symbol}${formatCoveAmount(subscription.amount)}/mo',
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
+                            'Monthly EMI',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            '${currency.symbol}${formatCoveAmount(_sub.amount)}/mo',
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Tenure Status', style: typography.caption.copyWith(color: colors.textMuted)),
+                          Text(
+                            'Tenure Status',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
                           Text(
                             '$currentPaid of $total paid ($remainingInstallments remaining)',
-                            style: typography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
                             ),
                           ),
                         ],
                       ),
-                      Divider(height: 18, thickness: 1, color: colors.borderHairline),
+                      const SizedBox(height: CoveSpace.sm),
+                      Divider(
+                        height: CoveSpace.md,
+                        thickness: CommitmentDetailSheet._kDialogBorderWidth,
+                        color: cv.lineHairline,
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Payoff Outstanding',
-                            style: typography.caption.copyWith(
-                              color: colors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
                             ),
                           ),
                           Text(
                             '${currency.symbol}${formatCoveAmount(outstandingAmount)}',
-                            style: typography.bodyMedium.copyWith(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: colors.accentTint,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.accentTint,
                             ),
                           ),
                         ],
@@ -568,40 +684,27 @@ class CommitmentDetailSheet extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                InkWell(
+                const SizedBox(height: CoveSpace.md),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => setDialogState(() => logExpense = !logExpense),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: Checkbox(
-                            value: logExpense,
-                            activeColor: colors.accentPrimary,
-                            checkColor: colors.surfaceCard,
-                            side: BorderSide(color: colors.borderHairline, width: 1.5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            onChanged: (val) => setDialogState(() => logExpense = val ?? false),
+                  child: Row(
+                    children: [
+                      CoveCheckbox(
+                        value: logExpense,
+                        onChanged: (val) =>
+                            setDialogState(() => logExpense = val),
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Expanded(
+                        child: Text(
+                          'Log payoff of ${currency.symbol}${formatCoveAmount(outstandingAmount)} to Expenses',
+                          style: CoveType.readout.copyWith(
+                            color: cv.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Log payoff of ${currency.symbol}${formatCoveAmount(outstandingAmount)} to Expenses',
-                            style: TextStyle(
-                              fontFamily: 'GeneralSans',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -611,21 +714,14 @@ class CommitmentDetailSheet extends ConsumerWidget {
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    color: colors.textMuted,
-                  ),
+                  style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(
                   'Foreclose EMI',
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontWeight: FontWeight.w700,
-                    color: colors.accentPrimary,
-                  ),
+                  style: CoveType.rowTitle.copyWith(color: cv.accentText),
                 ),
               ),
             ],
@@ -636,31 +732,31 @@ class CommitmentDetailSheet extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       await ref.read(subscriptionControllerProvider).forecloseEmi(
-            subscription.id,
-            isPrivate: subscription.isPrivate,
+            _sub.id,
+            isPrivate: _sub.isPrivate,
             logExpense: logExpense,
           );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
-          message: 'Foreclosed "${subscription.name}" · Loan closed',
+          message: 'Foreclosed "${_sub.name}" · Loan closed',
           icon: Icons.task_alt_rounded,
           onUndo: () async {
             await ref.read(subscriptionControllerProvider).updateSubscription(
-                  id: subscription.id,
-                  name: subscription.name,
-                  amount: subscription.amount,
-                  currency: subscription.currency,
-                  billingCycle: subscription.billingCycle,
-                  nextBillingDate: subscription.nextBillingDate,
-                  category: subscription.category,
-                  isPrivate: subscription.isPrivate,
-                  endDate: subscription.endDate,
-                  paidBy: subscription.paidBy,
-                  financedThrough: subscription.financedThrough,
-                  totalInstallments: subscription.totalInstallments,
-                  paidInstallments: subscription.paidInstallments,
+                  id: _sub.id,
+                  name: _sub.name,
+                  amount: _sub.amount,
+                  currency: _sub.currency,
+                  billingCycle: _sub.billingCycle,
+                  nextBillingDate: _sub.nextBillingDate,
+                  category: _sub.category,
+                  isPrivate: _sub.isPrivate,
+                  endDate: _sub.endDate,
+                  paidBy: _sub.paidBy,
+                  financedThrough: _sub.financedThrough,
+                  totalInstallments: _sub.totalInstallments,
+                  paidInstallments: _sub.paidInstallments,
                 );
           },
         );
@@ -669,555 +765,142 @@ class CommitmentDetailSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+  Widget build(BuildContext context) {
     final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
     final partnerProfile = ref.watch(partnerProfileProvider);
-    final outbox = ref.watch(activeHomeOutboxProvider).value ?? [];
-    final hasPartner = ref.watch(activeHomeHasPartnerProvider);
-
-    final isEmi = subscription.isEmi;
-    final isPaused = !subscription.isActive;
-    final isDone = isEmi && subscription.isEmiFinished;
-    final emiProgress = subscription.emiProgress;
-
-    final tickStatus = resolveCoveSyncStatus(
-      entityId: subscription.id,
-      outbox: outbox,
-      isPrivate: subscription.isPrivate,
-      hasPartner: hasPartner,
-    );
-
     final userProfile = ref.watch(userProfileProvider);
-    final currentUserId = currentUser?.id.toLowerCase();
-    final partnerUserId = partnerProfile.userId?.toLowerCase();
-    final myDisplayName = userProfile.displayName.trim().toLowerCase();
-    final partnerDisplayName = partnerProfile.displayName.trim();
-    final pDisplayName = partnerDisplayName.isNotEmpty ? partnerDisplayName : 'Partner';
 
-    // Paid by resolution
-    String paidByLabel = 'You';
-    final rawPaidBy = subscription.paidBy?.trim();
-    final pBy = rawPaidBy?.toLowerCase();
+    final isEmi = _sub.isEmi;
+    final isPaused = !_sub.isActive;
+    final emiProgress = _sub.emiProgress;
+    final totalInstallments =
+        isEmi ? (_sub.totalInstallments ?? emiProgress?.totalInstallments ?? 12) : null;
+    final effectivePaidInstallments = isEmi
+        ? (_sessionPaidInstallments ??
+                _sub.paidInstallments ??
+                emiProgress?.paidInstallments ??
+                0)
+            .clamp(0, totalInstallments!)
+        : 0;
+    final isDone = isEmi &&
+        (effectivePaidInstallments >= totalInstallments! || _sub.isEmiFinished);
 
-    if (pBy == 'split' || pBy == 'split_50_50' || pBy == 'split (50/50)' || pBy == '50/50') {
-      paidByLabel = 'Split (50/50)';
-    } else if (pBy != null && pBy.isNotEmpty) {
-      if (pBy == 'me' ||
-          pBy == 'you' ||
-          pBy == 'user_alex' ||
-          (currentUserId != null && currentUserId.isNotEmpty && pBy == currentUserId) ||
-          (myDisplayName.isNotEmpty && myDisplayName != 'you' && pBy == myDisplayName)) {
-        paidByLabel = 'You';
-      } else if (pBy == 'partner' ||
-          pBy == 'partner_user' ||
-          pBy == 'partner-user-sarah' ||
-          (partnerUserId != null && partnerUserId.isNotEmpty && pBy == partnerUserId) ||
-          (pDisplayName.isNotEmpty && pBy == pDisplayName.toLowerCase())) {
-        paidByLabel = pDisplayName;
-      } else if (pBy.contains('-') || (pBy.length >= 16 && !pBy.contains(' '))) {
-        // Any long UUID or ID token in a two-person home that doesn't match current user belongs to partner!
-        if (currentUserId != null && pBy == currentUserId) {
-          paidByLabel = 'You';
-        } else {
-          paidByLabel = pDisplayName;
-        }
-      } else {
-        paidByLabel = rawPaidBy!;
-      }
-    } else {
-      final creator = subscription.createdBy?.trim().toLowerCase();
-      if (creator != null && creator.isNotEmpty) {
-        if (currentUserId != null && creator == currentUserId) {
-          paidByLabel = 'You';
-        } else if (partnerUserId != null && creator == partnerUserId) {
-          paidByLabel = pDisplayName;
-        } else if (creator.contains('-') || creator.length >= 16) {
-          paidByLabel = pDisplayName;
-        }
-      }
-    }
+    final effectiveNextDate = _sessionNextBillingDate ?? _sub.nextBillingDate;
+    final contextCadence = _formatContextCadence(_sub.billingCycle);
+    final cadencePhrase = isEmi ? 'a month' : _formatCadencePhrase(_sub.billingCycle);
+    final formattedAmount =
+        '${currency.symbol}${formatCoveAmount(_sub.amount)}';
 
-    // Currency & amount formatting
-    final formattedAmount = '${currency.symbol}${formatCoveAmount(subscription.amount)}';
-    final cycleSuffix = isEmi ? ' / month' : ' ${formatBillingCycleSuffix(subscription.billingCycle)}';
-
-    // Dates formatting
-    final now = clock.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final nextDate = DateTime(
-      subscription.nextBillingDate.year,
-      subscription.nextBillingDate.month,
-      subscription.nextBillingDate.day,
+    final paidByLabel = _resolvePaidByLabel(
+      currentUserId: currentUser?.id.toLowerCase(),
+      partnerUserId: partnerProfile.userId?.toLowerCase(),
+      myDisplayName: userProfile.displayName.trim().toLowerCase(),
+      partnerDisplayName: partnerProfile.displayName.trim(),
     );
-    final daysUntilNext = nextDate.difference(today).inDays;
-    final nextFormatted = DateFormat('EEEE, MMMM d, y').format(subscription.nextBillingDate);
 
-    String timingCaption;
-    if (isPaused) {
-      timingCaption = 'Commitment is paused';
-    } else if (isDone) {
-      timingCaption = 'All installments completed';
-    } else if (daysUntilNext == 0) {
-      timingCaption = 'Due today · $nextFormatted';
-    } else if (daysUntilNext == 1) {
-      timingCaption = 'Due tomorrow · $nextFormatted';
-    } else if (daysUntilNext > 1 && daysUntilNext <= 30) {
-      timingCaption = 'Due in $daysUntilNext days · $nextFormatted';
+    final voucherState = (_markedPaidInSession || isDone)
+        ? CoveVoucherState.paid
+        : CoveVoucherState.due;
+
+    // Meaning panel per design/specs/13-detail-sheet.md:
+    // - Commitment: "Renews {date}" / "{amount} a month/a year · via {financedThrough}"
+    // - EMI: "{paid} of {total} paid" / "Ends {date} · {remaining} left"
+    final CoveDetailMeaningPanel meaningPanel;
+    if (isEmi && totalInstallments != null) {
+      final remainingCount =
+          (totalInstallments - effectivePaidInstallments).clamp(0, totalInstallments);
+      final remainingAmount = remainingCount * _sub.amount;
+      final formattedRemaining =
+          '${currency.symbol}${formatCoveAmount(remainingAmount)}';
+      final cycleMonths = getBillingCycleMonths(_sub.billingCycle);
+      final resolvedEndDate = _sub.endDate ??
+          DateTime(
+            effectiveNextDate.year,
+            effectiveNextDate.month + ((remainingCount - 1).clamp(0, 999) * cycleMonths),
+            effectiveNextDate.day,
+          );
+      final endsDateStr = DateFormat('MMM y').format(resolvedEndDate);
+      final viaSuffix = (_sub.financedThrough != null &&
+              _sub.financedThrough!.trim().isNotEmpty)
+          ? ' · via ${_sub.financedThrough!.trim()}'
+          : '';
+      meaningPanel = CoveDetailMeaningPanel.icon(
+        icon: Icons.donut_large_outlined,
+        title: '$effectivePaidInstallments of $totalInstallments paid',
+        subtitle: 'Ends $endsDateStr · $formattedRemaining left$viaSuffix',
+      );
     } else {
-      timingCaption = 'Next due on $nextFormatted';
+      final renewsDateStr = DateFormat('d MMM y').format(effectiveNextDate);
+      final hasFinancedThrough = _sub.financedThrough != null &&
+          _sub.financedThrough!.trim().isNotEmpty;
+      final viaPart = hasFinancedThrough
+          ? 'via ${_sub.financedThrough!.trim()}'
+          : 'Paid by $paidByLabel';
+      meaningPanel = CoveDetailMeaningPanel.icon(
+        icon: Icons.autorenew_rounded,
+        title: isPaused ? 'Paused · Renews $renewsDateStr' : 'Renews $renewsDateStr',
+        subtitle: '$formattedAmount $cadencePhrase · $viaPart',
+      );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: colors.borderHairline, width: 1)),
-      ),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 32),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Center drag handle
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.borderHairline.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Header: Badges and Close button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      // Sub / EMI Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isEmi
-                              ? colors.accentPrimary.withValues(alpha: 0.15)
-                              : colors.surfaceRow,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isEmi
-                                ? colors.accentPrimary.withValues(alpha: 0.4)
-                                : colors.borderHairline,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          isEmi ? 'EMI FINANCING' : 'SUBSCRIPTION',
-                          style: typography.caption.copyWith(
-                            color: isEmi ? colors.accentPrimary : colors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 11,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Category Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: colors.surfaceRow,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: colors.borderHairline, width: 1),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _getCategoryIcon(subscription.category),
-                              size: 13,
-                              color: colors.textMuted,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              subscription.category ?? 'General',
-                              style: typography.caption.copyWith(
-                                color: colors.textMuted,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isEmi && !isDone) ...[
-                        IconButton(
-                          tooltip: 'Preclose / Foreclose EMI',
-                          icon: Icon(
-                            Icons.task_alt_rounded,
-                            size: 19,
-                            color: colors.accentPrimary,
-                          ),
-                          splashRadius: 18,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          onPressed: () => _handleForecloseEmi(context, ref),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      IconButton(
-                        icon: Icon(Icons.close, size: 18, color: colors.textMuted),
-                        splashRadius: 18,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Amount and Suffix
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    formattedAmount,
-                    style: typography.displayLarge.copyWith(
-                      fontSize: 36,
-                      color: colors.accentTint,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    cycleSuffix,
-                    style: typography.bodyMedium.copyWith(
-                      color: colors.textMuted,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Status indicator pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isPaused
-                          ? colors.surfaceRow
-                          : (isDone
-                              ? colors.accentPrimary.withValues(alpha: 0.12)
-                              : colors.accentPrimary.withValues(alpha: 0.12)),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: isPaused
-                            ? colors.borderHairline
-                            : colors.accentPrimary.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      isPaused ? 'Paused' : (isDone ? 'Completed' : 'Active'),
-                      style: typography.caption.copyWith(
-                        color: isPaused ? colors.textMuted : colors.accentPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-
-              // Title
-              Text(
-                subscription.name,
-                style: typography.headline.copyWith(
-                  fontSize: 22,
-                  decoration: isPaused ? TextDecoration.lineThrough : null,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              // Timing subtitle
-              Row(
-                children: [
-                  Icon(
-                    Icons.event_outlined,
-                    size: 14,
-                    color: colors.accentPrimary,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      timingCaption,
-                      style: typography.caption.copyWith(
-                        color: colors.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // EMI Progress Card (if EMI)
-              if (isEmi && emiProgress != null) ...[
-                CoveCard(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Installments Progress',
-                            style: typography.bodyRegular.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: colors.accentPrimary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              emiProgress.caption,
-                              style: typography.caption.copyWith(
-                                color: colors.accentPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: (emiProgress.totalInstallments > 0)
-                              ? (emiProgress.paidInstallments / emiProgress.totalInstallments).clamp(0.0, 1.0)
-                              : 0.0,
-                          minHeight: 8,
-                          backgroundColor: colors.surfaceRow,
-                          valueColor: AlwaysStoppedAnimation<Color>(colors.accentPrimary),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${(emiProgress.totalInstallments - emiProgress.paidInstallments).clamp(0, emiProgress.totalInstallments)} remaining',
-                            style: typography.caption.copyWith(
-                              fontSize: 12,
-                              color: colors.textMuted,
-                            ),
-                          ),
-                          if (subscription.endDate != null)
-                            Text(
-                              'Ends ${DateFormat('MMM y').format(subscription.endDate!)}',
-                              style: typography.caption.copyWith(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textPrimary,
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (emiProgress.totalInstallments > 0) ...[
-                        const SizedBox(height: 10),
-                        Divider(color: colors.borderHairline, height: 1),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total EMI Commitment',
-                              style: typography.caption.copyWith(
-                                fontSize: 12,
-                                color: colors.textMuted,
-                              ),
-                            ),
-                            Text(
-                              '${currency.symbol}${formatCoveAmount(subscription.amount * emiProgress.totalInstallments)}',
-                              style: typography.bodyRegular.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colors.accentTint,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Primary Action: Mark as Renewed / Mark Installment as Paid
-              if (!isDone && !isPaused) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _handleRenewOrPay(context, ref),
-                    icon: Icon(
-                      isEmi ? Icons.payments_outlined : Icons.autorenew_rounded,
-                      size: 18,
-                    ),
-                    label: Text(
-                      isEmi ? 'Mark Installment as Paid' : 'Mark as Renewed',
-                      style: const TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accentPrimary,
-                      foregroundColor: const Color(0xFF0B1F1E),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Details Grouped Card
-              CoveGroupedCard(
-                children: [
-                  CoveGroupedRow(
-                    leading: Icon(Icons.calendar_today_outlined, size: 18, color: colors.accentPrimary),
-                    title: Text('Billing Cycle', style: typography.bodyMedium),
-                    trailing: Text(
-                      formatBillingCycleLabel(subscription.billingCycle),
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  CoveGroupedRow(
-                    leading: Icon(Icons.account_circle_outlined, size: 18, color: colors.accentPrimary),
-                    title: Text('Paid By', style: typography.bodyMedium),
-                    trailing: Text(
-                      paidByLabel,
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  if (subscription.financedThrough != null && subscription.financedThrough!.trim().isNotEmpty)
-                    CoveGroupedRow(
-                      leading: Icon(Icons.credit_card_outlined, size: 18, color: colors.accentPrimary),
-                      title: Text('Financed Through', style: typography.bodyMedium),
-                      trailing: Text(
-                        subscription.financedThrough!,
-                        style: typography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  if (subscription.endDate != null)
-                    CoveGroupedRow(
-                      leading: Icon(Icons.event_available_outlined, size: 18, color: colors.accentPrimary),
-                      title: Text('Last Due / Ends On', style: typography.bodyMedium),
-                      trailing: Text(
-                        DateFormat('MMM d, y').format(subscription.endDate!),
-                        style: typography.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  CoveGroupedRow(
-                    leading: Icon(Icons.lock_outline, size: 18, color: colors.textSubtle),
-                    title: Text('Sync & Privacy', style: typography.bodyMedium),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          subscription.isPrivate
-                              ? 'Private (on-device only)'
-                              : (tickStatus == CoveSyncStatus.syncedToPartner
-                                  ? 'Synced with ${partnerProfile.displayName}'
-                                  : 'Saved Locally'),
-                          style: typography.caption.copyWith(color: colors.textMuted),
-                        ),
-                        const SizedBox(width: 6),
-                        CoveSyncTick(status: tickStatus, size: 13),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Action Buttons: Edit, Pause/Resume, Delete
-              Row(
-                children: [
-                  Expanded(
-                    child: CovePillButton(
-                      label: 'Edit Commitment',
-                      icon: const Icon(Icons.edit_outlined, size: 15),
-                      onPressed: () => _handleEdit(context),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  OutlinedButton(
-                    onPressed: () => _handleTogglePause(context, ref),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      side: BorderSide(color: colors.borderHairline),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    ),
-                    child: Icon(
-                      isPaused ? Icons.play_arrow_outlined : Icons.pause_outlined,
-                      size: 18,
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  OutlinedButton(
-                    onPressed: () => _handleDelete(context, ref),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      side: BorderSide(color: colors.accentSecondary.withValues(alpha: 0.4)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    ),
-                    child: Icon(
-                      Icons.delete_outline,
-                      size: 18,
-                      color: colors.accentSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    final menuItems = <CoveDetailMenuItem>[
+      if (isEmi && !isDone)
+        CoveDetailMenuItem(
+          label: 'Foreclose this EMI — settle remaining installments',
+          icon: Icons.task_alt_rounded,
+          onSelected: () => _handleForecloseEmi(context, ref),
         ),
+      CoveDetailMenuItem(
+        label: isPaused
+            ? (isEmi ? 'Resume this EMI' : 'Resume this commitment')
+            : (isEmi ? 'Pause this EMI' : 'Pause this commitment'),
+        icon: isPaused
+            ? Icons.play_arrow_outlined
+            : Icons.pause_circle_outline_rounded,
+        onSelected: () => _handleTogglePause(context, ref),
       ),
+      CoveDetailMenuItem(
+        label: isEmi ? 'Delete this EMI' : 'Delete this commitment',
+        icon: Icons.delete_outline_rounded,
+        isDestructive: true,
+        onSelected: () => _handleDelete(context, ref),
+      ),
+    ];
+
+    return CoveDetailSheet(
+      kindGlyph: const Icon(Icons.event_repeat_rounded),
+      kindLabel: 'COMMITMENT',
+      contextLabel: contextCadence,
+      onClose: () => Navigator.of(context).pop(),
+      slip: CoveVoucher(
+        key: ValueKey('commitment_voucher_${_sub.id}'),
+        variant: CoveSlipVariant.paper,
+        title: _sub.name,
+        amount: formattedAmount,
+        dueDay: DateFormat('d').format(effectiveNextDate),
+        dueMonth: DateFormat('MMM').format(effectiveNextDate).toUpperCase(),
+        dueMonthSemantic: DateFormat('MMMM').format(effectiveNextDate),
+        capsLabel: 'COVE · $contextCadence',
+        cadenceSuffix: cadencePhrase,
+        state: voucherState,
+        totalInstallments: totalInstallments,
+        paidInstallments: effectivePaidInstallments,
+      ),
+      meaningPanel: meaningPanel,
+      editVerb: CoveDetailVerb(
+        label: 'Edit',
+        icon: Icons.edit_outlined,
+        onPressed: () => _handleEdit(context),
+      ),
+      secondaryVerb: (!isDone && !isPaused)
+          ? CoveDetailVerb(
+              label: 'Mark paid',
+              icon: Icons.check_circle_outline_rounded,
+              onPressed: () => _handleRenewOrPay(context, ref),
+            )
+          : null,
+      menuItems: menuItems,
     );
   }
 }

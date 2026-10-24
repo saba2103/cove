@@ -302,7 +302,7 @@ void main() {
       expect(find.text('EMIs'), findsOneWidget);
     });
 
-    testWidgets('CommitmentDetailSheet shows foreclosure button beside close only for active EMIs', (tester) async {
+    testWidgets('CommitmentDetailSheet shows foreclosure item in overflow menu only for active EMIs', (tester) async {
       final activeEmi = createMockEmi(
         id: 'emi_1',
         name: 'MacBook Pro',
@@ -333,12 +333,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Foreclosure button should be present beside close
-      final forecloseBtn = find.byTooltip('Preclose / Foreclose EMI');
-      expect(forecloseBtn, findsOneWidget);
+      // Open ⋯ overflow menu and select foreclosure item
+      await tester.tap(
+        find.byKey(const ValueKey('cove_detail_sheet_menu_button')),
+      );
+      await tester.pumpAndSettle();
+      final forecloseItem = find.text(
+        'Foreclose this EMI — settle remaining installments',
+      );
+      expect(forecloseItem, findsOneWidget);
 
-      // Tap foreclosure button
-      await tester.tap(forecloseBtn);
+      await tester.tap(forecloseItem);
       await tester.pumpAndSettle();
 
       // Confirmation dialog should be open
@@ -351,7 +356,7 @@ void main() {
       expect(find.text('Cancel'), findsOneWidget);
     });
 
-    testWidgets('CommitmentDetailSheet does not show foreclosure button for regular subscriptions or finished EMIs', (tester) async {
+    testWidgets('CommitmentDetailSheet does not show foreclosure item for regular subscriptions or finished EMIs', (tester) async {
       final regularSub = LocalSubscription(
         id: 'sub_1',
         homeId: 'home_1',
@@ -392,8 +397,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Should NOT have foreclosure button
-      expect(find.byTooltip('Preclose / Foreclose EMI'), findsNothing);
+      await tester.tap(
+        find.byKey(const ValueKey('cove_detail_sheet_menu_button')),
+      );
+      await tester.pumpAndSettle();
+
+      // Should NOT have foreclosure item
+      expect(
+        find.text('Foreclose this EMI — settle remaining installments'),
+        findsNothing,
+      );
+      expect(find.text('Delete this commitment'), findsOneWidget);
     });
   });
 }

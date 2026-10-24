@@ -28,6 +28,7 @@ import 'package:cove/features/reminders/reminder_models.dart';
 import 'package:cove/features/routines/routine_controller.dart';
 import 'package:cove/features/routines/routine_models.dart';
 import 'package:cove/features/routines/routine_screen.dart';
+import 'package:cove/features/subscriptions/commitment_detail_sheet.dart';
 import 'package:cove/features/subscriptions/commitments_helicopter_screen.dart';
 import 'package:cove/features/subscriptions/emi_tracker_screen.dart';
 import 'package:cove/features/subscriptions/subscriptions_screen.dart';
@@ -845,6 +846,42 @@ void main() {
               initialCategoryName: 'Groceries',
               allExpenses: _kSeedExpenses,
               totalMonthSpend: totalMonthSpend,
+            ),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('commitment_detail_sheet', (tester) async {
+      await goldenMatrix(
+        tester,
+        'commitment_detail_sheet',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CommitmentDetailSheet(
+              subscription: _kSeedSubscriptions.first,
+            ),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('commitment_detail_sheet_emi', (tester) async {
+      await goldenMatrix(
+        tester,
+        'commitment_detail_sheet_emi',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CommitmentDetailSheet(
+              subscription: _kSeedSubscriptions[1],
             ),
           ),
         ),
