@@ -156,6 +156,12 @@ class CoveSlipScope extends InheritedWidget {
 /// (e.g., ticket perforation notches or torn receipt edges).
 typedef CoveSlipPathBuilder = Path Function(Size size);
 
+/// Shared interface implemented by every Cove slip widget, exposing its
+/// [variant] (`paper` vs `ink`).
+abstract interface class CoveSlipObject implements Widget {
+  CoveSlipVariant get variant;
+}
+
 /// Shared frame for all five Cove paper objects (`design/specs/10-paper-objects.md`).
 ///
 /// Built to the contract in `design/specs/10-paper-objects.md`:
@@ -169,7 +175,8 @@ typedef CoveSlipPathBuilder = Path Function(Size size);
 ///   paper only; none on ink.
 /// - Semantics: wraps the slip in a single [Semantics] node when
 ///   [semanticLabel] is provided so assistive tech reads the full state cleanly.
-class CoveSlip extends StatelessWidget {
+class CoveSlip extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final Widget child;
   final EdgeInsetsGeometry padding;

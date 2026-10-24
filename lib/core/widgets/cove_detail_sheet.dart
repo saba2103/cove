@@ -4,13 +4,7 @@ import 'package:flutter/rendering.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_round_button.dart';
 import 'cove_sheet.dart';
-import 'slips/cove_dial.dart';
-import 'slips/cove_habit_card.dart';
-import 'slips/cove_note.dart';
-import 'slips/cove_receipt.dart';
 import 'slips/cove_slip.dart';
-import 'slips/cove_ticket.dart';
-import 'slips/cove_voucher.dart';
 
 /// Meaning panel configuration for [CoveDetailSheet] (`design/specs/13-detail-sheet.md`).
 ///
@@ -128,30 +122,8 @@ class CoveDetailSheet extends StatelessWidget {
     this.showGrabHandle = true,
   });
 
-  static bool _isPaperVariant(Widget widget) {
-    if (widget is CoveSlip) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveReceipt) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveTicket) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveNote) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveHabitCard) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveVoucher) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    if (widget is CoveDial) {
-      return widget.variant == CoveSlipVariant.paper;
-    }
-    return true;
-  }
+  static bool _isPaperVariant(Widget widget) =>
+      widget is CoveSlipObject && widget.variant == CoveSlipVariant.paper;
 
   /// Presents a [CoveDetailSheet] modally via [CoveSheet.show].
   static Future<T?> show<T>({

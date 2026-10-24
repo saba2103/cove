@@ -35,7 +35,8 @@ enum CoveCategory {
 ///   [CoveType.capsSlip] beneath.
 /// - Below: recent purchases ([items]) rendered as receipt-style rows.
 /// - Semantics: `"Category, Groceries, ₹12,400 this month, 31% of spending, 14 purchases"`.
-class CoveDial extends StatelessWidget {
+class CoveDial extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String title;
   final CoveCategory? category;

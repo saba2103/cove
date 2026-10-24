@@ -79,7 +79,8 @@ class CoveBarcodeBar {
 /// - Barcode strip: [kBarcodeHeight] (`24dp`) tall, derived deterministically
 ///   from [recordId], followed by [footerDate] in caps.
 /// - Exposes its state as semantics: `"Receipt, Wednesday, total ₹5,631, 3 items"`.
-class CoveReceipt extends StatelessWidget {
+class CoveReceipt extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String recordId;
   final String title;

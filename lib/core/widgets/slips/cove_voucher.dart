@@ -34,7 +34,8 @@ enum CoveVoucherState {
 ///   remaining outlined.
 /// - Semantics (WCAG 4.1.2): reads out the state (`due` / `paid`) and, for an
 ///   EMI, `"12 of 48 paid"`.
-class CoveVoucher extends StatelessWidget {
+class CoveVoucher extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String title;
   final String amount;

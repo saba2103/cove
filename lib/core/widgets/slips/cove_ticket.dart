@@ -21,7 +21,8 @@ import 'cove_slip.dart';
 ///   and bottom edge.
 /// - A [kSpineWidth] (`2dp`) accent spine down the left edge.
 /// - Exposes its complete state as a single semantic label for assistive tech.
-class CoveTicket extends StatelessWidget {
+class CoveTicket extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String title;
   final String date;

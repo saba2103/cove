@@ -33,7 +33,8 @@ class CoveNoteItem {
 ///   beneath in tertiary text. Done items strike through and drop to
 ///   secondary (`palette.secondary`).
 /// - Exposes its state as semantics (WCAG 4.1.2).
-class CoveNote extends StatelessWidget {
+class CoveNote extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String capsLabel;
   final List<CoveNoteItem> items;

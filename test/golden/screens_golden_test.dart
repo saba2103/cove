@@ -12,6 +12,7 @@ import 'package:cove/features/expenses/monthly_budget_controller.dart';
 import 'package:cove/features/habits/habits_screen.dart';
 import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/lists/list_controller.dart';
+import 'package:cove/features/lists/list_item_detail_sheet.dart';
 import 'package:cove/features/lists/lists_screen.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
 import 'package:cove/features/notifications/notification_models.dart';
@@ -781,6 +782,25 @@ void main() {
           body: Align(
             alignment: Alignment.bottomCenter,
             child: ExpenseDetailSheet(expense: _kSeedExpenses.first),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('list_item_detail_sheet', (tester) async {
+      await goldenMatrix(
+        tester,
+        'list_item_detail_sheet',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: ListItemDetailSheet(
+              item: _kSeedListItems.first,
+              listName: _kSeedLists.first.name,
+            ),
           ),
         ),
         overrides: _createGoldenOverrides(),

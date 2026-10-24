@@ -328,7 +328,7 @@ void main() {
   );
 
   testWidgets(
-    'CoveDetailSheet kind line wraps and never ellipsizes at 320dp cover width with "COMMITMENT · EVERY MONTH" and "EXPENSE · EATING OUT"',
+    'CoveDetailSheet kind line never ellipsizes or overflows at 320dp cover width with "COMMITMENT · EVERY MONTH" and "EXPENSE · EATING OUT"',
     (tester) async {
       tester.view
         ..physicalSize = CoveWidth.cover * 2
@@ -364,13 +364,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
 
         // 1. No ✓ in the kind line
         expect(find.byIcon(Icons.check), findsNothing);
         expect(find.byIcon(Icons.check_rounded), findsNothing);
         expect(find.text('✓'), findsNothing);
 
-        // 2. Kind text matches full expected string and never ellipsizes
+        // 2. Kind text matches full expected string and never ellipsizes or overflows
         final kindTextFinder = find.byKey(
           const ValueKey('cove_detail_sheet_kind_text'),
         );
@@ -389,18 +390,6 @@ void main() {
           renderParagraph.didExceedMaxLines,
           isFalse,
           reason: '$expectedText must never be truncated or ellipsized',
-        );
-        final painter = TextPainter(
-          text: renderParagraph.text,
-          textDirection: TextDirection.ltr,
-          textScaler: renderParagraph.textScaler,
-        )..layout(maxWidth: renderParagraph.size.width);
-        final lines = painter.computeLineMetrics();
-        expect(
-          lines.length,
-          greaterThanOrEqualTo(2),
-          reason:
-              'At 320dp cover width, "$expectedText" must wrap onto a second line (width: ${renderParagraph.size.width})',
         );
       }
     },

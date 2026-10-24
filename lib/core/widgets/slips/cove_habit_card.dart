@@ -25,7 +25,8 @@ import 'cove_slip.dart';
 ///   text; the grid is supplementary.
 /// - Exposes its state as semantics:
 ///   `"Habit, Morning walk, done today, 23 days running"`.
-class CoveHabitCard extends StatelessWidget {
+class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
+  @override
   final CoveSlipVariant variant;
   final String title;
   final String cadence;

@@ -45,7 +45,6 @@ lib/features/home/home_switcher_sheet.dart 5
 lib/features/home/join_home_screen.dart 10
 lib/features/home/onboarding_choice_screen.dart 5
 lib/features/lists/create_list_dialog.dart 5
-lib/features/lists/list_item_detail_sheet.dart 11
 lib/features/lists/lists_screen.dart 29
 lib/features/profile/currency_selector_sheet.dart 3
 lib/features/profile/delete_data_dialog.dart 2
