@@ -32,3 +32,4 @@ export 'slips/cove_note.dart';
 export 'slips/cove_receipt.dart';
 export 'slips/cove_slip.dart';
 export 'slips/cove_ticket.dart';
+export 'slips/cove_voucher.dart';

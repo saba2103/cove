@@ -7,6 +7,10 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.10e — `CoveVoucher` Commitment & Punched EMI Slip (`Oct 25, 2026`)**:
+  - *Outcome*: Built [`CoveVoucher`](../lib/core/widgets/slips/cove_voucher.dart) (`CoveVoucherState { due, paid }`) on [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) to [`design/specs/10-paper-objects.md`](../design/specs/10-paper-objects.md), featuring the `1dp` perforated rail `12dp` in from the left edge, `COVE · EVERY MONTH` caps line, title in `CoveType.slipTitle`, amount in `CoveType.slipFigure` with `"a month"` in `CoveType.readout`, `64dp` `1dp` dashed `accent.fill` due circle holding only the day (`CoveType.slipTitle`) and month (`CoveType.capsSlip`) (omitting `"DUE"` per the `11sp` floor), `paid` state with rotated `−8°` outlined `PAID` stamp in `status.good` and faded rule-colour circle, punched EMI variant (`totalInstallments` dots with `paidInstallments` filled in `accent.fill` and remaining outlined), and WCAG 4.1.2 semantics (`"Voucher, AC instalment, ₹3,974, due 22 October, paid"` and `"EMI, 12 of 48 paid"`).
+  - *Under the Hood*:
+    - Added [`test/golden/voucher_golden_test.dart`](../test/golden/voucher_golden_test.dart) and generated 12 goldens (`voucher` and `voucher_paper` across `cover`, `phone`, `wide` and both brightnesses) covering `due`, `paid`, and EMI punched states.
 - **Task 3.10d — `CoveNote` Ruled List Slip & `CoveHabitCard` Streak Slip (`Oct 25, 2026`)**:
   - *Outcome*: Built [`CoveNote`](../lib/core/widgets/slips/cove_note.dart) (`CoveNoteItem`) and [`CoveHabitCard`](../lib/core/widgets/slips/cove_habit_card.dart) on [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) to [`design/specs/10-paper-objects.md`](../design/specs/10-paper-objects.md):
     - `CoveNote`: `4dp` top corners and `CoveRadius.card` (`20dp`) bottom corners, full-width ruled lines every `32dp` in `palette.rule`, `CoveCheckbox` + `CoveType.slipTitle` item titles with `addedBy` in tertiary text, and done items struck through in `palette.secondary`.
