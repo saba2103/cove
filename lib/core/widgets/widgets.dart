@@ -4,6 +4,7 @@ export 'cove_avatar.dart';
 export 'cove_bottom_nav.dart';
 export 'cove_brand_mark.dart';
 export 'cove_card.dart';
+export 'cove_carousel.dart';
 export 'cove_checkbox.dart';
 export 'cove_empty_state.dart';
 export 'cove_error_state.dart';
