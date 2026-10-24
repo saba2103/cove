@@ -40,6 +40,101 @@ extension ExpenseVisibilityExtension on ExpenseVisibility {
   }
 }
 
+/// Shared arithmetic and metadata breakdown for a single [LocalExpense],
+/// used by both [ExpensesScreen] and [ExpenseDetailSheet].
+@immutable
+class ExpenseShareBreakdown {
+  final ExpenseVisibility visibility;
+  final bool isPaidByViewer;
+  final bool isShared;
+  final bool isExactHalf;
+  final double viewerShareRatio;
+  final double viewerShareAmount;
+  final double partnerShareAmount;
+
+  const ExpenseShareBreakdown({
+    required this.visibility,
+    required this.isPaidByViewer,
+    required this.isShared,
+    required this.isExactHalf,
+    required this.viewerShareRatio,
+    required this.viewerShareAmount,
+    required this.partnerShareAmount,
+  });
+}
+
+/// Computes the viewer/partner share arithmetic and visibility for [expense]
+/// from `splitRatio` and `paidBy`.
+ExpenseShareBreakdown computeExpenseShare(
+  LocalExpense expense, {
+  required String? currentUserId,
+}) {
+  final visibility =
+      ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
+  final paidByViewer = (expense.paidBy == currentUserId) ||
+      (currentUserId == null && expense.paidBy == 'user_alex') ||
+      (expense.paidBy == 'me');
+  final isShared = visibility == ExpenseVisibility.shared;
+
+  if (!isShared) {
+    final viewerRatio = paidByViewer ? 1.0 : 0.0;
+    return ExpenseShareBreakdown(
+      visibility: visibility,
+      isPaidByViewer: paidByViewer,
+      isShared: false,
+      isExactHalf: false,
+      viewerShareRatio: viewerRatio,
+      viewerShareAmount: paidByViewer ? expense.amount : 0.0,
+      partnerShareAmount: paidByViewer ? 0.0 : expense.amount,
+    );
+  }
+
+  final ratio = expense.splitRatio.clamp(0.0, 1.0);
+  final isExactHalf = (ratio - 0.5).abs() < 1e-6;
+  final viewerAmount = expense.amount * ratio;
+  final partnerAmount = expense.amount - viewerAmount;
+
+  return ExpenseShareBreakdown(
+    visibility: visibility,
+    isPaidByViewer: paidByViewer,
+    isShared: true,
+    isExactHalf: isExactHalf,
+    viewerShareRatio: ratio,
+    viewerShareAmount: viewerAmount,
+    partnerShareAmount: partnerAmount,
+  );
+}
+
+/// Extracts the clean category name from a raw `category` field
+/// (stripping any ` • {notes}` suffix).
+String cleanExpenseCategoryName(String? rawCategory) {
+  final raw = (rawCategory == null || rawCategory.trim().isEmpty)
+      ? 'Uncategorized'
+      : rawCategory.trim();
+  return raw.contains(' • ') ? raw.split(' • ').first.trim() : raw;
+}
+
+/// Extracts the optional notes suffix from a raw `category` field.
+String? extractExpenseNotes(String? rawCategory) {
+  if (rawCategory == null || !rawCategory.contains(' • ')) return null;
+  final parts = rawCategory.split(' • ');
+  final notes = parts.sublist(1).join(' • ').trim();
+  return notes.isEmpty ? null : notes;
+}
+
+/// Formats an expense's raw `paymentMethod` code (`'upi'`, `'cash'`, `'card'`).
+String? formatExpensePaymentMethod(String? paymentMethod) {
+  if (paymentMethod == null || paymentMethod.trim().isEmpty) return null;
+  switch (paymentMethod.trim().toLowerCase()) {
+    case 'upi':
+      return 'UPI';
+    case 'cash':
+      return 'Cash';
+    default:
+      return 'Card';
+  }
+}
+
 class ExpenseController {
   final Ref ref;
 

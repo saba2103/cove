@@ -11,8 +11,16 @@ import 'package:cove/core/widgets/slips/cove_habit_card.dart';
 import 'package:cove/core/widgets/slips/cove_receipt.dart';
 import 'package:cove/core/widgets/slips/cove_slip.dart';
 import 'package:cove/core/widgets/slips/cove_voucher.dart';
+import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/expenses/expense_controller.dart';
+import 'package:cove/features/expenses/expense_detail_sheet.dart';
+import 'package:cove/features/profile/partner_profile_controller.dart';
+import 'package:cove/features/profile/preferences_controller.dart';
+import 'package:cove/sync/db/app_database.dart';
+import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'golden_harness.dart';
@@ -469,4 +477,130 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'ExpenseDetailSheet renders shared 50/50, shared custom split, and private meaning panels using computeExpenseShare',
+    (tester) async {
+      final fixedDate = DateTime(2026, 10, 15, 19, 30);
+      final seedHome = LocalHome(
+        id: 'home_1',
+        name: 'Our Home',
+        currency: 'INR',
+        createdAt: fixedDate,
+        createdBy: 'user_alex',
+      );
+
+      LocalExpense makeExpense({
+        required double splitRatio,
+        required String paidBy,
+      }) {
+        return LocalExpense(
+          id: 'exp_test',
+          homeId: 'home_1',
+          title: 'Toit',
+          amount: 1450.0,
+          currency: 'INR',
+          category: 'Eating out',
+          paidBy: paidBy,
+          splitRatio: splitRatio,
+          expenseDate: fixedDate,
+          paymentMethod: '[Card] Craft beer & pizza',
+          isTransfer: false,
+          createdAt: fixedDate,
+        );
+      }
+
+      Widget buildHarness(LocalExpense expense) {
+        return ProviderScope(
+          overrides: [
+            activeHomeProvider.overrideWith((ref) => Stream.value(seedHome)),
+            currencyPreferenceProvider.overrideWith(_TestCurrencyNotifier.new),
+            authProvider.overrideWith(_TestAuthNotifier.new),
+            partnerProfileProvider.overrideWith(
+              _TestPartnerProfileNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            theme: coveThemeFor(Brightness.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: ExpenseDetailSheet(expense: expense),
+              ),
+            ),
+          ),
+        );
+      }
+
+      // 1. 50/50 shared expense paid by partner -> "₹725 is your half" + "Ancy paid"
+      await tester.pumpWidget(
+        buildHarness(makeExpense(splitRatio: 0.5, paidBy: 'user_partner')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('₹725 is your half'), findsOneWidget);
+      expect(find.text('Ancy paid'), findsOneWidget);
+
+      // 2. 70/30 custom shared expense paid by viewer -> "₹1,015 is your share" + "You paid"
+      await tester.pumpWidget(
+        buildHarness(makeExpense(splitRatio: 0.7, paidBy: 'user_alex')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('₹1,015 is your share'), findsOneWidget);
+      expect(find.text('You paid'), findsOneWidget);
+
+      // 3. Private expense (splitRatio <= 0) -> "Yours alone" + "Not part of the shared total"
+      for (final ratio in <double>[-1.0, 0.0]) {
+        final share = computeExpenseShare(
+          makeExpense(splitRatio: ratio, paidBy: 'user_alex'),
+          currentUserId: 'user_alex',
+        );
+        expect(share.isShared, isFalse);
+
+        await tester.pumpWidget(
+          buildHarness(makeExpense(splitRatio: ratio, paidBy: 'user_alex')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Yours alone'), findsOneWidget);
+        expect(find.text('Not part of the shared total'), findsOneWidget);
+      }
+    },
+  );
+}
+
+class _TestAuthNotifier extends Notifier<AsyncValue<CoveUser?>>
+    implements AuthNotifier {
+  @override
+  AsyncValue<CoveUser?> build() => const AsyncData(
+        CoveUser(
+          id: 'user_alex',
+          email: 'alex@cove.test',
+          displayName: 'Alex',
+        ),
+      );
+
+  @override
+  Future<void> signInWithGoogle() async {}
+
+  @override
+  void signInWithDemoUser([
+    String name = 'Alex',
+    String email = 'alex@cove.local',
+  ]) {}
+
+  @override
+  Future<void> signOut() async {}
+}
+
+class _TestCurrencyNotifier extends CurrencyNotifier {
+  @override
+  CurrencyOption build() =>
+      const CurrencyOption(code: 'INR', symbol: '₹', name: 'Indian Rupee');
+}
+
+class _TestPartnerProfileNotifier extends PartnerProfileNotifier {
+  @override
+  PartnerProfileState build() => const PartnerProfileState(
+        displayName: 'Ancy',
+        userId: 'user_partner',
+      );
 }

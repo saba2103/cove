@@ -1,24 +1,29 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
-import '../../core/widgets/cove_card.dart';
-import '../../core/widgets/cove_grouped_list.dart';
-import '../../core/widgets/cove_pill_button.dart';
+
+import '../../core/theme/cove_tokens.dart';
+import '../../core/utils/cove_currency_formatter.dart';
+import '../../core/widgets/cove_avatar.dart';
+import '../../core/widgets/cove_detail_sheet.dart';
 import '../../core/widgets/cove_undo_toast.dart';
-import '../../core/widgets/cove_sync_tick.dart';
+import '../../core/widgets/slips/cove_receipt.dart';
+import '../../core/widgets/slips/cove_slip.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
-import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import 'expense_controller.dart';
 import 'expense_form_sheet.dart';
-import '../../core/utils/cove_currency_formatter.dart';
 
 class ExpenseDetailSheet extends ConsumerWidget {
   final LocalExpense expense;
+
+  static const double _kDialogBorderWidth =
+      1.0; // (literal) 1dp dialog hairline border
 
   const ExpenseDetailSheet({
     super.key,
@@ -35,49 +40,41 @@ class ExpenseDetailSheet extends ConsumerWidget {
   }
 
   Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
-    final colors = context.colors;
+    final cv = context.cv;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.inline),
+          ),
+          side: BorderSide(
+            color: cv.lineHairline,
+            width: _kDialogBorderWidth,
+          ),
         ),
         title: Text(
           'Delete Expense?',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
-          ),
+          style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
         ),
         content: Text(
           'Are you sure you want to remove "${expense.title}"? This cannot be undone.',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 14,
-            color: colors.textMuted,
-          ),
+          style: CoveType.readout.copyWith(color: cv.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Cancel',
-              style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Delete',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontWeight: FontWeight.w600,
-                color: colors.accentSecondary,
-              ),
+              style: CoveType.rowTitle.copyWith(color: cv.statusAlertText),
             ),
           ),
         ],
@@ -85,15 +82,20 @@ class ExpenseDetailSheet extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      final visibility = ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
-      await ref.read(expenseControllerProvider).deleteExpense(expense.id, visibility: visibility);
+      final visibility =
+          ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
+      await ref
+          .read(expenseControllerProvider)
+          .deleteExpense(expense.id, visibility: visibility);
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
           message: 'Deleted "${expense.title}"',
           onUndo: () async {
-            await ref.read(expenseControllerProvider).restoreExpense(expense);
+            await ref
+                .read(expenseControllerProvider)
+                .restoreExpense(expense);
           },
         );
       }
@@ -107,311 +109,176 @@ class ExpenseDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
     final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
     final partnerProfile = ref.watch(partnerProfileProvider);
-    final outbox = ref.watch(activeHomeOutboxProvider).value ?? [];
-    final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+    final home = ref.watch(activeHomeProvider).value;
 
-    final visibility = ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
-    final isMe = (expense.paidBy == currentUser?.id) ||
-        (currentUser?.id == null && expense.paidBy == 'user_alex') ||
-        (expense.paidBy == 'me');
-    final isShared = visibility == ExpenseVisibility.shared;
-
-    final tickStatus = resolveCoveSyncStatus(
-      entityId: expense.id,
-      outbox: outbox,
-      isPrivate: visibility == ExpenseVisibility.privateToMe,
-      hasPartner: hasPartner,
+    final share = computeExpenseShare(
+      expense,
+      currentUserId: currentUser?.id,
     );
 
-    final formattedDate = DateFormat('EEEE, MMMM d, y · h:mm a').format(expense.expenseDate);
+    final partnerName = partnerProfile.displayName.isNotEmpty
+        ? partnerProfile.displayName
+        : 'Partner';
+    final payerName = share.isPaidByViewer ? 'You' : partnerName;
+    final creatorId = home?.createdBy ?? currentUser?.id ?? 'user_alex';
+    final effectiveActorId = share.isPaidByViewer
+        ? (currentUser?.id ?? 'user_alex')
+        : (expense.paidBy == 'user_alex' ? 'user_sarah' : expense.paidBy);
+    final person = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: effectiveActorId,
+    );
 
-    // Split Category & Notes if separated by bullet
-    String categoryName = expense.category ?? 'Uncategorized';
-    String? notes;
-    if (categoryName.contains(' • ')) {
-      final parts = categoryName.split(' • ');
-      categoryName = parts.first;
-      notes = parts.sublist(1).join(' • ');
+    final categoryName = cleanExpenseCategoryName(expense.category);
+    final notes = extractExpenseNotes(expense.category);
+    final pmLabel = formatExpensePaymentMethod(expense.paymentMethod);
+
+    final amountFormatted =
+        '${currency.symbol}${formatCoveAmount(expense.amount)}';
+    final yourShareFormatted =
+        '${currency.symbol}${formatCoveAmount(share.viewerShareAmount)}';
+    final partnerShareFormatted =
+        '${currency.symbol}${formatCoveAmount(share.partnerShareAmount)}';
+
+    final timeFormatted =
+        DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
+    final receiptSubtitle = notes != null && notes.isNotEmpty
+        ? '${notes.toUpperCase()} · $timeFormatted'
+        : timeFormatted;
+    final footerDate =
+        DateFormat('EEE d MMM').format(expense.expenseDate).toUpperCase();
+
+    final CoveDetailMeaningPanel meaningPanel;
+    if (share.isShared) {
+      final shareTitle = share.isExactHalf
+          ? '$yourShareFormatted is your half'
+          : '$yourShareFormatted is your share';
+      meaningPanel = CoveDetailMeaningPanel(
+        glyph: _ExpenseShareGlyph(shareRatio: share.viewerShareRatio),
+        title: shareTitle,
+        subtitle: '$payerName paid',
+      );
+    } else {
+      meaningPanel = CoveDetailMeaningPanel.icon(
+        icon: Icons.lock_outline_rounded,
+        title: 'Yours alone',
+        subtitle: 'Not part of the shared total',
+      );
     }
 
-    // Amount formatted
-    final amountFormatted = '${currency.symbol}${formatCoveAmount(expense.amount)}';
-    final yourShare = isShared ? expense.amount / 2 : (isMe ? expense.amount : 0.0);
-    final yourShareFormatted = '${currency.symbol}${formatCoveAmount(yourShare)}';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: colors.borderHairline, width: 1)),
+    return CoveDetailSheet(
+      kindGlyph: Text(currency.symbol),
+      kindLabel: expense.isTransfer ? 'TRANSFER' : 'EXPENSE',
+      contextLabel: expense.isTransfer ? 'PARTNER' : categoryName,
+      onClose: () => Navigator.of(context).pop(),
+      slip: CoveReceipt(
+        variant: CoveSlipVariant.paper,
+        recordId: expense.id,
+        title: expense.title,
+        subtitle: receiptSubtitle,
+        items: [
+          CoveReceiptItem(
+            payer: person,
+            nameOrInitial: payerName,
+            title: expense.isTransfer
+                ? 'Transfer to ${share.isPaidByViewer ? partnerName : "You"}'
+                : categoryName,
+            subtitle: [
+              'Paid by $payerName',
+              ?pmLabel,
+              if (!share.isShared && !expense.isTransfer)
+                share.visibility == ExpenseVisibility.privateToMe
+                    ? 'Private'
+                    : 'Personal',
+            ].join(' · '),
+            amount: amountFormatted,
+          ),
+        ],
+        totalAmount: amountFormatted,
+        split: share.isShared && !expense.isTransfer
+            ? CoveReceiptSplit(
+                viewerName: 'You',
+                viewerAmount: yourShareFormatted,
+                partnerName: partnerName,
+                partnerAmount: partnerShareFormatted,
+                viewerShare: share.viewerShareRatio,
+              )
+            : null,
+        footerDate: footerDate,
       ),
-      padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 32),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Center drag handle
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.borderHairline.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Top Header: Category badge & Close
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colors.accentPrimary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        expense.isTransfer ? Icons.swap_horiz : Icons.category_outlined,
-                        size: 13,
-                        color: colors.accentPrimary,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        expense.isTransfer ? 'TRANSFER' : categoryName,
-                        style: typography.caption.copyWith(
-                          color: colors.accentPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.close, size: 18, color: colors.textMuted),
-                  splashRadius: 18,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Amount in big Bodoni Moda / display style
-            Text(
-              amountFormatted,
-              style: typography.displayLarge.copyWith(
-                fontSize: 38,
-                color: colors.accentTint,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-
-            // Title
-            Text(
-              expense.title,
-              style: typography.headline.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 6),
-
-            // Date & Time
-            Text(
-              formattedDate,
-              style: typography.caption.copyWith(color: colors.textMuted),
-            ),
-            const SizedBox(height: 20),
-
-            // Details Grouped Card
-            CoveGroupedCard(
-              children: [
-                if (expense.isTransfer) ...[
-                  CoveGroupedRow(
-                    leading: Icon(Icons.arrow_upward_rounded, size: 18, color: colors.accentPrimary),
-                    title: Text('Sender', style: typography.bodyMedium),
-                    trailing: Text(
-                      isMe ? 'You' : partnerProfile.displayName,
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  CoveGroupedRow(
-                    leading: Icon(Icons.arrow_downward_rounded, size: 18, color: colors.accentPrimary),
-                    title: Text('Recipient', style: typography.bodyMedium),
-                    trailing: Text(
-                      isMe ? partnerProfile.displayName : 'You',
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  CoveGroupedRow(
-                    leading: Icon(Icons.swap_horiz, size: 18, color: colors.accentPrimary),
-                    title: Text('Classification', style: typography.bodyMedium),
-                    trailing: Text(
-                      'Partner Transfer',
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  CoveGroupedRow(
-                    leading: Icon(Icons.account_circle_outlined, size: 18, color: colors.accentPrimary),
-                    title: Text('Paid by', style: typography.bodyMedium),
-                    trailing: Text(
-                      isMe ? 'You' : partnerProfile.displayName,
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  CoveGroupedRow(
-                    leading: Icon(Icons.call_split_outlined, size: 18, color: colors.accentPrimary),
-                    title: Text('Split Policy', style: typography.bodyMedium),
-                    trailing: Text(
-                      isShared
-                          ? 'Split 50/50'
-                          : (visibility == ExpenseVisibility.partnerCanSee ? 'Personal' : 'Private'),
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-                if (expense.paymentMethod != null && expense.paymentMethod!.isNotEmpty)
-                  CoveGroupedRow(
-                    leading: Icon(
-                      expense.paymentMethod == 'upi'
-                          ? Icons.qr_code_2_rounded
-                          : (expense.paymentMethod == 'cash'
-                              ? Icons.payments_outlined
-                              : Icons.credit_card_outlined),
-                      size: 18,
-                      color: colors.accentPrimary,
-                    ),
-                    title: Text('Payment Method', style: typography.bodyMedium),
-                    trailing: Text(
-                      expense.paymentMethod == 'upi'
-                          ? 'UPI'
-                          : (expense.paymentMethod == 'cash' ? 'Cash' : 'Card'),
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                if (!expense.isTransfer && isShared)
-                  CoveGroupedRow(
-                    leading: Icon(Icons.pie_chart_outline, size: 18, color: colors.accentPrimary),
-                    title: Text('Your Share', style: typography.bodyMedium),
-                    trailing: Text(
-                      yourShareFormatted,
-                      style: typography.bodyMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colors.accentPrimary,
-                      ),
-                    ),
-                  ),
-                CoveGroupedRow(
-                  leading: Icon(Icons.lock_outline, size: 18, color: colors.textSubtle),
-                  title: Text('Sync & Encryption', style: typography.bodyMedium),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        visibility == ExpenseVisibility.privateToMe
-                            ? 'On-device only'
-                            : (tickStatus == CoveSyncStatus.syncedToPartner
-                                ? 'Synced with ${partnerProfile.displayName}'
-                                : 'Saved Locally'),
-                        style: typography.caption.copyWith(color: colors.textMuted),
-                      ),
-                      const SizedBox(width: 6),
-                      CoveSyncTick(status: tickStatus, size: 13),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            if (notes != null && notes.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              CoveCard(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.notes_outlined, size: 16, color: colors.textMuted),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        notes,
-                        style: typography.caption.copyWith(
-                          fontSize: 13,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // Action Buttons: Edit & Delete
-            Row(
-              children: [
-                Expanded(
-                  child: CovePillButton(
-                    label: 'Edit Expense',
-                    icon: const Icon(Icons.edit_outlined, size: 15),
-                    onPressed: () => _handleEdit(context),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _handleDelete(context, ref),
-                  icon: Icon(Icons.delete_outline, size: 16, color: colors.accentSecondary),
-                  label: Text(
-                    'Delete',
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      fontWeight: FontWeight.w600,
-                      color: colors.accentSecondary,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    side: BorderSide(color: colors.accentSecondary.withValues(alpha: 0.4)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                  ),
-                ),
-              ],
-            ),
-          ],
+      meaningPanel: meaningPanel,
+      editVerb: CoveDetailVerb(
+        label: 'Edit',
+        icon: Icons.edit_outlined,
+        onPressed: () => _handleEdit(context),
+      ),
+      menuItems: [
+        CoveDetailMenuItem(
+          label: 'Delete this expense',
+          icon: Icons.delete_outline_rounded,
+          isDestructive: true,
+          onSelected: () => _handleDelete(context, ref),
         ),
+      ],
+    );
+  }
+}
+
+class _ExpenseShareGlyph extends StatelessWidget {
+  final double shareRatio;
+
+  static const double _kStrokeWidth = 1.5; // (literal) 1.5dp glyph ring stroke
+
+  const _ExpenseShareGlyph({required this.shareRatio});
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    return CustomPaint(
+      size: const Size.square(CoveDetailSheet.kMeaningGlyphSize),
+      painter: _ExpenseShareGlyphPainter(
+        color: cv.accentTint,
+        shareRatio: shareRatio.clamp(0.0, 1.0),
       ),
     );
   }
+}
+
+class _ExpenseShareGlyphPainter extends CustomPainter {
+  final Color color;
+  final double shareRatio;
+
+  const _ExpenseShareGlyphPainter({
+    required this.color,
+    required this.shareRatio,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = (Offset.zero & size).deflate(_ExpenseShareGlyph._kStrokeWidth);
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawArc(
+      rect,
+      math.pi / 2.0,
+      2.0 * math.pi * shareRatio,
+      true,
+      fillPaint,
+    );
+
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _ExpenseShareGlyph._kStrokeWidth;
+    canvas.drawOval(rect, strokePaint);
+  }
+
+  @override
+  bool shouldRepaint(_ExpenseShareGlyphPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.shareRatio != shareRatio;
 }

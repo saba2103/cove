@@ -97,12 +97,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     });
   }
 
-  static String _cleanCategoryName(String? rawCategory) {
-    final raw = (rawCategory == null || rawCategory.trim().isEmpty)
-        ? 'Uncategorized'
-        : rawCategory.trim();
-    return raw.contains(' • ') ? raw.split(' • ').first.trim() : raw;
-  }
+  static String _cleanCategoryName(String? rawCategory) =>
+      cleanExpenseCategoryName(rawCategory);
 
   static Color _resolveCategoryColor(
     String category,
@@ -298,13 +294,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     int personalCount = 0;
 
     for (final exp in standingActualExpenses) {
-      final isMe = (exp.paidBy == currentUser?.id) ||
-          (currentUser?.id == null && exp.paidBy == 'user_alex') ||
-          (exp.paidBy == 'me');
-      if (exp.splitRatio > 0.0) {
+      final share = computeExpenseShare(exp, currentUserId: currentUser?.id);
+      if (share.isShared) {
         sharedMonthlyTotal += exp.amount;
         sharedCount++;
-        if (isMe) {
+        if (share.isPaidByViewer) {
           paidByMeSharedTotal += exp.amount;
         } else {
           paidByPartnerSharedTotal += exp.amount;
@@ -321,10 +315,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     for (final t in standingTransfers) {
       transfersMonthlyTotal += t.amount;
-      final isMe = (t.paidBy == currentUser?.id) ||
-          (currentUser?.id == null && t.paidBy == 'user_alex') ||
-          (t.paidBy == 'me');
-      if (isMe) {
+      final share = computeExpenseShare(t, currentUserId: currentUser?.id);
+      if (share.isPaidByViewer) {
         sentByMeTotal += t.amount;
       } else {
         sentByPartnerTotal += t.amount;
@@ -1510,11 +1502,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     required bool hasPartner,
     required bool isLast,
   }) {
-    final visibility =
-        ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
-    final isMe = (expense.paidBy == currentUser?.id) ||
-        (currentUser?.id == null && expense.paidBy == 'user_alex') ||
-        (expense.paidBy == 'me');
+    final share = computeExpenseShare(
+      expense,
+      currentUserId: currentUser?.id,
+    );
+    final visibility = share.visibility;
+    final isMe = share.isPaidByViewer;
     final effectiveActorId = isMe
         ? (currentUser?.id ?? 'user_alex')
         : (expense.paidBy == 'user_alex' ? 'user_sarah' : expense.paidBy);
@@ -1533,12 +1526,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
 
     final isTransfer = expense.isTransfer;
-    final String? pmLabel =
-        (expense.paymentMethod != null && expense.paymentMethod!.isNotEmpty)
-            ? (expense.paymentMethod == 'upi'
-                ? 'UPI'
-                : (expense.paymentMethod == 'cash' ? 'Cash' : 'Card'))
-            : null;
+    final String? pmLabel = formatExpensePaymentMethod(expense.paymentMethod);
 
     final String subtitleText;
     if (isTransfer) {
