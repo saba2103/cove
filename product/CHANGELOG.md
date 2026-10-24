@@ -7,6 +7,12 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.10d — `CoveNote` Ruled List Slip & `CoveHabitCard` Streak Slip (`Oct 25, 2026`)**:
+  - *Outcome*: Built [`CoveNote`](../lib/core/widgets/slips/cove_note.dart) (`CoveNoteItem`) and [`CoveHabitCard`](../lib/core/widgets/slips/cove_habit_card.dart) on [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) to [`design/specs/10-paper-objects.md`](../design/specs/10-paper-objects.md):
+    - `CoveNote`: `4dp` top corners and `CoveRadius.card` (`20dp`) bottom corners, full-width ruled lines every `32dp` in `palette.rule`, `CoveCheckbox` + `CoveType.slipTitle` item titles with `addedBy` in tertiary text, and done items struck through in `palette.secondary`.
+    - `CoveHabitCard`: `COVE · HABIT` caps line, `CoveType.slipTitle` title, cadence line, top-right `CoveCheckbox`, `1dp` `4/4` dashed rule, 7×3 21-day streak grid (`10dp` cells, `CoveSpace.xs` gap, `2dp` radius; done in `accent.fill`, missed as `1dp` outline in `slip.inkMark` on ink / `paper.ink3` on paper, today ringed in `1.5dp` `accent.fill`), and primary run count in `CoveType.slipFigure` + `DAYS RUNNING` in `CoveType.capsSlip`, with WCAG 4.1.2 semantics (`"Habit, Morning walk, done today, 23 days running"`).
+  - *Under the Hood*:
+    - Added [`test/golden/note_habit_card_golden_test.dart`](../test/golden/note_habit_card_golden_test.dart) and generated 18 goldens (`note`, `habit_card`, `habit_card_paper` across `cover`, `phone`, `wide` and both brightnesses).
 - **Task 3.10c — `CoveReceipt` Torn-Edge Spending Slip (`Oct 25, 2026`)**:
   - *Outcome*: Built [`CoveReceipt`](../lib/core/widgets/slips/cove_receipt.dart) (`CoveReceiptItem`, `CoveReceiptSplit`, `CoveBarcodeBar`) on [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) to [`design/specs/10-paper-objects.md`](../design/specs/10-paper-objects.md), featuring `8dp × 6dp` torn zigzag top and bottom edges with `0dp` corner radius, centred header (`CoveType.capsSlip` + `CoveType.slipTitle` + `CoveType.capsSlip`), `1dp` `4/4` dashed rules, purchase rows with `CoveAvatar.inline`, `8dp` hover plate radius, and right-aligned `CoveType.readout` amounts, `TOTAL` row with `CoveType.slipFigure`, `4dp` pill-radius split bar with both names and amounts written beside it (WCAG 1.4.1), deterministic `24dp` barcode strip derived from `recordId`, and WCAG 4.1.2 semantics (`"Receipt, Wednesday, total ₹5,631, 3 items"`).
   - *Under the Hood*:

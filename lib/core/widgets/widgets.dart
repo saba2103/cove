@@ -27,6 +27,8 @@ export 'cove_toast.dart';
 export 'cove_toggle_switch.dart';
 export 'cove_undo_toast.dart';
 export 'cove_web_sidebar.dart';
+export 'slips/cove_habit_card.dart';
+export 'slips/cove_note.dart';
 export 'slips/cove_receipt.dart';
 export 'slips/cove_slip.dart';
 export 'slips/cove_ticket.dart';

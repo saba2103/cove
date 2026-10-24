@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/cove_tokens.dart';
+import '../../theme/cove_theme.dart';
 
 /// Visual surface variant for a paper object (`design/specs/10-paper-objects.md`).
 ///
@@ -228,18 +228,16 @@ class CoveSlip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = CoveSlipPalette.resolve(context, variant);
-    final innerTokens = variant == CoveSlipVariant.paper
-        ? CoveTokens.light
-        : CoveTokens.dark;
+    final innerTheme = variant == CoveSlipVariant.paper
+        ? CoveTheme.lightTheme
+        : CoveTheme.darkTheme;
     final clipper = _CoveSlipClipper(
       borderRadius: borderRadius,
       pathBuilder: pathBuilder,
     );
 
     Widget content = Theme(
-      data: Theme.of(context).copyWith(
-        extensions: <ThemeExtension<dynamic>>[innerTokens],
-      ),
+      data: innerTheme,
       child: Padding(
         padding: padding,
         child: child,
