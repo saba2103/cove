@@ -256,12 +256,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                   children: [
                     CovePageHeader(
                       title: 'Routines',
-                      action: CoveRoundButton(
-                        icon: Icons.add_rounded,
-                        variant: CoveRoundButtonVariant.gold,
-                        semanticLabel: 'New Routine',
-                        onPressed: _openRoutineForm,
-                      ),
+                      actions: [
+                        CoveRoundButton(
+                          icon: Icons.add_rounded,
+                          variant: CoveRoundButtonVariant.gold,
+                          semanticLabel: 'New Routine',
+                          onPressed: _openRoutineForm,
+                        ),
+                      ],
                     ),
                     Expanded(child: _buildEmptyState(cv)),
                   ],
@@ -286,12 +288,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     // 1. CovePageHeader — "Routines", gold add
                     CovePageHeader(
                       title: 'Routines',
-                      action: CoveRoundButton(
-                        icon: Icons.add_rounded,
-                        variant: CoveRoundButtonVariant.gold,
-                        semanticLabel: 'Add Event',
-                        onPressed: () => _openEventForm(currentRoutine.id),
-                      ),
+                      actions: [
+                        CoveRoundButton(
+                          icon: Icons.add_rounded,
+                          variant: CoveRoundButtonVariant.gold,
+                          semanticLabel: 'Add Event',
+                          onPressed: () => _openEventForm(currentRoutine.id),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(height: CoveSpace.lg),

@@ -270,12 +270,14 @@ class HomeSettingsScreen extends ConsumerWidget {
                     semanticLabel: 'Back',
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
-                  action: CoveRoundButton(
-                    icon: Icons.edit_outlined,
-                    variant: CoveRoundButtonVariant.ghost,
-                    semanticLabel: 'Edit home',
-                    onPressed: () => EditHomeDialog.show(context),
-                  ),
+                  actions: [
+                    CoveRoundButton(
+                      icon: Icons.edit_outlined,
+                      variant: CoveRoundButtonVariant.ghost,
+                      semanticLabel: 'Edit home',
+                      onPressed: () => EditHomeDialog.show(context),
+                    ),
+                  ],
                 ),
 
                 // 1. Arch illustration + radial glow (scrolls with the illustration)

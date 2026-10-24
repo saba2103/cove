@@ -227,34 +227,32 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           CovePageHeader(
             title: DateFormat('MMMM').format(monthStart),
             readout: '${monthStart.year}',
-            trailingAccessory: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CoveRoundButton.stepper(
-                  key: const ValueKey('calendar_prev_month'),
-                  icon: Icons.chevron_left_rounded,
-                  tooltip: 'Previous month',
-                  semanticLabel: 'Previous month',
-                  onPressed: () => _stepMonth(-1),
-                ),
-                const SizedBox(width: CoveSpace.xs),
-                CoveRoundButton.stepper(
-                  key: const ValueKey('calendar_next_month'),
-                  icon: Icons.chevron_right_rounded,
-                  tooltip: 'Next month',
-                  semanticLabel: 'Next month',
-                  onPressed: () => _stepMonth(1),
-                ),
-              ],
-            ),
-            action: CoveRoundButton(
-              key: const ValueKey('calendar_add_button'),
-              icon: Icons.add_rounded,
-              variant: CoveRoundButtonVariant.gold,
-              tooltip: 'Add',
-              semanticLabel: 'Add',
-              onPressed: widget.onAddEvent,
-            ),
+            actions: [
+              CoveRoundButton(
+                key: const ValueKey('calendar_prev_month'),
+                icon: Icons.chevron_left_rounded,
+                variant: CoveRoundButtonVariant.ghost,
+                tooltip: 'Previous month',
+                semanticLabel: 'Previous month',
+                onPressed: () => _stepMonth(-1),
+              ),
+              CoveRoundButton(
+                key: const ValueKey('calendar_next_month'),
+                icon: Icons.chevron_right_rounded,
+                variant: CoveRoundButtonVariant.ghost,
+                tooltip: 'Next month',
+                semanticLabel: 'Next month',
+                onPressed: () => _stepMonth(1),
+              ),
+              CoveRoundButton(
+                key: const ValueKey('calendar_add_button'),
+                icon: Icons.add_rounded,
+                variant: CoveRoundButtonVariant.gold,
+                tooltip: 'Add',
+                semanticLabel: 'Add',
+                onPressed: widget.onAddEvent,
+              ),
+            ],
           ),
           const SizedBox(height: CoveSpace.md),
 

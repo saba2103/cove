@@ -428,13 +428,15 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                 // 1. CovePageHeader — "Commitments", CoveRoundButton gold add.
                 CovePageHeader(
                   title: 'Commitments',
-                  action: CoveRoundButton(
-                    icon: Icons.add_rounded,
-                    variant: CoveRoundButtonVariant.gold,
-                    tooltip: 'Add Commitment',
-                    semanticLabel: 'Add Commitment',
-                    onPressed: () => SubscriptionFormSheet.show(context),
-                  ),
+                  actions: [
+                    CoveRoundButton(
+                      icon: Icons.add_rounded,
+                      variant: CoveRoundButtonVariant.gold,
+                      tooltip: 'Add Commitment',
+                      semanticLabel: 'Add Commitment',
+                      onPressed: () => SubscriptionFormSheet.show(context),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: CoveSpace.md),
 
@@ -1482,26 +1484,28 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
               children: [
                 CovePageHeader(
                   title: 'Commitments',
-                  trailingAccessory: CoveRoundButton(
-                    icon: Icons.stacked_line_chart_rounded,
-                    variant: CoveRoundButtonVariant.ghost,
-                    tooltip: 'EMI Outstanding',
-                    semanticLabel: 'EMI Outstanding',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const EmiTrackerScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  action: CoveRoundButton(
-                    icon: Icons.add_rounded,
-                    variant: CoveRoundButtonVariant.gold,
-                    tooltip: 'Add Commitment',
-                    semanticLabel: 'Add Commitment',
-                    onPressed: () => SubscriptionFormSheet.show(context),
-                  ),
+                  actions: [
+                    CoveRoundButton(
+                      icon: Icons.stacked_line_chart_rounded,
+                      variant: CoveRoundButtonVariant.ghost,
+                      tooltip: 'EMI Outstanding',
+                      semanticLabel: 'EMI Outstanding',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const EmiTrackerScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    CoveRoundButton(
+                      icon: Icons.add_rounded,
+                      variant: CoveRoundButtonVariant.gold,
+                      tooltip: 'Add Commitment',
+                      semanticLabel: 'Add Commitment',
+                      onPressed: () => SubscriptionFormSheet.show(context),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: CoveSpace.section),
                 Center(

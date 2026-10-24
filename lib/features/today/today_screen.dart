@@ -27,7 +27,9 @@ import 'today_controller.dart';
 import 'today_models.dart';
 
 class TodayScreen extends ConsumerStatefulWidget {
-  const TodayScreen({super.key});
+  final DateTime? initialNow;
+
+  const TodayScreen({super.key, this.initialNow});
 
   @override
   ConsumerState<TodayScreen> createState() => _TodayScreenState();
@@ -72,7 +74,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final currency = ref.watch(currencyPreferenceProvider);
     final todayData = ref.watch(todayDataProvider);
 
-    final now = DateTime.now();
+    final now = widget.initialNow ?? DateTime.now();
     final todayFormatted = DateFormat('EEEE, MMMM d').format(now).toUpperCase();
     final greetingPrefix = _getGreetingPrefix(now.hour);
     final name = todayData.userName.isNotEmpty ? todayData.userName : 'there';

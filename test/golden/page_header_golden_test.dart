@@ -60,13 +60,15 @@ class _PageHeaderShowcase extends StatelessWidget {
               header: CovePageHeader(
                 key: const ValueKey('header_commitments'),
                 title: 'Commitments',
-                action: CoveRoundButton(
-                  key: const ValueKey('btn_add_commitments'),
-                  icon: Icons.add_rounded,
-                  variant: CoveRoundButtonVariant.gold,
-                  semanticLabel: 'Add commitment',
-                  onPressed: () {},
-                ),
+                actions: [
+                  CoveRoundButton(
+                    key: const ValueKey('btn_add_commitments'),
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    semanticLabel: 'Add commitment',
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: CoveSpace.sm),
@@ -78,12 +80,14 @@ class _PageHeaderShowcase extends StatelessWidget {
                 key: const ValueKey('header_expenses'),
                 title: 'Money',
                 readout: 'October · ₹38,420',
-                action: CoveRoundButton(
-                  icon: Icons.add_rounded,
-                  variant: CoveRoundButtonVariant.gold,
-                  semanticLabel: 'Add transaction',
-                  onPressed: () {},
-                ),
+                actions: [
+                  CoveRoundButton(
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    semanticLabel: 'Add transaction',
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: CoveSpace.sm),
@@ -95,12 +99,14 @@ class _PageHeaderShowcase extends StatelessWidget {
                 key: const ValueKey('header_today'),
                 title: 'Today',
                 readout: '22 Oct',
-                action: CoveRoundButton(
-                  icon: Icons.notifications_none_rounded,
-                  variant: CoveRoundButtonVariant.ghost,
-                  semanticLabel: 'Notifications',
-                  onPressed: () {},
-                ),
+                actions: [
+                  CoveRoundButton(
+                    icon: Icons.notifications_none_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    semanticLabel: 'Notifications',
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: CoveSpace.sm),
@@ -145,6 +151,40 @@ class _PageHeaderShowcase extends StatelessWidget {
                   isActive: true,
                   onPressed: () {},
                 ),
+              ),
+            ),
+            const SizedBox(height: CoveSpace.sm),
+
+            // 6. Calendar: Month + Year + Three 40dp Actions (2 ghost chevrons + gold add)
+            buildHeaderSlot(
+              label: '6 · Three Actions (Month Chevrons + Gold Add)',
+              header: CovePageHeader(
+                key: const ValueKey('header_calendar'),
+                title: 'October',
+                readout: '2026',
+                actions: [
+                  CoveRoundButton(
+                    key: const ValueKey('btn_cal_prev'),
+                    icon: Icons.chevron_left_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    semanticLabel: 'Previous month',
+                    onPressed: () {},
+                  ),
+                  CoveRoundButton(
+                    key: const ValueKey('btn_cal_next'),
+                    icon: Icons.chevron_right_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    semanticLabel: 'Next month',
+                    onPressed: () {},
+                  ),
+                  CoveRoundButton(
+                    key: const ValueKey('btn_cal_add'),
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    semanticLabel: 'Add',
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
           ],
@@ -247,11 +287,13 @@ void main() {
               child: CovePageHeader(
                 key: const ValueKey('wrap_test_header'),
                 title: 'Household Recurring Commitments',
-                action: CoveRoundButton(
-                  icon: Icons.add_rounded,
-                  variant: CoveRoundButtonVariant.gold,
-                  onPressed: () {},
-                ),
+                actions: [
+                  CoveRoundButton(
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    onPressed: () {},
+                  ),
+                ],
               ),
             ),
           ),
@@ -262,6 +304,111 @@ void main() {
         find.byKey(const ValueKey('wrap_test_header')),
       );
       expect(rect.height, greaterThan(CovePageHeader.kMinHeight));
+    },
+  );
+
+  testWidgets(
+    'Calendar header at 320dp: "October" + "2026" + three 40dp buttons fits without wrapping or ellipsizing',
+    (tester) async {
+      await loadCoveFonts();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: coveThemeFor(Brightness.dark),
+          home: Scaffold(
+            body: SizedBox(
+              width: 320,
+              child: CovePageHeader(
+                key: const ValueKey('cal_320_header'),
+                title: 'October',
+                readout: '2026',
+                actions: [
+                  CoveRoundButton(
+                    key: const ValueKey('cal_320_prev'),
+                    icon: Icons.chevron_left_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    semanticLabel: 'Previous month',
+                    onPressed: () {},
+                  ),
+                  CoveRoundButton(
+                    key: const ValueKey('cal_320_next'),
+                    icon: Icons.chevron_right_rounded,
+                    variant: CoveRoundButtonVariant.ghost,
+                    semanticLabel: 'Next month',
+                    onPressed: () {},
+                  ),
+                  CoveRoundButton(
+                    key: const ValueKey('cal_320_add'),
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    semanticLabel: 'Add',
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final headerRect = tester.getRect(
+        find.byKey(const ValueKey('cal_320_header')),
+      );
+      final titleFinder = find.text('October');
+      final readoutFinder = find.text('2026');
+      final titleRect = tester.getRect(titleFinder);
+      final readoutRect = tester.getRect(readoutFinder);
+      final titleParagraph = tester.renderObject<RenderParagraph>(titleFinder);
+
+      final prevCircle = find.descendant(
+        of: find.byKey(const ValueKey('cal_320_prev')),
+        matching: find.byType(DecoratedBox),
+      );
+      final nextCircle = find.descendant(
+        of: find.byKey(const ValueKey('cal_320_next')),
+        matching: find.byType(DecoratedBox),
+      );
+      final addCircle = find.descendant(
+        of: find.byKey(const ValueKey('cal_320_add')),
+        matching: find.byType(DecoratedBox),
+      );
+      final prevRect = tester.getRect(prevCircle.first);
+      final nextRect = tester.getRect(nextCircle.first);
+      final addRect = tester.getRect(addCircle.first);
+
+      // Header stays single-line (56dp tall)
+      expect(headerRect.height, equals(CovePageHeader.kMinHeight));
+
+      // Title "October" does not wrap (36dp single line box) or ellipsize
+      expect(titleRect.height, equals(36.0));
+      expect(titleParagraph.didExceedMaxLines, isFalse);
+      expect(
+        titleRect.width,
+        closeTo(titleParagraph.getMaxIntrinsicWidth(double.infinity), 0.01),
+      );
+
+      // Three 40dp drawn circles separated by CoveSpace.sm (8dp), flush to 20dp gutter
+      expect(prevRect.width, equals(CoveSize.buttonRound));
+      expect(nextRect.width, equals(CoveSize.buttonRound));
+      expect(addRect.width, equals(CoveSize.buttonRound));
+      expect(nextRect.left - prevRect.right, closeTo(CoveSpace.sm, 0.01));
+      expect(addRect.left - nextRect.right, closeTo(CoveSpace.sm, 0.01));
+      expect(headerRect.right - addRect.right, closeTo(CoveSpace.gutter, 0.01));
+      expect(readoutRect.left - titleRect.right, closeTo(CoveSpace.md, 0.01));
+
+      // Every header action has a full 48x48 hit target
+      expect(
+        tester.getSize(find.byKey(const ValueKey('cal_320_prev'))),
+        equals(const Size(CoveSize.hit, CoveSize.hit)),
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('cal_320_next'))),
+        equals(const Size(CoveSize.hit, CoveSize.hit)),
+      );
+      expect(
+        tester.getSize(find.byKey(const ValueKey('cal_320_add'))),
+        equals(const Size(CoveSize.hit, CoveSize.hit)),
+      );
     },
   );
 }

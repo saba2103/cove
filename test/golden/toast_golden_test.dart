@@ -33,12 +33,14 @@ class _ToastShowcase extends StatelessWidget {
               CovePageHeader(
                 title: 'Expenses',
                 readout: 'October',
-                action: CoveRoundButton(
-                  icon: Icons.add_rounded,
-                  variant: CoveRoundButtonVariant.gold,
-                  semanticLabel: 'Add expense',
-                  onPressed: () {},
-                ),
+                actions: [
+                  CoveRoundButton(
+                    icon: Icons.add_rounded,
+                    variant: CoveRoundButtonVariant.gold,
+                    semanticLabel: 'Add expense',
+                    onPressed: () {},
+                  ),
+                ],
               ),
               const SizedBox(height: CoveSpace.xl + CoveSpace.md),
               Padding(

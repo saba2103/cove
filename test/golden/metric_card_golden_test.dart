@@ -23,12 +23,14 @@ class _MetricCardShowcase extends StatelessWidget {
             CovePageHeader(
               title: 'Commitments',
               readout: 'October',
-              action: CoveRoundButton(
-                icon: Icons.add_rounded,
-                variant: CoveRoundButtonVariant.gold,
-                semanticLabel: 'Add commitment',
-                onPressed: () {},
-              ),
+              actions: [
+                CoveRoundButton(
+                  icon: Icons.add_rounded,
+                  variant: CoveRoundButtonVariant.gold,
+                  semanticLabel: 'Add commitment',
+                  onPressed: () {},
+                ),
+              ],
             ),
             const SizedBox(height: CoveSpace.md),
             const Padding(

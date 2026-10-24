@@ -641,7 +641,7 @@ void main() {
       await goldenMatrix(
         tester,
         'today_screen',
-        const TodayScreen(),
+        TodayScreen(initialNow: DateTime(2026, 10, 23, 9, 0)),
         overrides: _createGoldenOverrides(),
         wrap: wrapInAppShellConstraint,
         allowedOverflows: _kKnownLegacyOverflows,

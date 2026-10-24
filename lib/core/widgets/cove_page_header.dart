@@ -69,14 +69,14 @@ class CoveHeaderPill extends StatelessWidget {
 /// - Title: [CoveType.title] — 28sp Libre Bodoni w500 on a 36dp line box.
 /// - Trailing readout: [CoveType.readout] in `text.tertiary`, baseline-aligned
 ///   to the title, separated by [CoveSpace.md].
-/// - Action: one [CoveRoundButton], trailing edge of its drawn circle flush to
-///   [CoveSpace.gutter].
+/// - Actions: up to three [CoveRoundButton]s (`actions.length <= 3`),
+///   right-aligned with [CoveSpace.sm] between drawn circles and the trailing
+///   edge flush to [CoveSpace.gutter].
 class CovePageHeader extends StatelessWidget {
   final String title;
   final String? readout;
   final CoveRoundButton? leading;
-  final Widget? trailingAccessory;
-  final CoveRoundButton? action;
+  final List<CoveRoundButton> actions;
   final CoveHeaderPill? trailingPill;
 
   static const double kMinHeight = 56.0; // (literal) per 01-page-header.md
@@ -90,21 +90,33 @@ class CovePageHeader extends StatelessWidget {
     required this.title,
     this.readout,
     this.leading,
-    this.trailingAccessory,
-    this.action,
+    this.actions = const [],
     this.trailingPill,
   }) : assert(
-          action == null || trailingPill == null,
-          'Provide at most one trailing control (action or trailingPill).',
+          actions.length <= 3,
+          'CovePageHeader supports at most 3 actions.',
         );
 
   @override
   Widget build(BuildContext context) {
+    assert(
+      leading == null || !leading!.isStepper,
+      'Header leading button must be a full CoveRoundButton (40dp drawn, 48dp hit), not a stepper.',
+    );
+    assert(
+      actions.every((b) => !b.isStepper),
+      'Header actions must be full CoveRoundButtons (40dp drawn, 48dp hit), not steppers.',
+    );
+
     final cv = context.cv;
     final hasLeading = leading != null;
-    final hasTrailingRound = action != null;
+    final hasActions = actions.isNotEmpty;
     final hasTrailingPill = trailingPill != null;
     final hasReadout = readout != null && readout!.isNotEmpty;
+    final double actionsDrawnWidth = hasActions
+        ? actions.length * CoveSize.buttonRound +
+            (actions.length - 1) * CoveSpace.sm
+        : 0.0;
 
     final Widget titleWidget = Text(
       title,
@@ -155,24 +167,18 @@ class CovePageHeader extends StatelessWidget {
                     const SizedBox(width: CoveSpace.md),
                   ],
                   Expanded(child: titleAndReadout),
-                  if (trailingAccessory != null) ...[
+                  if (hasTrailingPill) ...[
                     const SizedBox(width: CoveSpace.sm),
                     SizedBox(
                       height: _kLineBoxHeight,
-                      child: Center(child: trailingAccessory!),
+                      child: Center(child: trailingPill!),
                     ),
                   ],
-                  if (hasTrailingRound) ...[
-                    const SizedBox(width: CoveSpace.md),
-                    const SizedBox(
-                      width: CoveSize.buttonRound,
-                      height: _kLineBoxHeight,
-                    ),
-                  ] else if (hasTrailingPill) ...[
-                    const SizedBox(width: CoveSpace.md),
+                  if (hasActions) ...[
+                    const SizedBox(width: CoveSpace.sm),
                     SizedBox(
+                      width: actionsDrawnWidth,
                       height: _kLineBoxHeight,
-                      child: Center(child: trailingPill!),
                     ),
                   ],
                 ],
@@ -185,11 +191,20 @@ class CovePageHeader extends StatelessWidget {
               top: kTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
               child: leading!,
             ),
-          if (hasTrailingRound)
+          if (hasActions)
             Positioned(
               right: CoveSpace.gutter - _kHitBleed,
               top: kTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
-              child: action!,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    if (i > 0)
+                      const SizedBox(width: CoveSpace.sm - 2 * _kHitBleed),
+                    actions[i],
+                  ],
+                ],
+              ),
             ),
         ],
       ),

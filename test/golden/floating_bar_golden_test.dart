@@ -41,12 +41,14 @@ class _FloatingBarScene extends StatelessWidget {
                 CovePageHeader(
                   title: title,
                   readout: readout,
-                  action: CoveRoundButton(
-                    icon: Icons.notifications_none_rounded,
-                    variant: CoveRoundButtonVariant.ghost,
-                    semanticLabel: 'Notifications',
-                    onPressed: () {},
-                  ),
+                  actions: [
+                    CoveRoundButton(
+                      icon: Icons.notifications_none_rounded,
+                      variant: CoveRoundButtonVariant.ghost,
+                      semanticLabel: 'Notifications',
+                      onPressed: () {},
+                    ),
+                  ],
                 ),
                 const SizedBox(height: CoveSpace.md),
                 const Padding(

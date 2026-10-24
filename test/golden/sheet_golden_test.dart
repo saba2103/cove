@@ -24,12 +24,14 @@ class _SheetShowcase extends StatelessWidget {
         CovePageHeader(
           title: 'Expenses',
           readout: 'October',
-          action: CoveRoundButton(
-            icon: Icons.add_rounded,
-            variant: CoveRoundButtonVariant.gold,
-            semanticLabel: 'Add expense',
-            onPressed: () {},
-          ),
+          actions: [
+            CoveRoundButton(
+              icon: Icons.add_rounded,
+              variant: CoveRoundButtonVariant.gold,
+              semanticLabel: 'Add expense',
+              onPressed: () {},
+            ),
+          ],
         ),
         const SizedBox(height: CoveSpace.md),
         const Padding(
