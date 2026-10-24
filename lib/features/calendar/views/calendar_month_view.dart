@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -100,7 +101,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
-    final now = DateTime.now();
+    final now = clock.now();
 
     final monthStart = DateTime(_currentYear, _currentMonth, 1);
     final monthEnd = DateTime(_currentYear, _currentMonth + 1, 0, 23, 59, 59);

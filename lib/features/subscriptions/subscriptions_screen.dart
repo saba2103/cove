@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -409,7 +410,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
       }
     }
 
-    final now = DateTime.now();
+    final now = clock.now();
     final today = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
@@ -1384,7 +1385,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     required String partnerName,
   }) {
     final cv = context.cv;
-    final now = DateTime.now();
+    final now = clock.now();
     final today = DateTime(now.year, now.month, now.day);
 
     return Container(
@@ -1632,7 +1633,7 @@ class _RunwayMiniChartPainter extends CustomPainter {
     // Dashed vertical year guides
     final baseYear = activeSubs.isNotEmpty
         ? activeSubs.first.nextBillingDate.year
-        : DateTime.now().year;
+        : clock.now().year;
     for (int i = 1; i <= 3; i++) {
       final x = (i / 3.4) * plotWidth;
       for (double y = topPad; y < chartBottom; y += 6.0) {

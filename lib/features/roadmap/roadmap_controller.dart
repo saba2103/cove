@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/utils/uuid_generator.dart';
@@ -138,7 +139,7 @@ class RoadmapController {
         'id': id,
         'home_id': homeId,
         'is_completed': isCompleted,
-        'completed_at': isCompleted ? DateTime.now().toIso8601String() : null,
+        'completed_at': isCompleted ? clock.now().toIso8601String() : null,
       },
     );
   }

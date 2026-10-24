@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,7 @@ class HomeController {
     final supabase = ref.read(supabaseClientProvider);
     final user = ref.read(authProvider).value;
     final userId = supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     final homeId = _generateUuid();
 
     // 1. Generate 256-bit symmetric encryption key
@@ -106,7 +107,7 @@ class HomeController {
     final supabase = ref.read(supabaseClientProvider);
     final user = ref.read(authProvider).value;
     final userId = supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
 
     // 1. Save imported symmetric key securely on-device
     await _keyStore.saveKey(payload.homeId, payload.symmetricKey);
@@ -260,7 +261,7 @@ class HomeController {
       await supabase.from('home_members').upsert({
         'home_id': home.id,
         'user_id': userId,
-        'joined_at': DateTime.now().toUtc().toIso8601String(),
+        'joined_at': clock.now().toUtc().toIso8601String(),
         'display_name': userProfile.displayName,
         'avatar_url': userProfile.avatarUrl,
       });
@@ -278,7 +279,7 @@ class HomeController {
   }) async {
     final rng = Random();
     final code = (100000 + rng.nextInt(900000)).toString();
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     final expiresAt = now.add(const Duration(minutes: 10));
     final payloadJson = payload.toQrString();
 
@@ -340,7 +341,7 @@ class HomeController {
         final expiresAtStr = res['expires_at'] as String?;
         if (expiresAtStr != null) {
           final expiresAt = DateTime.tryParse(expiresAtStr);
-          if (expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt)) {
+          if (expiresAt != null && clock.now().toUtc().isAfter(expiresAt)) {
             throw Exception('Pairing code has expired. Please request a new code.');
           }
         }
@@ -368,7 +369,7 @@ class HomeController {
               final parts = desc.split(':');
               if (parts.length >= 4) {
                 final expiresMs = int.tryParse(parts[2]);
-                if (expiresMs != null && DateTime.now().millisecondsSinceEpoch > expiresMs) {
+                if (expiresMs != null && clock.now().millisecondsSinceEpoch > expiresMs) {
                   throw Exception('Pairing code has expired. Please request a new code.');
                 }
                 final prefix = 'pairing:$code:${parts[2]}:';

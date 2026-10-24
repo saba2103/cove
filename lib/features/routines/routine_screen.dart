@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -752,7 +753,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   }
 
   Widget _buildCurrentTimeIndicator(Routine routine, CoveTokens cv) {
-    final now = DateTime.now();
+    final now = clock.now();
     if (!routine.days.contains(now.weekday)) {
       return const SizedBox.shrink();
     }

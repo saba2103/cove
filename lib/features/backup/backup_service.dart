@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:clock/clock.dart' as pkg_clock;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pointycastle/export.dart' show SHA256Digest;
@@ -89,7 +90,7 @@ class BackupService {
     FlutterSecureStorage? storage,
     DateTime Function()? clock,
   })  : storage = storage ?? kBackupSecureStorage,
-        clock = clock ?? DateTime.now;
+        clock = clock ?? pkg_clock.clock.now;
 
   /// Runs one backup.
   ///

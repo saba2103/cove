@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -139,9 +140,9 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: _selectedAnniversary ?? DateTime.now(),
+                  initialDate: _selectedAnniversary ?? clock.now(),
                   firstDate: DateTime(1980),
-                  lastDate: DateTime.now(),
+                  lastDate: clock.now(),
                   builder: (context, child) {
                     return Theme(
                       data: Theme.of(context).copyWith(

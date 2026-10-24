@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -84,7 +85,7 @@ class NotificationService {
         'user_id': uid,
         'fcm_token': token,
         'platform': detectedPlatform,
-        'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+        'last_seen_at': clock.now().toUtc().toIso8601String(),
       }, onConflict: 'fcm_token');
       debugPrint('[NotificationService] Device token registered successfully in user_devices for $uid');
       return true;
@@ -379,7 +380,7 @@ class NotificationService {
         iOS: iosDetails,
       );
 
-      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final id = clock.now().millisecondsSinceEpoch ~/ 1000;
       await _localNotifications.show(
         id: id,
         title: payload.title,
@@ -398,7 +399,7 @@ class NotificationService {
   /// Dispatches a deep link navigation action to open the appropriate module screen.
   void onNotificationTapped(CoveNotificationPayload payload) {
     final key = payload.eventId ?? '${payload.module.name}_${payload.eventType}_${payload.title}';
-    final now = DateTime.now();
+    final now = clock.now();
     if (_lastTappedKey == key &&
         _lastTappedAt != null &&
         now.difference(_lastTappedAt!) < const Duration(milliseconds: 1000)) {

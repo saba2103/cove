@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -50,12 +51,12 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
 
       final bytes = await picked.readAsBytes();
       final user = ref.read(authProvider).value;
-      final userId = user?.id ?? 'user_${DateTime.now().millisecondsSinceEpoch}';
+      final userId = user?.id ?? 'user_${clock.now().millisecondsSinceEpoch}';
       final ext = picked.name.split('.').lastOrNull?.toLowerCase() ?? 'jpg';
       final mime = (ext == 'png')
           ? 'image/png'
           : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
-      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final fileName = '$userId/avatar_${clock.now().millisecondsSinceEpoch}.$ext';
 
       final supabase = ref.read(supabaseClientProvider);
       if (supabase != null) {

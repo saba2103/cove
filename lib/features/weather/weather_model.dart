@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 
 class WeatherData {
@@ -74,8 +75,8 @@ class WeatherData {
       isDay: json['isDay'] as bool? ?? true,
       condition: json['condition'] as String? ?? 'Clear',
       updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'] as String) ?? DateTime.now()
-          : DateTime.now(),
+          ? DateTime.tryParse(json['updatedAt'] as String) ?? clock.now()
+          : clock.now(),
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       isLiveGps: json['isLiveGps'] as bool? ?? false,

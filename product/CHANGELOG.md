@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Injectable Time (`package:clock`) & Deterministic Clock-Pinned Goldens (`Oct 25, 2026`)**:
+  - *Outcome*: Replaced every `DateTime.now()` call across `lib/features/` and `lib/core/widgets/` with `clock.now()` from `package:clock` (leaving `lib/sync/` untouched), and pinned all `goldenMatrix` runs in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) inside `withClock(clock ?? kDefaultGoldenClock, ...)` where `kDefaultGoldenClock = Clock.fixed(DateTime(2026, 10, 15, 10, 30))` (Thursday morning, matching `_kFixedDate`).
+  - *Under the Hood*:
+    - Added [`test/clock_guard_test.dart`](../test/clock_guard_test.dart) to fail if `DateTime.now(` appears anywhere under `lib/features/` or `lib/core/widgets/`.
+    - Regenerated the 30 time-dependent screen goldens (`activity_screen`, `calendar_screen`, `habits_screen`, `subscriptions_screen`, `today_screen`) and verified consecutive golden suite runs pass deterministically without `--update-goldens`.
 - **Task 3.10h — "Today" (`TodayScreen`) Converted to Cove Slip Primitives, `CoveCarousel`, and `CoveLetter` (`Oct 25, 2026`)**:
   - *Outcome*: Converted [`TodayScreen`](../lib/features/today/today_screen.dart) to the v2 "Today" morning briefing layout ([`design/screens/today.md`](../design/screens/today.md) & [`design/screens/today.png`](../design/screens/today.png)), arranged top to bottom as:
     1. Screen-local `_TodayHeader` (home name with chevron, token-styled weather chip, ghost `CoveRoundButton` bell with an `8dp` `(literal)` `accent.fill` unread dot, and `CoveAvatar.header` for the viewer — never `CovePerson.both`, without modifying `CovePageHeader`).

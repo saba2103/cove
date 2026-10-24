@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'weather_model.dart';
@@ -131,7 +132,7 @@ class WeatherService {
         weatherCode: weatherCode,
         isDay: isDay,
         condition: condition,
-        updatedAt: DateTime.now(),
+        updatedAt: clock.now(),
         latitude: latitude,
         longitude: longitude,
         isLiveGps: isLiveGps,

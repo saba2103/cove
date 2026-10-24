@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/uuid_generator.dart';
@@ -42,7 +43,7 @@ class HabitController {
 
     final user = _currentUser;
     final userId = user?.id ?? 'local_user';
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     final id = _generateUuid();
 
     final isPrivate = visibility == HabitVisibility.privateToMe;
@@ -126,9 +127,9 @@ class HabitController {
           'Actor violation: You can only check in for your own habits.');
     }
 
-    final targetDate = date ?? DateTime.now();
+    final targetDate = date ?? clock.now();
     final checkinDateStr = HabitStreakCalculator.formatDate(targetDate);
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     final isPrivate = habit.targetDaysPerWeek < 0;
 
     if (isPrivate) {
@@ -182,7 +183,7 @@ class HabitController {
 
     final user = _currentUser;
     final userId = user?.id ?? 'local_user';
-    final targetDate = date ?? DateTime.now();
+    final targetDate = date ?? clock.now();
     final checkinDateStr = HabitStreakCalculator.formatDate(targetDate);
 
     // Cannot acknowledge a private habit (since it's only on device)

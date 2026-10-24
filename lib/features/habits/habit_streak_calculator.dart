@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
 
@@ -37,7 +38,7 @@ class HabitStreakCalculator {
     DateTime? referenceDate,
     String? currentUserId,
   }) {
-    final now = referenceDate ?? DateTime.now();
+    final now = referenceDate ?? clock.now();
     final todayStr = formatDate(now);
     final yesterdayStr = formatDate(now.subtract(const Duration(days: 1)));
 

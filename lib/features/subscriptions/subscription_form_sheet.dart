@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -106,7 +107,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       _customMonths = 7;
     }
 
-    _nextBillingDate = item?.nextBillingDate ?? widget.initialDate ?? DateTime.now().add(const Duration(days: 30));
+    _nextBillingDate = item?.nextBillingDate ?? widget.initialDate ?? clock.now().add(const Duration(days: 30));
     _endDate = item?.endDate;
     _totalInstallments = item?.totalInstallments ?? (_endDate != null ? item?.emiProgress?.totalInstallments : null);
     _paidInstallments = item?.paidInstallments ?? (_endDate != null ? item?.emiProgress?.paidInstallments : null);
@@ -176,7 +177,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
   int _calculatePaidFromEndDate({DateTime? endDate, int? total, DateTime? now}) {
     final t = total ?? _totalInstallments ?? 12;
     if (endDate == null) return 0;
-    final currentDate = now ?? DateTime.now();
+    final currentDate = now ?? clock.now();
     final cycleMonths = getBillingCycleMonths(_billingCycle);
     int remainingMonths = (endDate.year - currentDate.year) * 12 + (endDate.month - currentDate.month);
     if (endDate.day >= currentDate.day) {
@@ -203,7 +204,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     final initial = _endDate ?? _nextBillingDate.add(const Duration(days: 365));
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial.isBefore(DateTime.now()) ? DateTime.now() : initial,
+      initialDate: initial.isBefore(clock.now()) ? clock.now() : initial,
       firstDate: DateTime(2020),
       lastDate: DateTime(2045),
       builder: (context, child) {
@@ -258,7 +259,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     final paid = _effectivePaidInstallments.clamp(0, total);
     final remaining = (total - paid).clamp(0, total);
     final cycleMonths = getBillingCycleMonths(_billingCycle);
-    final now = DateTime.now();
+    final now = clock.now();
     _endDate = DateTime(
       now.year,
       now.month + (remaining * cycleMonths),

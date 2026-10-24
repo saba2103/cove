@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:workmanager/workmanager.dart';
@@ -57,7 +58,7 @@ class WorkmanagerBackupScheduler implements BackupScheduler {
       uniqueName,
       taskName,
       frequency: const Duration(hours: 24),
-      initialDelay: BackupScheduler.delayUntil(time, DateTime.now()),
+      initialDelay: BackupScheduler.delayUntil(time, clock.now()),
       constraints: Constraints(
         networkType: wifiOnly ? NetworkType.unmetered : NetworkType.connected,
         requiresBatteryNotLow: true,

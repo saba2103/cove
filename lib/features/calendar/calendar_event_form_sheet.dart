@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -58,7 +59,7 @@ class _CalendarEventFormSheetState
   void initState() {
     super.initState();
     final item = widget.existing;
-    final baseDate = item?.startTime ?? widget.initialDate ?? DateTime.now();
+    final baseDate = item?.startTime ?? widget.initialDate ?? clock.now();
 
     _titleController = TextEditingController(text: item?.title ?? '');
     _locationController = TextEditingController(text: item?.location ?? '');

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -744,7 +745,7 @@ class CommitmentDetailSheet extends ConsumerWidget {
     final cycleSuffix = isEmi ? ' / month' : ' ${formatBillingCycleSuffix(subscription.billingCycle)}';
 
     // Dates formatting
-    final now = DateTime.now();
+    final now = clock.now();
     final today = DateTime(now.year, now.month, now.day);
     final nextDate = DateTime(
       subscription.nextBillingDate.year,

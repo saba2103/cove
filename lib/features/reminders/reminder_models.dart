@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
 
@@ -61,8 +62,8 @@ class CheckinReminder {
       message: (map['message'] as String?) ?? 'A quiet moment for us • Check in on our sanctuary',
       isEnabled: map['isEnabled'] as bool? ?? true,
       createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
-          : DateTime.now(),
+          ? DateTime.tryParse(map['createdAt'] as String) ?? clock.now()
+          : clock.now(),
     );
   }
 

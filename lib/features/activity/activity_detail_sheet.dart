@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -286,7 +287,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
         case 'calendar_event_deleted':
           final startStr = payload['start_time'] as String?;
           final endStr = payload['end_time'] as String?;
-          final startTime = startStr != null ? DateTime.tryParse(startStr) ?? DateTime.now() : DateTime.now();
+          final startTime = startStr != null ? DateTime.tryParse(startStr) ?? clock.now() : clock.now();
           final endTime = (endStr != null ? DateTime.tryParse(endStr) : null) ?? startTime.add(const Duration(hours: 1));
           final recurrence = payload['recurrence'] as String?;
           final location = payload['location'] as String?;

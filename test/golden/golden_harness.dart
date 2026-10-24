@@ -7,6 +7,7 @@
 // Fonts are loaded from disk — never from the network — so goldens are identical
 // on your machine, Ancy's and CI.
 import 'dart:io';
+import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+/// Default fixed clock for all golden tests: 2026-10-15 10:30 (a Thursday
+/// morning, matching the fixture's `_kFixedDate`).
+final Clock kDefaultGoldenClock = Clock.fixed(DateTime(2026, 10, 15, 10, 30));
 
 /// Widths Cove must survive. Named for what they are, not for a device.
 class CoveWidth {
@@ -123,49 +128,52 @@ Future<void> goldenMatrix(
   List<Override> overrides = const [],
   Widget Function(Widget)? wrap,
   Set<String> allowedOverflows = const {},
+  Clock? clock,
 }) async {
   await loadCoveFonts();
-  for (final size in widths) {
-    final w = size == CoveWidth.cover ? 'cover' : size == CoveWidth.wide ? 'wide' : 'phone';
-    final pairKey = '$name.$w';
-    for (final mode in modes) {
-      final originalOnError = FlutterError.onError;
-      FlutterError.onError = (FlutterErrorDetails details) {
-        final isOverflow =
-            details.exceptionAsString().contains('A RenderFlex overflowed by');
-        if (isOverflow && allowedOverflows.contains(pairKey)) {
-          return;
-        }
-        originalOnError?.call(details);
-      };
-      try {
-        tester.view
-          ..physicalSize = size * 2
-          ..devicePixelRatio = 2.0;
-        addTearDown(tester.view.reset);
-        await tester.pumpWidget(ProviderScope(
-          overrides: overrides,
-          child: MediaQuery(
-            // Goldens pin textScaler. A separate 200% test covers WCAG 1.4.4.
-            data: MediaQueryData(size: size, textScaler: const TextScaler.linear(1.0)),
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: coveThemeFor(mode),
-              home: wrap != null ? wrap(child) : child,
+  await withClock(clock ?? kDefaultGoldenClock, () async {
+    for (final size in widths) {
+      final w = size == CoveWidth.cover ? 'cover' : size == CoveWidth.wide ? 'wide' : 'phone';
+      final pairKey = '$name.$w';
+      for (final mode in modes) {
+        final originalOnError = FlutterError.onError;
+        FlutterError.onError = (FlutterErrorDetails details) {
+          final isOverflow =
+              details.exceptionAsString().contains('A RenderFlex overflowed by');
+          if (isOverflow && allowedOverflows.contains(pairKey)) {
+            return;
+          }
+          originalOnError?.call(details);
+        };
+        try {
+          tester.view
+            ..physicalSize = size * 2
+            ..devicePixelRatio = 2.0;
+          addTearDown(tester.view.reset);
+          await tester.pumpWidget(ProviderScope(
+            overrides: overrides,
+            child: MediaQuery(
+              // Goldens pin textScaler. A separate 200% test covers WCAG 1.4.4.
+              data: MediaQueryData(size: size, textScaler: const TextScaler.linear(1.0)),
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: coveThemeFor(mode),
+                home: wrap != null ? wrap(child) : child,
+              ),
             ),
-          ),
-        ));
-        await tester.pumpAndSettle();
-        final m = mode == Brightness.dark ? 'dark' : 'light';
-        await expectLater(
-          find.byType(MaterialApp),
-          matchesGoldenFile('goldens/$name.$w.$m.png'),
-        );
-      } finally {
-        FlutterError.onError = originalOnError;
+          ));
+          await tester.pumpAndSettle();
+          final m = mode == Brightness.dark ? 'dark' : 'light';
+          await expectLater(
+            find.byType(MaterialApp),
+            matchesGoldenFile('goldens/$name.$w.$m.png'),
+          );
+        } finally {
+          FlutterError.onError = originalOnError;
+        }
       }
     }
-  }
+  });
 }
 
 /// Resolves the Cove theme for [b] with both [CoveTokens] and legacy [CoveColors].

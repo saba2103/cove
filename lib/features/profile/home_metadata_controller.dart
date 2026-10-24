@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -18,7 +19,7 @@ class HomeMetadataState {
 
   static String? formatDuration(DateTime? anniversaryDate) {
     if (anniversaryDate == null) return null;
-    final now = DateTime.now();
+    final now = clock.now();
     if (anniversaryDate.isAfter(now)) return null;
 
     int years = now.year - anniversaryDate.year;

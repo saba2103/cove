@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -83,7 +84,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       }
       return latest;
     }
-    return DateTime.now();
+    return clock.now();
   }
 
   void _stepLedgerMonth(DateTime currentLedgerMonth, int deltaMonths) {

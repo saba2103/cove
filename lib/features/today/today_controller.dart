@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/cove_currency_formatter.dart';
@@ -31,7 +32,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
   final hasPartner = ref.watch(activeHomeHasPartnerProvider);
   final currency = ref.watch(currencyPreferenceProvider);
 
-  final now = DateTime.now();
+  final now = clock.now();
   final startOfToday = DateTime(now.year, now.month, now.day);
   final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
   final todayString = DateFormat('yyyy-MM-dd').format(now);

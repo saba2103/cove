@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -47,7 +48,7 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
   final _notesController = TextEditingController();
   final _customCategoryController = TextEditingController();
 
-  DateTime _expenseDate = DateTime.now();
+  DateTime _expenseDate = clock.now();
   late String _currency;
   String _selectedCategory = 'Groceries';
   bool _isCustomCategory = false;

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -169,7 +170,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
-    final now = DateTime.now();
+    final now = clock.now();
     final selectedDateOnly = CalendarDateUtils.dateOnly(widget.selectedDate);
 
     final monthStart = DateTime(selectedDateOnly.year, selectedDateOnly.month, 1);

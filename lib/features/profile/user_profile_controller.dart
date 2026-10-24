@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -320,7 +321,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
           await supabase.from('home_members').upsert({
             'home_id': homeId,
             'user_id': user.id,
-            'joined_at': DateTime.now().toUtc().toIso8601String(),
+            'joined_at': clock.now().toUtc().toIso8601String(),
             'display_name': trimmedName,
             'avatar_url': trimmedAvatar,
           });

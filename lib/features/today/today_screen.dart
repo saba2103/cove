@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -45,9 +46,7 @@ import 'today_controller.dart';
 import 'today_models.dart';
 
 class TodayScreen extends ConsumerStatefulWidget {
-  final DateTime? initialNow;
-
-  const TodayScreen({super.key, this.initialNow});
+  const TodayScreen({super.key});
 
   @override
   ConsumerState<TodayScreen> createState() => _TodayScreenState();
@@ -170,7 +169,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ref.watch(activeHomeSubscriptionsProvider).value ??
         const <LocalSubscription>[];
 
-    final now = widget.initialNow ?? DateTime.now();
+    final now = clock.now();
     final todayDate = DateTime(now.year, now.month, now.day);
     final tomorrowDate = DateTime(now.year, now.month, now.day + 1);
 

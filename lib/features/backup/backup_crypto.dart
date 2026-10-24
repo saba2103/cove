@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:archive/archive.dart';
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pointycastle/export.dart';
 
@@ -225,7 +226,7 @@ class BackupCrypto {
     final compressed = GZipEncoder().encodeBytes(utf8.encode(jsonEncode(payload)));
 
     final envelope = BackupEnvelope(
-      createdAt: createdAt ?? DateTime.now(),
+      createdAt: createdAt ?? clock.now(),
       schemaVersion: schemaVersion,
       appVersion: appVersion,
       kdf: kdf,

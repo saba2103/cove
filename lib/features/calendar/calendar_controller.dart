@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -134,12 +135,12 @@ class CalendarController {
   CoveUser? get _currentUser => ref.read(authProvider).value;
 
   String _generateUuid() {
-    final random = DateTime.now().microsecondsSinceEpoch.toString();
+    final random = clock.now().microsecondsSinceEpoch.toString();
     final hash = (random.hashCode & 0x7FFFFFFF).toRadixString(16).padLeft(8, '0');
-    final p1 = (DateTime.now().millisecondsSinceEpoch & 0xFFFFFFFF)
+    final p1 = (clock.now().millisecondsSinceEpoch & 0xFFFFFFFF)
         .toRadixString(16)
         .padLeft(8, '0');
-    return '$p1-$hash-4000-8000-${DateTime.now().microsecond.toRadixString(16).padLeft(12, '0')}';
+    return '$p1-$hash-4000-8000-${clock.now().microsecond.toRadixString(16).padLeft(12, '0')}';
   }
 
   /// Creates a calendar event and emits `calendar_event_added`.

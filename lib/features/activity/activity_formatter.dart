@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -902,7 +903,7 @@ class ActivityFormatter {
   }
 
   static String formatTimeAgo(DateTime dt) {
-    final now = DateTime.now();
+    final now = clock.now();
     final diff = now.difference(dt);
 
     if (diff.inSeconds < 45) {
@@ -921,7 +922,7 @@ class ActivityFormatter {
   }
 
   static String formatDateHeading(DateTime dt) {
-    final now = DateTime.now();
+    final now = clock.now();
     final today = DateTime(now.year, now.month, now.day);
     final date = DateTime(dt.year, dt.month, dt.day);
     final diff = today.difference(date).inDays;

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
 import '../habits/habit_schedule.dart';
@@ -331,7 +332,7 @@ class CalendarDateUtils {
 
   /// Relative date label like "Today · Sep 10", "Tomorrow · Sep 11", or "Thursday · Sep 12"
   static String getRelativeDateLabel(DateTime date, {DateTime? now}) {
-    final ref = dateOnly(now ?? DateTime.now());
+    final ref = dateOnly(now ?? clock.now());
     final target = dateOnly(date);
     final diff = target.difference(ref).inDays;
 

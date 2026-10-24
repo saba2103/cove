@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -73,7 +74,7 @@ class NotificationDetailDispatcher {
     // the user has already navigated to the module screen.
     if (entityId == null) return;
 
-    final now = DateTime.now();
+    final now = clock.now();
     if (_isOpening && _lastDispatchedEntityId == entityId) {
       debugPrint('[NotificationDetailDispatcher] Already opening detail for $entityId, skipping duplicate');
       return;

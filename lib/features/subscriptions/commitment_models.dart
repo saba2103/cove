@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import '../../sync/db/app_database.dart';
 
 class EmiProgress {
@@ -70,7 +71,7 @@ EmiProgress calculateEmiProgress({
   required String billingCycle,
   DateTime? now,
 }) {
-  final current = now ?? DateTime.now();
+  final current = now ?? clock.now();
   final monthsPerCycle = getBillingCycleMonths(billingCycle);
 
   final start = DateTime(startDate.year, startDate.month, startDate.day);
@@ -121,7 +122,7 @@ extension LocalSubscriptionCommitmentX on LocalSubscription {
         paid = paidInstallments!.clamp(0, total);
       } else if (endDate != null) {
         final monthsPerCycle = getBillingCycleMonths(billingCycle);
-        final today = DateTime.now();
+        final today = clock.now();
         int remainingMonths = (endDate!.year - today.year) * 12 + (endDate!.month - today.month);
         if (endDate!.day >= today.day) remainingMonths += 1;
         if (remainingMonths < 0) remainingMonths = 0;

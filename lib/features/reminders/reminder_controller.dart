@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -85,7 +86,7 @@ class ReminderNotifier extends Notifier<List<CheckinReminder>> {
       minute: 30,
       message: 'A quiet moment for us • Check in on our sanctuary',
       isEnabled: true,
-      createdAt: DateTime.now(),
+      createdAt: clock.now(),
     );
 
     await db.into(db.localCheckinReminders).insertOnConflictUpdate(
@@ -132,14 +133,14 @@ class ReminderNotifier extends Notifier<List<CheckinReminder>> {
     if (homeId == null || homeId.isEmpty) return;
 
     final newReminder = CheckinReminder(
-      id: 'rem_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'rem_${clock.now().millisecondsSinceEpoch}',
       hour: hour,
       minute: minute,
       message: message.trim().isNotEmpty
           ? message.trim()
           : 'A quiet moment for us • Check in on our sanctuary',
       isEnabled: true,
-      createdAt: DateTime.now(),
+      createdAt: clock.now(),
     );
 
     // 1. Insert into Drift SQLite database
@@ -287,7 +288,7 @@ class ReminderNotifier extends Notifier<List<CheckinReminder>> {
         iOS: iosDetails,
       );
 
-      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final id = clock.now().millisecondsSinceEpoch ~/ 1000;
       await _localNotifications.show(
         id: id,
         title: 'Cove · A warm pause for the two of you',

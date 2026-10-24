@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../sync/db/app_database.dart';
@@ -48,7 +49,7 @@ class SubscriptionController {
     final user = _currentUser;
     final userId = user?.id ?? 'local_user';
     final resolvedPaidBy = (paidBy != null && paidBy.isNotEmpty) ? paidBy : userId;
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     final id = _generateUuid();
     final resolvedCurrency = (currency != null && currency.isNotEmpty)
         ? currency
@@ -340,7 +341,7 @@ class SubscriptionController {
         title: title,
         amount: sub.amount,
         currency: sub.currency,
-        expenseDate: DateTime.now(),
+        expenseDate: clock.now(),
         paidBy: isSplit ? (_currentUser?.id ?? 'me') : payer,
         category: sub.category ?? 'Utilities',
         notes: isEmi
@@ -413,7 +414,7 @@ class SubscriptionController {
         title: '${sub.name} (EMI Foreclosure Payoff)',
         amount: payoffAmount,
         currency: sub.currency,
-        expenseDate: DateTime.now(),
+        expenseDate: clock.now(),
         paidBy: isSplit ? (_currentUser?.id ?? 'me') : payer,
         category: sub.category ?? 'Loan',
         notes: 'Preclosed EMI with full settlement of remaining $remainingInstallments installments via ${sub.financedThrough ?? "Commitments"}',
@@ -446,12 +447,12 @@ class SubscriptionController {
   }
 
   String _generateUuid() {
-    final random = DateTime.now().microsecondsSinceEpoch.toString();
+    final random = clock.now().microsecondsSinceEpoch.toString();
     final hash = (random.hashCode & 0x7FFFFFFF).toRadixString(16).padLeft(8, '0');
-    final p1 = (DateTime.now().millisecondsSinceEpoch & 0xFFFFFFFF)
+    final p1 = (clock.now().millisecondsSinceEpoch & 0xFFFFFFFF)
         .toRadixString(16)
         .padLeft(8, '0');
-    return '$p1-$hash-4000-8000-${DateTime.now().microsecond.toRadixString(16).padLeft(12, '0')}';
+    return '$p1-$hash-4000-8000-${clock.now().microsecond.toRadixString(16).padLeft(12, '0')}';
   }
 }
 

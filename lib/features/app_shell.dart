@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -311,7 +312,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
         }
 
         // On Calendar tab: require double press within 2 seconds to exit
-        final now = DateTime.now();
+        final now = clock.now();
         if (_lastBackPressed == null ||
             now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
           _lastBackPressed = now;

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/cove_tokens.dart';
@@ -49,7 +50,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.initialSelectedDate ?? DateTime.now();
+    _selectedDate = widget.initialSelectedDate ?? clock.now();
   }
 
   @override

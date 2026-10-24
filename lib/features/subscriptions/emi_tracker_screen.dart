@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -340,7 +341,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
     final referenceDate = allActiveEmis.isNotEmpty
         ? allActiveEmis.first.nextBillingDate
-        : DateTime.now();
+        : clock.now();
     final freeByDate = longestEmi != null
         ? _endDateOf(longestEmi)
         : referenceDate;

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../sync/providers/active_home_provider.dart';
@@ -91,7 +92,7 @@ class ActivityReadNotifier extends Notifier<ActivityReadState> {
 
   Future<void> markAllAsRead() async {
     final homeId = ref.read(activeHomeIdProvider) ?? 'default';
-    final now = DateTime.now().toUtc();
+    final now = clock.now().toUtc();
     state = ActivityReadState(
       lastReadTimestamp: now,
       readEventIds: const {},

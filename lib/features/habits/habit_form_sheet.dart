@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/cove_theme.dart';
@@ -231,7 +232,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                         onTap: () => setState(() {
                           _cadence = 'weekly';
                           if (_selectedDays.length != 1) {
-                            _selectedDays = {DateTime.now().weekday};
+                            _selectedDays = {clock.now().weekday};
                           }
                           _targetDays = 1;
                         }),

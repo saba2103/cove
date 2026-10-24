@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -39,23 +40,7 @@ class _CommitmentsHelicopterScreenState
   @override
   void initState() {
     super.initState();
-    _selectedYear = widget.initialYear ?? DateTime.now().year;
-  }
-
-  /// Resolves a deterministic reference date when seeded `subscriptions` +
-  /// `initialYear` are supplied (e.g. golden tests), otherwise `DateTime.now()`.
-  DateTime _resolveReferenceNow(List<LocalSubscription> subs) {
-    if (widget.initialYear != null &&
-        widget.subscriptions != null &&
-        subs.isNotEmpty) {
-      for (final s in subs) {
-        if (s.nextBillingDate.year == widget.initialYear) {
-          return s.nextBillingDate;
-        }
-      }
-      return subs.first.nextBillingDate;
-    }
-    return DateTime.now();
+    _selectedYear = widget.initialYear ?? clock.now().year;
   }
 
   @override
@@ -67,7 +52,7 @@ class _CommitmentsHelicopterScreenState
         ref.watch(activeHomeSubscriptionsProvider).value ??
         [];
 
-    final referenceNow = _resolveReferenceNow(subsList);
+    final referenceNow = clock.now();
     final int markedMonth = referenceNow.month;
 
     // Profiles for attribution
