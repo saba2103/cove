@@ -33,10 +33,17 @@ for mode in ('dark','light'):
     for k in d['category']:
         r=cr(rgb(val('category',k,mode)),rgb(val('surface','canvas',mode)))
         if r<3.0: fails.append(f"{mode}: category.{k} = {r:.2f} (need 3.0)")
-pap=rgb(d['paper']['to']['$value'])
-for k in ('ink','ink2','ink3','accent'):
-    r=cr(rgb(d['paper'][k]['$value']),pap)
-    if r<4.5: fails.append(f"paper.{k} on paper = {r:.2f} (need 4.5)")
+paper_stops={k:rgb(val('paper',k,'light')) for k in ('from','via','to')}
+PAPER_TEXT=[('paper','ink'),('paper','ink2'),('paper','ink3'),('paper','accent')]
+PAPER_MARK=[('paper','accent'),('status','good'),('paper','ink3')]+[('category',k) for k in d['category']]
+for g,n in PAPER_TEXT:
+    for sn,sv in paper_stops.items():
+        r=cr(rgb(val(g,n,'light')),sv)
+        if r<4.5: fails.append(f"paper: {g}.{n} on paper.{sn} = {r:.2f} (need 4.5)")
+for g,n in PAPER_MARK:
+    for sn,sv in paper_stops.items():
+        r=cr(rgb(val(g,n,'light')),sv)
+        if r<3.0: fails.append(f"paper: {g}.{n} on paper.{sn} = {r:.2f} (need 3.0)")
 ink_stops={k:rgb(val('slip',k,'dark')) for k in ('inkFrom','inkVia','inkTo')}
 INK_TEXT=[('text','primary'),('text','secondary'),('accent','text'),
           ('money','more'),('money','less'),('slip','inkText3'),('slip','inkAlertText')]

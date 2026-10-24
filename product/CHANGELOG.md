@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.11a — Paper Slip `accentFill` Contrast Fix & Paper Stop Contrast Gate (`Oct 25, 2026`)**:
+  - *Outcome*: Updated [`CoveSlipPalette.resolve()`](../lib/core/widgets/slips/cove_slip.dart) so `CoveSlipVariant.paper` uses `cv.paperAccent` (`#76532D`, `4.57:1` on `paper.to`) for `accentFill` instead of `CoveTokens.light.accentFill` (`#A97C4F`, which measured `2.45:1` on `paper.to`), ensuring the receipt's viewer-share bar, the habit grid's done cells, the voucher's due ring, and the EMI's paid punches clear the `3:1` mark contrast floor on paper.
+  - *Under the Hood*:
+    - Extended [`tool/check_contrast.py`](../tool/check_contrast.py) to verify all three paper gradient stops (`paper.from`, `paper.via`, `paper.to`) against `paper.ink`, `paper.ink2`, `paper.ink3`, and `paper.accent` as text at `>= 4.5:1` (worst: `paper.accent` on `paper.to` at `4.57:1`) and against every mark colour used on a paper slip (`paper.accent` as `accentFill`, `status.good`, `paper.ink3` as mark, and all 8 light-mode `category.*` colours) at `>= 3.0:1` (worst: `category.travel` on `paper.to` at `3.17:1`).
+    - Regenerated the affected slip goldens (`receipt`, `habit_card`, `habit_card_paper`, `voucher_paper`) and `today_screen` light-mode goldens.
 - **Today "Due tomorrow" Section — Strict Today/Tomorrow Filtering, Dynamic Label, and Quiet Empty Line (`Oct 25, 2026`)**:
   - *Outcome*: Fixed three issues in [`TodayScreen`](../lib/features/today/today_screen.dart)'s commitments section:
     1. Removed the fallback to all active commitments when nothing is due today or tomorrow, showing only commitments whose `nextBillingDate` is today or tomorrow according to `clock.now()`.

@@ -89,7 +89,7 @@ class CoveSlipPalette {
           secondary: cv.paperInk2,
           tertiary: cv.paperInk3,
           accent: cv.paperAccent,
-          accentFill: CoveTokens.light.accentFill,
+          accentFill: cv.paperAccent,
           alertText: CoveTokens.light.statusAlertText,
           statusGood: CoveTokens.light.statusGood,
           rule: cv.paperRule,
