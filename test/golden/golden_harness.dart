@@ -74,6 +74,7 @@ Future<void> loadCoveFonts() async {
     ],
     'LibreBodoni': [
       'assets/fonts/LibreBodoni-Regular.ttf',
+      'assets/fonts/LibreBodoni-Italic.ttf',
       'assets/fonts/LibreBodoni-Medium.ttf',
     ],
   };

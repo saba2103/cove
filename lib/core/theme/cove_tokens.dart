@@ -52,6 +52,10 @@ abstract final class CoveRadius {
 /// Text styles without colour. Pair with a CoveTokens colour at the use site.
 abstract final class CoveType {
   static const TextStyle title = TextStyle(fontFamily: 'LibreBodoni', fontSize: 28.0, fontWeight: FontWeight.w500, height: 1.2857142857142858, letterSpacing: -0.280);
+  static const TextStyle greeting = TextStyle(fontFamily: 'LibreBodoni', fontSize: 36.0, fontWeight: FontWeight.w400, height: 1.1111111111111112, letterSpacing: 0.000);
+  static const TextStyle letter = TextStyle(fontFamily: 'LibreBodoni', fontSize: 21.0, fontWeight: FontWeight.w400, height: 1.7142857142857142, letterSpacing: 0.000);
+  static const TextStyle slipTitle = TextStyle(fontFamily: 'LibreBodoni', fontSize: 22.0, fontWeight: FontWeight.w400, height: 1.2727272727272727, letterSpacing: -0.220);
+  static const TextStyle slipFigure = TextStyle(fontFamily: 'LibreBodoni', fontSize: 32.0, fontWeight: FontWeight.w500, height: 1.125, letterSpacing: 0.000);
   static const TextStyle heroFigure = TextStyle(fontFamily: 'LibreBodoni', fontSize: 40.0, fontWeight: FontWeight.w400, height: 1.1, letterSpacing: 0.000);
   static const TextStyle cardFigure = TextStyle(fontFamily: 'LibreBodoni', fontSize: 28.0, fontWeight: FontWeight.w400, height: 1.1428571428571428, letterSpacing: 0.000);
   static const TextStyle rowTitle = TextStyle(fontFamily: 'PlusJakartaSans', fontSize: 15.0, fontWeight: FontWeight.w500, height: 1.3333333333333333, letterSpacing: 0.000);
@@ -110,6 +114,12 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
   final Color paperRule;
   final Color paperHairline;
   final Color paperEdge;
+  final Color slipInkFrom;
+  final Color slipInkVia;
+  final Color slipInkTo;
+  final Color slipInkText3;
+  final Color slipInkAlertText;
+  final Color slipInkMark;
   final Color categoryTravel;
   final Color categoryGroceries;
   final Color categoryHealth;
@@ -160,6 +170,12 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     required this.paperRule,
     required this.paperHairline,
     required this.paperEdge,
+    required this.slipInkFrom,
+    required this.slipInkVia,
+    required this.slipInkTo,
+    required this.slipInkText3,
+    required this.slipInkAlertText,
+    required this.slipInkMark,
     required this.categoryTravel,
     required this.categoryGroceries,
     required this.categoryHealth,
@@ -210,6 +226,12 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     paperRule: Color(0x331E332F),
     paperHairline: Color(0x1C1E332F),
     paperEdge: Color(0x00000000),
+    slipInkFrom: Color(0xFF1A4541),
+    slipInkVia: Color(0xFF133734),
+    slipInkTo: Color(0xFF0E2A28),
+    slipInkText3: Color(0xFFA3ABA6),
+    slipInkAlertText: Color(0xFFDC988A),
+    slipInkMark: Color(0xFF909993),
     categoryTravel: Color(0xFFE0C98A),
     categoryGroceries: Color(0xFFD8B98C),
     categoryHealth: Color(0xFFC46D5E),
@@ -263,6 +285,12 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     paperRule: Color(0x331E332F),
     paperHairline: Color(0x1C1E332F),
     paperEdge: Color(0x331E332F),
+    slipInkFrom: Color(0xFF1A4541),
+    slipInkVia: Color(0xFF133734),
+    slipInkTo: Color(0xFF0E2A28),
+    slipInkText3: Color(0xFFA3ABA6),
+    slipInkAlertText: Color(0xFFDC988A),
+    slipInkMark: Color(0xFF909993),
     categoryTravel: Color(0xFF8A6F2E),
     categoryGroceries: Color(0xFF7E5A2C),
     categoryHealth: Color(0xFF9C4335),

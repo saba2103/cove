@@ -37,6 +37,18 @@ pap=rgb(d['paper']['to']['$value'])
 for k in ('ink','ink2','ink3','accent'):
     r=cr(rgb(d['paper'][k]['$value']),pap)
     if r<4.5: fails.append(f"paper.{k} on paper = {r:.2f} (need 4.5)")
+ink_stops={k:rgb(val('slip',k,'dark')) for k in ('inkFrom','inkVia','inkTo')}
+INK_TEXT=[('text','primary'),('text','secondary'),('accent','text'),
+          ('money','more'),('money','less'),('slip','inkText3'),('slip','inkAlertText')]
+INK_MARK=[('accent','fill'),('slip','inkMark')]
+for g,n in INK_TEXT:
+    for sn,sv in ink_stops.items():
+        r=cr(rgb(val(g,n,'dark')),sv)
+        if r<4.5: fails.append(f"ink: {g}.{n} on slip.{sn} = {r:.2f} (need 4.5)")
+for g,n in INK_MARK:
+    for sn,sv in ink_stops.items():
+        r=cr(rgb(val(g,n,'dark')),sv)
+        if r<3.0: fails.append(f"ink: {g}.{n} on slip.{sn} = {r:.2f} (need 3.0)")
 def mix(a,b,t): return tuple(round(a[i]+(b[i]-a[i])*t) for i in range(3))+(1.0,)
 for p,l in (('a','aLabel'),('b','bLabel')):
     g=d['person'][p]['$value']; lab=rgb(d['person'][l]['$value'])

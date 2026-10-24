@@ -22,7 +22,7 @@ String mode(Map t, String m) {
 void main() {
   final j = jsonDecode(File('design/tokens.json').readAsStringSync()) as Map<String, dynamic>;
   final colorGroups = <String, List<String>>{};
-  for (final g in ['surface', 'text', 'line', 'accent', 'status', 'money', 'paper', 'category']) {
+  for (final g in ['surface', 'text', 'line', 'accent', 'status', 'money', 'paper', 'slip', 'category']) {
     colorGroups[g] = (j[g] as Map).keys.cast<String>().toList();
   }
 

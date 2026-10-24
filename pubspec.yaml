@@ -96,6 +96,9 @@ flutter:
       fonts:
         - asset: assets/fonts/LibreBodoni-Regular.ttf
           weight: 400
+        - asset: assets/fonts/LibreBodoni-Italic.ttf
+          weight: 400
+          style: italic
         - asset: assets/fonts/LibreBodoni-Medium.ttf
           weight: 500
     - family: PlusJakartaSans
