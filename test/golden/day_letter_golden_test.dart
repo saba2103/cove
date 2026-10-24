@@ -15,14 +15,20 @@ class _DayLetterShowcase extends StatelessWidget {
   Widget build(BuildContext context) {
     final cv = context.cv;
     final wednesdayClock = DateTime(2026, 10, 21, 9, 41);
+    final todayDate = DateTime(2026, 10, 21);
+    final tomorrowDate = DateTime(2026, 10, 22);
 
     final firstRunSpans = composeDayLetter(
-      DayLetterInput.firstRun(clock: wednesdayClock),
+      DayLetterInput.firstRun(
+        clock: wednesdayClock,
+        currencySymbol: '₹',
+      ),
     );
 
     final quietDaySpans = composeDayLetter(
       DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-amma',
@@ -61,16 +67,18 @@ class _DayLetterShowcase extends StatelessWidget {
             amount: 500,
           ),
         ],
-        commitmentsDue: const [
+        commitmentsDue: [
           DayLetterCommitment(
             id: 'com-ac',
             title: 'AC — the instalment',
             amount: 3974,
+            dueDate: tomorrowDate,
           ),
           DayLetterCommitment(
             id: 'com-car',
             title: 'Car insurance',
             amount: 4900,
+            dueDate: tomorrowDate,
           ),
         ],
         openLists: const [
@@ -86,6 +94,7 @@ class _DayLetterShowcase extends StatelessWidget {
     final busyDaySpans = composeDayLetter(
       DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-1',
@@ -127,6 +136,20 @@ class _DayLetterShowcase extends StatelessWidget {
           DayLetterExpense(id: 'exp-3', title: 'Metro top-up', amount: 200),
         ],
         tickedTaskCount: 2,
+        commitmentsDue: [
+          DayLetterCommitment(
+            id: 'com-today',
+            title: 'Broadband bill',
+            amount: 1499,
+            dueDate: todayDate,
+          ),
+          DayLetterCommitment(
+            id: 'com-tomorrow',
+            title: 'AC — the instalment',
+            amount: 3974,
+            dueDate: tomorrowDate,
+          ),
+        ],
         openLists: const [
           DayLetterList(id: 'l-1', name: 'grocery', openCount: 2),
           DayLetterList(id: 'l-2', name: 'hardware', openCount: 3),
@@ -201,6 +224,7 @@ void main() {
       final spans = composeDayLetter(
         DayLetterInput(
           clock: DateTime(2026, 10, 21, 9, 41),
+          currencySymbol: '₹',
           events: [
             DayLetterEvent(
               id: 'ev-amma',

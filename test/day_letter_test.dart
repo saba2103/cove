@@ -8,10 +8,15 @@ String _joinText(List<LetterSpan> spans) => spans.map((s) => s.text).join();
 void main() {
   // Wednesday, 21 October 2026 at 09:41
   final wednesdayClock = DateTime(2026, 10, 21, 9, 41);
+  final todayDate = DateTime(2026, 10, 21);
+  final tomorrowDate = DateTime(2026, 10, 22);
 
   group('composeDayLetter — pure unit tests (design/specs/11-day-letter.md)', () {
     test('1. Empty first-run day renders italic tertiary prompt', () {
-      final input = DayLetterInput.firstRun(clock: wednesdayClock);
+      final input = DayLetterInput.firstRun(
+        clock: wednesdayClock,
+        currencySymbol: '₹',
+      );
       final spans = composeDayLetter(input);
 
       expect(spans, hasLength(1));
@@ -24,7 +29,10 @@ void main() {
     });
 
     test('2. Clear day (0 things)', () {
-      final input = DayLetterInput(clock: wednesdayClock);
+      final input = DayLetterInput(
+        clock: wednesdayClock,
+        currencySymbol: '₹',
+      );
       final spans = composeDayLetter(input);
 
       expect(
@@ -38,6 +46,7 @@ void main() {
     test('3. Quiet day matching the spec sentences (1–2 things)', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-amma',
@@ -59,16 +68,18 @@ void main() {
             doneByPartner: false,
           ),
         ],
-        commitmentsDue: const [
+        commitmentsDue: [
           DayLetterCommitment(
             id: 'com-ac',
             title: 'AC — the instalment',
             amount: 3974,
+            dueDate: tomorrowDate,
           ),
           DayLetterCommitment(
             id: 'com-car',
             title: 'Car insurance',
             amount: 4900,
+            dueDate: tomorrowDate,
           ),
         ],
         openLists: const [
@@ -85,7 +96,7 @@ void main() {
         _joinText(spans),
         equals(
           'A quiet Wednesday. '
-          'One thing on the calendar — Call with Amma at seven. '
+          'One thing on the calendar — Call with Amma at seven this evening. '
           'Morning walk done; Read twenty pages still waiting. '
           '₹8,874 of commitments goes out tomorrow. '
           'Two lines are still on the grocery list.',
@@ -101,6 +112,7 @@ void main() {
     test('4. Busy day (7+ things, multiple events with non-hour time)', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-1',
@@ -146,7 +158,7 @@ void main() {
         _joinText(spans),
         equals(
           'A busy Wednesday. '
-          'Three things on the calendar, the first at 7:30. '
+          'Three things on the calendar, the first at 7:30 this morning. '
           'Morning walk and Stretch are done for both of you. '
           '₹600 went out today.',
         ),
@@ -156,6 +168,7 @@ void main() {
     test('5. Money with one dominant item (>= 50% of total)', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         expenses: const [
           DayLetterExpense(
             id: 'exp-1',
@@ -181,18 +194,19 @@ void main() {
       );
     });
 
-    test('6. Money with two items over 75% (where top item is < 50%)', () {
+    test('6. Money with two items over 75% (clean titles join with "and")', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         expenses: const [
           DayLetterExpense(
             id: 'exp-gifts',
-            title: 'Diwali gifts — Amma, Appa',
+            title: 'Diwali gifts',
             amount: 2491,
           ),
           DayLetterExpense(
             id: 'exp-groceries',
-            title: 'Namdhari’s — the big run',
+            title: 'Fresh groceries',
             amount: 2640,
           ),
           DayLetterExpense(
@@ -209,7 +223,7 @@ void main() {
         equals(
           'A full Wednesday. '
           'Nothing on the calendar. '
-          '₹5,631 went out today, most of it Namdhari’s — the big run and Diwali gifts — Amma, Appa.',
+          '₹5,631 went out today, most of it Fresh groceries and Diwali gifts.',
         ),
       );
     });
@@ -217,6 +231,7 @@ void main() {
     test('7. Habits all done by both (single and multiple)', () {
       final singleDone = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         habits: const [
           DayLetterHabit(
             id: 'h-walk',
@@ -237,6 +252,7 @@ void main() {
 
       final threeDone = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         habits: const [
           DayLetterHabit(
             id: 'h-1',
@@ -271,6 +287,7 @@ void main() {
     test('8. Habits mixed (names at most two, then "and {N} more")', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         habits: const [
           DayLetterHabit(
             id: 'h-1',
@@ -326,16 +343,19 @@ void main() {
     test('9. Commitments due tomorrow', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
-        commitmentsDue: const [
+        currencySymbol: '₹',
+        commitmentsDue: [
           DayLetterCommitment(
             id: 'com-1',
             title: 'AC — the instalment',
             amount: 3974,
+            dueDate: tomorrowDate,
           ),
           DayLetterCommitment(
             id: 'com-2',
             title: 'Car loan — HDFC',
             amount: 4900,
+            dueDate: tomorrowDate,
           ),
         ],
       );
@@ -354,6 +374,7 @@ void main() {
     test('10. Several lists ("…still on your lists." in italic)', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         openLists: const [
           DayLetterList(id: 'l-1', name: 'grocery', openCount: 2),
           DayLetterList(id: 'l-2', name: 'hardware', openCount: 3),
@@ -376,6 +397,7 @@ void main() {
     test('11. Determinism: composing twice yields identical spans', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-1',
@@ -398,11 +420,12 @@ void main() {
             amount: 2640,
           ),
         ],
-        commitmentsDue: const [
+        commitmentsDue: [
           DayLetterCommitment(
             id: 'c-1',
             title: 'AC — the instalment',
             amount: 3974,
+            dueDate: tomorrowDate,
           ),
         ],
         openLists: const [
@@ -417,10 +440,11 @@ void main() {
 
     test('12. Every link span has a non-null target', () {
       final fixtures = <DayLetterInput>[
-        DayLetterInput.firstRun(clock: wednesdayClock),
-        DayLetterInput(clock: wednesdayClock),
+        DayLetterInput.firstRun(clock: wednesdayClock, currencySymbol: '₹'),
+        DayLetterInput(clock: wednesdayClock, currencySymbol: '₹'),
         DayLetterInput(
           clock: wednesdayClock,
+          currencySymbol: '₹',
           events: [
             DayLetterEvent(
               id: 'ev-1',
@@ -445,20 +469,27 @@ void main() {
           expenses: const [
             DayLetterExpense(
               id: 'e-1',
-              title: 'Diwali gifts — Amma, Appa',
+              title: 'Diwali gifts',
               amount: 2491,
             ),
             DayLetterExpense(
               id: 'e-2',
-              title: 'Namdhari’s — the big run',
+              title: 'Fresh groceries',
               amount: 2640,
             ),
           ],
-          commitmentsDue: const [
+          commitmentsDue: [
             DayLetterCommitment(
               id: 'c-1',
               title: 'AC — the instalment',
               amount: 3974,
+              dueDate: todayDate,
+            ),
+            DayLetterCommitment(
+              id: 'c-2',
+              title: 'Car loan',
+              amount: 4900,
+              dueDate: tomorrowDate,
             ),
           ],
           openLists: const [
@@ -467,6 +498,7 @@ void main() {
         ),
         DayLetterInput(
           clock: wednesdayClock,
+          currencySymbol: '₹',
           events: [
             DayLetterEvent(
               id: 'ev-1',
@@ -500,6 +532,7 @@ void main() {
     test('13. Indian grouping on a lakh figure via formatCoveCurrency()', () {
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         expenses: const [
           DayLetterExpense(
             id: 'exp-jewellery',
@@ -507,11 +540,12 @@ void main() {
             amount: 125000,
           ),
         ],
-        commitmentsDue: const [
+        commitmentsDue: [
           DayLetterCommitment(
             id: 'com-home',
             title: 'Home loan EMI',
             amount: 142500,
+            dueDate: tomorrowDate,
           ),
         ],
       );
@@ -530,6 +564,7 @@ void main() {
 
       final input = DayLetterInput(
         clock: wednesdayClock,
+        currencySymbol: '₹',
         events: [
           DayLetterEvent(
             id: 'ev-odd',
@@ -609,5 +644,246 @@ void main() {
         );
       }
     });
+
+    test(
+      '16. Correction 1 — Times include part of day ("this morning", "this afternoon", "this evening", "tonight")',
+      () {
+        final morning7 = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            events: [
+              DayLetterEvent(
+                id: 'ev-am',
+                title: 'Yoga in the park',
+                startTime: DateTime(2026, 10, 21, 7, 0),
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(morning7),
+          equals(
+            'A quiet Wednesday. '
+            'One thing on the calendar — Yoga in the park at seven this morning.',
+          ),
+        );
+
+        final afternoon = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            events: [
+              DayLetterEvent(
+                id: 'ev-pm',
+                title: 'CA tax filing check-in',
+                startTime: DateTime(2026, 10, 21, 14, 15),
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(afternoon),
+          equals(
+            'A quiet Wednesday. '
+            'One thing on the calendar — CA tax filing check-in at 2:15 this afternoon.',
+          ),
+        );
+
+        final evening = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            events: [
+              DayLetterEvent(
+                id: 'ev-eve',
+                title: 'Call with Amma',
+                startTime: DateTime(2026, 10, 21, 19, 0),
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(evening),
+          equals(
+            'A quiet Wednesday. '
+            'One thing on the calendar — Call with Amma at seven this evening.',
+          ),
+        );
+
+        final tonight = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            events: [
+              DayLetterEvent(
+                id: 'ev-night',
+                title: 'Airport pickup',
+                startTime: DateTime(2026, 10, 21, 21, 30),
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(tonight),
+          equals(
+            'A quiet Wednesday. '
+            'One thing on the calendar — Airport pickup at 9:30 tonight.',
+          ),
+        );
+      },
+    );
+
+    test(
+      '17. Correction 2 — Commitments decide today vs tomorrow from clock, ignore other days, and combine when both exist',
+      () {
+        // Only today (plus an ignored commitment two days later)
+        final onlyToday = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            commitmentsDue: [
+              DayLetterCommitment(
+                id: 'c-today',
+                title: 'Broadband bill',
+                amount: 1499,
+                dueDate: todayDate,
+              ),
+              DayLetterCommitment(
+                id: 'c-later',
+                title: 'Rent',
+                amount: 45000,
+                dueDate: DateTime(2026, 10, 25),
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(onlyToday),
+          equals(
+            'A clear Wednesday. '
+            'Nothing on the calendar. '
+            '₹1,499 of commitments goes out today.',
+          ),
+        );
+
+        // Both today and tomorrow (plus an ignored commitment from yesterday)
+        final bothTodayAndTomorrow = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            commitmentsDue: [
+              DayLetterCommitment(
+                id: 'c-yesterday',
+                title: 'Old bill',
+                amount: 999,
+                dueDate: DateTime(2026, 10, 20),
+              ),
+              DayLetterCommitment(
+                id: 'c-today',
+                title: 'Broadband bill',
+                amount: 1499,
+                dueDate: todayDate,
+              ),
+              DayLetterCommitment(
+                id: 'c-tomorrow-1',
+                title: 'AC — the instalment',
+                amount: 3974,
+                dueDate: tomorrowDate,
+              ),
+              DayLetterCommitment(
+                id: 'c-tomorrow-2',
+                title: 'Car insurance',
+                amount: 4900,
+                dueDate: tomorrowDate,
+              ),
+            ],
+          ),
+        );
+        expect(
+          _joinText(bothTodayAndTomorrow),
+          equals(
+            'A clear Wednesday. '
+            'Nothing on the calendar. '
+            '₹1,499 goes out today and ₹8,874 tomorrow.',
+          ),
+        );
+      },
+    );
+
+    test(
+      '18. Correction 3 — Required currencySymbol formats with the home currency (no silent ₹ fallback)',
+      () {
+        final usdLetter = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '\$',
+            expenses: const [
+              DayLetterExpense(
+                id: 'e-1',
+                title: 'Trader Joe’s',
+                amount: 185,
+              ),
+            ],
+            commitmentsDue: [
+              DayLetterCommitment(
+                id: 'c-1',
+                title: 'PG&E utility',
+                amount: 240,
+                dueDate: tomorrowDate,
+              ),
+            ],
+          ),
+        );
+
+        expect(
+          _joinText(usdLetter),
+          equals(
+            'A quiet Wednesday. '
+            'Nothing on the calendar. '
+            '\$185 went out today, most of it Trader Joe’s. '
+            '\$240 of commitments goes out tomorrow.',
+          ),
+        );
+      },
+    );
+
+    test(
+      '19. Correction 4 — Money with two items >= 75% names only the larger one when either contains —, –, comma, or semicolon',
+      () {
+        final withPunctuation = composeDayLetter(
+          DayLetterInput(
+            clock: wednesdayClock,
+            currencySymbol: '₹',
+            expenses: const [
+              DayLetterExpense(
+                id: 'exp-gifts',
+                title: 'Diwali gifts — Amma, Appa',
+                amount: 2491,
+              ),
+              DayLetterExpense(
+                id: 'exp-groceries',
+                title: 'Namdhari’s — the big run',
+                amount: 2640,
+              ),
+              DayLetterExpense(
+                id: 'exp-auto',
+                title: 'Auto to the market',
+                amount: 500,
+              ),
+            ],
+          ),
+        );
+
+        expect(
+          _joinText(withPunctuation),
+          equals(
+            'A full Wednesday. '
+            'Nothing on the calendar. '
+            '₹5,631 went out today, most of it Namdhari’s — the big run.',
+          ),
+        );
+      },
+    );
   });
 }

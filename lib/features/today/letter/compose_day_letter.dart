@@ -177,17 +177,19 @@ class DayLetterExpense {
   });
 }
 
-/// A commitment due tomorrow (or today) surfaced in the Letter.
+/// A commitment surfaced in the Letter, with its explicit [dueDate].
 @immutable
 class DayLetterCommitment {
   final String id;
   final String title;
   final double amount;
+  final DateTime dueDate;
 
   const DayLetterCommitment({
     required this.id,
     required this.title,
     required this.amount,
+    required this.dueDate,
   });
 }
 
@@ -209,8 +211,8 @@ class DayLetterList {
 @immutable
 class DayLetterInput {
   final DateTime clock;
-  final bool isFirstRun;
   final String currencySymbol;
+  final bool isFirstRun;
   final String? partnerName;
   final List<DayLetterEvent> events;
   final List<DayLetterHabit> habits;
@@ -221,8 +223,8 @@ class DayLetterInput {
 
   const DayLetterInput({
     required this.clock,
+    required this.currencySymbol,
     this.isFirstRun = false,
-    this.currencySymbol = '₹',
     this.partnerName,
     this.events = const <DayLetterEvent>[],
     this.habits = const <DayLetterHabit>[],
@@ -234,7 +236,7 @@ class DayLetterInput {
 
   const DayLetterInput.firstRun({
     required this.clock,
-    this.currencySymbol = '₹',
+    required this.currencySymbol,
     this.partnerName,
   }) : isFirstRun = true,
        events = const <DayLetterEvent>[],
@@ -297,6 +299,8 @@ const List<String> _kHourWords = <String>[
   'twelve',
 ];
 
+final RegExp _kCompoundTitlePunctuation = RegExp(r'[—–,;]');
+
 /// Formats numbers 1–9 as words and 10+ as digits per `design/specs/11-day-letter.md`.
 String formatLetterNumber(int value, {bool capitalize = false}) {
   if (value >= 1 && value <= 9) {
@@ -307,14 +311,29 @@ String formatLetterNumber(int value, {bool capitalize = false}) {
   return '$value';
 }
 
-/// Formats a time on the hour as words ("at seven") and otherwise as digits ("at 7:30").
+/// Returns the part of the day relative to today:
+/// - `< 12:00` → `"this morning"`
+/// - `12:00–16:59` → `"this afternoon"`
+/// - `17:00–20:59` → `"this evening"`
+/// - `21:00+` → `"tonight"`
+String formatLetterDayPart(DateTime time) {
+  final hour = time.hour;
+  if (hour < 12) return 'this morning';
+  if (hour < 17) return 'this afternoon';
+  if (hour < 21) return 'this evening';
+  return 'tonight';
+}
+
+/// Formats a time on the hour as words ("at seven this evening") and otherwise
+/// as digits ("at 7:30 this morning").
 String formatLetterTime(DateTime time) {
   final hour12 = time.hour % 12 == 0 ? 12 : time.hour % 12;
+  final dayPart = formatLetterDayPart(time);
   if (time.minute == 0) {
-    return 'at ${_kHourWords[hour12]}';
+    return 'at ${_kHourWords[hour12]} $dayPart';
   }
   final minutePadded = time.minute.toString().padLeft(2, '0');
-  return 'at $hour12:$minutePadded';
+  return 'at $hour12:$minutePadded $dayPart';
 }
 
 /// Pure, deterministic composer for the Day Letter (`design/specs/11-day-letter.md`).
@@ -324,7 +343,7 @@ String formatLetterTime(DateTime time) {
 /// 2. The calendar ("Nothing on the calendar." / "One thing..." / "{N} things...")
 /// 3. Habits ("{habit} is done for both of you." / "{done} done; {waiting} still waiting.")
 /// 4. Money ("{total} went out today[, most of it ...].")
-/// 5. Commitments ("{sum} of commitments goes out tomorrow.")
+/// 5. Commitments ("{sum} of commitments goes out today/tomorrow." / "₹X goes out today and ₹Y tomorrow.")
 /// 6. Lists in italic ("{N} line(s) is/are still on the {list} list." / "...still on your lists.")
 List<LetterSpan> composeDayLetter(DayLetterInput input) {
   if (input.isFirstRun) {
@@ -351,7 +370,7 @@ List<LetterSpan> composeDayLetter(DayLetterInput input) {
     sentences.add(habitsSentence);
   }
 
-  // 4. Money (omitted at ₹0)
+  // 4. Money (omitted at 0)
   final moneySentence = _composeMoneySentence(
     input.expenses,
     input.currencySymbol,
@@ -360,9 +379,10 @@ List<LetterSpan> composeDayLetter(DayLetterInput input) {
     sentences.add(moneySentence);
   }
 
-  // 5. Commitments (due tomorrow or today)
+  // 5. Commitments (filtered against input.clock for today vs tomorrow)
   final commitmentsSentence = _composeCommitmentsSentence(
     input.commitmentsDue,
+    input.clock,
     input.currencySymbol,
   );
   if (commitmentsSentence.isNotEmpty) {
@@ -549,6 +569,9 @@ List<LetterSpan> _buildHabitGroupSpans(List<DayLetterHabit> group) {
   ];
 }
 
+bool _hasCompoundPunctuation(String title) =>
+    _kCompoundTitlePunctuation.hasMatch(title);
+
 List<LetterSpan> _composeMoneySentence(
   List<DayLetterExpense> expenses,
   String currencySymbol,
@@ -593,50 +616,105 @@ List<LetterSpan> _composeMoneySentence(
     ]);
   } else if (sorted.length >= 2 &&
       (sorted[0].amount + sorted[1].amount) * 100.0 >= total * 75.0) {
-    spans.addAll(<LetterSpan>[
-      const LetterSpan(text: ', most of it '),
-      LetterSpan(
-        text: sorted[0].title,
-        style: LetterSpanStyle.link,
-        target: LetterTarget.expense(sorted[0].id),
-      ),
-      const LetterSpan(text: ' and '),
-      LetterSpan(
-        text: sorted[1].title,
-        style: LetterSpanStyle.link,
-        target: LetterTarget.expense(sorted[1].id),
-      ),
-    ]);
+    final first = sorted[0];
+    final second = sorted[1];
+    final canJoinBoth =
+        !_hasCompoundPunctuation(first.title) &&
+        !_hasCompoundPunctuation(second.title);
+
+    if (canJoinBoth) {
+      spans.addAll(<LetterSpan>[
+        const LetterSpan(text: ', most of it '),
+        LetterSpan(
+          text: first.title,
+          style: LetterSpanStyle.link,
+          target: LetterTarget.expense(first.id),
+        ),
+        const LetterSpan(text: ' and '),
+        LetterSpan(
+          text: second.title,
+          style: LetterSpanStyle.link,
+          target: LetterTarget.expense(second.id),
+        ),
+      ]);
+    } else {
+      spans.addAll(<LetterSpan>[
+        const LetterSpan(text: ', most of it '),
+        LetterSpan(
+          text: first.title,
+          style: LetterSpanStyle.link,
+          target: LetterTarget.expense(first.id),
+        ),
+      ]);
+    }
   }
 
   spans.add(const LetterSpan(text: '.'));
   return spans;
 }
 
+bool _isSameCalendarDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
 List<LetterSpan> _composeCommitmentsSentence(
   List<DayLetterCommitment> commitmentsDue,
+  DateTime clock,
   String currencySymbol,
 ) {
-  final positive = commitmentsDue.where((c) => c.amount > 0).toList();
-  if (positive.isEmpty) {
+  final todayDate = DateTime(clock.year, clock.month, clock.day);
+  final tomorrowDate = DateTime(clock.year, clock.month, clock.day + 1);
+
+  final dueToday = commitmentsDue
+      .where((c) => c.amount > 0 && _isSameCalendarDay(c.dueDate, todayDate))
+      .toList();
+  final dueTomorrow = commitmentsDue
+      .where((c) => c.amount > 0 && _isSameCalendarDay(c.dueDate, tomorrowDate))
+      .toList();
+
+  final sumToday = dueToday.fold<double>(0.0, (acc, c) => acc + c.amount);
+  final sumTomorrow = dueTomorrow.fold<double>(0.0, (acc, c) => acc + c.amount);
+
+  if (sumToday <= 0 && sumTomorrow <= 0) {
     return const <LetterSpan>[];
   }
 
-  final sum = positive.fold<double>(0.0, (acc, c) => acc + c.amount);
-  if (sum <= 0) {
-    return const <LetterSpan>[];
-  }
-
-  final sumText = formatCoveCurrency(sum, currencySymbol);
-  final target = positive.length == 1
-      ? LetterTarget.commitment(positive.first.id)
+  LetterTarget targetFor(List<DayLetterCommitment> items) => items.length == 1
+      ? LetterTarget.commitment(items.first.id)
       : const LetterTarget.commitmentsSection();
+
+  if (sumToday > 0 && sumTomorrow > 0) {
+    return <LetterSpan>[
+      LetterSpan(
+        text: formatCoveCurrency(sumToday, currencySymbol),
+        style: LetterSpanStyle.link,
+        target: targetFor(dueToday),
+      ),
+      const LetterSpan(text: ' goes out today and '),
+      LetterSpan(
+        text: formatCoveCurrency(sumTomorrow, currencySymbol),
+        style: LetterSpanStyle.link,
+        target: targetFor(dueTomorrow),
+      ),
+      const LetterSpan(text: ' tomorrow.'),
+    ];
+  }
+
+  if (sumToday > 0) {
+    return <LetterSpan>[
+      LetterSpan(
+        text: formatCoveCurrency(sumToday, currencySymbol),
+        style: LetterSpanStyle.link,
+        target: targetFor(dueToday),
+      ),
+      const LetterSpan(text: ' of commitments goes out today.'),
+    ];
+  }
 
   return <LetterSpan>[
     LetterSpan(
-      text: sumText,
+      text: formatCoveCurrency(sumTomorrow, currencySymbol),
       style: LetterSpanStyle.link,
-      target: target,
+      target: targetFor(dueTomorrow),
     ),
     const LetterSpan(text: ' of commitments goes out tomorrow.'),
   ];
