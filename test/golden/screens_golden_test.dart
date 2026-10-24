@@ -9,6 +9,7 @@ import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
 import 'package:cove/features/expenses/expenses_screen.dart';
 import 'package:cove/features/expenses/monthly_budget_controller.dart';
+import 'package:cove/features/habits/habit_detail_sheet.dart';
 import 'package:cove/features/habits/habits_screen.dart';
 import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/lists/list_controller.dart';
@@ -800,6 +801,25 @@ void main() {
             child: ListItemDetailSheet(
               item: _kSeedListItems.first,
               listName: _kSeedLists.first.name,
+            ),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('habit_detail_sheet', (tester) async {
+      await goldenMatrix(
+        tester,
+        'habit_detail_sheet',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: HabitDetailSheet(
+              habit: _kSeedHabits.first,
+              checkins: _kSeedHabitCheckins,
             ),
           ),
         ),

@@ -26,6 +26,25 @@ class HabitStreakCalculator {
     return _dateFormat.format(date);
   }
 
+  /// Builds the 21-day boolean check-in history (oldest first, last cell = today),
+  /// excluding acknowledgment entries (`memberId` starting with `'ack:'`).
+  static List<bool> buildHistory21({
+    required List<LocalHabitCheckin> checkins,
+    DateTime? referenceDate,
+    int totalDays = 21,
+  }) {
+    final now = referenceDate ?? clock.now();
+    final checkedDates = checkins
+        .where((c) => !c.memberId.startsWith('ack:'))
+        .map((c) => c.checkinDate)
+        .toSet();
+    return List<bool>.generate(totalDays, (index) {
+      final daysAgo = (totalDays - 1) - index;
+      final date = DateTime(now.year, now.month, now.day - daysAgo);
+      return checkedDates.contains(formatDate(date));
+    });
+  }
+
   /// Calculates the streak statistics for a habit based on its check-in history.
   ///
   /// Supports:

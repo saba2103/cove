@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
 import 'package:cove/core/utils/cove_currency_formatter.dart';
 import 'package:cove/core/widgets/cove_avatar.dart';
@@ -14,6 +15,7 @@ import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
+import 'package:cove/features/habits/habit_detail_sheet.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
@@ -563,6 +565,107 @@ void main() {
         expect(find.text('Yours alone'), findsOneWidget);
         expect(find.text('Not part of the shared total'), findsOneWidget);
       }
+    },
+  );
+
+  testWidgets(
+    'HabitDetailSheet renders meaning panel, Check in / Undo check-in verb, and overflow menu items',
+    (tester) async {
+      final fixedDate = DateTime(2026, 10, 15, 10, 30);
+      final habit = LocalHabit(
+        id: 'habit_1',
+        homeId: 'home_1',
+        name: 'Morning Walk Together',
+        cadence: 'daily',
+        targetDaysPerWeek: 7,
+        isArchived: false,
+        createdAt: fixedDate,
+        createdBy: 'user_alex',
+      );
+      final checkins = <LocalHabitCheckin>[
+        LocalHabitCheckin(
+          id: 'chk_1',
+          homeId: 'home_1',
+          habitId: 'habit_1',
+          checkinDate: '2026-10-14',
+          memberId: 'user_alex',
+          createdAt: fixedDate,
+        ),
+        LocalHabitCheckin(
+          id: 'chk_2',
+          homeId: 'home_1',
+          habitId: 'habit_1',
+          checkinDate: '2026-10-15',
+          memberId: 'user_alex',
+          createdAt: fixedDate,
+        ),
+      ];
+
+      await withClock(Clock.fixed(fixedDate), () async {
+        // 1. Checked-in viewer habit -> "2 days running", "Best 2 · Daily", and "Undo check-in" verb
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith(_TestAuthNotifier.new),
+              partnerProfileProvider.overrideWith(
+                _TestPartnerProfileNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              theme: coveThemeFor(Brightness.dark),
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: HabitDetailSheet(
+                    habit: habit,
+                    checkins: checkins,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('2 days running'), findsOneWidget);
+        expect(find.text('Best 2 · Daily'), findsOneWidget);
+        expect(find.text('Edit'), findsOneWidget);
+        expect(find.text('Undo check-in'), findsOneWidget);
+
+        // 2. Partner habit -> Edit only in verb row; "Cheer Ancy" and "Delete this habit" in ⋯ menu
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith(_TestAuthNotifier.new),
+              partnerProfileProvider.overrideWith(
+                _TestPartnerProfileNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              theme: coveThemeFor(Brightness.dark),
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: HabitDetailSheet(
+                    habit: habit,
+                    checkins: checkins,
+                    isPartnerHabit: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Undo check-in'), findsNothing);
+        expect(find.text('Check in'), findsNothing);
+
+        await tester.tap(
+          find.byKey(const ValueKey('cove_detail_sheet_menu_button')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Cheer Ancy'), findsOneWidget);
+        expect(find.text('Delete this habit'), findsOneWidget);
+      });
     },
   );
 }
