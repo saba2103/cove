@@ -6,6 +6,7 @@ import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/backup/drive_backup_controller.dart';
 import 'package:cove/features/calendar/calendar_create_sheet.dart';
 import 'package:cove/features/calendar/calendar_screen.dart';
+import 'package:cove/features/expenses/category_detail_sheet.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
 import 'package:cove/features/expenses/expenses_screen.dart';
 import 'package:cove/features/expenses/monthly_budget_controller.dart';
@@ -820,6 +821,30 @@ void main() {
             child: HabitDetailSheet(
               habit: _kSeedHabits.first,
               checkins: _kSeedHabitCheckins,
+            ),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('category_detail_sheet', (tester) async {
+      final totalMonthSpend = _kSeedExpenses.fold<double>(
+        0.0,
+        (acc, e) => acc + e.amount,
+      );
+      await goldenMatrix(
+        tester,
+        'category_detail_sheet',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CategoryDetailSheet(
+              initialCategoryName: 'Groceries',
+              allExpenses: _kSeedExpenses,
+              totalMonthSpend: totalMonthSpend,
             ),
           ),
         ),

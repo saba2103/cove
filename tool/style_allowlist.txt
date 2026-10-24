@@ -32,7 +32,6 @@ lib/features/calendar/views/calendar_month_view.dart 7
 lib/features/changelog/changelog_screen.dart 17
 lib/features/changelog/whats_fresh_modal.dart 18
 lib/features/changelog/widgets/changelog_preview_mockup.dart 19
-lib/features/expenses/category_detail_sheet.dart 12
 lib/features/expenses/expense_form_sheet.dart 28
 lib/features/expenses/monthly_budget_sheet.dart 10
 lib/features/habits/habit_form_sheet.dart 16

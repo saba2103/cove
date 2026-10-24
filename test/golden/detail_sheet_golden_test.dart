@@ -8,11 +8,13 @@ import 'package:cove/core/widgets/cove_detail_sheet.dart';
 import 'package:cove/core/widgets/cove_metric_card.dart';
 import 'package:cove/core/widgets/cove_page_header.dart';
 import 'package:cove/core/widgets/cove_round_button.dart';
+import 'package:cove/core/widgets/slips/cove_dial.dart';
 import 'package:cove/core/widgets/slips/cove_habit_card.dart';
 import 'package:cove/core/widgets/slips/cove_receipt.dart';
 import 'package:cove/core/widgets/slips/cove_slip.dart';
 import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/expenses/category_detail_sheet.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
 import 'package:cove/features/habits/habit_detail_sheet.dart';
@@ -666,6 +668,90 @@ void main() {
         expect(find.text('Cheer Ancy'), findsOneWidget);
         expect(find.text('Delete this habit'), findsOneWidget);
       });
+    },
+  );
+
+  testWidgets(
+    'CategoryDetailSheet renders paper CoveDial, meaning panel, and Edit verb',
+    (tester) async {
+      final fixedDate = DateTime(2026, 10, 15, 19, 30);
+      final expenses = <LocalExpense>[
+        LocalExpense(
+          id: 'exp_1',
+          homeId: 'home_1',
+          title: 'Farmers Market Produce',
+          amount: 1450.0,
+          currency: 'INR',
+          paidBy: 'user_alex',
+          splitRatio: 0.5,
+          expenseDate: fixedDate,
+          category: 'Groceries',
+          paymentMethod: 'upi',
+          isTransfer: false,
+          createdAt: fixedDate,
+        ),
+        LocalExpense(
+          id: 'exp_2',
+          homeId: 'home_1',
+          title: 'Subko Sourdough & Milk',
+          amount: 550.0,
+          currency: 'INR',
+          paidBy: 'user_partner',
+          splitRatio: 0.5,
+          expenseDate: fixedDate,
+          category: 'Groceries',
+          paymentMethod: 'card',
+          isTransfer: false,
+          createdAt: fixedDate,
+        ),
+        LocalExpense(
+          id: 'exp_3',
+          homeId: 'home_1',
+          title: 'Electricity & Fiber Internet',
+          amount: 2000.0,
+          currency: 'INR',
+          paidBy: 'user_partner',
+          splitRatio: 0.5,
+          expenseDate: fixedDate,
+          category: 'Home & Utilities',
+          paymentMethod: 'card',
+          isTransfer: false,
+          createdAt: fixedDate,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currencyPreferenceProvider.overrideWith(_TestCurrencyNotifier.new),
+            authProvider.overrideWith(_TestAuthNotifier.new),
+            partnerProfileProvider.overrideWith(
+              _TestPartnerProfileNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            theme: coveThemeFor(Brightness.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: CategoryDetailSheet(
+                  initialCategoryName: 'Groceries',
+                  allExpenses: expenses,
+                  totalMonthSpend: 4000.0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CoveDial), findsOneWidget);
+      expect(find.text('₹2,000 this month'), findsOneWidget);
+      expect(find.text('2 purchases · 50% of spending'), findsOneWidget);
+      expect(find.text('Farmers Market Produce'), findsOneWidget);
+      expect(find.text('Subko Sourdough & Milk'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
     },
   );
 }
