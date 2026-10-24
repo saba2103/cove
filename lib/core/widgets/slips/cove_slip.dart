@@ -228,14 +228,22 @@ class CoveSlip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = CoveSlipPalette.resolve(context, variant);
+    final innerTokens = variant == CoveSlipVariant.paper
+        ? CoveTokens.light
+        : CoveTokens.dark;
     final clipper = _CoveSlipClipper(
       borderRadius: borderRadius,
       pathBuilder: pathBuilder,
     );
 
-    Widget content = Padding(
-      padding: padding,
-      child: child,
+    Widget content = Theme(
+      data: Theme.of(context).copyWith(
+        extensions: <ThemeExtension<dynamic>>[innerTokens],
+      ),
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
     );
 
     if (backgroundPainter != null || foregroundPainter != null) {
