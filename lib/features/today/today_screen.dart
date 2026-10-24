@@ -204,16 +204,30 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             .toList()
           ..sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
 
-    final dueSoonCommitments = activeCommitments
-        .where(
-          (s) =>
-              _isSameDay(s.nextBillingDate, todayDate) ||
-              _isSameDay(s.nextBillingDate, tomorrowDate),
-        )
+    final dueTodayCommitments = activeCommitments
+        .where((s) => _isSameDay(s.nextBillingDate, todayDate))
         .toList();
-    final displayedCommitments = dueSoonCommitments.isNotEmpty
-        ? dueSoonCommitments
-        : activeCommitments;
+    final dueTomorrowCommitments = activeCommitments
+        .where((s) => _isSameDay(s.nextBillingDate, tomorrowDate))
+        .toList();
+    final dueSoonCommitments = <LocalSubscription>[
+      ...dueTodayCommitments,
+      ...dueTomorrowCommitments,
+    ];
+    LocalSubscription? nextUpcomingCommitment;
+    if (dueSoonCommitments.isEmpty) {
+      for (final s in activeCommitments) {
+        final dueDay = DateTime(
+          s.nextBillingDate.year,
+          s.nextBillingDate.month,
+          s.nextBillingDate.day,
+        );
+        if (dueDay.isAfter(tomorrowDate)) {
+          nextUpcomingCommitment = s;
+          break;
+        }
+      }
+    }
 
     // Count tasks ticked today for the Letter and metric tile
     final tickedTodayCount = allListItems
@@ -516,10 +530,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
                 const SizedBox(height: CoveSpace.section),
 
-                // 9. Due tomorrow — CoveVouchers in a CoveCarousel
+                // 9. Due today / tomorrow — CoveVouchers in a CoveCarousel
                 _buildDueTomorrowSection(
                   context,
-                  commitments: displayedCommitments,
+                  dueTodayCommitments: dueTodayCommitments,
+                  dueTomorrowCommitments: dueTomorrowCommitments,
+                  nextUpcomingCommitment: nextUpcomingCommitment,
                   currencySymbol: currency.symbol,
                   slipVariant: slipVariant,
                 ),
@@ -948,10 +964,28 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
   Widget _buildDueTomorrowSection(
     BuildContext context, {
-    required List<LocalSubscription> commitments,
+    required List<LocalSubscription> dueTodayCommitments,
+    required List<LocalSubscription> dueTomorrowCommitments,
+    required LocalSubscription? nextUpcomingCommitment,
     required String currencySymbol,
     required CoveSlipVariant slipVariant,
   }) {
+    final cv = context.cv;
+    final commitments = <LocalSubscription>[
+      ...dueTodayCommitments,
+      ...dueTomorrowCommitments,
+    ];
+    final hasToday = dueTodayCommitments.isNotEmpty;
+    final hasTomorrow = dueTomorrowCommitments.isNotEmpty;
+    final String sectionLabel;
+    if (hasToday && hasTomorrow) {
+      sectionLabel = 'Due today and tomorrow';
+    } else if (hasToday) {
+      sectionLabel = 'Due today';
+    } else {
+      sectionLabel = 'Due tomorrow';
+    }
+
     final totalDue = commitments.fold<double>(0.0, (sum, c) => sum + c.amount);
     final readout = commitments.isEmpty
         ? 'none due'
@@ -963,45 +997,67 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       );
     }
 
-    final vouchers = commitments.isEmpty
-        ? <Widget>[
-            CoveVoucher(
-              variant: slipVariant,
-              title: 'No commitments due',
-              amount: formatCoveCurrency(0, currencySymbol),
-              dueDay: '—',
-              dueMonth: '—',
-              state: CoveVoucherState.paid,
-              onTap: openCommitments,
+    if (commitments.isEmpty) {
+      final emptyText = nextUpcomingCommitment != null
+          ? 'Nothing due tomorrow. Next: ${nextUpcomingCommitment.name} on ${DateFormat('MMM d').format(nextUpcomingCommitment.nextBillingDate)}.'
+          : 'Nothing due.';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader(
+            context: context,
+            label: sectionLabel,
+            readout: readout,
+            addSemanticLabel: 'Add commitment',
+            onOpenSection: openCommitments,
+            onAdd: () => SubscriptionFormSheet.show(context),
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.sm,
             ),
-          ]
-        : commitments.map((sub) {
-            final isYearly = sub.billingCycle.toLowerCase() == 'yearly';
-            return CoveVoucher(
-              key: ValueKey('today_voucher_${sub.id}'),
-              variant: slipVariant,
-              title: sub.name,
-              amount: formatCoveCurrency(sub.amount, currencySymbol),
-              dueDay: '${sub.nextBillingDate.day}',
-              dueMonth: DateFormat('MMM')
-                  .format(sub.nextBillingDate)
-                  .toUpperCase(),
-              dueMonthSemantic: DateFormat('MMMM').format(sub.nextBillingDate),
-              capsLabel: isYearly ? 'COVE · EVERY YEAR' : 'COVE · EVERY MONTH',
-              cadenceSuffix: isYearly ? 'a year' : 'a month',
-              state: CoveVoucherState.due,
-              totalInstallments: sub.totalInstallments,
-              paidInstallments: sub.paidInstallments ?? 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: openCommitments,
-            );
-          }).toList();
+              child: Text(
+                emptyText,
+                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final vouchers = commitments.map((sub) {
+      final isYearly = sub.billingCycle.toLowerCase() == 'yearly';
+      return CoveVoucher(
+        key: ValueKey('today_voucher_${sub.id}'),
+        variant: slipVariant,
+        title: sub.name,
+        amount: formatCoveCurrency(sub.amount, currencySymbol),
+        dueDay: '${sub.nextBillingDate.day}',
+        dueMonth: DateFormat('MMM')
+            .format(sub.nextBillingDate)
+            .toUpperCase(),
+        dueMonthSemantic: DateFormat('MMMM').format(sub.nextBillingDate),
+        capsLabel: isYearly ? 'COVE · EVERY YEAR' : 'COVE · EVERY MONTH',
+        cadenceSuffix: isYearly ? 'a year' : 'a month',
+        state: CoveVoucherState.due,
+        totalInstallments: sub.totalInstallments,
+        paidInstallments: sub.paidInstallments ?? 0,
+        onTap: openCommitments,
+      );
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSectionHeader(
           context: context,
-          label: 'Due tomorrow',
+          label: sectionLabel,
           readout: readout,
           addSemanticLabel: 'Add commitment',
           onOpenSection: openCommitments,

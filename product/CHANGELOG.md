@@ -7,6 +7,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Today "Due tomorrow" Section — Strict Today/Tomorrow Filtering, Dynamic Label, and Quiet Empty Line (`Oct 25, 2026`)**:
+  - *Outcome*: Fixed three issues in [`TodayScreen`](../lib/features/today/today_screen.dart)'s commitments section:
+    1. Removed the fallback to all active commitments when nothing is due today or tomorrow, showing only commitments whose `nextBillingDate` is today or tomorrow according to `clock.now()`.
+    2. Computed the section label from the items shown (`"Due today"`, `"Due tomorrow"`, or `"Due today and tomorrow"`).
+    3. Removed the fabricated `"No commitments due"` `CoveVoucher` when nothing is due today or tomorrow, rendering a quiet line (`"Nothing due tomorrow. Next: {name} on {date}."` from the next upcoming commitment, or `"Nothing due."` if there are none at all) instead.
+  - *Under the Hood*:
+    - Added 5 widget tests in [`test/today_and_cove_page_test.dart`](../test/today_and_cove_page_test.dart) covering items due today only, tomorrow only, both, none-with-next, and none at all.
 - **Injectable Time (`package:clock`) & Deterministic Clock-Pinned Goldens (`Oct 25, 2026`)**:
   - *Outcome*: Replaced every `DateTime.now()` call across `lib/features/` and `lib/core/widgets/` with `clock.now()` from `package:clock` (leaving `lib/sync/` untouched), and pinned all `goldenMatrix` runs in [`test/golden/golden_harness.dart`](../test/golden/golden_harness.dart) inside `withClock(clock ?? kDefaultGoldenClock, ...)` where `kDefaultGoldenClock = Clock.fixed(DateTime(2026, 10, 15, 10, 30))` (Thursday morning, matching `_kFixedDate`).
   - *Under the Hood*:

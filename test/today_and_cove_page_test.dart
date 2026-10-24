@@ -1,4 +1,6 @@
+import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
+import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/app_shell.dart';
 import 'package:cove/features/auth/auth_controller.dart';
@@ -111,6 +113,7 @@ void main() {
     TodayData? customTodayData,
     List<LocalList>? activeLists,
     List<LocalListItem>? allListItems,
+    List<LocalSubscription>? subscriptions,
   }) {
     return [
       notificationServiceProvider.overrideWithValue(FakeNotificationService()),
@@ -124,7 +127,9 @@ void main() {
       unreadActivityCountProvider.overrideWith((ref) => 0),
       weatherProvider.overrideWith(FakeWeatherNotifier.new),
       activeHomeCalendarEventsProvider.overrideWith((ref) => Stream.value([])),
-      activeHomeSubscriptionsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeSubscriptionsProvider.overrideWith(
+        (ref) => Stream.value(subscriptions ?? []),
+      ),
       activeHomeHabitsProvider.overrideWith((ref) => Stream.value([])),
       activeHomeAllHabitCheckinsProvider.overrideWith((ref) => Stream.value([])),
       activeHomeListsProvider.overrideWith((ref) => Stream.value(activeLists ?? [])),
@@ -395,5 +400,179 @@ void main() {
     expect(find.text('Old Task From Deleted List'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
+  });
+
+  group('TodayScreen commitments section (Due today / tomorrow)', () {
+    final fixedNow = DateTime(2026, 10, 15, 10, 30);
+    final todayDate = DateTime(2026, 10, 15);
+    final tomorrowDate = DateTime(2026, 10, 16);
+    final futureDate = DateTime(2026, 10, 28);
+
+    LocalSubscription makeSub({
+      required String id,
+      required String name,
+      required double amount,
+      required DateTime nextBillingDate,
+    }) {
+      return LocalSubscription(
+        id: id,
+        homeId: 'home_123',
+        name: name,
+        amount: amount,
+        currency: 'INR',
+        billingCycle: 'monthly',
+        nextBillingDate: nextBillingDate,
+        category: 'Bills',
+        isActive: true,
+        isPrivate: false,
+        createdBy: 'user_alex',
+        createdAt: DateTime(2026, 1, 1),
+      );
+    }
+
+    Future<void> pumpTodayWithSubscriptions(
+      WidgetTester tester,
+      List<LocalSubscription> subs,
+    ) async {
+      tester.view.physicalSize = const Size(1080, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: createBaseOverrides(subscriptions: subs),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const TodayScreen(),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+      });
+    }
+
+    testWidgets('items due today only: labels "DUE TODAY" and excludes future items', (tester) async {
+      await pumpTodayWithSubscriptions(tester, [
+        makeSub(
+          id: 'sub_today',
+          name: 'House Rent',
+          amount: 25000,
+          nextBillingDate: todayDate,
+        ),
+        makeSub(
+          id: 'sub_future',
+          name: 'Cloud Backup',
+          amount: 199,
+          nextBillingDate: futureDate,
+        ),
+      ]);
+
+      expect(find.text('DUE TODAY'), findsOneWidget);
+      expect(find.text('DUE TOMORROW'), findsNothing);
+      expect(find.text('DUE TODAY AND TOMORROW'), findsNothing);
+      expect(find.byType(CoveVoucher), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_today')), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_future')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('items due tomorrow only: labels "DUE TOMORROW" and excludes future items', (tester) async {
+      await pumpTodayWithSubscriptions(tester, [
+        makeSub(
+          id: 'sub_tomorrow',
+          name: 'Apple One Family',
+          amount: 365,
+          nextBillingDate: tomorrowDate,
+        ),
+        makeSub(
+          id: 'sub_future',
+          name: 'Cloud Backup',
+          amount: 199,
+          nextBillingDate: futureDate,
+        ),
+      ]);
+
+      expect(find.text('DUE TOMORROW'), findsOneWidget);
+      expect(find.text('DUE TODAY'), findsNothing);
+      expect(find.text('DUE TODAY AND TOMORROW'), findsNothing);
+      expect(find.byType(CoveVoucher), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_tomorrow')), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_future')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('items due both today and tomorrow: labels "DUE TODAY AND TOMORROW"', (tester) async {
+      await pumpTodayWithSubscriptions(tester, [
+        makeSub(
+          id: 'sub_today',
+          name: 'House Rent',
+          amount: 25000,
+          nextBillingDate: todayDate,
+        ),
+        makeSub(
+          id: 'sub_tomorrow',
+          name: 'Apple One Family',
+          amount: 365,
+          nextBillingDate: tomorrowDate,
+        ),
+        makeSub(
+          id: 'sub_future',
+          name: 'Cloud Backup',
+          amount: 199,
+          nextBillingDate: futureDate,
+        ),
+      ]);
+
+      expect(find.text('DUE TODAY AND TOMORROW'), findsOneWidget);
+      expect(find.text('DUE TODAY'), findsNothing);
+      expect(find.text('DUE TOMORROW'), findsNothing);
+      expect(find.byType(CoveVoucher), findsNWidgets(2));
+      expect(find.byKey(const ValueKey('today_voucher_sub_today')), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_tomorrow')), findsOneWidget);
+      expect(find.byKey(const ValueKey('today_voucher_sub_future')), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('none due with next upcoming: renders no voucher and shows Next line', (tester) async {
+      await pumpTodayWithSubscriptions(tester, [
+        makeSub(
+          id: 'sub_next',
+          name: 'Apple One Family',
+          amount: 365,
+          nextBillingDate: DateTime(2026, 10, 20),
+        ),
+        makeSub(
+          id: 'sub_later',
+          name: 'Home Solar Panel Loan',
+          amount: 8500,
+          nextBillingDate: DateTime(2026, 10, 25),
+        ),
+      ]);
+
+      expect(find.text('DUE TOMORROW'), findsOneWidget);
+      expect(find.byType(CoveVoucher), findsNothing);
+      expect(
+        find.text('Nothing due tomorrow. Next: Apple One Family on Oct 20.'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('none due at all: renders no voucher and shows "Nothing due."', (tester) async {
+      await pumpTodayWithSubscriptions(tester, const []);
+
+      expect(find.text('DUE TOMORROW'), findsOneWidget);
+      expect(find.byType(CoveVoucher), findsNothing);
+      expect(find.text('Nothing due.'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 }
