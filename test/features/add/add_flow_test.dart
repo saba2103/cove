@@ -2,12 +2,16 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
+import 'package:cove/core/widgets/slips/cove_habit_card.dart';
+import 'package:cove/core/widgets/slips/cove_note.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/add/widgets/add_step_pieces.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/calendar/calendar_controller.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
+import 'package:cove/features/habits/habit_controller.dart';
+import 'package:cove/features/lists/list_controller.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/features/profile/user_profile_controller.dart';
@@ -99,6 +103,77 @@ class _SpyCalendarController extends CalendarController {
   }
 }
 
+class _SpyListController extends ListController {
+  final List<String> createdListNames = <String>[];
+  final List<
+      ({
+        String listId,
+        String title,
+        String? notes,
+        DateTime? dueDate,
+        String? listName,
+      })> addedItems = <({
+    String listId,
+    String title,
+    String? notes,
+    DateTime? dueDate,
+    String? listName,
+  })>[];
+  final List<String> callOrder = <String>[];
+
+  _SpyListController(super.ref);
+
+  @override
+  Future<String> createList({required String name}) async {
+    createdListNames.add(name);
+    callOrder.add('createList:$name');
+    return 'created_list_${createdListNames.length}';
+  }
+
+  @override
+  Future<String> addItem({
+    required String listId,
+    required String title,
+    String? notes,
+    DateTime? dueDate,
+    String? listName,
+  }) async {
+    addedItems.add((
+      listId: listId,
+      title: title,
+      notes: notes,
+      dueDate: dueDate,
+      listName: listName,
+    ));
+    callOrder.add('addItem:$listId:$title');
+    return 'item_${addedItems.length}';
+  }
+}
+
+class _SpyHabitController extends HabitController {
+  final List<HabitCreateArgs> calls = <HabitCreateArgs>[];
+
+  _SpyHabitController(super.ref);
+
+  @override
+  Future<String> createHabit({
+    required String name,
+    String cadence = 'daily',
+    int targetDaysPerWeek = 7,
+    HabitVisibility visibility = HabitVisibility.shared,
+  }) async {
+    calls.add(
+      HabitCreateArgs(
+        name: name,
+        cadence: cadence,
+        targetDaysPerWeek: targetDaysPerWeek,
+        visibility: visibility,
+      ),
+    );
+    return 'habit_${calls.length}';
+  }
+}
+
 class _StubAuthNotifier extends AuthNotifier {
   @override
   AsyncValue<CoveUser?> build() => const AsyncValue.data(
@@ -144,6 +219,9 @@ void main() {
   List<Override> buildOverrides({
     required _SpyExpenseController Function(Ref ref) expenseBuilder,
     required _SpyCalendarController Function(Ref ref) calendarBuilder,
+    _SpyListController Function(Ref ref)? listBuilder,
+    _SpyHabitController Function(Ref ref)? habitBuilder,
+    List<LocalList> lists = const <LocalList>[],
   }) {
     return <Override>[
       authProvider.overrideWith(_StubAuthNotifier.new),
@@ -159,7 +237,13 @@ void main() {
         ),
       ),
       activeHomeListsProvider.overrideWith(
-        (ref) => Stream<List<LocalList>>.value(const <LocalList>[]),
+        (ref) => Stream<List<LocalList>>.value(lists),
+      ),
+      activeHomeAllListItemsProvider.overrideWith(
+        (ref) => Stream<List<LocalListItem>>.value(const <LocalListItem>[]),
+      ),
+      activeHomeHabitsProvider.overrideWith(
+        (ref) => Stream<List<LocalHabit>>.value(const <LocalHabit>[]),
       ),
       activeHomeExpensesProvider.overrideWith(
         (ref) => Stream<List<LocalExpense>>.value(const <LocalExpense>[]),
@@ -175,6 +259,9 @@ void main() {
       customCategoriesProvider.overrideWith(_StubCustomCategoriesNotifier.new),
       expenseControllerProvider.overrideWith(expenseBuilder),
       calendarControllerProvider.overrideWith(calendarBuilder),
+      if (listBuilder != null) listControllerProvider.overrideWith(listBuilder),
+      if (habitBuilder != null)
+        habitControllerProvider.overrideWith(habitBuilder),
     ];
   }
 
@@ -220,9 +307,9 @@ void main() {
         await tester.tap(find.text('Open Add'));
         await tester.pumpAndSettle();
 
-        // Tapping Habit shows "Coming in 3.12e/f" toast and stays on picker
+        // Tapping Commitment shows "Coming in 3.12e/f" toast and stays on picker
         await tester.tap(
-          find.byKey(const ValueKey('add_picker_tile_habit')),
+          find.byKey(const ValueKey('add_picker_tile_commitment')),
         );
         await tester.pump();
         expect(find.text('Coming in 3.12e/f'), findsWidgets);
@@ -775,6 +862,305 @@ void main() {
         expect(visibilityRect.bottom, lessThanOrEqualTo(scrollRect.bottom));
         expect(hintRect.top, greaterThanOrEqualTo(scrollRect.top));
         expect(hintRect.bottom, lessThanOrEqualTo(scrollRect.bottom));
+      });
+    },
+  );
+
+  testWidgets(
+    '7. Walk Task through multi-list (Which list), single-list (No particular day -> dueDate null), and zero-lists (Name the list creates one first); review is CoveNote',
+    (tester) async {
+      await loadCoveFonts();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        // --- Case A: 2 lists (>1 list, not opened from a list) -> Which list? step ---
+        late _SpyListController spyListA;
+        final twoLists = <LocalList>[
+          LocalList(
+            id: 'list_grocery',
+            homeId: 'home_1',
+            name: 'Grocery',
+            isArchived: false,
+            createdAt: fixedToday,
+            createdBy: 'user_saba',
+          ),
+          LocalList(
+            id: 'list_home',
+            homeId: 'home_1',
+            name: 'Home',
+            isArchived: false,
+            createdAt: fixedToday,
+            createdBy: 'user_saba',
+          ),
+        ];
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              listBuilder: (ref) => spyListA = _SpyListController(ref),
+              lists: twoLists,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(initialKind: AddKind.task),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 4: What needs doing?
+        expect(find.text('What needs doing?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Gas cylinder',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 4: Which list?
+        expect(find.text('Which list?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Home'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 4: By when? -> tap Tomorrow, 6 Oct
+        expect(find.text('By when?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Tomorrow, 6 Oct'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 4: Review -> CoveNote
+        expect(find.text('Does this look right?'), findsOneWidget);
+        expect(find.byType(CoveNote), findsOneWidget);
+        expect(find.text('COVE · HOME'), findsOneWidget);
+        expect(find.text('By Tomorrow, 6 Oct'), findsOneWidget);
+
+        await tester.tap(find.bySemanticsLabel('Add task'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spyListA.createdListNames, isEmpty);
+        expect(spyListA.addedItems, hasLength(1));
+        expect(spyListA.addedItems.single.listId, 'list_home');
+        expect(spyListA.addedItems.single.title, 'Gas cylinder');
+        expect(spyListA.addedItems.single.dueDate, DateTime(2026, 10, 6));
+
+        // --- Case B: 1 list -> Which list? skipped (3 steps); No particular day -> dueDate null ---
+        late _SpyListController spyListB;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('scope_b'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              listBuilder: (ref) => spyListB = _SpyListController(ref),
+              lists: <LocalList>[twoLists.first],
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('task_case_b'),
+                  initialKind: AddKind.task,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('What needs doing?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Buy milk',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Directly on By when? (Step 2 of 3 — Which list skipped)
+        expect(find.text('By when?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('No particular day'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 3: Review -> CoveNote with "No particular day"
+        expect(find.text('Does this look right?'), findsOneWidget);
+        expect(find.byType(CoveNote), findsOneWidget);
+        expect(find.text('No particular day'), findsWidgets);
+
+        await tester.tap(find.bySemanticsLabel('Add task'));
+        await tester.pumpAndSettle();
+
+        expect(spyListB.createdListNames, isEmpty);
+        expect(spyListB.addedItems, hasLength(1));
+        expect(spyListB.addedItems.single.listId, 'list_grocery');
+        expect(spyListB.addedItems.single.title, 'Buy milk');
+        expect(spyListB.addedItems.single.dueDate, isNull);
+
+        // --- Case C: 0 lists -> Name the list creates one first through ListController ---
+        late _SpyListController spyListC;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('scope_c'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              listBuilder: (ref) => spyListC = _SpyListController(ref),
+              lists: const <LocalList>[],
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('task_case_c'),
+                  initialKind: AddKind.task,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 4: What needs doing?
+        expect(find.text('What needs doing?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Fix kitchen tap',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 4: Name the list
+        expect(find.text('Name the list'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Repairs',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 4: By when?
+        expect(find.text('By when?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Today, 5 Oct'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 4: Review -> CoveNote
+        expect(find.text('Does this look right?'), findsOneWidget);
+        expect(find.text('COVE · REPAIRS'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add task'));
+        await tester.pumpAndSettle();
+
+        expect(
+          spyListC.callOrder,
+          <String>[
+            'createList:Repairs',
+            'addItem:created_list_1:Fix kitchen tap',
+          ],
+        );
+        expect(spyListC.addedItems.single.listId, 'created_list_1');
+        expect(spyListC.addedItems.single.listName, 'Repairs');
+        expect(spyListC.addedItems.single.dueDate, fixedToday);
+      });
+    },
+  );
+
+  testWidgets(
+    '8. Walk Habit through all 4 steps: Pick the days reveals week toggles on the same page; cadence & target come from HabitSchedule; Who can see it -> visibility; review is CoveHabitCard in no-history state',
+    (tester) async {
+      await loadCoveFonts();
+      late _SpyHabitController spyHabit;
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              habitBuilder: (ref) => spyHabit = _SpyHabitController(ref),
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(initialKind: AddKind.habit),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 4: What is the habit?
+        expect(find.text('What is the habit?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Morning walk',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 4: How often?
+        expect(find.text('How often?'), findsOneWidget);
+        expect(find.byType(AddWeekToggles), findsNothing);
+
+        // Tap "Pick the days" -> stays on How often? and reveals week toggles
+        await tester.tap(find.bySemanticsLabel('Pick the days'));
+        await tester.pumpAndSettle();
+        expect(find.text('How often?'), findsOneWidget);
+        expect(find.byType(AddWeekToggles), findsOneWidget);
+
+        // Default customDays is {1, 3, 5} (Mon, Wed, Fri). Toggle Tuesday (selected -> true) => {1, 2, 3, 5}
+        await tester.tap(find.bySemanticsLabel('Tuesday'));
+        await tester.pumpAndSettle();
+
+        // Tap Next to advance to Step 3
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 4: Who can see it?
+        expect(find.text('Who can see it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Only you'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 4: Review -> CoveHabitCard in its no-history state
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final habitCard = tester.widget<CoveHabitCard>(
+          find.byType(CoveHabitCard),
+        );
+        expect(habitCard.title, 'Morning walk');
+        expect(habitCard.daysRunning, 0);
+        expect(habitCard.isDoneToday, isFalse);
+        expect(habitCard.resolveCells(), everyElement(isFalse));
+        expect(find.text('ONLY YOU CAN SEE IT'), findsOneWidget);
+
+        // Tap Add habit
+        await tester.tap(find.bySemanticsLabel('Add habit'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spyHabit.calls, hasLength(1));
+        expect(
+          spyHabit.calls.single,
+          const HabitCreateArgs(
+            name: 'Morning walk',
+            cadence: 'custom:1,2,3,5',
+            targetDaysPerWeek: 4,
+            visibility: HabitVisibility.privateToMe,
+          ),
+        );
       });
     },
   );

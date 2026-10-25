@@ -9,6 +9,8 @@ import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_sheet.dart';
 import '../../core/widgets/slips/cove_add_mark.dart';
+import '../../core/widgets/slips/cove_habit_card.dart';
+import '../../core/widgets/slips/cove_note.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../core/widgets/slips/cove_ticket.dart';
 import '../../sync/db/app_database.dart';
@@ -18,6 +20,8 @@ import '../auth/auth_controller.dart';
 import '../calendar/calendar_controller.dart';
 import '../expenses/expense_controller.dart';
 import '../expenses/expense_detail_sheet.dart';
+import '../habits/habit_controller.dart';
+import '../lists/list_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -190,16 +194,44 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         ? partnerProfile.userId!
         : 'partner_user';
 
+    final td = _draft is TaskDraft ? _draft as TaskDraft : null;
+    final keepTaskDraftListContext = td != null &&
+        (_isSubmitting ||
+            _isAdded ||
+            (td.newListName != null && td.newListName!.trim().isNotEmpty) ||
+            (widget.initialDraft != null && unarchivedLists.isEmpty));
+    final effectiveListCount = keepTaskDraftListContext
+        ? td.listCount
+        : unarchivedLists.length;
+    final effectiveOpenedFromList =
+        (td != null && widget.initialDraft != null)
+            ? td.openedFromList
+            : (widget.listId != null);
+    final resolvedActiveListId = widget.listId ??
+        (unarchivedLists.length == 1 ? unarchivedLists.first.id : null);
+
+    if (td != null &&
+        widget.initialDraft == null &&
+        !keepTaskDraftListContext &&
+        (td.listCount != effectiveListCount ||
+            td.openedFromList != effectiveOpenedFromList ||
+            (td.listId == null && resolvedActiveListId != null))) {
+      _draft = td.copyWith(
+        listCount: effectiveListCount,
+        openedFromList: effectiveOpenedFromList,
+        listId: td.listId ?? resolvedActiveListId,
+      );
+    }
+
     return AddFlowContext(
       anchor: anchorDate,
       today: today,
       hasPartner: hasPartner,
-      listCount: unarchivedLists.length,
-      openedFromList: widget.listId != null,
+      listCount: effectiveListCount,
+      openedFromList: effectiveOpenedFromList,
       viewerUserId: viewerId,
       partnerUserId: partnerId,
-      activeListId: widget.listId ??
-          (unarchivedLists.length == 1 ? unarchivedLists.first.id : null),
+      activeListId: resolvedActiveListId,
     );
   }
 
@@ -245,6 +277,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       desired = d.title;
     } else if (step == AddStep.eventLocation && d is EventDraft) {
       desired = d.location ?? '';
+    } else if (step == AddStep.taskTitle && d is TaskDraft) {
+      desired = d.title;
+    } else if (step == AddStep.taskNameTheList && d is TaskDraft) {
+      desired = d.newListName ?? '';
+    } else if (step == AddStep.habitName && d is HabitDraft) {
+      desired = d.name;
     }
     if (desired != null && _textController.text != desired) {
       _textController.value = TextEditingValue(
@@ -273,7 +311,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   }
 
   void _selectKindFromPicker(AddKind kind) {
-    if (kind != AddKind.expense && kind != AddKind.event) {
+    if (kind != AddKind.expense &&
+        kind != AddKind.event &&
+        kind != AddKind.task &&
+        kind != AddKind.habit) {
       _showToast('Coming in 3.12e/f');
       return;
     }
@@ -399,6 +440,32 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           isAllDay: args.isAllDay,
           location: args.location,
           recurrence: args.recurrence,
+        );
+      } else if (d is TaskDraft) {
+        final args = d.toCreateArgs(fallbackListId: ctx.activeListId);
+        final controller = ref.read(listControllerProvider);
+        var targetListId = args.listId;
+        if (args.newListName != null && args.newListName!.isNotEmpty) {
+          targetListId = await controller.createList(name: args.newListName!);
+        }
+        if (targetListId == null || targetListId.isEmpty) {
+          throw StateError('No list selected for task.');
+        }
+        await controller.addItem(
+          listId: targetListId,
+          title: args.title,
+          notes: args.notes,
+          dueDate: args.dueDate,
+          listName: args.newListName,
+        );
+      } else if (d is HabitDraft) {
+        final args = d.toCreateArgs();
+        final controller = ref.read(habitControllerProvider);
+        await controller.createHabit(
+          name: args.name,
+          cadence: args.cadence,
+          targetDaysPerWeek: args.targetDaysPerWeek,
+          visibility: args.visibility,
         );
       }
 
@@ -880,6 +947,20 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         return 'What time?';
       case AddStep.eventLocation:
         return 'Where?';
+      case AddStep.taskTitle:
+        return 'What needs doing?';
+      case AddStep.taskWhichList:
+        return 'Which list?';
+      case AddStep.taskNameTheList:
+        return 'Name the list';
+      case AddStep.taskByWhen:
+        return 'By when?';
+      case AddStep.habitName:
+        return 'What is the habit?';
+      case AddStep.habitHowOften:
+        return 'How often?';
+      case AddStep.habitVisibility:
+        return 'Who can see it?';
       case AddStep.review:
         return 'Does this look right?';
       default:
@@ -892,16 +973,28 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     if (d is ExpenseDraft && d.isPrivate) {
       return CoveSlipVisibility.onlyYouCanSee;
     }
+    if (d is HabitDraft && d.visibility == HabitVisibility.privateToMe) {
+      return CoveSlipVisibility.onlyYouCanSee;
+    }
     return CoveSlipVisibility.bothCanSee;
   }
 
-  bool _canToggleVisibility() => _draft is ExpenseDraft;
+  bool _canToggleVisibility() =>
+      _draft is ExpenseDraft || _draft is HabitDraft;
 
   void _toggleDraftPrivacy(AddFlowContext ctx) {
     final d = _draft;
     if (d is ExpenseDraft) {
       setState(() {
         _draft = d.copyWith(isPrivate: !d.isPrivate);
+      });
+    } else if (d is HabitDraft) {
+      final nextVis = d.visibility == HabitVisibility.privateToMe
+          ? HabitVisibility.shared
+          : HabitVisibility.privateToMe;
+      if (nextVis == HabitVisibility.shared && !ctx.hasPartner) return;
+      setState(() {
+        _draft = d.copyWith(visibility: nextVis);
       });
     }
   }
@@ -968,7 +1061,71 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           return null;
       }
     }
+    if (d is TaskDraft) {
+      switch (step) {
+        case AddStep.taskTitle:
+          return d.title.trim();
+        case AddStep.taskWhichList:
+          return _resolveTaskListName(d);
+        case AddStep.taskNameTheList:
+          return d.newListName?.trim();
+        case AddStep.taskByWhen:
+          if (d.noParticularDay || d.dueDate == null) {
+            return 'No particular day';
+          }
+          return _shortDayCrumb(d.dueDate!, ctx.today);
+        default:
+          return null;
+      }
+    }
+    if (d is HabitDraft) {
+      switch (step) {
+        case AddStep.habitName:
+          return d.name.trim();
+        case AddStep.habitHowOften:
+          return _habitFrequencyCrumb(d);
+        case AddStep.habitVisibility:
+          return d.visibility == HabitVisibility.privateToMe
+              ? 'Only you'
+              : 'Both of you';
+        default:
+          return null;
+      }
+    }
     return null;
+  }
+
+  String _resolveTaskListName(TaskDraft d) {
+    if (d.newListName != null && d.newListName!.trim().isNotEmpty) {
+      return d.newListName!.trim();
+    }
+    final targetId = d.listId ?? widget.listId;
+    final lists = ref.watch(activeHomeListsProvider).value ?? const [];
+    final unarchived = lists.where((l) => !l.isArchived).toList();
+    if (targetId != null) {
+      for (final l in unarchived) {
+        if (l.id == targetId) return l.name;
+      }
+    }
+    if (unarchived.length == 1) {
+      return unarchived.first.name;
+    }
+    return 'To Do';
+  }
+
+  String? _habitFrequencyCrumb(HabitDraft d) {
+    final opt = d.frequencyOption;
+    if (opt == null) return null;
+    switch (opt) {
+      case HabitFrequencyOption.everyDay:
+        return 'Every day';
+      case HabitFrequencyOption.weekdays:
+        return 'Weekdays';
+      case HabitFrequencyOption.weekends:
+        return 'Weekends';
+      case HabitFrequencyOption.pickDays:
+        return d.schedule.formatDisplayLabel(targetDays: d.targetDaysPerWeek);
+    }
   }
 
   String _shortDayCrumb(DateTime date, DateTime today) {
@@ -1017,6 +1174,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     }
     if (d is EventDraft) {
       return _buildEventStepBody(context, ctx, d, step);
+    }
+    if (d is TaskDraft) {
+      return _buildTaskStepBody(context, ctx, d, step);
+    }
+    if (d is HabitDraft) {
+      return _buildHabitStepBody(context, ctx, d, step);
     }
     return const SizedBox.shrink();
   }
@@ -1555,6 +1718,348 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     );
   }
 
+  Widget _buildTaskStepBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    TaskDraft d,
+    AddStep step,
+  ) {
+    switch (step) {
+      case AddStep.taskTitle:
+        final suggestions = _recentTaskTitles();
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type a task',
+          suggestions: suggestions,
+          optional: false,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(title: text);
+            });
+          },
+          onPickSuggestion: (suggestion) {
+            _textController.text = suggestion;
+            setState(() {
+              _draft = d.copyWith(title: suggestion);
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.taskWhichList:
+        final lists = ref.watch(activeHomeListsProvider).value ?? const [];
+        final unarchived = lists.where((l) => !l.isArchived).toList();
+        return AddChoiceList<String>(
+          selectedValue: d.listId,
+          onSelected: (listId) {
+            setState(() {
+              _draft = d.copyWith(listId: listId);
+            });
+            _advanceStep(ctx);
+          },
+          options: <AddChoiceOption<String>>[
+            for (final list in unarchived)
+              AddChoiceOption<String>(
+                value: list.id,
+                label: list.name,
+              ),
+          ],
+        );
+
+      case AddStep.taskNameTheList:
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type a list name',
+          suggestions: const <String>[],
+          optional: false,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(newListName: text);
+            });
+          },
+          onPickSuggestion: (_) {},
+        );
+
+      case AddStep.taskByWhen:
+        final days = anchoredDays(AddKind.task, ctx.anchor);
+        return AddDayStrip(
+          days: days,
+          anchorDate: ctx.anchor,
+          today: ctx.today,
+          selectedDate: d.noParticularDay ? null : d.dueDate,
+          showNoParticularDay: true,
+          onSelected: (picked) {
+            setState(() {
+              _draft = d.copyWith(
+                dueDate: picked,
+                noParticularDay: false,
+              );
+            });
+            _advanceStep(ctx);
+          },
+          onSelectNoParticularDay: () {
+            setState(() {
+              _draft = d.copyWith(
+                dueDate: null,
+                noParticularDay: true,
+              );
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.review:
+        return _buildTaskReviewBody(context, ctx, d);
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildTaskReviewBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    TaskDraft d,
+  ) {
+    final cv = context.cv;
+    final listName = _resolveTaskListName(d);
+    final dueLine = (d.noParticularDay || d.dueDate == null)
+        ? 'No particular day'
+        : 'By ${dayLabel(d.dueDate!, ctx.today)}';
+    final steps = _currentSteps(ctx);
+
+    final fieldTaps = _isAdded
+        ? null
+        : <CoveSlipField, VoidCallback>{
+            CoveSlipField.title: () => _goToStepEnum(
+                  AddStep.taskTitle,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.dueDate: () => _goToStepEnum(
+                  AddStep.taskByWhen,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            if (steps.contains(AddStep.taskWhichList))
+              CoveSlipField.list: () => _goToStepEnum(
+                    AddStep.taskWhichList,
+                    ctx,
+                    fromReviewField: true,
+                  )
+            else if (steps.contains(AddStep.taskNameTheList))
+              CoveSlipField.list: () => _goToStepEnum(
+                    AddStep.taskNameTheList,
+                    ctx,
+                    fromReviewField: true,
+                  ),
+          };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveNote(
+          variant: CoveSlipVariant.paper,
+          capsLabel: 'COVE · ${listName.toUpperCase()}',
+          items: <CoveNoteItem>[
+            CoveNoteItem(
+              title: d.title.trim(),
+              addedBy: dueLine,
+              isDone: false,
+            ),
+          ],
+          visibility: CoveSlipVisibility.bothCanSee,
+          stamp: _isAdded ? 'ADDED' : null,
+          fieldTaps: fieldTaps,
+        ),
+        if (!_isAdded) ...[
+          const SizedBox(height: CoveSpace.md),
+          Text(
+            'Tap anything above to change it.',
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHabitStepBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    HabitDraft d,
+    AddStep step,
+  ) {
+    switch (step) {
+      case AddStep.habitName:
+        final suggestions = _recentHabitNames();
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type a habit',
+          suggestions: suggestions,
+          optional: false,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(name: text);
+            });
+          },
+          onPickSuggestion: (suggestion) {
+            _textController.text = suggestion;
+            setState(() {
+              _draft = d.copyWith(name: suggestion);
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.habitHowOften:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AddChoiceList<HabitFrequencyOption>(
+              selectedValue: d.frequencyOption,
+              onSelected: (opt) {
+                setState(() {
+                  _draft = d.copyWith(frequencyOption: opt);
+                });
+                if (opt != HabitFrequencyOption.pickDays) {
+                  _advanceStep(ctx);
+                }
+              },
+              options: const <AddChoiceOption<HabitFrequencyOption>>[
+                AddChoiceOption<HabitFrequencyOption>(
+                  value: HabitFrequencyOption.everyDay,
+                  label: 'Every day',
+                ),
+                AddChoiceOption<HabitFrequencyOption>(
+                  value: HabitFrequencyOption.weekdays,
+                  label: 'Weekdays',
+                ),
+                AddChoiceOption<HabitFrequencyOption>(
+                  value: HabitFrequencyOption.weekends,
+                  label: 'Weekends',
+                ),
+                AddChoiceOption<HabitFrequencyOption>(
+                  value: HabitFrequencyOption.pickDays,
+                  label: 'Pick the days',
+                ),
+              ],
+            ),
+            if (d.frequencyOption == HabitFrequencyOption.pickDays) ...[
+              const SizedBox(height: CoveSpace.lg),
+              AddWeekToggles(
+                selectedDays: d.customDays,
+                onChanged: (days) {
+                  setState(() {
+                    _draft = d.copyWith(customDays: days);
+                  });
+                },
+              ),
+            ],
+          ],
+        );
+
+      case AddStep.habitVisibility:
+        final options = <AddChoiceOption<HabitVisibility>>[
+          if (ctx.hasPartner)
+            const AddChoiceOption<HabitVisibility>(
+              value: HabitVisibility.shared,
+              label: 'Both of you',
+            ),
+          const AddChoiceOption<HabitVisibility>(
+            value: HabitVisibility.privateToMe,
+            label: 'Only you',
+          ),
+        ];
+        return AddChoiceList<HabitVisibility>(
+          selectedValue: d.visibility,
+          onSelected: (vis) {
+            setState(() {
+              _draft = d.copyWith(visibility: vis);
+            });
+            _advanceStep(ctx);
+          },
+          options: options,
+        );
+
+      case AddStep.review:
+        return _buildHabitReviewBody(context, ctx, d);
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildHabitReviewBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    HabitDraft d,
+  ) {
+    final cv = context.cv;
+    final cadenceLabel = d.schedule.formatDisplayLabel(
+      targetDays: d.targetDaysPerWeek,
+    );
+    final isPrivate = d.visibility == HabitVisibility.privateToMe;
+    final String slipCadenceLine;
+    if (isPrivate) {
+      slipCadenceLine = '$cadenceLabel · Yours alone';
+    } else {
+      slipCadenceLine = ctx.hasPartner
+          ? '$cadenceLabel · Shared with ${_partnerName()}'
+          : '$cadenceLabel · Created by you';
+    }
+
+    final fieldTaps = _isAdded
+        ? null
+        : <CoveSlipField, VoidCallback>{
+            CoveSlipField.title: () => _goToStepEnum(
+                  AddStep.habitName,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.cadence: () => _goToStepEnum(
+                  AddStep.habitHowOften,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.visibility: () => _goToStepEnum(
+                  AddStep.habitVisibility,
+                  ctx,
+                  fromReviewField: true,
+                ),
+          };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveHabitCard(
+          variant: CoveSlipVariant.paper,
+          title: d.name.trim(),
+          cadence: slipCadenceLine,
+          isDoneToday: false,
+          daysRunning: 0,
+          visibility: _currentVisibility(),
+          stamp: _isAdded ? 'ADDED' : null,
+          fieldTaps: fieldTaps,
+        ),
+        if (!_isAdded) ...[
+          const SizedBox(height: CoveSpace.md),
+          Text(
+            'Tap anything above to change it.',
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildTextStepBody({
     required BuildContext context,
     required AddFlowContext ctx,
@@ -1653,6 +2158,39 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final sortedKeys = counts.keys.toList()
       ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
     return sortedKeys.take(5).map((k) => canonical[k]!).toList();
+  }
+
+  List<String> _recentTaskTitles() {
+    final items =
+        ref.watch(activeHomeAllListItemsProvider).value ?? const [];
+    final counts = <String, int>{};
+    final canonical = <String, String>{};
+    for (final item in items) {
+      final t = item.title.trim();
+      if (t.isEmpty) continue;
+      final key = t.toLowerCase();
+      counts[key] = (counts[key] ?? 0) + 1;
+      canonical.putIfAbsent(key, () => t);
+    }
+    final sortedKeys = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    return sortedKeys.take(5).map((k) => canonical[k]!).toList();
+  }
+
+  List<String> _recentHabitNames() {
+    final habits = ref.watch(activeHomeHabitsProvider).value ?? const [];
+    final seen = <String>{};
+    final result = <String>[];
+    for (final h in habits) {
+      if (h.isArchived) continue;
+      final t = h.name.trim();
+      if (t.isEmpty) continue;
+      if (seen.add(t.toLowerCase())) {
+        result.add(t);
+        if (result.length >= 5) break;
+      }
+    }
+    return result;
   }
 }
 
