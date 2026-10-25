@@ -19,6 +19,95 @@ import '../profile/preferences_controller.dart';
 import 'expense_controller.dart';
 import 'expense_form_sheet.dart';
 
+/// Builds the paper [CoveReceipt] for [expense], shared between
+/// [ExpenseDetailSheet] and the Add flow's Expense review / Added state so
+/// review shows the exact receipt that the saved expense will show.
+CoveReceipt buildExpenseReceipt({
+  required LocalExpense expense,
+  required String currencySymbol,
+  required String? currentUserId,
+  required String? homeCreatedBy,
+  required String partnerDisplayName,
+  CoveSlipVisibility? visibility,
+  String? stamp,
+  CoveSlipFieldTaps? fieldTaps,
+}) {
+  final share = computeExpenseShare(
+    expense,
+    currentUserId: currentUserId,
+  );
+
+  final partnerName =
+      partnerDisplayName.isNotEmpty ? partnerDisplayName : 'Partner';
+  final payerName = share.isPaidByViewer ? 'You' : partnerName;
+  final creatorId = homeCreatedBy ?? currentUserId ?? 'user_alex';
+  final effectiveActorId = share.isPaidByViewer
+      ? (currentUserId ?? 'user_alex')
+      : (expense.paidBy == 'user_alex' ? 'user_sarah' : expense.paidBy);
+  final person = CoveAvatar.resolvePerson(
+    homeCreatedBy: creatorId,
+    actorUserId: effectiveActorId,
+  );
+
+  final categoryName = cleanExpenseCategoryName(expense.category);
+  final notes = extractExpenseNotes(expense.category);
+  final pmLabel = formatExpensePaymentMethod(expense.paymentMethod);
+
+  final amountFormatted =
+      '$currencySymbol${formatCoveAmount(expense.amount)}';
+  final yourShareFormatted =
+      '$currencySymbol${formatCoveAmount(share.viewerShareAmount)}';
+  final partnerShareFormatted =
+      '$currencySymbol${formatCoveAmount(share.partnerShareAmount)}';
+
+  final timeFormatted =
+      DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
+  final receiptSubtitle = notes != null && notes.isNotEmpty
+      ? '${notes.toUpperCase()} · $timeFormatted'
+      : timeFormatted;
+  final footerDate =
+      DateFormat('EEE d MMM').format(expense.expenseDate).toUpperCase();
+
+  return CoveReceipt(
+    variant: CoveSlipVariant.paper,
+    recordId: expense.id,
+    title: expense.title,
+    subtitle: receiptSubtitle,
+    items: [
+      CoveReceiptItem(
+        payer: person,
+        nameOrInitial: payerName,
+        title: expense.isTransfer
+            ? 'Transfer to ${share.isPaidByViewer ? partnerName : "You"}'
+            : categoryName,
+        subtitle: [
+          'Paid by $payerName',
+          ?pmLabel,
+          if (!share.isShared && !expense.isTransfer)
+            share.visibility == ExpenseVisibility.privateToMe
+                ? 'Private'
+                : 'Personal',
+        ].join(' · '),
+        amount: amountFormatted,
+      ),
+    ],
+    totalAmount: amountFormatted,
+    split: share.isShared && !expense.isTransfer
+        ? CoveReceiptSplit(
+            viewerName: 'You',
+            viewerAmount: yourShareFormatted,
+            partnerName: partnerName,
+            partnerAmount: partnerShareFormatted,
+            viewerShare: share.viewerShareRatio,
+          )
+        : null,
+    footerDate: footerDate,
+    visibility: visibility,
+    stamp: stamp,
+    fieldTaps: fieldTaps,
+  );
+}
+
 class ExpenseDetailSheet extends ConsumerWidget {
   final LocalExpense expense;
 
@@ -123,33 +212,9 @@ class ExpenseDetailSheet extends ConsumerWidget {
         ? partnerProfile.displayName
         : 'Partner';
     final payerName = share.isPaidByViewer ? 'You' : partnerName;
-    final creatorId = home?.createdBy ?? currentUser?.id ?? 'user_alex';
-    final effectiveActorId = share.isPaidByViewer
-        ? (currentUser?.id ?? 'user_alex')
-        : (expense.paidBy == 'user_alex' ? 'user_sarah' : expense.paidBy);
-    final person = CoveAvatar.resolvePerson(
-      homeCreatedBy: creatorId,
-      actorUserId: effectiveActorId,
-    );
-
     final categoryName = cleanExpenseCategoryName(expense.category);
-    final notes = extractExpenseNotes(expense.category);
-    final pmLabel = formatExpensePaymentMethod(expense.paymentMethod);
-
-    final amountFormatted =
-        '${currency.symbol}${formatCoveAmount(expense.amount)}';
     final yourShareFormatted =
         '${currency.symbol}${formatCoveAmount(share.viewerShareAmount)}';
-    final partnerShareFormatted =
-        '${currency.symbol}${formatCoveAmount(share.partnerShareAmount)}';
-
-    final timeFormatted =
-        DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
-    final receiptSubtitle = notes != null && notes.isNotEmpty
-        ? '${notes.toUpperCase()} · $timeFormatted'
-        : timeFormatted;
-    final footerDate =
-        DateFormat('EEE d MMM').format(expense.expenseDate).toUpperCase();
 
     final CoveDetailMeaningPanel meaningPanel;
     if (share.isShared) {
@@ -174,40 +239,12 @@ class ExpenseDetailSheet extends ConsumerWidget {
       kindLabel: expense.isTransfer ? 'TRANSFER' : 'EXPENSE',
       contextLabel: expense.isTransfer ? 'PARTNER' : categoryName,
       onClose: () => Navigator.of(context).pop(),
-      slip: CoveReceipt(
-        variant: CoveSlipVariant.paper,
-        recordId: expense.id,
-        title: expense.title,
-        subtitle: receiptSubtitle,
-        items: [
-          CoveReceiptItem(
-            payer: person,
-            nameOrInitial: payerName,
-            title: expense.isTransfer
-                ? 'Transfer to ${share.isPaidByViewer ? partnerName : "You"}'
-                : categoryName,
-            subtitle: [
-              'Paid by $payerName',
-              ?pmLabel,
-              if (!share.isShared && !expense.isTransfer)
-                share.visibility == ExpenseVisibility.privateToMe
-                    ? 'Private'
-                    : 'Personal',
-            ].join(' · '),
-            amount: amountFormatted,
-          ),
-        ],
-        totalAmount: amountFormatted,
-        split: share.isShared && !expense.isTransfer
-            ? CoveReceiptSplit(
-                viewerName: 'You',
-                viewerAmount: yourShareFormatted,
-                partnerName: partnerName,
-                partnerAmount: partnerShareFormatted,
-                viewerShare: share.viewerShareRatio,
-              )
-            : null,
-        footerDate: footerDate,
+      slip: buildExpenseReceipt(
+        expense: expense,
+        currencySymbol: currency.symbol,
+        currentUserId: currentUser?.id,
+        homeCreatedBy: home?.createdBy,
+        partnerDisplayName: partnerProfile.displayName,
       ),
       meaningPanel: meaningPanel,
       editVerb: CoveDetailVerb(

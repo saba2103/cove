@@ -280,6 +280,63 @@ void main() {
         overrides: buildGoldenOverrides(),
         clock: fixedClock,
       );
+
+      // Verify at 320dp cover width on first build that the expense day strip
+      // opens scrolled so Mon 5 (Today, 5 Oct) is fully in view, not Tue 29.
+      await withClock(fixedClock, () async {
+        tester.view
+          ..physicalSize = CoveWidth.cover * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildGoldenOverrides(),
+            child: MediaQuery(
+              data: const MediaQueryData(
+                size: CoveWidth.cover,
+                textScaler: TextScaler.linear(1.0),
+              ),
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                theme: coveThemeFor(Brightness.dark),
+                home: _AddFlowGoldenStage(
+                  child: AddFlow(
+                    initialKind: AddKind.expense,
+                    initialDraft: buildSampleExpenseDraft(),
+                    initialStepIndex: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final stripViewportRect = tester.getRect(
+          find.byKey(const ValueKey('add_day_strip_scroll')),
+        );
+        final mon5Rect = tester.getRect(find.bySemanticsLabel('Today, 5 Oct'));
+        final tue29Rect = tester.getRect(
+          find.bySemanticsLabel('Tuesday, 29 Sep'),
+        );
+
+        expect(
+          mon5Rect.left,
+          greaterThanOrEqualTo(stripViewportRect.left),
+          reason: 'Mon 5 left edge must be inside the 320dp strip viewport',
+        );
+        expect(
+          mon5Rect.right,
+          lessThanOrEqualTo(stripViewportRect.right),
+          reason: 'Mon 5 right edge must be inside the 320dp strip viewport',
+        );
+        expect(
+          tue29Rect.right,
+          lessThan(stripViewportRect.left),
+          reason: 'Tue 29 must be scrolled off the left edge at 320dp',
+        );
+      });
     },
   );
 

@@ -606,6 +606,23 @@ void main() {
         }
         expect(activeDetectors, greaterThan(60));
 
+        // 1b. Assert AddDayStrip at 320dp scrolls on first build so Mon 5 (and the Sat 3 anchor) are in view, not Tue 29
+        final scrollRect = tester.getRect(
+          find.byKey(const ValueKey('add_day_strip_scroll')),
+        );
+        final mon5Rect = tester.getRect(find.bySemanticsLabel('Today, 5 Oct'));
+        final sat3Rect = tester.getRect(
+          find.bySemanticsLabel('Saturday, 3 Oct'),
+        );
+        final tue29Rect = tester.getRect(
+          find.bySemanticsLabel('Tuesday, 29 Sep'),
+        );
+        expect(mon5Rect.left, greaterThanOrEqualTo(scrollRect.left - 0.5));
+        expect(mon5Rect.right, lessThanOrEqualTo(scrollRect.right + 0.5));
+        expect(sat3Rect.left, greaterThanOrEqualTo(scrollRect.left - 0.5));
+        expect(sat3Rect.right, lessThanOrEqualTo(scrollRect.right + 0.5));
+        expect(tue29Rect.left, lessThan(scrollRect.left));
+
         // 2. Test crumb tap and verify long crumb never ellipsizes
         final longCrumbText = tester.widget<Text>(
           find.textContaining('A very long answer that wraps across lines'),

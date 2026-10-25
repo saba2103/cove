@@ -91,12 +91,14 @@ class AddDayStrip extends StatefulWidget {
 }
 
 class _AddDayStripState extends State<AddDayStrip> {
-  final ScrollController _scrollController = ScrollController();
+  ScrollController? _scrollController;
+  double _lastViewportWidth = 0.0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollTargetIntoView());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollTargetIntoView());
   }
 
   @override
@@ -109,25 +111,88 @@ class _AddDayStripState extends State<AddDayStrip> {
     }
   }
 
-  void _scrollTargetIntoView() {
-    if (!mounted || !_scrollController.hasClients) return;
-    final targetDate = widget.selectedDate ?? widget.anchorDate;
-    final index = widget.days.indexWhere(
-      (d) => AddDayStrip.isSameDay(d, targetDate),
+  double _computeDesiredScrollOffset(double viewportWidth) {
+    if (viewportWidth <= 0 || !viewportWidth.isFinite) return 0.0;
+    final totalWidth = widget.days.length * AddDayStrip.kCellMinWidth +
+        (widget.days.length - 1) * CoveSpace.sm;
+    final maxScroll = (totalWidth - viewportWidth).clamp(0.0, double.infinity);
+    if (maxScroll <= 0) return 0.0;
+
+    final selectedIdx = widget.selectedDate == null
+        ? -1
+        : widget.days.indexWhere(
+            (d) => AddDayStrip.isSameDay(d, widget.selectedDate!),
+          );
+    final anchorIdx = widget.days.indexWhere(
+      (d) => AddDayStrip.isSameDay(d, widget.anchorDate),
     );
-    if (index < 0) return;
+    final primaryIdx = selectedIdx >= 0 ? selectedIdx : anchorIdx;
+    if (primaryIdx < 0) return 0.0;
 
     const itemExtent = AddDayStrip.kCellMinWidth + CoveSpace.sm;
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    if (maxScroll <= 0) return;
+    final cellStart = primaryIdx * itemExtent;
+    final cellEnd = cellStart + AddDayStrip.kCellMinWidth;
 
-    final desired = (index * itemExtent).clamp(0.0, maxScroll);
-    _scrollController.jumpTo(desired);
+    var offset = 0.0;
+    if (cellEnd > viewportWidth) {
+      offset = (cellEnd - viewportWidth).clamp(0.0, maxScroll);
+    }
+
+    if (anchorIdx >= 0 && anchorIdx != primaryIdx) {
+      final anchorStart = anchorIdx * itemExtent;
+      final anchorEnd = anchorStart + AddDayStrip.kCellMinWidth;
+      if (anchorStart < offset && (cellEnd - anchorStart) <= viewportWidth) {
+        offset = anchorStart.clamp(0.0, maxScroll);
+      } else if (anchorEnd > offset + viewportWidth &&
+          (anchorEnd - cellStart) <= viewportWidth) {
+        offset = (anchorEnd - viewportWidth).clamp(0.0, maxScroll);
+      }
+    }
+
+    return offset.clamp(0.0, maxScroll);
+  }
+
+  ScrollController _ensureCompactScrollController(double viewportWidth) {
+    final desired = _computeDesiredScrollOffset(viewportWidth);
+    final current = _scrollController;
+    if (current == null) {
+      final next = ScrollController(initialScrollOffset: desired);
+      _scrollController = next;
+      _lastViewportWidth = viewportWidth;
+      return next;
+    }
+    if (!current.hasClients) {
+      if ((current.initialScrollOffset - desired).abs() > 0.5) {
+        current.dispose();
+        final next = ScrollController(initialScrollOffset: desired);
+        _scrollController = next;
+        _lastViewportWidth = viewportWidth;
+        return next;
+      }
+      _lastViewportWidth = viewportWidth;
+      return current;
+    }
+    if ((_lastViewportWidth - viewportWidth).abs() > 0.5) {
+      _lastViewportWidth = viewportWidth;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scrollTargetIntoView());
+    }
+    return current;
+  }
+
+  void _scrollTargetIntoView() {
+    final controller = _scrollController;
+    if (!mounted || controller == null || !controller.hasClients) return;
+    final viewportWidth = controller.position.viewportDimension;
+    final desired = _computeDesiredScrollOffset(viewportWidth);
+    final maxScroll = controller.position.maxScrollExtent;
+    if (maxScroll <= 0) return;
+    controller.jumpTo(desired.clamp(0.0, maxScroll));
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _scrollController?.dispose();
     super.dispose();
   }
 
@@ -179,8 +244,11 @@ class _AddDayStripState extends State<AddDayStrip> {
                     constraints.maxWidth < minRequiredWidth;
 
             if (isCompact) {
+              final controller =
+                  _ensureCompactScrollController(constraints.maxWidth);
               return SingleChildScrollView(
-                controller: _scrollController,
+                key: const ValueKey('add_day_strip_scroll'),
+                controller: controller,
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

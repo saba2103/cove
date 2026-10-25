@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
+import 'package:cove/features/add/widgets/add_step_pieces.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/calendar/calendar_controller.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
@@ -21,6 +24,7 @@ import '../../golden/golden_harness.dart';
 class _SpyExpenseController extends ExpenseController {
   final List<ExpenseCreateArgs> calls = <ExpenseCreateArgs>[];
   bool shouldFail = false;
+  Completer<void>? inFlightCompleter;
 
   _SpyExpenseController(super.ref);
 
@@ -37,6 +41,9 @@ class _SpyExpenseController extends ExpenseController {
     bool isTransfer = false,
     ExpenseVisibility visibility = ExpenseVisibility.shared,
   }) async {
+    if (inFlightCompleter != null) {
+      await inFlightCompleter!.future;
+    }
     if (shouldFail) {
       throw StateError('Simulated logExpense failure');
     }
@@ -263,12 +270,16 @@ void main() {
 
         // Step 6 of 7: On what? (tap Card -> auto-advances to Step 7 Review)
         expect(find.text('On what?'), findsOneWidget);
+        expect(find.text('Saba · split'), findsOneWidget);
+        expect(find.text('Both'), findsNothing);
         await tester.tap(find.bySemanticsLabel('Card'));
         await tester.pumpAndSettle();
 
         // Step 7 of 7: Does this look right?
         expect(find.text('Does this look right?'), findsOneWidget);
         expect(find.text('Add expense'), findsOneWidget);
+        expect(find.bySemanticsLabel('Back'), findsOneWidget);
+        expect(find.byType(AddCrumbs), findsOneWidget);
 
         // Tap Add expense
         await tester.tap(find.bySemanticsLabel('Add expense'));
@@ -298,9 +309,13 @@ void main() {
         expect(spyExpense.calls.single, equals(expectedArgs));
         expect(spyCalendar?.calls ?? const <EventCreateArgs>[], isEmpty);
 
-        // Added confirmation state is shown with ADDED stamp
+        // Added confirmation state is shown with ADDED stamp, no back button, and no crumbs
         expect(find.text('Added.'), findsOneWidget);
         expect(find.text('ADDED'), findsOneWidget);
+        expect(find.bySemanticsLabel('Back'), findsNothing);
+        expect(find.byType(AddCrumbs), findsNothing);
+        expect(find.bySemanticsLabel('Close'), findsOneWidget);
+        expect(find.byType(AddProgressSegments), findsOneWidget);
         expect(find.text('Add another'), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
       });
@@ -599,6 +614,167 @@ void main() {
 
         expect(spyExpense.calls, hasLength(1));
         expect(find.text('Added.'), findsOneWidget);
+      });
+    },
+  );
+
+  testWidgets(
+    '5. Tapping Add twice fast calls logExpense once; after Added there is no back button and no crumb; Who paid crumb shows payer + split/private (never Both)',
+    (tester) async {
+      await loadCoveFonts();
+      late _SpyExpenseController spyExpense;
+      final completer = Completer<void>();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final prefilledDraft = ExpenseDraft(
+          amount: 2140,
+          title: "Namdhari's",
+          expenseDate: fixedToday,
+          category: 'Groceries',
+          payer: ExpensePayer.partner,
+          splitHalfAndHalf: true,
+          isPrivate: false,
+          paymentMethod: 'upi',
+          viewerUserId: 'user_saba',
+          partnerUserId: 'user_ancy',
+          hasPartner: true,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: (ref) => spyExpense = _SpyExpenseController(ref)
+                ..inFlightCompleter = completer,
+              calendarBuilder: (ref) => _SpyCalendarController(ref),
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: Scaffold(
+                body: AddFlow(
+                  initialKind: AddKind.expense,
+                  initialDraft: prefilledDraft,
+                  initialStepIndex: 6, // Review step
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Who paid crumb shows "Ancy · split", never "Both"
+        expect(find.text('Ancy · split'), findsOneWidget);
+        expect(find.text('Both'), findsNothing);
+
+        // Toggle privacy via the foot chip -> crumb becomes "Saba · private"
+        await tester.tap(find.text('Both can see it'));
+        await tester.pumpAndSettle();
+        expect(find.text('Saba · private'), findsOneWidget);
+        expect(find.text('Both'), findsNothing);
+
+        // Tap Add expense twice fast (same frame + next frame while write is in flight)
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.pump();
+
+        // Complete the in-flight write
+        completer.complete();
+        await tester.pumpAndSettle();
+
+        expect(spyExpense.calls, hasLength(1));
+
+        // After Added: no back button and no crumb; close and full progress bar remain
+        expect(find.text('Added.'), findsOneWidget);
+        expect(find.bySemanticsLabel('Back'), findsNothing);
+        expect(find.byType(AddCrumbs), findsNothing);
+        expect(find.bySemanticsLabel('Close'), findsOneWidget);
+        expect(find.byType(AddProgressSegments), findsOneWidget);
+      });
+    },
+  );
+
+  testWidgets(
+    '6. At 320dp the review body scrolls to show the slip date line, visibility line, and "Tap anything above to change it."',
+    (tester) async {
+      await loadCoveFonts();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = CoveWidth.cover * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final prefilledDraft = ExpenseDraft(
+          amount: 2140,
+          title: "Namdhari's",
+          expenseDate: fixedToday,
+          category: 'Groceries',
+          payer: ExpensePayer.you,
+          splitHalfAndHalf: true,
+          isPrivate: false,
+          paymentMethod: 'upi',
+          viewerUserId: 'user_saba',
+          partnerUserId: 'user_ancy',
+          hasPartner: true,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: (ref) => _SpyExpenseController(ref),
+              calendarBuilder: (ref) => _SpyCalendarController(ref),
+            ),
+            child: MediaQuery(
+              data: const MediaQueryData(
+                size: CoveWidth.cover,
+                textScaler: TextScaler.linear(1.0),
+              ),
+              child: MaterialApp(
+                theme: CoveTheme.darkTheme,
+                home: Scaffold(
+                  body: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: AddFlow(
+                      initialKind: AddKind.expense,
+                      initialDraft: prefilledDraft,
+                      initialStepIndex: 6, // Review step
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final scrollFinder =
+            find.byKey(const ValueKey('add_flow_step_scroll'));
+        expect(scrollFinder, findsOneWidget);
+
+        // Scroll the review body to the bottom
+        await tester.drag(scrollFinder, const Offset(0, -300));
+        await tester.pumpAndSettle();
+
+        final scrollRect = tester.getRect(scrollFinder);
+        final dateRect = tester.getRect(find.text('MON 5 OCT'));
+        final visibilityRect = tester.getRect(find.text('BOTH CAN SEE IT'));
+        final hintRect = tester.getRect(
+          find.text('Tap anything above to change it.'),
+        );
+
+        // All three are visible inside the scroll viewport
+        expect(dateRect.top, greaterThanOrEqualTo(scrollRect.top));
+        expect(dateRect.bottom, lessThanOrEqualTo(scrollRect.bottom));
+        expect(visibilityRect.top, greaterThanOrEqualTo(scrollRect.top));
+        expect(visibilityRect.bottom, lessThanOrEqualTo(scrollRect.bottom));
+        expect(hintRect.top, greaterThanOrEqualTo(scrollRect.top));
+        expect(hintRect.bottom, lessThanOrEqualTo(scrollRect.bottom));
       });
     },
   );

@@ -9,14 +9,15 @@ import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_sheet.dart';
 import '../../core/widgets/slips/cove_add_mark.dart';
-import '../../core/widgets/slips/cove_receipt.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../core/widgets/slips/cove_ticket.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../calendar/calendar_controller.dart';
 import '../expenses/expense_controller.dart';
+import '../expenses/expense_detail_sheet.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -359,7 +360,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
   Future<void> _handleCommit(AddFlowContext ctx) async {
     final d = _draft;
-    if (d == null || !d.isComplete || _isSubmitting) return;
+    if (d == null || !d.isComplete || _isSubmitting || _isAdded) return;
 
     setState(() {
       _isSubmitting = true;
@@ -715,23 +716,22 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
     return CoveSheet(
       isMidCommit: true,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxScrollableHeight),
+      child: SizedBox(
+        height: maxScrollableHeight,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Top row: Back, KIND · STEP OF TOTAL, Close
+            // 1. Top row: Back (hidden after Added), KIND · STEP OF TOTAL, Close
             Row(
               children: [
-                CoveRoundButton(
-                  icon: Icons.arrow_back,
-                  semanticLabel: 'Back',
-                  onPressed: _isAdded
-                      ? () => Navigator.of(context).maybePop()
-                      : () => _handleBack(ctx),
-                ),
-                const SizedBox(width: CoveSpace.sm),
+                if (!_isAdded) ...[
+                  CoveRoundButton(
+                    icon: Icons.arrow_back,
+                    semanticLabel: 'Back',
+                    onPressed: () => _handleBack(ctx),
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
+                ],
                 Expanded(
                   child: RichText(
                     maxLines: 1,
@@ -764,22 +764,21 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               totalSteps: totalSteps,
             ),
 
-            // 3. Answered crumbs
-            if (crumbs.isNotEmpty) ...[
+            // 3. Answered crumbs (hidden after Added)
+            if (!_isAdded && crumbs.isNotEmpty) ...[
               const SizedBox(height: CoveSpace.md),
               AddCrumbs(
                 crumbs: crumbs,
-                onSelectStep: _isAdded
-                    ? null
-                    : (targetIdx) => _goToStep(targetIdx),
+                onSelectStep: (targetIdx) => _goToStep(targetIdx),
               ),
             ],
 
             const SizedBox(height: CoveSpace.lg),
 
-            // 4–5. Question heading + Step body (scrolls when viewport is tight)
-            Flexible(
+            // 4–5. Question heading + Step body (scrolls inside fixed-height sheet)
+            Expanded(
               child: SingleChildScrollView(
+                key: const ValueKey('add_flow_step_scroll'),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -802,7 +801,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
             const SizedBox(height: CoveSpace.lg),
 
-            // 6. Step foot
+            // 6. Step foot (pinned at bottom)
             if (_isAdded)
               AddStepFoot(
                 secondaryLabel: 'Add another',
@@ -822,7 +821,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                     'Add ${_kindDisplayName(_activeKind!).toLowerCase()}',
                 showArrow: false,
                 enabled: _draft!.isComplete && !_isSubmitting,
-                onPrimaryTap: () => _handleCommit(ctx),
+                onPrimaryTap:
+                    _isSubmitting ? null : () => _handleCommit(ctx),
               )
             else
               AddStepFoot(
@@ -940,11 +940,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         case AddStep.expenseCategory:
           return d.category;
         case AddStep.expenseWhoPaid:
-          if (d.isPrivate) return 'Only you';
-          if (d.splitHalfAndHalf && ctx.hasPartner) return 'Both';
-          return d.payer == ExpensePayer.partner
+          final payerName = d.payer == ExpensePayer.partner
               ? _partnerName()
               : _viewerName();
+          if (d.isPrivate) return '$payerName · private';
+          if (d.splitHalfAndHalf) return '$payerName · split';
+          return payerName;
         case AddStep.expensePaymentMethod:
           return formatExpensePaymentMethod(d.paymentMethod);
         default:
@@ -1293,28 +1294,32 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     ExpenseDraft d,
   ) {
     final cv = context.cv;
-    final currencySymbol = ref.watch(currencyPreferenceProvider).symbol;
-    final amountVal = d.amount ?? 0;
-    final amountFormatted = '$currencySymbol${formatCoveAmount(amountVal)}';
-    final halfFormatted =
-        '$currencySymbol${formatCoveAmount(amountVal / 2.0)}';
-    final viewerName = _viewerName();
-    final partnerName = _partnerName();
-    final payerLabel = d.payer == ExpensePayer.partner
-        ? partnerName
-        : viewerName;
-    final pmLabel = formatExpensePaymentMethod(d.paymentMethod);
-    final expDate = d.expenseDate ?? ctx.anchor;
-    final footerDate = DateFormat('EEE d MMM').format(expDate).toUpperCase();
-
+    final currency = ref.watch(currencyPreferenceProvider);
     final home = ref.watch(activeHomeProvider).value;
-    final creatorId = home?.createdBy ?? ctx.viewerUserId;
-    final actorId = d.payer == ExpensePayer.partner
-        ? ctx.partnerUserId
-        : ctx.viewerUserId;
-    final payerPerson = CoveAvatar.resolvePerson(
-      homeCreatedBy: creatorId,
-      actorUserId: actorId,
+    final partnerProfile = ref.watch(partnerProfileProvider);
+
+    final args = d.toCreateArgs(
+      viewerUserId: ctx.viewerUserId,
+      partnerUserId: ctx.partnerUserId,
+      currency: currency.code,
+    );
+    final splitRatio = args.visibility == ExpenseVisibility.privateToMe
+        ? -1.0
+        : (args.visibility == ExpenseVisibility.partnerCanSee ? 0.0 : 0.5);
+
+    final previewExpense = LocalExpense(
+      id: 'add-expense-${args.title}-${args.amount.round()}',
+      homeId: home?.id ?? 'home_1',
+      title: args.title,
+      amount: args.amount,
+      currency: args.currency ?? currency.code,
+      paidBy: args.paidBy,
+      splitRatio: splitRatio,
+      expenseDate: args.expenseDate,
+      category: args.category,
+      paymentMethod: args.paymentMethod,
+      isTransfer: args.isTransfer,
+      createdAt: args.expenseDate,
     );
 
     final fieldTaps = _isAdded
@@ -1361,50 +1366,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CoveReceipt(
-          variant: CoveSlipVariant.paper,
-          recordId: 'add-expense-${d.title}-${d.amount}',
-          title: d.title.trim(),
-          subtitle: pmLabel != null ? 'ON ${pmLabel.toUpperCase()}' : '',
-          items: <CoveReceiptItem>[
-            CoveReceiptItem(
-              payer: payerPerson,
-              nameOrInitial: payerLabel,
-              title: d.category ?? 'Groceries',
-              subtitle: [
-                'Paid by $payerLabel',
-                ?pmLabel,
-              ].join(' · '),
-              amount: amountFormatted,
-            ),
-            if (pmLabel != null)
-              CoveReceiptItem(
-                payer: payerPerson,
-                nameOrInitial: payerLabel,
-                title: 'Paid on',
-                subtitle: pmLabel,
-                amount: pmLabel,
-              ),
-          ],
-          totalAmount: amountFormatted,
-          split: CoveReceiptSplit(
-            viewerName: viewerName,
-            viewerAmount: d.splitHalfAndHalf && !d.isPrivate
-                ? halfFormatted
-                : (d.payer == ExpensePayer.you
-                    ? amountFormatted
-                    : '${currencySymbol}0'),
-            partnerName: partnerName,
-            partnerAmount: d.splitHalfAndHalf && !d.isPrivate
-                ? halfFormatted
-                : (d.payer == ExpensePayer.partner
-                    ? amountFormatted
-                    : '${currencySymbol}0'),
-            viewerShare: d.splitHalfAndHalf && !d.isPrivate
-                ? 0.5
-                : (d.payer == ExpensePayer.you ? 1.0 : 0.0),
-          ),
-          footerDate: footerDate,
+        buildExpenseReceipt(
+          expense: previewExpense,
+          currencySymbol: currency.symbol,
+          currentUserId: ctx.viewerUserId,
+          homeCreatedBy: home?.createdBy,
+          partnerDisplayName: partnerProfile.displayName,
           visibility: _currentVisibility(),
           stamp: _isAdded ? 'ADDED' : null,
           fieldTaps: fieldTaps,
