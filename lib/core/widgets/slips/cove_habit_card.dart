@@ -40,6 +40,8 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
   final List<bool>? history21;
   final String capsLabel;
   final String runLabel;
+  final bool showCheckbox;
+  final bool showHistory;
   final String? stamp;
   final bool stampLanded;
   final CoveSlipVisibility? visibility;
@@ -73,6 +75,8 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
     this.history21,
     this.capsLabel = 'COVE · HABIT',
     this.runLabel = 'DAYS RUNNING',
+    this.showCheckbox = true,
+    this.showHistory = true,
     this.stamp,
     this.stampLanded = true,
     this.visibility,
@@ -104,6 +108,9 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
   }
 
   String _buildDefaultSemantics() {
+    if (!showHistory) {
+      return 'Habit, $title, $cadence';
+    }
     final todayState = isDoneToday ? 'done today' : 'not done today';
     final dayWord = daysRunning == 1 ? '1 day running' : '$daysRunning days running';
     return 'Habit, $title, $todayState, $dayWord';
@@ -130,7 +137,7 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header: caps line, title, cadence on left + CoveCheckbox top right
+          // 1. Header: caps line, title, cadence on left + optional CoveCheckbox top right
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -164,71 +171,76 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
                   ],
                 ),
               ),
-              const SizedBox(width: CoveSpace.md),
-              Padding(
-                padding: const EdgeInsets.only(top: CoveSpace.md),
-                child: CoveCheckbox(
-                  value: isDoneToday,
-                  onChanged: onToggle,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: CoveSpace.md),
-
-          // 2. Dashed horizontal rule
-          SizedBox(
-            height: kRuleHeight,
-            child: CustomPaint(
-              painter: _HabitDashedRulePainter(color: palette.rule),
-            ),
-          ),
-          const SizedBox(height: CoveSpace.md),
-
-          // 3. 21-day streak grid (left) + run count in slipFigure (right)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              SizedBox(
-                width: gridWidth,
-                height: gridHeight,
-                child: CustomPaint(
-                  painter: _HabitStreakGridPainter(
-                    cells: cells,
-                    doneColor: palette.accentFill,
-                    missedOutlineColor: palette.mark,
-                    todayRingColor: palette.accentFill,
+              if (showCheckbox) ...[
+                const SizedBox(width: CoveSpace.md),
+                Padding(
+                  padding: const EdgeInsets.only(top: CoveSpace.md),
+                  child: CoveCheckbox(
+                    value: isDoneToday,
+                    onChanged: onToggle,
                   ),
                 ),
-              ),
-              const SizedBox(width: CoveSpace.md),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '$daysRunning',
-                      maxLines: 1,
-                      softWrap: false,
-                      textAlign: TextAlign.end,
-                      style: CoveType.slipFigure.copyWith(color: palette.title),
-                    ),
-                    const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      runLabel.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                      style: CoveType.capsSlip.copyWith(
-                        color: palette.tertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
+          if (showHistory) ...[
+            const SizedBox(height: CoveSpace.md),
+
+            // 2. Dashed horizontal rule
+            SizedBox(
+              height: kRuleHeight,
+              child: CustomPaint(
+                painter: _HabitDashedRulePainter(color: palette.rule),
+              ),
+            ),
+            const SizedBox(height: CoveSpace.md),
+
+            // 3. 21-day streak grid (left) + run count in slipFigure (right)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: gridWidth,
+                  height: gridHeight,
+                  child: CustomPaint(
+                    painter: _HabitStreakGridPainter(
+                      cells: cells,
+                      doneColor: palette.accentFill,
+                      missedOutlineColor: palette.mark,
+                      todayRingColor: palette.accentFill,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.md),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$daysRunning',
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.end,
+                        style:
+                            CoveType.slipFigure.copyWith(color: palette.title),
+                      ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Text(
+                        runLabel.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: CoveType.capsSlip.copyWith(
+                          color: palette.tertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

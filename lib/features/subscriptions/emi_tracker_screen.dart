@@ -1478,6 +1478,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
           onPressed: () => AddFlow.show(
             context,
             kind: AddKind.commitment,
+            presetEmi: true,
           ),
         ),
       ),

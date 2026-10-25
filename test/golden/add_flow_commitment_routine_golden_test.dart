@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
+import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/auth/auth_controller.dart';
@@ -224,13 +225,14 @@ void main() {
   );
 
   testWidgets(
-    '3. AddFlow commitment EMI steps (step 4: total instalments & step 5: paid instalments) golden matrix (3 widths × 2 modes)',
+    '3. AddFlow commitment EMI step 4 (total instalments) golden matrix (3 widths × 2 modes)',
     (tester) async {
       await goldenMatrix(
         tester,
         'add_flow_commitment_4_emi_total',
         _AddFlowGoldenStage(
           child: AddFlow(
+            key: const ValueKey('emi_step_4_total'),
             initialKind: AddKind.commitment,
             initialDraft: emiDraft,
             initialStepIndex: 3,
@@ -239,12 +241,18 @@ void main() {
         overrides: buildGoldenOverrides(),
         clock: fixedClock,
       );
+    },
+  );
 
+  testWidgets(
+    '4. AddFlow commitment EMI step 5 (paid instalments) golden matrix (3 widths × 2 modes)',
+    (tester) async {
       await goldenMatrix(
         tester,
         'add_flow_commitment_5_emi_paid',
         _AddFlowGoldenStage(
           child: AddFlow(
+            key: const ValueKey('emi_step_5_paid'),
             initialKind: AddKind.commitment,
             initialDraft: emiDraft,
             initialStepIndex: 4,
@@ -257,30 +265,17 @@ void main() {
   );
 
   testWidgets(
-    '4. AddFlow commitment review (CoveVoucher standard & punched EMI) golden matrix (3 widths × 2 modes)',
+    '5. AddFlow commitment step 7 review (CoveVoucher standard) golden matrix (3 widths × 2 modes)',
     (tester) async {
       await goldenMatrix(
         tester,
         'add_flow_commitment_7_review',
         _AddFlowGoldenStage(
           child: AddFlow(
+            key: const ValueKey('commitment_step_7_review'),
             initialKind: AddKind.commitment,
             initialDraft: monthlyDraft,
             initialStepIndex: 6,
-          ),
-        ),
-        overrides: buildGoldenOverrides(),
-        clock: fixedClock,
-      );
-
-      await goldenMatrix(
-        tester,
-        'add_flow_commitment_9_emi_review',
-        _AddFlowGoldenStage(
-          child: AddFlow(
-            initialKind: AddKind.commitment,
-            initialDraft: emiDraft,
-            initialStepIndex: 8,
           ),
         ),
         overrides: buildGoldenOverrides(),
@@ -290,7 +285,32 @@ void main() {
   );
 
   testWidgets(
-    '5. AddFlow routine step 5 (Review — CoveBand) golden matrix (3 widths × 2 modes)',
+    '6. AddFlow commitment step 9 EMI review (CoveVoucher punched EMI, 12 instalments, 3 paid) golden matrix (3 widths × 2 modes)',
+    (tester) async {
+      await goldenMatrix(
+        tester,
+        'add_flow_commitment_9_emi_review',
+        _AddFlowGoldenStage(
+          child: AddFlow(
+            key: const ValueKey('commitment_step_9_emi_review'),
+            initialKind: AddKind.commitment,
+            initialDraft: emiDraft,
+            initialStepIndex: 8,
+          ),
+        ),
+        overrides: buildGoldenOverrides(),
+        clock: fixedClock,
+      );
+
+      final voucher = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+      expect(voucher.isEmi, isTrue);
+      expect(voucher.totalInstallments, equals(12));
+      expect(voucher.paidInstallments, equals(3));
+    },
+  );
+
+  testWidgets(
+    '7. AddFlow routine step 5 (Review — CoveBand) golden matrix (3 widths × 2 modes)',
     (tester) async {
       await goldenMatrix(
         tester,

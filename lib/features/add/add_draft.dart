@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../sync/db/app_database.dart';
@@ -78,6 +79,9 @@ class AddFlowContext {
   final String viewerUserId;
   final String partnerUserId;
   final String? activeListId;
+  final String? routineId;
+  final int? startMinutes;
+  final bool presetEmi;
   final List<Routine> existingRoutines;
   final List<LocalRoutine> existingLocalRoutines;
 
@@ -90,6 +94,9 @@ class AddFlowContext {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.activeListId,
+    this.routineId,
+    this.startMinutes,
+    this.presetEmi = false,
     this.existingRoutines = const [],
     this.existingLocalRoutines = const [],
   })  : anchor = _dateOnly(anchor),
@@ -104,6 +111,9 @@ class AddFlowContext {
     String? viewerUserId,
     String? partnerUserId,
     String? activeListId,
+    String? routineId,
+    int? startMinutes,
+    bool? presetEmi,
     List<Routine>? existingRoutines,
     List<LocalRoutine>? existingLocalRoutines,
   }) {
@@ -116,6 +126,9 @@ class AddFlowContext {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       activeListId: activeListId ?? this.activeListId,
+      routineId: routineId ?? this.routineId,
+      startMinutes: startMinutes ?? this.startMinutes,
+      presetEmi: presetEmi ?? this.presetEmi,
       existingRoutines: existingRoutines ?? this.existingRoutines,
       existingLocalRoutines:
           existingLocalRoutines ?? this.existingLocalRoutines,
@@ -381,8 +394,12 @@ class ExpenseDraft extends AddDraft {
             (isPrivate || !hasPartner) ? false : splitHalfAndHalf;
 
   factory ExpenseDraft.initial(AddFlowContext context) {
+    final now = clock.now();
+    final isAnchorToday = context.anchor.year == context.today.year &&
+        context.anchor.month == context.today.month &&
+        context.anchor.day == context.today.day;
     return ExpenseDraft(
-      expenseDate: context.anchor,
+      expenseDate: isAnchorToday ? now : context.anchor,
       viewerUserId: context.viewerUserId,
       partnerUserId: context.partnerUserId,
       hasPartner: context.hasPartner,
@@ -536,11 +553,20 @@ class ExpenseDraft extends AddDraft {
     if (!isComplete) {
       throw StateError('ExpenseDraft is incomplete and cannot build args.');
     }
+    final rawDate = expenseDate!;
+    final now = clock.now();
+    final isChosenDayToday = rawDate.year == now.year &&
+        rawDate.month == now.month &&
+        rawDate.day == now.day;
+    final resolvedExpenseDate = isChosenDayToday
+        ? now
+        : DateTime(rawDate.year, rawDate.month, rawDate.day);
+
     return ExpenseCreateArgs(
       title: title.trim(),
       amount: amount!.toDouble(),
       currency: currency,
-      expenseDate: expenseDate!,
+      expenseDate: resolvedExpenseDate,
       paidBy: resolvedPaidBy(
         viewerUserId: viewerUserId,
         partnerUserId: partnerUserId,
@@ -1212,6 +1238,10 @@ class CommitmentDraft extends AddDraft {
 
   factory CommitmentDraft.initial(AddFlowContext context) {
     return CommitmentDraft(
+      cycle: context.presetEmi
+          ? CommitmentCycleOption.emi
+          : CommitmentCycleOption.everyMonth,
+      paidInstallments: context.presetEmi ? 0 : null,
       dayOfMonth: context.anchor.day.clamp(1, 28),
       dueMonth: context.anchor.month,
       today: context.today,
@@ -1612,7 +1642,40 @@ class RoutineDraft extends AddDraft {
         );
 
   factory RoutineDraft.initial(AddFlowContext context) {
-    return RoutineDraft();
+    Set<int> initialDays = const <int>{1, 2, 3, 4, 5};
+    if (context.routineId != null) {
+      var found = false;
+      for (final r in context.existingRoutines) {
+        if (r.id == context.routineId) {
+          final valid = r.days.where((d) => d >= 1 && d <= 7).toSet();
+          if (valid.isNotEmpty) {
+            initialDays = valid;
+          }
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        for (final lr in context.existingLocalRoutines) {
+          if (lr.id == context.routineId) {
+            try {
+              final decoded = (jsonDecode(lr.daysJson) as List<dynamic>)
+                  .map((e) => (e as num).toInt())
+                  .where((d) => d >= 1 && d <= 7)
+                  .toSet();
+              if (decoded.isNotEmpty) {
+                initialDays = decoded;
+              }
+            } catch (_) {}
+            break;
+          }
+        }
+      }
+    }
+    return RoutineDraft(
+      startMinutes: (context.startMinutes ?? 540).clamp(0, 1439),
+      days: initialDays,
+    );
   }
 
   @override

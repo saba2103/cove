@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
+import 'package:cove/core/widgets/cove_avatar.dart';
+import 'package:cove/core/widgets/cove_checkbox.dart';
 import 'package:cove/core/widgets/slips/cove_band.dart';
 import 'package:cove/core/widgets/slips/cove_habit_card.dart';
 import 'package:cove/core/widgets/slips/cove_note.dart';
+import 'package:cove/core/widgets/slips/cove_receipt.dart';
 import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
@@ -19,6 +22,8 @@ import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/features/profile/user_profile_controller.dart';
 import 'package:cove/features/routines/routine_controller.dart';
 import 'package:cove/features/routines/routine_models.dart';
+import 'package:cove/features/routines/routine_screen.dart';
+import 'package:cove/features/subscriptions/emi_tracker_screen.dart';
 import 'package:cove/features/subscriptions/subscription_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
@@ -242,6 +247,9 @@ class _SpyRoutineController extends RoutineController {
   _SpyRoutineController(super.ref);
 
   @override
+  Future<void> seedDefaultRoutinesIfEmpty() async {}
+
+  @override
   Future<String> createRoutine({
     required String name,
     required List<int> days,
@@ -367,6 +375,10 @@ void main() {
       activeHomeAllRoutineEventsProvider.overrideWith(
         (ref) => Stream<List<RoutineEvent>>.value(const <RoutineEvent>[]),
       ),
+      for (final r in routines)
+        routineEventsProvider(r.id).overrideWith(
+          (ref) => Stream<List<RoutineEvent>>.value(const <RoutineEvent>[]),
+        ),
       activeHomeExpensesProvider.overrideWith(
         (ref) =>
             expensesStreamBuilder != null
@@ -442,7 +454,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('What is it?'), findsOneWidget);
-        await tester.tap(find.bySemanticsLabel('Back'));
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AddFlow),
+            matching: find.bySemanticsLabel('Back'),
+          ),
+        );
         await tester.pumpAndSettle();
 
         // Tap Expense tile -> Step 1 of 7: How much?
@@ -1267,6 +1284,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Step 4 of 4: Review -> CoveHabitCard in its no-history state
+        // (no checkbox, no 21-cell grid, no DAYS RUNNING count)
         expect(find.text('Does this look right?'), findsOneWidget);
         final habitCard = tester.widget<CoveHabitCard>(
           find.byType(CoveHabitCard),
@@ -1274,6 +1292,10 @@ void main() {
         expect(habitCard.title, 'Morning walk');
         expect(habitCard.daysRunning, 0);
         expect(habitCard.isDoneToday, isFalse);
+        expect(habitCard.showCheckbox, isFalse);
+        expect(habitCard.showHistory, isFalse);
+        expect(find.byType(CoveCheckbox), findsNothing);
+        expect(find.text('DAYS RUNNING'), findsNothing);
         expect(habitCard.resolveCells(), everyElement(isFalse));
         expect(find.text('ONLY YOU CAN SEE IT'), findsOneWidget);
 
@@ -1476,8 +1498,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Step 4 of 7: When is the next one due? (AddNextDatePicker)
-        expect(find.text('When is the next one due?'), findsWidgets);
+        // Step 4 of 7: When is the next one due? (AddNextDatePicker without duplicated hint)
+        expect(find.text('When is the next one due?'), findsOneWidget);
         expect(find.byType(AddNextDatePicker), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Month Nov'));
         await tester.pump();
@@ -2251,6 +2273,418 @@ void main() {
           ),
           isNull,
         );
+      });
+    },
+  );
+
+  testWidgets(
+    '13. Expense time & receipt avatar: today uses clock.now() and shows time on receipt; another day stays at 00:00 and hides time on receipt; receipt avatar shows profile initial, never "Y"',
+    (tester) async {
+      await loadCoveFonts();
+      late _SpyExpenseController spyExpense;
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        // --- Case A: Chosen day is today (Mon, 5 Oct) -> expenseDate = clock.now() (10:30 AM) ---
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('exp_time_today'),
+            overrides: buildOverrides(
+              expenseBuilder: (ref) =>
+                  spyExpense = _SpyExpenseController(ref),
+              calendarBuilder: _SpyCalendarController.new,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('flow_today'),
+                  initialKind: AddKind.expense,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final key in ['4', '5', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Subko Coffee',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Tap Today, 5 Oct
+        await tester.tap(find.bySemanticsLabel('Today, 5 Oct'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Eating out'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('UPI'));
+        await tester.pumpAndSettle();
+
+        // Review receipt: shows time 10:30 AM, text "Paid by You · UPI", avatar initial "S" (never "Y")
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final todayReceipt = tester.widget<CoveReceipt>(
+          find.byType(CoveReceipt),
+        );
+        expect(todayReceipt.subtitle, equals('10:30 AM'));
+        expect(todayReceipt.footerDate, equals('MON 5 OCT'));
+        expect(find.text('10:30 AM'), findsOneWidget);
+        expect(find.text('MON 5 OCT'), findsOneWidget);
+        expect(find.text('Paid by You · UPI'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(CoveReceipt),
+            matching: find.text('S'),
+          ),
+          findsWidgets,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(CoveAvatar),
+            matching: find.text('Y'),
+          ),
+          findsNothing,
+        );
+
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.pumpAndSettle();
+
+        expect(spyExpense.calls, hasLength(1));
+        expect(spyExpense.calls.single.expenseDate, equals(fixedNow));
+
+        // --- Case B: Chosen day is another day (Sun, 4 Oct) -> expenseDate = 00:00 (midnight), receipt omits time ---
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('exp_time_other_day'),
+            overrides: buildOverrides(
+              expenseBuilder: (ref) =>
+                  spyExpense = _SpyExpenseController(ref),
+              calendarBuilder: _SpyCalendarController.new,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('flow_other_day'),
+                  initialKind: AddKind.expense,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final key in ['8', '2', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Sunday Market',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Tap Yesterday, 4 Oct (yesterday, not today)
+        await tester.tap(find.bySemanticsLabel('Yesterday, 4 Oct'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Groceries'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Cash'));
+        await tester.pumpAndSettle();
+
+        // Review receipt: subtitle is empty (no time at 00:00) and footerDate is "SUN 4 OCT", never "12:00 AM"
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final receipt = tester.widget<CoveReceipt>(find.byType(CoveReceipt));
+        expect(receipt.subtitle, isEmpty);
+        expect(receipt.footerDate, equals('SUN 4 OCT'));
+        expect(find.textContaining('12:00 AM'), findsNothing);
+
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.pumpAndSettle();
+
+        expect(spyExpense.calls, hasLength(1));
+        expect(
+          spyExpense.calls.single.expenseDate,
+          equals(DateTime(2026, 10, 4, 0, 0)),
+        );
+      });
+    },
+  );
+
+  testWidgets(
+    '14. Routine context: RoutineScreen Add button passes selected routineId (preselects Which days, still asked and matched/created); tapping an hour row passes routineId and hour * 60',
+    (tester) async {
+      await loadCoveFonts();
+      late _SpyRoutineController spyRoutine;
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final weekendRoutine = Routine(
+          id: 'routine_weekend',
+          homeId: 'home_1',
+          name: 'Weekend Flow',
+          days: const <int>[6, 7], // Sat, Sun
+          createdAt: fixedToday,
+        );
+        final weekdayRoutine = Routine(
+          id: 'routine_weekday',
+          homeId: 'home_1',
+          name: 'Weekday Focus',
+          days: const <int>[1, 2, 3, 4, 5],
+          createdAt: fixedToday,
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              routineBuilder: (ref) =>
+                  spyRoutine = _SpyRoutineController(ref),
+              routines: <Routine>[weekendRoutine, weekdayRoutine],
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const RoutineScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // First routine tab is "Weekend Flow" (days {6, 7}).
+        // Tap header "Add Event" button -> opens AddFlow with routineId: 'routine_weekend'
+        await tester.tap(find.bySemanticsLabel('Add Event'));
+        await tester.pumpAndSettle();
+
+        // Step 1 of 5: What is it?
+        expect(find.text('What is it?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Farmers market',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 5: When, usually? -> default 9:00 AM (540)
+        expect(find.text('When, usually?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 5: For how long? -> 30 min (auto-advances to Step 4)
+        expect(find.text('For how long?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('30 min'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 5: Which days? is STILL asked and preselected to Weekend Flow's days {6, 7}
+        expect(find.text('Which days?'), findsOneWidget);
+        final weekToggles = tester.widget<AddWeekToggles>(
+          find.byType(AddWeekToggles),
+        );
+        expect(weekToggles.selectedDays, equals(const <int>{6, 7}));
+
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 5: Review -> matches existing 'routine_weekend' set
+        expect(find.text('Does this look right?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+
+        expect(spyRoutine.createdRoutines, isEmpty);
+        expect(spyRoutine.createdEvents, hasLength(1));
+        expect(spyRoutine.createdEvents.single.routineId, 'routine_weekend');
+        expect(spyRoutine.createdEvents.single.title, 'Farmers market');
+        expect(spyRoutine.createdEvents.single.startMinutes, 540);
+        expect(spyRoutine.createdEvents.single.endMinutes, 570);
+
+        // Close the sheet
+        await tester.tap(find.bySemanticsLabel('Done'));
+        await tester.pumpAndSettle();
+
+        // Now tap an hour row on RoutineScreen (e.g. 7 AM -> hour 7 => startMinutes = 420)
+        await tester.tap(find.text('7 AM'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('What is it?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Long run',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 5: When, usually? is preselected to 7:00 AM (420 min)
+        expect(find.text('When, usually?'), findsOneWidget);
+        final clockFace = tester.widget<AddClockFace>(
+          find.byType(AddClockFace),
+        );
+        expect(clockFace.hour, equals(7));
+        expect(clockFace.minute, equals(0));
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 5: For how long? -> 45 min
+        await tester.tap(find.bySemanticsLabel('45 min'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 5: Which days? is preselected to {6, 7}; toggle Friday (5) on so it creates a new set {5, 6, 7}
+        expect(find.text('Which days?'), findsOneWidget);
+        expect(
+          tester.widget<AddWeekToggles>(find.byType(AddWeekToggles)).selectedDays,
+          equals(const <int>{6, 7}),
+        );
+        await tester.tap(find.bySemanticsLabel('Friday'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+
+        expect(spyRoutine.createdRoutines, hasLength(1));
+        expect(spyRoutine.createdRoutines.single.days, const <int>[5, 6, 7]);
+        expect(spyRoutine.createdEvents, hasLength(2));
+        expect(
+          spyRoutine.createdEvents.last.routineId,
+          'created_routine_1',
+        );
+        expect(spyRoutine.createdEvents.last.startMinutes, 420);
+        expect(spyRoutine.createdEvents.last.endMinutes, 465);
+      });
+    },
+  );
+
+  testWidgets(
+    '15. "Add Loan or EMI" on EmiTrackerScreen opens commitment flow with cycle preselected to EMI (9 steps from the start, cycle still shown and changeable)',
+    (tester) async {
+      await loadCoveFonts();
+      _SpySubscriptionController? spySub;
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              subscriptionBuilder: (ref) =>
+                  spySub = _SpySubscriptionController(ref),
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const EmiTrackerScreen(initialSubscriptions: []),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Tap "Add Loan or EMI" button on EmiTrackerScreen
+        await tester.tap(find.text('Add Loan or EMI'));
+        await tester.pumpAndSettle();
+
+        // Step 1 shows 9 steps from the start (EMI steps present from step 1)
+        expect(
+          find.text('COMMITMENT · 1 OF 9', findRichText: true),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<AddProgressSegments>(find.byType(AddProgressSegments)).totalSteps,
+          equals(9),
+        );
+        expect(find.text('What is it?'), findsOneWidget);
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Washing machine',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 9: How much, each time?
+        expect(
+          find.text('COMMITMENT · 2 OF 9', findRichText: true),
+          findsOneWidget,
+        );
+        for (final key in ['2', '5', '0', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 9: How often does it come? -> still shown, preselected to EMI, and changeable!
+        expect(
+          find.text('COMMITMENT · 3 OF 9', findRichText: true),
+          findsOneWidget,
+        );
+        expect(find.text('How often does it come?'), findsOneWidget);
+        final choiceList = tester.widget<AddChoiceList<CommitmentCycleOption>>(
+          find.byType(AddChoiceList<CommitmentCycleOption>),
+        );
+        expect(choiceList.selectedValue, equals(CommitmentCycleOption.emi));
+
+        // Verify it is changeable (e.g. tap Every month -> changes to 7 steps; go back and re-select EMI)
+        await tester.tap(
+          find.bySemanticsLabel('Every month, twelve times a year'),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.text('COMMITMENT · 4 OF 7', findRichText: true),
+          findsOneWidget,
+        );
+
+        await tester.tap(
+          find.descendant(
+            of: find.byType(AddFlow),
+            matching: find.bySemanticsLabel('Back'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.bySemanticsLabel('It ends — an EMI, a number of instalments'),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 4 of 9: How many instalments in all?
+        expect(
+          find.text('COMMITMENT · 4 OF 9', findRichText: true),
+          findsOneWidget,
+        );
+        expect(find.text('How many instalments in all?'), findsOneWidget);
+        expect(spySub?.calls ?? const <CommitmentCreateArgs>[], isEmpty);
       });
     },
   );

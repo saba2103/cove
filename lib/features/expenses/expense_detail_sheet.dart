@@ -16,6 +16,7 @@ import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'expense_controller.dart';
 import 'expense_form_sheet.dart';
 
@@ -28,6 +29,7 @@ CoveReceipt buildExpenseReceipt({
   required String? currentUserId,
   required String? homeCreatedBy,
   required String partnerDisplayName,
+  String? viewerDisplayName,
   CoveSlipVisibility? visibility,
   String? stamp,
   CoveSlipFieldTaps? fieldTaps,
@@ -40,6 +42,17 @@ CoveReceipt buildExpenseReceipt({
   final partnerName =
       partnerDisplayName.isNotEmpty ? partnerDisplayName : 'Partner';
   final payerName = share.isPaidByViewer ? 'You' : partnerName;
+  final cleanViewerName = (viewerDisplayName != null &&
+          viewerDisplayName.trim().isNotEmpty &&
+          viewerDisplayName.trim().toLowerCase() != 'you')
+      ? viewerDisplayName.trim()
+      : null;
+  final cleanPartnerName = (partnerDisplayName.trim().isNotEmpty &&
+          partnerDisplayName.trim().toLowerCase() != 'you')
+      ? partnerDisplayName.trim()
+      : null;
+  final avatarNameOrInitial =
+      share.isPaidByViewer ? cleanViewerName : cleanPartnerName;
   final creatorId = homeCreatedBy ?? currentUserId ?? 'user_alex';
   final effectiveActorId = share.isPaidByViewer
       ? (currentUserId ?? 'user_alex')
@@ -60,11 +73,19 @@ CoveReceipt buildExpenseReceipt({
   final partnerShareFormatted =
       '$currencySymbol${formatCoveAmount(share.partnerShareAmount)}';
 
-  final timeFormatted =
-      DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
-  final receiptSubtitle = notes != null && notes.isNotEmpty
-      ? '${notes.toUpperCase()} · $timeFormatted'
-      : timeFormatted;
+  final isMidnight =
+      expense.expenseDate.hour == 0 && expense.expenseDate.minute == 0;
+  final timeFormatted = isMidnight
+      ? null
+      : DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
+  final String receiptSubtitle;
+  if (notes != null && notes.isNotEmpty) {
+    receiptSubtitle = timeFormatted != null
+        ? '${notes.toUpperCase()} · $timeFormatted'
+        : notes.toUpperCase();
+  } else {
+    receiptSubtitle = timeFormatted ?? '';
+  }
   final footerDate =
       DateFormat('EEE d MMM').format(expense.expenseDate).toUpperCase();
 
@@ -76,7 +97,7 @@ CoveReceipt buildExpenseReceipt({
     items: [
       CoveReceiptItem(
         payer: person,
-        nameOrInitial: payerName,
+        nameOrInitial: avatarNameOrInitial,
         title: expense.isTransfer
             ? 'Transfer to ${share.isPaidByViewer ? partnerName : "You"}'
             : categoryName,
@@ -200,8 +221,15 @@ class ExpenseDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
+    final userProfile = ref.watch(userProfileProvider);
     final partnerProfile = ref.watch(partnerProfileProvider);
     final home = ref.watch(activeHomeProvider).value;
+
+    final rawProfileName = userProfile.displayName.trim();
+    final viewerDisplayName =
+        (rawProfileName.isNotEmpty && rawProfileName.toLowerCase() != 'you')
+            ? rawProfileName
+            : currentUser?.displayName;
 
     final share = computeExpenseShare(
       expense,
@@ -245,6 +273,7 @@ class ExpenseDetailSheet extends ConsumerWidget {
         currentUserId: currentUser?.id,
         homeCreatedBy: home?.createdBy,
         partnerDisplayName: partnerProfile.displayName,
+        viewerDisplayName: viewerDisplayName,
       ),
       meaningPanel: meaningPanel,
       editVerb: CoveDetailVerb(

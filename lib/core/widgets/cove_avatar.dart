@@ -109,9 +109,11 @@ class CoveAvatar extends StatelessWidget {
       return '&';
     }
     final raw = nameOrInitial?.trim() ?? '';
-    final match = RegExp(r'[A-Za-z]').firstMatch(raw);
-    if (match != null) {
-      return match.group(0)!.toUpperCase();
+    if (raw.toLowerCase() != 'you') {
+      final match = RegExp(r'[A-Za-z]').firstMatch(raw);
+      if (match != null) {
+        return match.group(0)!.toUpperCase();
+      }
     }
     return person == CovePerson.a ? 'A' : 'B';
   }

@@ -17,6 +17,7 @@ class AddNextDatePicker extends StatelessWidget {
   final int selectedDay;
   final void Function(int month, int day, DateTime resolvedDate) onChanged;
   final String hint;
+  final bool showHint;
 
   static const List<String> _monthShort = <String>[
     'Jan',
@@ -43,6 +44,7 @@ class AddNextDatePicker extends StatelessWidget {
     required this.selectedDay,
     required this.onChanged,
     this.hint = 'When is the next one due?',
+    this.showHint = true,
   })  : assert(selectedMonth >= 1 && selectedMonth <= 12),
         assert(selectedDay >= 1 && selectedDay <= 28);
 
@@ -78,12 +80,14 @@ class AddNextDatePicker extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          hint,
-          textAlign: TextAlign.center,
-          style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-        ),
-        const SizedBox(height: CoveSpace.md),
+        if (showHint && hint.isNotEmpty) ...[
+          Text(
+            hint,
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
+          const SizedBox(height: CoveSpace.md),
+        ],
 
         // Row of 12 month chips
         SingleChildScrollView(

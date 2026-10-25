@@ -297,6 +297,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           onPressed: () => AddFlow.show(
                             context,
                             kind: AddKind.routine,
+                            routineId: currentRoutine.id,
                           ),
                         ),
                       ],
@@ -600,6 +601,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
           onTap: () => AddFlow.show(
             context,
             kind: AddKind.routine,
+            routineId: routineId,
+            startMinutes: hour * 60,
           ),
           child: SizedBox(
             height: _hourHeight,

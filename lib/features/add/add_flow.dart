@@ -43,6 +43,9 @@ class AddFlow extends ConsumerStatefulWidget {
   final AddKind? initialKind;
   final DateTime? anchor;
   final String? listId;
+  final String? routineId;
+  final int? startMinutes;
+  final bool presetEmi;
 
   /// Optional pre-populated draft for golden showcases or Again (§6).
   final AddDraft? initialDraft;
@@ -69,6 +72,9 @@ class AddFlow extends ConsumerStatefulWidget {
     this.initialKind,
     this.anchor,
     this.listId,
+    this.routineId,
+    this.startMinutes,
+    this.presetEmi = false,
     this.initialDraft,
     this.initialStepIndex,
     this.initialIsAdded = false,
@@ -82,6 +88,9 @@ class AddFlow extends ConsumerStatefulWidget {
     AddKind? kind,
     DateTime? anchor,
     String? listId,
+    String? routineId,
+    int? startMinutes,
+    bool presetEmi = false,
   }) {
     return CoveSheet.show<String>(
       context: context,
@@ -89,6 +98,9 @@ class AddFlow extends ConsumerStatefulWidget {
         initialKind: kind,
         anchor: anchor,
         listId: listId,
+        routineId: routineId,
+        startMinutes: startMinutes,
+        presetEmi: presetEmi,
       ),
     );
   }
@@ -148,6 +160,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   bool _addingNewCategory = false;
   String? _pendingCreatedRoutineId;
   List<int>? _pendingCreatedRoutineDays;
+  String? _seededRoutineId;
 
   late final TextEditingController _textController;
   late final TextEditingController _newCategoryController;
@@ -163,6 +176,30 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     _isAdded = widget.initialIsAdded;
     _againCarriedLine = widget.initialCarriedLine;
     _startedFromAgain = widget.initialCarriedLine != null;
+  }
+
+  @override
+  void didUpdateWidget(covariant AddFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialDraft != oldWidget.initialDraft ||
+        widget.initialStepIndex != oldWidget.initialStepIndex ||
+        widget.initialKind != oldWidget.initialKind ||
+        widget.initialIsAdded != oldWidget.initialIsAdded ||
+        widget.initialCarriedLine != oldWidget.initialCarriedLine) {
+      _activeKind = widget.initialDraft?.kind ?? widget.initialKind;
+      _draft = widget.initialDraft;
+      _stepIndex = widget.initialStepIndex ?? 0;
+      _isAdded = widget.initialIsAdded;
+      _againCarriedLine = widget.initialCarriedLine;
+      _startedFromAgain = widget.initialCarriedLine != null;
+      _editingFromReview = false;
+      _seededRoutineId = null;
+      if (_activeKind != null && _draft == null) {
+        final flowCtx = _buildFlowContext();
+        _draft = _createInitialDraft(_activeKind!, flowCtx);
+      }
+      _syncTextControllerToCurrentStep();
+    }
   }
 
   @override
@@ -196,7 +233,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final currentUser = ref.watch(authProvider).value;
     final partnerProfile = ref.watch(partnerProfileProvider);
     final lists = ref.watch(activeHomeListsProvider).value ?? const [];
-    ref.watch(activeHomeRoutinesProvider);
+    final existingRoutines =
+        ref.watch(activeHomeRoutinesProvider).value ?? const [];
     final unarchivedLists = lists.where((l) => !l.isArchived).toList();
 
     final viewerId = currentUser?.id ?? 'user_alex';
@@ -238,6 +276,23 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       );
     }
 
+    final rd = _draft is RoutineDraft ? _draft as RoutineDraft : null;
+    if (rd != null &&
+        widget.initialDraft == null &&
+        widget.routineId != null &&
+        _seededRoutineId != widget.routineId) {
+      for (final r in existingRoutines) {
+        if (r.id == widget.routineId) {
+          final valid = r.days.where((d) => d >= 1 && d <= 7).toSet();
+          if (valid.isNotEmpty) {
+            _draft = rd.copyWith(days: valid);
+          }
+          _seededRoutineId = widget.routineId;
+          break;
+        }
+      }
+    }
+
     return AddFlowContext(
       anchor: anchorDate,
       today: today,
@@ -247,6 +302,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       viewerUserId: viewerId,
       partnerUserId: partnerId,
       activeListId: resolvedActiveListId,
+      routineId: widget.routineId,
+      startMinutes: widget.startMinutes,
+      presetEmi: widget.presetEmi,
+      existingRoutines: existingRoutines,
     );
   }
 
@@ -263,6 +322,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       case AddKind.commitment:
         return CommitmentDraft.initial(ctx);
       case AddKind.routine:
+        if (ctx.routineId != null &&
+            ctx.existingRoutines.any((r) => r.id == ctx.routineId)) {
+          _seededRoutineId = ctx.routineId;
+        }
         return RoutineDraft.initial(ctx);
     }
   }
@@ -1758,8 +1821,15 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           today: ctx.today,
           selectedDate: d.expenseDate,
           onSelected: (picked) {
+            final now = clock.now();
+            final isToday = picked.year == ctx.today.year &&
+                picked.month == ctx.today.month &&
+                picked.day == ctx.today.day;
+            final nextDate = isToday
+                ? now
+                : DateTime(picked.year, picked.month, picked.day);
             setState(() {
-              _draft = d.copyWith(expenseDate: picked);
+              _draft = d.copyWith(expenseDate: nextDate);
             });
             _advanceStep(ctx);
           },
@@ -2062,6 +2132,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           currentUserId: ctx.viewerUserId,
           homeCreatedBy: home?.createdBy,
           partnerDisplayName: partnerProfile.displayName,
+          viewerDisplayName: _viewerName(),
           visibility: _currentVisibility(),
           stamp: _isAdded ? 'ADDED' : null,
           fieldTaps: fieldTaps,
@@ -2574,6 +2645,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           cadence: slipCadenceLine,
           isDoneToday: false,
           daysRunning: 0,
+          showCheckbox: false,
+          showHistory: false,
           visibility: _currentVisibility(),
           stamp: _isAdded ? 'ADDED' : null,
           fieldTaps: fieldTaps,
@@ -2694,6 +2767,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             today: ctx.today,
             selectedMonth: (d.dueMonth ?? ctx.today.month).clamp(1, 12),
             selectedDay: (d.dayOfMonth ?? ctx.today.day).clamp(1, 28),
+            showHint: false,
             onChanged: (month, day, resolvedDate) {
               setState(() {
                 _draft = d.copyWith(
