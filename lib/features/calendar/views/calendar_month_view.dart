@@ -2,7 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/cove_theme.dart';
+import '../../../core/theme/cove_tokens.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
 import '../../../core/widgets/cove_card.dart';
 import '../../../core/widgets/cove_pill_button.dart';
@@ -36,6 +36,29 @@ class CalendarMonthView extends ConsumerStatefulWidget {
 }
 
 class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
+  static const double _kDividerHeight =
+      1.0; // (literal) 1dp header divider height and border stroke
+  static const double _kListHorizontalPadding =
+      16.0; // (literal) 16dp calendar scroll view and summary card horizontal inset
+  static const double _kGridSpacing =
+      6.0; // (literal) 6dp calendar 7-column day cell spacing
+  static const double _kDayCellSize =
+      44.0; // (literal) 44dp calendar day square cell size
+  static const double _kTodayBorderWidth =
+      1.5; // (literal) 1.5dp today cell border ring stroke
+  static const double _kSummaryIconBoxSize =
+      36.0; // (literal) 36dp selected day summary icon square
+  static const double _kSummaryIconBoxRadius =
+      10.0; // (literal) 10dp selected day summary icon corner radius
+  static const double _kSummaryIconSize =
+      18.0; // (literal) 18dp selected day summary calendar icon
+  static const double _kBottomSpacer =
+      40.0; // (literal) 40dp bottom scroll clearance below summary card
+  static const double _kDotMargin =
+      1.0; // (literal) 1dp horizontal margin around density dot
+  static const double _kDotSize =
+      3.5; // (literal) 3.5dp calendar density dot diameter
+
   late int _currentYear;
   late int _currentMonth;
 
@@ -99,8 +122,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final now = clock.now();
 
     final monthStart = DateTime(_currentYear, _currentMonth, 1);
@@ -112,7 +134,10 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
       ),
     );
 
-    final gridDays = CalendarDateUtils.getMonthGridDays(_currentYear, _currentMonth);
+    final gridDays = CalendarDateUtils.getMonthGridDays(
+      _currentYear,
+      _currentMonth,
+    );
     final selectedDateOnly = CalendarDateUtils.dateOnly(widget.selectedDate);
     final selectedDayEntries = entriesMap[selectedDateOnly] ?? [];
 
@@ -125,26 +150,37 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
       children: [
         // Month Navigation Header
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 12, 8),
+          padding: const EdgeInsets.fromLTRB(
+            CoveSpace.gutter,
+            CoveSpace.sm,
+            CoveSpace.md,
+            CoveSpace.sm,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 DateFormat('MMMM yyyy').format(monthStart),
-                style: typography.headline.copyWith(
-                  fontSize: 20,
+                style: CoveType.slipTitle.copyWith(
                   fontWeight: FontWeight.w500,
+                  color: cv.textPrimary,
                 ),
               ),
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 22),
+                    icon: const Icon(
+                      Icons.chevron_left,
+                      size: CoveSize.avatarInline,
+                    ),
                     tooltip: 'Previous month',
                     onPressed: _prevMonth,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 22),
+                    icon: const Icon(
+                      Icons.chevron_right,
+                      size: CoveSize.avatarInline,
+                    ),
                     tooltip: 'Next month',
                     onPressed: _nextMonth,
                   ),
@@ -154,32 +190,39 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           ),
         ),
 
-        const Divider(height: 1, thickness: 1),
+        Divider(
+          height: _kDividerHeight,
+          thickness: _kDividerHeight,
+          color: cv.lineHairline,
+        ),
 
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: _kListHorizontalPadding,
+              vertical: CoveSpace.md,
+            ),
             children: [
               // Monday-first 7-column header
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: const ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-                      .map((letter) => SizedBox(
-                            width: 40,
-                            child: Center(
-                              child: Text(
-                                letter,
-                                style: const TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF8E8E93),
-                                ),
+                      .map(
+                        (letter) => SizedBox(
+                          width: CoveSize.buttonRound,
+                          child: Center(
+                            child: Text(
+                              letter,
+                              style: CoveType.rowSub.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: cv.textTertiary,
                               ),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -191,15 +234,18 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
                   childAspectRatio: 1.0,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 6,
+                  mainAxisSpacing: _kGridSpacing,
+                  crossAxisSpacing: _kGridSpacing,
                 ),
                 itemCount: gridDays.length,
                 itemBuilder: (ctx, idx) {
                   final day = gridDays[idx];
                   if (day == null) return const SizedBox.shrink();
 
-                  final isSelected = CalendarDateUtils.isSameDay(day, widget.selectedDate);
+                  final isSelected = CalendarDateUtils.isSameDay(
+                    day,
+                    widget.selectedDate,
+                  );
                   final isToday = CalendarDateUtils.isSameDay(day, now);
                   final dotCount = _getDistinctLayerCount(entriesMap, day);
 
@@ -208,20 +254,24 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                     behavior: HitTestBehavior.opaque,
                     child: Center(
                       child: Container(
-                        width: 44,
-                        height: 44,
+                        width: _kDayCellSize,
+                        height: _kDayCellSize,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? colors.accentPrimary
-                              : (isToday
-                                  ? colors.accentPrimary.withValues(alpha: 0.12)
-                                  : colors.surfaceCard),
-                          borderRadius: BorderRadius.circular(12),
+                              ? cv.accentFill
+                              : (isToday ? cv.accentWash : cv.surfaceCard),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(CoveSpace.md),
+                          ),
                           border: Border.all(
                             color: isToday && !isSelected
-                                ? colors.accentPrimary
-                                : (isSelected ? colors.accentPrimary : colors.borderHairline),
-                            width: isToday && !isSelected ? 1.5 : 1,
+                                ? cv.accentFill
+                                : (isSelected
+                                      ? cv.accentFill
+                                      : cv.lineHairline),
+                            width: isToday && !isSelected
+                                ? _kTodayBorderWidth
+                                : _kDividerHeight,
                           ),
                         ),
                         child: Column(
@@ -229,21 +279,22 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                           children: [
                             Text(
                               '${day.day}',
-                              style: TextStyle(
+                              style: CoveType.readout.copyWith(
                                 fontFamily: 'LibreBodoni',
-                                fontSize: 14,
                                 fontWeight: isSelected || isToday
                                     ? FontWeight.w700
                                     : FontWeight.w500,
                                 color: isSelected
-                                    ? colors.background
-                                    : (isToday ? colors.accentPrimary : colors.textPrimary),
+                                    ? cv.textOnAccent
+                                    : (isToday
+                                          ? cv.accentText
+                                          : cv.textPrimary),
                               ),
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: CoveSpace.xs),
                             // Stepped champagne opacity density dots
                             _buildDensityDots(
-                              colors: colors,
+                              cv: cv,
                               count: dotCount,
                               isSelected: isSelected,
                             ),
@@ -255,48 +306,54 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                 },
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
 
               // Selected day quiet summary peek card
               CoveCard(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _kListHorizontalPadding,
+                    vertical: CoveSpace.md,
+                  ),
                   child: Row(
                     children: [
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: _kSummaryIconBoxSize,
+                        height: _kSummaryIconBoxSize,
                         decoration: BoxDecoration(
-                          color: colors.accentPrimary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
+                          color: cv.accentWash,
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(_kSummaryIconBoxRadius),
+                          ),
                         ),
                         child: Icon(
                           Icons.calendar_today_outlined,
-                          size: 18,
-                          color: colors.accentPrimary,
+                          size: _kSummaryIconSize,
+                          color: cv.accentFill,
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: CoveSpace.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              CalendarDateUtils.formatDateHeading(widget.selectedDate),
-                              style: typography.bodyMedium.copyWith(
+                              CalendarDateUtils.formatDateHeading(
+                                widget.selectedDate,
+                              ),
+                              style: CoveType.rowTitle.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: colors.textPrimary,
+                                color: cv.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: CoveSpace.xs),
                             Text(
                               selectedDayEntries.isEmpty
                                   ? 'No scheduled entries · Tap to view day'
                                   : '${selectedDayEntries.length} items'
-                                      '${totalSpentOnSelectedDay > 0 ? " · ${currencyPref.symbol}${formatCoveAmount(totalSpentOnSelectedDay)} logged" : ""}',
-                              style: typography.caption.copyWith(
-                                color: colors.textSubtle,
-                                fontSize: 12,
+                                        '${totalSpentOnSelectedDay > 0 ? " · ${currencyPref.symbol}${formatCoveAmount(totalSpentOnSelectedDay)} logged" : ""}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textTertiary,
                               ),
                             ),
                           ],
@@ -306,14 +363,15 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                         label: 'View Day',
                         isCompact: true,
                         variant: CoveButtonVariant.secondary,
-                        onPressed: () => widget.onSelectDate(widget.selectedDate),
+                        onPressed: () =>
+                            widget.onSelectDate(widget.selectedDate),
                       ),
                     ],
                   ),
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: _kBottomSpacer),
             ],
           ),
         ),
@@ -322,15 +380,15 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   }
 
   Widget _buildDensityDots({
-    required CoveColors colors,
+    required CoveTokens cv,
     required int count,
     required bool isSelected,
   }) {
     if (count <= 0) {
-      return const SizedBox(height: 4);
+      return const SizedBox(height: CoveSpace.xs);
     }
 
-    final dotColor = isSelected ? colors.background : colors.accentPrimary;
+    final dotColor = isSelected ? cv.textOnAccent : cv.accentFill;
     final effectiveCount = count > 3 ? 3 : count;
 
     return Row(
@@ -342,12 +400,14 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
         if (i == 2) opacity = 0.30;
 
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          width: 3.5,
-          height: 3.5,
+          margin: const EdgeInsets.symmetric(horizontal: _kDotMargin),
+          width: _kDotSize,
+          height: _kDotSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: dotColor.withValues(alpha: isSelected ? (opacity * 0.9) : opacity),
+            color: dotColor.withValues(
+              alpha: isSelected ? (opacity * 0.9) : opacity,
+            ),
           ),
         );
       }),

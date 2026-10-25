@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/cove_theme.dart';
+import '../../../core/theme/cove_tokens.dart';
 import '../../../core/widgets/cove_card.dart';
 import '../../../core/widgets/cove_pill_button.dart';
 import '../weather_controller.dart';
@@ -11,6 +11,17 @@ class WeatherDetailSheet extends ConsumerWidget {
   final WeatherData weather;
 
   const WeatherDetailSheet({super.key, required this.weather});
+
+  static const double _kTopPadding =
+      16.0; // (literal) 16dp weather detail sheet top inset, icon gap, and refresh icon size
+  static const double _kHandleWidth =
+      36.0; // (literal) 36dp sheet drag handle width
+  static const double _kHandleRadius =
+      2.0; // (literal) 2dp sheet drag handle pill corner radius
+  static const double _kWeatherCircleSize =
+      54.0; // (literal) 54dp weather condition icon circle diameter
+  static const double _kScheduleIconSize =
+      13.0; // (literal) 13dp updated-at clock icon glyph
 
   static void show(BuildContext context, WeatherData weather) {
     showModalBottomSheet(
@@ -23,8 +34,7 @@ class WeatherDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final liveWeather = ref.watch(weatherProvider) ?? weather;
 
     final (iconData, conditionName) = WeatherData.getWeatherIconAndCondition(
@@ -37,14 +47,16 @@ class WeatherDetailSheet extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.hero),
+        ),
       ),
       padding: EdgeInsets.fromLTRB(
-        24,
-        16,
-        24,
-        MediaQuery.of(context).padding.bottom + 24,
+        CoveSpace.lg,
+        _kTopPadding,
+        CoveSpace.lg,
+        MediaQuery.of(context).padding.bottom + CoveSpace.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -53,15 +65,17 @@ class WeatherDetailSheet extends ConsumerWidget {
           // Drag handle
           Center(
             child: Container(
-              width: 36,
-              height: 4,
+              width: _kHandleWidth,
+              height: CoveSpace.xs,
               decoration: BoxDecoration(
-                color: colors.textMuted.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
+                color: cv.textSecondary.withValues(alpha: 0.3),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(_kHandleRadius),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CoveSpace.gutter),
 
           // Header: City and GPS status
           Row(
@@ -74,34 +88,35 @@ class WeatherDetailSheet extends ConsumerWidget {
                   children: [
                     Text(
                       liveWeather.cityName.toUpperCase(),
-                      style: typography.caption.copyWith(
-                        letterSpacing: 1.0,
-                        color: colors.textMuted,
-                        fontWeight: FontWeight.w600,
+                      style: CoveType.capsCard.copyWith(
+                        color: cv.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: CoveSpace.xs),
                     Text(
                       conditionName,
-                      style: typography.title.copyWith(
+                      style: CoveType.slipTitle.copyWith(
                         fontWeight: FontWeight.w600,
-                        fontSize: 22,
+                        color: cv.textPrimary,
                       ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CoveSpace.sm,
+                  vertical: CoveSpace.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: liveWeather.isLiveGps
-                      ? colors.accentPrimary.withValues(alpha: 0.12)
-                      : colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(999),
+                  color: liveWeather.isLiveGps ? cv.accentWash : cv.surfaceRow,
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(CoveRadius.pill),
+                  ),
                   border: Border.all(
                     color: liveWeather.isLiveGps
-                        ? colors.accentPrimary.withValues(alpha: 0.3)
-                        : colors.borderHairline,
+                        ? cv.accentFill.withValues(alpha: 0.3)
+                        : cv.lineHairline,
                   ),
                 ),
                 child: Row(
@@ -111,20 +126,19 @@ class WeatherDetailSheet extends ConsumerWidget {
                       liveWeather.isLiveGps
                           ? Icons.my_location
                           : Icons.location_history,
-                      size: 12,
+                      size: CoveSpace.md,
                       color: liveWeather.isLiveGps
-                          ? colors.accentPrimary
-                          : colors.textMuted,
+                          ? cv.accentFill
+                          : cv.textSecondary,
                     ),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: CoveSpace.xs),
                     Text(
                       liveWeather.isLiveGps ? 'Live GPS' : 'Last Detected',
-                      style: typography.caption.copyWith(
-                        fontSize: 11,
+                      style: CoveType.barLabel.copyWith(
                         fontWeight: FontWeight.w500,
                         color: liveWeather.isLiveGps
-                            ? colors.accentPrimary
-                            : colors.textMuted,
+                            ? cv.accentText
+                            : cv.textSecondary,
                       ),
                     ),
                   ],
@@ -132,43 +146,45 @@ class WeatherDetailSheet extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CoveSpace.lg),
 
           // Main temperature card
           CoveCard(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.gutter,
+            ),
             child: Row(
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: _kWeatherCircleSize,
+                  height: _kWeatherCircleSize,
                   decoration: BoxDecoration(
-                    color: colors.accentPrimary.withValues(alpha: 0.12),
+                    color: cv.accentWash,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     iconData,
-                    size: 28,
-                    color: colors.accentPrimary,
+                    size: CoveSize.avatarRow,
+                    color: cv.accentFill,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: _kTopPadding),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${liveWeather.temperatureC.round()}°C',
-                        style: typography.headline.copyWith(
-                          fontSize: 32,
+                        style: CoveType.slipFigure.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: cv.textPrimary,
                         ),
                       ),
                       Text(
                         'Feels like ${liveWeather.apparentTemperatureC.round()}°C',
-                        style: typography.caption.copyWith(
-                          color: colors.textMuted,
-                          fontSize: 13,
+                        style: CoveType.readout.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
                     ],
@@ -177,31 +193,34 @@ class WeatherDetailSheet extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _kTopPadding),
 
           // Updated time note
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.schedule, size: 13, color: colors.textMuted),
-              const SizedBox(width: 5),
+              Icon(
+                Icons.schedule,
+                size: _kScheduleIconSize,
+                color: cv.textSecondary,
+              ),
+              const SizedBox(width: CoveSpace.xs),
               Text(
                 'Updated at $updatedTimeStr',
-                style: typography.caption.copyWith(
-                  color: colors.textMuted,
-                  fontSize: 12,
-                ),
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CoveSpace.gutter),
 
           // Action button
           CovePillButton(
             label: 'Refresh Weather',
-            icon: const Icon(Icons.refresh, size: 16),
+            icon: const Icon(Icons.refresh, size: _kTopPadding),
             onPressed: () async {
-              await ref.read(weatherProvider.notifier).refreshWeather(force: true);
+              await ref
+                  .read(weatherProvider.notifier)
+                  .refreshWeather(force: true);
             },
             isFullWidth: true,
           ),

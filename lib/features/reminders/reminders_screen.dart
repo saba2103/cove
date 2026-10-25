@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_grouped_list.dart';
@@ -13,53 +13,70 @@ import 'reminder_models.dart';
 class RemindersScreen extends ConsumerWidget {
   const RemindersScreen({super.key});
 
+  static const double _kRowHorizontalPadding =
+      16.0; // (literal) 16dp reminder row horizontal inset
+  static const double _kSendIconSize =
+      16.0; // (literal) 16dp preview notification send icon
+  static const double _kDeleteIconSize =
+      18.0; // (literal) 18dp delete reminder trash icon
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final reminders = ref.watch(checkinRemindersProvider);
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text('Check-in Reminders',
-            style: typography.headline.copyWith(fontSize: 20)),
+        title: Text(
+          'Check-in Reminders',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CoveSpace.gutter,
+            vertical: CoveSpace.md,
+          ),
           children: [
             // Warm Welcoming Intro Card
             CoveCard(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(CoveSpace.gutter),
               child: Row(
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: CoveSize.buttonRound,
+                    height: CoveSize.buttonRound,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: colors.accentPrimary.withValues(alpha: 0.12),
+                      color: cv.accentWash,
                     ),
-                    child: Icon(Icons.favorite_outline,
-                        size: 20, color: colors.accentPrimary),
+                    child: Icon(
+                      Icons.favorite_outline,
+                      size: CoveSpace.gutter,
+                      color: cv.accentFill,
+                    ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: CoveSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'A Gentle Invitation',
-                          style: typography.title.copyWith(fontSize: 16),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: CoveSpace.xs),
                         Text(
                           'Warm daily nudges to step away from the rush, log in, and reflect together in your calm cove.',
-                          style: typography.caption.copyWith(
-                            color: colors.textMuted,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textSecondary,
                             height: 1.35,
                           ),
                         ),
@@ -69,19 +86,22 @@ class RemindersScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: CoveSpace.lg),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('SCHEDULED REMINDERS', style: typography.caption),
+                Text(
+                  'SCHEDULED REMINDERS',
+                  style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                ),
                 Text(
                   '${reminders.where((r) => r.isEnabled).length} active',
-                  style: typography.caption.copyWith(color: colors.textSubtle),
+                  style: CoveType.rowSub.copyWith(color: cv.textTertiary),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: CoveSpace.sm),
 
             if (reminders.isEmpty)
               CoveEmptyState(
@@ -99,7 +119,9 @@ class RemindersScreen extends ConsumerWidget {
                 children: reminders.map((reminder) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                      horizontal: _kRowHorizontalPadding,
+                      vertical: CoveSpace.md,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -108,11 +130,10 @@ class RemindersScreen extends ConsumerWidget {
                           children: [
                             Text(
                               reminder.formattedTime,
-                              style: typography.headline.copyWith(
-                                fontSize: 24,
+                              style: CoveType.slipTitle.copyWith(
                                 color: reminder.isEnabled
-                                    ? colors.accentTint
-                                    : colors.textSubtle,
+                                    ? cv.accentTint
+                                    : cv.textTertiary,
                               ),
                             ),
                             Row(
@@ -120,8 +141,11 @@ class RemindersScreen extends ConsumerWidget {
                               children: [
                                 IconButton(
                                   tooltip: 'Preview Notification',
-                                  icon: Icon(Icons.send_outlined,
-                                      size: 16, color: colors.textMuted),
+                                  icon: Icon(
+                                    Icons.send_outlined,
+                                    size: _kSendIconSize,
+                                    color: cv.textSecondary,
+                                  ),
                                   onPressed: () {
                                     ref
                                         .read(checkinRemindersProvider.notifier)
@@ -129,8 +153,9 @@ class RemindersScreen extends ConsumerWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                            'Preview sent: "${reminder.message}"'),
-                                        backgroundColor: colors.surfaceCard,
+                                          'Preview sent: "${reminder.message}"',
+                                        ),
+                                        backgroundColor: cv.surfaceCard,
                                         duration: const Duration(seconds: 2),
                                       ),
                                     );
@@ -138,15 +163,18 @@ class RemindersScreen extends ConsumerWidget {
                                 ),
                                 IconButton(
                                   tooltip: 'Delete Reminder',
-                                  icon: Icon(Icons.delete_outline,
-                                      size: 18, color: colors.accentSecondary),
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    size: _kDeleteIconSize,
+                                    color: cv.statusAlert,
+                                  ),
                                   onPressed: () {
                                     ref
                                         .read(checkinRemindersProvider.notifier)
                                         .deleteReminder(reminder.id);
                                   },
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: CoveSpace.xs),
                                 CoveToggleSwitch(
                                   value: reminder.isEnabled,
                                   onChanged: (val) {
@@ -159,14 +187,13 @@ class RemindersScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: CoveSpace.sm),
                         Text(
                           reminder.message,
-                          style: typography.bodyMedium.copyWith(
-                            fontSize: 14,
+                          style: CoveType.readout.copyWith(
                             color: reminder.isEnabled
-                                ? colors.textPrimary
-                                : colors.textSubtle,
+                                ? cv.textPrimary
+                                : cv.textTertiary,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -175,14 +202,14 @@ class RemindersScreen extends ConsumerWidget {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
               CovePillButton(
                 label: '+ Add Another Reminder',
                 variant: CoveButtonVariant.secondary,
                 onPressed: () => _showAddReminderSheet(context, ref),
               ),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: CoveSpace.section),
           ],
         ),
       ),
@@ -207,6 +234,17 @@ class _AddReminderSheet extends ConsumerStatefulWidget {
 }
 
 class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
+  static const double _kTopPadding =
+      16.0; // (literal) 16dp add reminder sheet top inset and preset icon size
+  static const double _kHandleWidth =
+      36.0; // (literal) 36dp sheet drag handle width
+  static const double _kHandleRadius =
+      2.0; // (literal) 2dp sheet drag handle pill corner radius
+  static const double _kTimeIconSize =
+      18.0; // (literal) 18dp time picker button and custom input icon size
+  static const double _kPresetBorderWidth =
+      1.0; // (literal) 1dp preset option card border stroke
+
   TimeOfDay _selectedTime = const TimeOfDay(hour: 20, minute: 30);
   late final TextEditingController _customCopyController;
   String _selectedPreset = kDefaultWarmPresets.first;
@@ -215,7 +253,9 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
   @override
   void initState() {
     super.initState();
-    _customCopyController = TextEditingController(text: kDefaultWarmPresets.first);
+    _customCopyController = TextEditingController(
+      text: kDefaultWarmPresets.first,
+    );
   }
 
   @override
@@ -225,7 +265,7 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
   }
 
   Future<void> _pickTime() async {
-    final colors = context.colors;
+    final cv = context.cv;
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
@@ -233,9 +273,9 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
         return Theme(
           data: Theme.of(ctx).copyWith(
             colorScheme: ColorScheme.dark(
-              primary: colors.accentPrimary,
-              surface: colors.surfaceCard,
-              onSurface: colors.textPrimary,
+              primary: cv.accentFill,
+              surface: cv.surfaceCard,
+              onSurface: cv.textPrimary,
             ),
           ),
           child: child!,
@@ -252,7 +292,9 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
         ? _customCopyController.text.trim()
         : _selectedPreset;
 
-    ref.read(checkinRemindersProvider.notifier).addReminder(
+    ref
+        .read(checkinRemindersProvider.notifier)
+        .addReminder(
           hour: _selectedTime.hour,
           minute: _selectedTime.minute,
           message: message.isNotEmpty
@@ -264,8 +306,7 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -273,12 +314,19 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: colors.borderHairline)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
+        border: Border(top: BorderSide(color: cv.lineHairline)),
       ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomInset),
+        padding: EdgeInsets.fromLTRB(
+          CoveSpace.lg,
+          _kTopPadding,
+          CoveSpace.lg,
+          CoveSpace.lg + bottomInset,
+        ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -286,52 +334,64 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
             children: [
               Center(
                 child: Container(
-                  width: 36,
-                  height: 4,
+                  width: _kHandleWidth,
+                  height: CoveSpace.xs,
                   decoration: BoxDecoration(
-                    color: colors.borderHairline,
-                    borderRadius: BorderRadius.circular(2),
+                    color: cv.lineHairline,
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(_kHandleRadius),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: CoveSpace.gutter),
               Text(
                 'New Check-in Reminder',
-                style: typography.headline.copyWith(fontSize: 20),
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: CoveSpace.sm),
               Text(
                 'Choose a time and a warm message that feels inviting.',
-                style: typography.caption.copyWith(color: colors.textMuted),
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
 
               // Time selector button
-              Text('TIME', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'TIME',
+                style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: colors.borderHairline),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  side: BorderSide(color: cv.lineHairline),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _kTopPadding,
+                    vertical: CoveSpace.md,
+                  ),
                   alignment: Alignment.centerLeft,
                 ),
-                icon: Icon(Icons.access_time, size: 18, color: colors.accentPrimary),
+                icon: Icon(
+                  Icons.access_time,
+                  size: _kTimeIconSize,
+                  color: cv.accentFill,
+                ),
                 label: Text(
                   _selectedTime.format(context),
-                  style: typography.headline.copyWith(
-                    fontSize: 22,
-                    color: colors.textPrimary,
-                  ),
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                 ),
                 onPressed: _pickTime,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
 
               // Warm Copy Selector
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('WARM WELCOMING MESSAGE', style: typography.caption),
+                  Text(
+                    'WARM WELCOMING MESSAGE',
+                    style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+                  ),
                   GestureDetector(
                     onTap: () {
                       setState(() {
@@ -343,45 +403,52 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
                     },
                     child: Text(
                       _useCustom ? 'Pick a preset' : '+ Custom message',
-                      style: typography.caption.copyWith(
-                        color: colors.accentPrimary,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.accentText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: CoveSpace.sm),
 
               if (_useCustom)
                 CovePillInput(
                   controller: _customCopyController,
                   hintText: 'Write a tender, warm message to pause together...',
-                  prefixIcon: Icon(Icons.favorite_border,
-                      size: 18, color: colors.textMuted),
+                  prefixIcon: Icon(
+                    Icons.favorite_border,
+                    size: _kTimeIconSize,
+                    color: cv.textSecondary,
+                  ),
                 )
               else
                 Column(
                   children: kDefaultWarmPresets.map((preset) {
                     final isSelected = _selectedPreset == preset;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _selectedPreset = preset),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveSpace.md),
+                        ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                            horizontal: CoveSpace.md,
+                            vertical: CoveSpace.md,
+                          ),
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? colors.accentPrimary.withValues(alpha: 0.14)
-                                : colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(12),
+                            color: isSelected ? cv.accentWash : cv.surfaceRow,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(CoveSpace.md),
+                            ),
                             border: Border.all(
                               color: isSelected
-                                  ? colors.accentPrimary
-                                  : colors.borderHairline,
-                              width: 1,
+                                  ? cv.accentFill
+                                  : cv.lineHairline,
+                              width: _kPresetBorderWidth,
                             ),
                           ),
                           child: Row(
@@ -390,20 +457,19 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
                                 isSelected
                                     ? Icons.radio_button_checked
                                     : Icons.radio_button_unchecked,
-                                size: 16,
+                                size: _kTopPadding,
                                 color: isSelected
-                                    ? colors.accentPrimary
-                                    : colors.textSubtle,
+                                    ? cv.accentFill
+                                    : cv.textTertiary,
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: CoveSpace.sm),
                               Expanded(
                                 child: Text(
                                   preset,
-                                  style: typography.bodyMedium.copyWith(
-                                    fontSize: 13,
+                                  style: CoveType.readout.copyWith(
                                     color: isSelected
-                                        ? colors.textPrimary
-                                        : colors.textMuted,
+                                        ? cv.textPrimary
+                                        : cv.textSecondary,
                                     fontWeight: isSelected
                                         ? FontWeight.w500
                                         : FontWeight.w400,
@@ -417,12 +483,9 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
                     );
                   }).toList(),
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
 
-              CovePillButton(
-                label: 'Save Reminder',
-                onPressed: _save,
-              ),
+              CovePillButton(label: 'Save Reminder', onPressed: _save),
             ],
           ),
         ),

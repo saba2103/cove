@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'list_controller.dart';
 
@@ -10,7 +10,7 @@ class CreateListDialog extends ConsumerStatefulWidget {
   static Future<String?> show(BuildContext context) {
     return showDialog<String>(
       context: context,
-      barrierColor: Colors.black54,
+      barrierColor: context.cv.surfaceScrim,
       builder: (_) => const CreateListDialog(),
     );
   }
@@ -20,6 +20,11 @@ class CreateListDialog extends ConsumerStatefulWidget {
 }
 
 class _CreateListDialogState extends ConsumerState<CreateListDialog> {
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp dialog and input card hairline border width
+  static const double _kTitleBottomGap =
+      16.0; // (literal) 16dp vertical gap below dialog title
+
   final _nameController = TextEditingController();
   bool _isCreating = false;
   String? _error;
@@ -49,7 +54,10 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
       if (mounted) {
         setState(() {
           _isCreating = false;
-          _error = e.toString().replaceFirst('Bad state: ', '').replaceFirst('Exception: ', '');
+          _error = e
+              .toString()
+              .replaceFirst('Bad state: ', '')
+              .replaceFirst('Exception: ', '');
         });
       }
     }
@@ -57,86 +65,84 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Dialog(
-      backgroundColor: colors.surfaceCard,
+      backgroundColor: cv.surfaceCard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: colors.borderHairline, width: 1),
+        borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.card)),
+        side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
       ),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.lg,
+        vertical: CoveSpace.lg,
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(CoveSpace.gutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'NEW SHARED LIST',
-              style: typography.caption.copyWith(
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.w600,
-              ),
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CoveSpace.sm),
             Text(
               'Create a collection',
-              style: typography.headline.copyWith(fontSize: 20),
+              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _kTitleBottomGap),
             Container(
               decoration: BoxDecoration(
-                color: colors.surfaceRow,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.borderHairline, width: 1),
+                color: cv.surfaceRow,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveSpace.md),
+                ),
+                border: Border.all(
+                  color: cv.lineHairline,
+                  width: _kBorderWidth,
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: CoveSpace.md,
+                vertical: CoveSpace.xs,
+              ),
               child: TextField(
                 controller: _nameController,
                 autofocus: true,
                 textInputAction: TextInputAction.done,
                 textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 15,
-                  color: colors.textPrimary,
-                ),
+                style: CoveType.body.copyWith(color: cv.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'e.g. Weekend Hardware, Book Wishlist…',
-                  hintStyle: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 14,
-                    color: colors.textSubtle,
-                  ),
+                  hintStyle: CoveType.readout.copyWith(color: cv.textTertiary),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _submit(),
               ),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: CoveSpace.sm),
               Text(
                 _error!,
-                style: typography.caption.copyWith(color: colors.accentSecondary),
+                style: CoveType.rowSub.copyWith(color: cv.statusAlertText),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isCreating ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isCreating
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: Text(
                     'Cancel',
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      color: colors.textMuted,
-                    ),
+                    style: CoveType.readout.copyWith(color: cv.textSecondary),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: CoveSpace.sm),
                 CovePillButton(
                   label: _isCreating ? 'Creating…' : 'Create List',
                   isCompact: true,
