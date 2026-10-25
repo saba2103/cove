@@ -2,7 +2,8 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import '../../sync/db/app_database.dart';
@@ -85,7 +86,8 @@ class _CalendarEventFormSheetState
   }
 
   Future<void> _pickDate({required bool isStart}) async {
-    final colors = context.colors;
+    final cv = context.cv;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final current = isStart ? _startDate : _endDate;
     final picked = await showDatePicker(
       context: context,
@@ -95,10 +97,14 @@ class _CalendarEventFormSheetState
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.accentPrimary,
-              surface: colors.surfaceCard,
-              onSurface: colors.textPrimary,
+            colorScheme: (isDark
+                    ? const ColorScheme.dark()
+                    : const ColorScheme.light())
+                .copyWith(
+              primary: cv.accentFill,
+              onPrimary: cv.textOnAccent,
+              surface: cv.surfaceCard,
+              onSurface: cv.textPrimary,
             ),
           ),
           child: child!,
@@ -124,7 +130,8 @@ class _CalendarEventFormSheetState
   }
 
   Future<void> _pickTime({required bool isStart}) async {
-    final colors = context.colors;
+    final cv = context.cv;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final current = isStart ? _startTime : _endTime;
     final picked = await showTimePicker(
       context: context,
@@ -132,10 +139,14 @@ class _CalendarEventFormSheetState
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: colors.accentPrimary,
-              surface: colors.surfaceCard,
-              onSurface: colors.textPrimary,
+            colorScheme: (isDark
+                    ? const ColorScheme.dark()
+                    : const ColorScheme.light())
+                .copyWith(
+              primary: cv.accentFill,
+              onPrimary: cv.textOnAccent,
+              surface: cv.surfaceCard,
+              onSurface: cv.textPrimary,
             ),
           ),
           child: child!,
@@ -229,8 +240,7 @@ class _CalendarEventFormSheetState
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom +
         CovePageInsets.bottomOf(context);
     final isEditing = widget.existing != null;
@@ -242,12 +252,19 @@ class _CalendarEventFormSheetState
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: colors.borderHairline)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
+        border: Border(top: BorderSide(color: cv.lineHairline)),
       ),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + bottomInset),
+        padding: EdgeInsets.fromLTRB(
+          CoveSpace.lg,
+          16,
+          CoveSpace.lg,
+          CoveSpace.lg + bottomInset,
+        ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -257,10 +274,10 @@ class _CalendarEventFormSheetState
               Center(
                 child: Container(
                   width: 36,
-                  height: 4,
+                  height: CoveSpace.xs,
                   decoration: BoxDecoration(
-                    color: colors.borderHairline,
-                    borderRadius: BorderRadius.circular(2),
+                    color: cv.lineHairline,
+                    borderRadius: BorderRadius.circular(CoveRadius.pill),
                   ),
                 ),
               ),
@@ -272,31 +289,50 @@ class _CalendarEventFormSheetState
                 children: [
                   Text(
                     isEditing ? 'Edit Event' : 'Add Calendar Event',
-                    style: typography.headline.copyWith(fontSize: 20),
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
                   if (isEditing)
                     IconButton(
-                      icon: Icon(Icons.delete_outline,
-                          color: colors.accentSecondary, size: 20),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: cv.statusAlertText,
+                        size: 20,
+                      ),
                       onPressed: () async {
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            backgroundColor: colors.surfaceCard,
-                            title: Text('Delete Event',
-                                style: typography.headline.copyWith(fontSize: 18)),
-                            content: Text('Remove this event from shared calendar?',
-                                style: typography.bodyMedium),
+                            backgroundColor: cv.surfaceCard,
+                            title: Text(
+                              'Delete Event',
+                              style: CoveType.slipTitle.copyWith(
+                                color: cv.textPrimary,
+                              ),
+                            ),
+                            content: Text(
+                              'Remove this event from shared calendar?',
+                              style: CoveType.body.copyWith(
+                                color: cv.textSecondary,
+                              ),
+                            ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.of(ctx).pop(false),
-                                child: Text('Cancel',
-                                    style: TextStyle(color: colors.textMuted)),
+                                child: Text(
+                                  'Cancel',
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
                               ),
                               TextButton(
                                 onPressed: () => Navigator.of(ctx).pop(true),
-                                child: Text('Delete',
-                                    style: TextStyle(color: colors.accentSecondary)),
+                                child: Text(
+                                  'Delete',
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.statusAlertText,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -311,11 +347,14 @@ class _CalendarEventFormSheetState
                     ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
 
               // Event Title
-              Text('EVENT TITLE', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'EVENT TITLE',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _titleController,
                 hintText: 'e.g. Dinner with Friends, Flight to NYC',
@@ -326,10 +365,13 @@ class _CalendarEventFormSheetState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('All-day Event', style: typography.bodyMedium),
+                  Text(
+                    'All-day Event',
+                    style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                  ),
                   Switch.adaptive(
                     value: _isAllDay,
-                    activeTrackColor: colors.accentPrimary,
+                    activeTrackColor: cv.accentFill,
                     onChanged: (val) => setState(() => _isAllDay = val),
                   ),
                 ],
@@ -337,24 +379,33 @@ class _CalendarEventFormSheetState
               const SizedBox(height: 14),
 
               // Start Date & Time
-              Text('STARTS', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'STARTS',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: colors.borderHairline),
+                        side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                         alignment: Alignment.centerLeft,
                       ),
-                      icon: Icon(Icons.calendar_today,
-                          size: 16, color: colors.textPrimary),
+                      icon: Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: cv.textPrimary,
+                      ),
                       label: Text(
                         dateFormat.format(_startDate),
-                        style: typography.bodyMedium
-                            .copyWith(color: colors.textPrimary),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
                       onPressed: () => _pickDate(isStart: true),
                     ),
@@ -363,16 +414,22 @@ class _CalendarEventFormSheetState
                     const SizedBox(width: 10),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: colors.borderHairline),
+                        side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                       ),
-                      icon: Icon(Icons.access_time,
-                          size: 16, color: colors.textPrimary),
+                      icon: Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: cv.textPrimary,
+                      ),
                       label: Text(
                         _startTime.format(context),
-                        style: typography.bodyMedium
-                            .copyWith(color: colors.textPrimary),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
                       onPressed: () => _pickTime(isStart: true),
                     ),
@@ -382,24 +439,33 @@ class _CalendarEventFormSheetState
               const SizedBox(height: 14),
 
               // End Date & Time
-              Text('ENDS', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'ENDS',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: colors.borderHairline),
+                        side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                         alignment: Alignment.centerLeft,
                       ),
-                      icon: Icon(Icons.calendar_today,
-                          size: 16, color: colors.textPrimary),
+                      icon: Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: cv.textPrimary,
+                      ),
                       label: Text(
                         dateFormat.format(_endDate),
-                        style: typography.bodyMedium
-                            .copyWith(color: colors.textPrimary),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
                       onPressed: () => _pickDate(isStart: false),
                     ),
@@ -408,16 +474,22 @@ class _CalendarEventFormSheetState
                     const SizedBox(width: 10),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: colors.borderHairline),
+                        side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                       ),
-                      icon: Icon(Icons.access_time,
-                          size: 16, color: colors.textPrimary),
+                      icon: Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: cv.textPrimary,
+                      ),
                       label: Text(
                         _endTime.format(context),
-                        style: typography.bodyMedium
-                            .copyWith(color: colors.textPrimary),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
                       onPressed: () => _pickTime(isStart: false),
                     ),
@@ -430,18 +502,21 @@ class _CalendarEventFormSheetState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('REPEAT', style: typography.caption),
+                  Text(
+                    'REPEAT',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
                   if (_recurrence != 'none')
                     Text(
                       'Recurring event',
-                      style: typography.caption.copyWith(
-                        color: colors.accentPrimary,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.accentText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CoveSpace.sm),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -455,22 +530,24 @@ class _CalendarEventFormSheetState
                   ].map((rule) {
                     final isSelected = _recurrence == rule.$1;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _recurrence = rule.$1),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(CoveRadius.pill),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                            horizontal: 14,
+                            vertical: CoveSpace.sm,
+                          ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? colors.accentPrimary.withValues(alpha: 0.18)
-                                : colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(999),
+                                ? cv.accentWash
+                                : cv.surfaceRow,
+                            borderRadius: BorderRadius.circular(CoveRadius.pill),
                             border: Border.all(
                               color: isSelected
-                                  ? colors.accentPrimary
-                                  : colors.borderHairline,
+                                  ? cv.accentFill
+                                  : cv.lineHairline,
                               width: 1,
                             ),
                           ),
@@ -482,22 +559,20 @@ class _CalendarEventFormSheetState
                                   Icons.repeat,
                                   size: 13,
                                   color: isSelected
-                                      ? colors.accentPrimary
-                                      : colors.textMuted,
+                                      ? cv.accentText
+                                      : cv.textSecondary,
                                 ),
                                 const SizedBox(width: 5),
                               ],
                               Text(
                                 rule.$2,
-                                style: TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 13,
+                                style: CoveType.readout.copyWith(
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.w400,
                                   color: isSelected
-                                      ? colors.accentPrimary
-                                      : colors.textMuted,
+                                      ? cv.accentText
+                                      : cv.textSecondary,
                                 ),
                               ),
                             ],
@@ -511,8 +586,11 @@ class _CalendarEventFormSheetState
               const SizedBox(height: 18),
 
               // Location
-              Text('LOCATION (OPTIONAL)', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'LOCATION (OPTIONAL)',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _locationController,
                 hintText: 'e.g. Chez Panisse, Home, Gate B12',
@@ -520,8 +598,11 @@ class _CalendarEventFormSheetState
               const SizedBox(height: 18),
 
               // Notes / Description
-              Text('NOTES (OPTIONAL)', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'NOTES (OPTIONAL)',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _descriptionController,
                 hintText: 'Confirmation codes, details, reminders...',
@@ -531,10 +612,9 @@ class _CalendarEventFormSheetState
               if (_errorMessage != null) ...[
                 Text(
                   _errorMessage!,
-                  style: typography.caption
-                      .copyWith(color: colors.accentSecondary),
+                  style: CoveType.rowSub.copyWith(color: cv.statusAlertText),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: CoveSpace.md),
               ],
 
               // Save Action

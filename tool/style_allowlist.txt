@@ -8,7 +8,4 @@
 # Not listed = converted = zero tolerance.
 
 lib/core/widgets/cove_web_sidebar.dart 22
-lib/features/calendar/calendar_event_form_sheet.dart 6
-lib/features/expenses/expense_form_sheet.dart 28
 lib/features/lists/lists_screen.dart 29
-lib/features/subscriptions/subscription_form_sheet.dart 51

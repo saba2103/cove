@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import '../../sync/db/app_database.dart';
@@ -89,7 +89,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
           : '',
     );
     _currency = item?.currency ?? ref.read(currencyPreferenceProvider).code;
-    
+
     if (item != null) {
       final cycle = item.billingCycle.toLowerCase();
       if (cycle == 'monthly' || cycle == 'month') {
@@ -149,6 +149,8 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
   }
 
   Future<void> _pickDate() async {
+    final cv = context.cv;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final picked = await showDatePicker(
       context: context,
       initialDate: _nextBillingDate,
@@ -157,11 +159,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: context.colors.accentPrimary,
-              onPrimary: const Color(0xFF0B1F1E),
-              surface: context.colors.surfaceCard,
-              onSurface: context.colors.textPrimary,
+            colorScheme: (isDark
+                    ? const ColorScheme.dark()
+                    : const ColorScheme.light())
+                .copyWith(
+              primary: cv.accentFill,
+              onPrimary: cv.textOnAccent,
+              surface: cv.surfaceCard,
+              onSurface: cv.textPrimary,
             ),
           ),
           child: child!,
@@ -201,6 +206,8 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
   }
 
   Future<void> _pickEndDate() async {
+    final cv = context.cv;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final initial = _endDate ?? _nextBillingDate.add(const Duration(days: 365));
     final picked = await showDatePicker(
       context: context,
@@ -210,11 +217,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: context.colors.accentPrimary,
-              onPrimary: const Color(0xFF0B1F1E),
-              surface: context.colors.surfaceCard,
-              onSurface: context.colors.textPrimary,
+            colorScheme: (isDark
+                    ? const ColorScheme.dark()
+                    : const ColorScheme.light())
+                .copyWith(
+              primary: cv.accentFill,
+              onPrimary: cv.textOnAccent,
+              surface: cv.surfaceCard,
+              onSurface: cv.textPrimary,
             ),
           ),
           child: child!,
@@ -346,8 +356,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currency = ref.watch(currencyPreferenceProvider);
     final partnerProfile = ref.watch(partnerProfileProvider);
     final partnerName = partnerProfile.displayName.trim().isNotEmpty
@@ -384,17 +393,19 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
         border: Border(
-          top: BorderSide(color: colors.borderHairline, width: 1),
+          top: BorderSide(color: cv.lineHairline, width: 1),
         ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: mediaQuery.viewInsets.bottom + 24,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.gutter,
+        bottom: mediaQuery.viewInsets.bottom + CoveSpace.lg,
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -408,10 +419,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 children: [
                   Text(
                     isEditing ? 'Edit Commitment' : 'New Commitment',
-                    style: typography.title.copyWith(fontSize: 18),
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: Icon(Icons.close, size: 20, color: cv.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -419,32 +430,39 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 16),
 
               // Service Name
-              Text('COMMITMENT NAME', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'COMMITMENT NAME',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _nameController,
                 hintText: 'e.g. Netflix, Spotify, Car Loan, Device EMI',
-                prefixIcon: Icon(Icons.autorenew_outlined,
-                    size: 18, color: colors.textMuted),
+                prefixIcon: Icon(
+                  Icons.autorenew_outlined,
+                  size: 18,
+                  color: cv.textSecondary,
+                ),
               ),
               const SizedBox(height: 18),
 
               // Amount
-              Text('AMOUNT', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'AMOUNT',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _amountController,
                 hintText: '0.00',
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: 4),
+                  padding: const EdgeInsets.only(left: CoveSpace.xs),
                   child: Text(
                     currency.symbol,
-                    style: TextStyle(
-                      fontFamily: 'GeneralSans',
-                      fontSize: 16,
+                    style: CoveType.rowTitle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                      color: cv.textPrimary,
                     ),
                   ),
                 ),
@@ -452,14 +470,17 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 18),
 
               // Commitment Type Selector (Ongoing Subscription vs Finite EMI / Loan)
-              Text('COMMITMENT TYPE', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'COMMITMENT TYPE',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
-                height: 48,
+                height: CoveSize.hit,
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.pill),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -497,17 +518,20 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('FINANCED THROUGH', style: typography.caption),
+                  Text(
+                    'FINANCED THROUGH',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
                   Text(
                     'Card, Person, or Bank',
-                    style: typography.caption.copyWith(
-                      fontSize: 11,
-                      color: colors.textMuted,
+                    style: CoveType.barLabel.copyWith(
+                      color: cv.textSecondary,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _financedThroughController,
                 hintText: 'e.g. HDFC Regalia, Dad, Amex, Apple Card',
@@ -515,11 +539,15 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 prefixIcon: Icon(
                   Icons.credit_card_outlined,
                   size: 18,
-                  color: colors.textMuted,
+                  color: cv.textSecondary,
                 ),
                 suffix: _financedThroughController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
+                        icon: Icon(
+                          Icons.clear,
+                          size: 16,
+                          color: cv.textSecondary,
+                        ),
                         onPressed: () {
                           _financedThroughController.clear();
                           setState(() {});
@@ -529,9 +557,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
               // Real-time suggestions of previously input text
               if (financingSuggestions.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: CoveSpace.sm),
                 Wrap(
-                  spacing: 8,
+                  spacing: CoveSpace.sm,
                   runSpacing: 6,
                   children: financingSuggestions.take(6).map((source) {
                     final isExact = _financedThroughController.text.trim().toLowerCase() == source.toLowerCase();
@@ -543,18 +571,18 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         );
                         setState(() {});
                       },
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(CoveRadius.pill),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: isExact
-                              ? colors.accentPrimary.withValues(alpha: 0.2)
-                              : colors.surfaceRow,
-                          borderRadius: BorderRadius.circular(999),
+                              ? cv.accentWash
+                              : cv.surfaceRow,
+                          borderRadius: BorderRadius.circular(CoveRadius.pill),
                           border: Border.all(
                             color: isExact
-                                ? colors.accentPrimary
-                                : colors.borderHairline,
+                                ? cv.accentFill
+                                : cv.lineHairline,
                             width: 1,
                           ),
                         ),
@@ -564,16 +592,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             Icon(
                               Icons.history,
                               size: 12,
-                              color: isExact ? colors.accentPrimary : colors.textMuted,
+                              color: isExact ? cv.accentText : cv.textSecondary,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: CoveSpace.xs),
                             Text(
                               source,
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 12,
+                              style: CoveType.rowSub.copyWith(
                                 fontWeight: isExact ? FontWeight.w600 : FontWeight.w500,
-                                color: isExact ? colors.accentPrimary : colors.textPrimary,
+                                color: isExact ? cv.accentText : cv.textPrimary,
                               ),
                             ),
                           ],
@@ -591,37 +617,43 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('TOTAL TENURE & INSTALLMENTS', style: typography.caption),
+                    Text(
+                      'TOTAL TENURE & INSTALLMENTS',
+                      style: CoveType.capsPage.copyWith(
+                        color: cv.textSecondary,
+                      ),
+                    ),
                     if (_totalInstallments != null && _totalInstallments! > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.sm,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: colors.accentPrimary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(999),
+                          color: cv.accentWash,
+                          borderRadius: BorderRadius.circular(CoveRadius.pill),
                           border: Border.all(
-                            color: colors.accentPrimary.withValues(alpha: 0.4),
+                            color: cv.accentFill.withValues(alpha: 0.4),
                             width: 1,
                           ),
                         ),
                         child: Text(
                           '$_effectivePaidInstallments/$_totalInstallments paid',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            fontSize: 11,
+                          style: CoveType.barLabel.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: colors.accentPrimary,
+                            color: cv.accentText,
                           ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: CoveSpace.sm),
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.borderHairline, width: 1),
+                    color: cv.surfaceRow,
+                    borderRadius: BorderRadius.circular(CoveRadius.inline),
+                    border: Border.all(color: cv.lineHairline, width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,26 +667,26 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             children: [
                               Text(
                                 '${_totalInstallments ?? 12} Months Total',
-                                style: typography.bodyRegular.copyWith(
+                                style: CoveType.rowTitle.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: colors.textPrimary,
+                                  color: cv.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 'Tenure duration for this EMI',
-                                style: typography.caption.copyWith(
-                                  fontSize: 11,
-                                  color: colors.textMuted,
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textSecondary,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ],
                           ),
                           Container(
                             decoration: BoxDecoration(
-                              color: colors.surfaceCard,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: colors.borderHairline, width: 1),
+                              color: cv.surfaceCard,
+                              borderRadius: BorderRadius.circular(CoveRadius.pill),
+                              border: Border.all(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -667,14 +699,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                       : null,
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: CoveSpace.xs,
+                                  ),
                                   child: Text(
                                     '${_totalInstallments ?? 12}',
-                                    style: TextStyle(
-                                      fontFamily: 'GeneralSans',
+                                    style: CoveType.readout.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: colors.textPrimary,
+                                      color: cv.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -703,21 +735,19 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? colors.accentPrimary.withValues(alpha: 0.18)
-                                    : colors.surfaceCard,
-                                borderRadius: BorderRadius.circular(999),
+                                    ? cv.accentWash
+                                    : cv.surfaceCard,
+                                borderRadius: BorderRadius.circular(CoveRadius.pill),
                                 border: Border.all(
-                                  color: isSelected ? colors.accentPrimary : colors.borderHairline,
+                                  color: isSelected ? cv.accentFill : cv.lineHairline,
                                   width: 1,
                                 ),
                               ),
                               child: Text(
                                 '$months mos',
-                                style: TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 11,
+                                style: CoveType.barLabel.copyWith(
                                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                  color: isSelected ? colors.accentPrimary : colors.textMuted,
+                                  color: isSelected ? cv.accentText : cv.textSecondary,
                                 ),
                               ),
                             ),
@@ -725,7 +755,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         }).toList(),
                       ),
                       const SizedBox(height: 14),
-                      Divider(color: colors.borderHairline, height: 1),
+                      Divider(color: cv.lineHairline, height: 1),
                       const SizedBox(height: 14),
                       // Installments Paid row with editable text input and stepper
                       Row(
@@ -739,25 +769,22 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                   children: [
                                     Text(
                                       'Paid So Far',
-                                      style: typography.bodyRegular.copyWith(
+                                      style: CoveType.rowTitle.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: colors.textPrimary,
+                                        color: cv.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(width: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                       decoration: BoxDecoration(
-                                        color: colors.accentPrimary.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(4),
+                                        color: cv.accentWash,
+                                        borderRadius: BorderRadius.circular(CoveRadius.pill),
                                       ),
                                       child: Text(
                                         'Syncs with Last Due',
-                                        style: TextStyle(
-                                          fontFamily: 'GeneralSans',
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: colors.accentPrimary,
+                                        style: CoveType.barLabel.copyWith(
+                                          color: cv.accentText,
                                         ),
                                       ),
                                     ),
@@ -766,20 +793,20 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                 const SizedBox(height: 2),
                                 Text(
                                   '${((_totalInstallments ?? 12) - _effectivePaidInstallments).clamp(0, _totalInstallments ?? 12)} remaining of ${_totalInstallments ?? 12}',
-                                  style: typography.caption.copyWith(
-                                    fontSize: 11,
-                                    color: colors.textMuted,
+                                  style: CoveType.barLabel.copyWith(
+                                    color: cv.textSecondary,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: CoveSpace.md),
                           Container(
                             decoration: BoxDecoration(
-                              color: colors.surfaceCard,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: colors.borderHairline, width: 1),
+                              color: cv.surfaceCard,
+                              borderRadius: BorderRadius.circular(CoveRadius.pill),
+                              border: Border.all(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -804,22 +831,18 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                     controller: _paidInstallmentsController,
                                     keyboardType: TextInputType.number,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily: 'GeneralSans',
+                                    style: CoveType.readout.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: colors.textPrimary,
+                                      color: cv.textPrimary,
                                     ),
                                     decoration: InputDecoration(
                                       isDense: true,
                                       contentPadding: const EdgeInsets.symmetric(vertical: 6),
                                       border: InputBorder.none,
                                       hintText: '$_effectivePaidInstallments',
-                                      hintStyle: TextStyle(
-                                        fontFamily: 'GeneralSans',
+                                      hintStyle: CoveType.readout.copyWith(
                                         fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                        color: colors.textMuted.withValues(alpha: 0.5),
+                                        color: cv.textSecondary.withValues(alpha: 0.5),
                                       ),
                                     ),
                                     inputFormatters: [
@@ -876,7 +899,12 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('LAST PAYMENT / ENDS ON', style: typography.caption),
+                    Text(
+                      'LAST PAYMENT / ENDS ON',
+                      style: CoveType.capsPage.copyWith(
+                        color: cv.textSecondary,
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => setState(() {
                         _endDate = null;
@@ -886,25 +914,28 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       }),
                       child: Text(
                         'Convert to Sub',
-                        style: typography.caption.copyWith(
-                          color: colors.accentSecondary,
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.statusAlertText,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: CoveSpace.sm),
                 InkWell(
                   onTap: _pickEndDate,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(CoveRadius.inline),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: CoveSpace.md,
+                    ),
                     decoration: BoxDecoration(
-                      color: colors.surfaceRow,
-                      borderRadius: BorderRadius.circular(16),
+                      color: cv.surfaceRow,
+                      borderRadius: BorderRadius.circular(CoveRadius.inline),
                       border: Border.all(
-                        color: colors.accentPrimary.withValues(alpha: 0.5),
+                        color: cv.accentFill.withValues(alpha: 0.5),
                         width: 1,
                       ),
                     ),
@@ -913,9 +944,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         Icon(
                           Icons.event_available_outlined,
                           size: 18,
-                          color: colors.accentPrimary,
+                          color: cv.accentText,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: CoveSpace.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -924,9 +955,8 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                 _endDate != null
                                     ? DateFormat('EEEE, MMMM d, y').format(_endDate!)
                                     : 'Calculate end date',
-                                style: typography.bodyRegular.copyWith(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w500,
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -934,9 +964,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                 _endDate != null
                                     ? 'Ends on ${DateFormat('MMM y').format(_endDate!)} · in sync with paid installments'
                                     : 'Tap to pick custom date',
-                                style: typography.caption.copyWith(
-                                  fontSize: 11,
-                                  color: colors.textMuted,
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textSecondary,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ],
@@ -945,7 +975,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         Icon(
                           Icons.edit_calendar_outlined,
                           size: 18,
-                          color: colors.accentPrimary,
+                          color: cv.accentText,
                         ),
                       ],
                     ),
@@ -955,14 +985,17 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ],
 
               // Billing Cycle
-              Text('BILLING CYCLE', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'BILLING CYCLE',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
-                height: 48,
+                height: CoveSize.hit,
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.pill),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -1000,10 +1033,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(16),
+                    color: cv.surfaceRow,
+                    borderRadius: BorderRadius.circular(CoveRadius.inline),
                     border: Border.all(
-                      color: colors.accentPrimary.withValues(alpha: 0.35),
+                      color: cv.accentFill.withValues(alpha: 0.35),
                       width: 1,
                     ),
                   ),
@@ -1018,9 +1051,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             children: [
                               Text(
                                 'Every $_customMonths months',
-                                style: typography.bodyRegular.copyWith(
+                                style: CoveType.rowTitle.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: colors.textPrimary,
+                                  color: cv.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -1028,9 +1061,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                 _customMonths == 7
                                     ? 'e.g. 6+1 months WiFi plan'
                                     : 'Recurring billing interval',
-                                style: typography.caption.copyWith(
-                                  color: colors.textMuted,
-                                  fontSize: 11,
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textSecondary,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ],
@@ -1038,9 +1071,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                           // Stepper controls
                           Container(
                             decoration: BoxDecoration(
-                              color: colors.surfaceCard,
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: colors.borderHairline, width: 1),
+                              color: cv.surfaceCard,
+                              borderRadius: BorderRadius.circular(CoveRadius.pill),
+                              border: Border.all(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1053,14 +1086,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                       : null,
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: CoveSpace.xs,
+                                  ),
                                   child: Text(
                                     '$_customMonths',
-                                    style: TextStyle(
-                                      fontFamily: 'GeneralSans',
+                                    style: CoveType.readout.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: colors.textPrimary,
+                                      color: cv.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -1078,7 +1111,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       ),
                       const SizedBox(height: 10),
                       Wrap(
-                        spacing: 8,
+                        spacing: CoveSpace.sm,
                         runSpacing: 6,
                         children: [
                           _buildCustomMonthChip(label: '3 mos', months: 3),
@@ -1095,30 +1128,41 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 18),
 
               // Next Renewal Date
-              Text('NEXT PAYMENT DATE', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'NEXT PAYMENT DATE',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               InkWell(
                 onTap: _pickDate,
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(CoveRadius.pill),
                 child: Container(
-                  height: 48,
+                  height: CoveSize.hit,
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: colors.borderHairline, width: 1),
+                    color: cv.surfaceRow,
+                    borderRadius: BorderRadius.circular(CoveRadius.pill),
+                    border: Border.all(color: cv.lineHairline, width: 1),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined, size: 18, color: colors.textMuted),
-                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        size: 18,
+                        color: cv.textSecondary,
+                      ),
+                      const SizedBox(width: CoveSpace.md),
                       Expanded(
                         child: Text(
                           DateFormat('EEEE, MMMM d, y').format(_nextBillingDate),
-                          style: typography.bodyRegular.copyWith(color: colors.textPrimary),
+                          style: CoveType.body.copyWith(color: cv.textPrimary),
                         ),
                       ),
-                      Icon(Icons.arrow_drop_down, size: 20, color: colors.accentPrimary),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        size: 20,
+                        color: cv.accentText,
+                      ),
                     ],
                   ),
                 ),
@@ -1126,39 +1170,43 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 18),
 
               // Category Selector
-              Text('CATEGORY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'CATEGORY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: _categories.map((cat) {
                     final isSelected = _category == cat;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _category = cat),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.circular(CoveRadius.pill),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.sm,
+                          ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? colors.accentPrimary.withValues(alpha: 0.18)
-                                : colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(999),
+                                ? cv.accentWash
+                                : cv.surfaceRow,
+                            borderRadius: BorderRadius.circular(CoveRadius.pill),
                             border: Border.all(
                               color: isSelected
-                                  ? colors.accentPrimary
-                                  : colors.borderHairline,
+                                  ? cv.accentFill
+                                  : cv.lineHairline,
                               width: 1,
                             ),
                           ),
                           child: Text(
                             cat,
-                            style: TextStyle(
-                              fontFamily: 'GeneralSans',
-                              fontSize: 13,
+                            style: CoveType.readout.copyWith(
                               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? colors.accentPrimary : colors.textMuted,
+                              color: isSelected ? cv.accentText : cv.textSecondary,
                             ),
                           ),
                         ),
@@ -1170,14 +1218,17 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 18),
 
               // Paid By
-              Text('PAID BY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'PAID BY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
-                height: 48,
+                height: CoveSize.hit,
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.pill),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -1215,15 +1266,18 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 22),
 
               // Visibility Segmented Selector: Shared vs Private
-              Text('VISIBILITY & PRIVACY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'VISIBILITY & PRIVACY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.inline),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
                   children: [
                     Row(
@@ -1236,7 +1290,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             onTap: () => setState(() => _isPrivate = false),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: CoveSpace.xs),
                         Expanded(
                           child: _buildVisibilityPill(
                             icon: Icons.visibility_off_outlined,
@@ -1248,14 +1302,19 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       ],
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                      padding: const EdgeInsets.fromLTRB(
+                        10,
+                        CoveSpace.sm,
+                        10,
+                        6,
+                      ),
                       child: Text(
                         _isPrivate
                             ? 'Private commitments stay strictly on this device and are excluded from shared partner totals. 0 bytes are sent to cloud or $partnerName.'
                             : 'Shared commitments are end-to-end encrypted with your Home key and synced to $partnerName.',
-                        style: typography.caption.copyWith(
-                          fontSize: 11,
-                          color: colors.textMuted,
+                        style: CoveType.barLabel.copyWith(
+                          color: cv.textSecondary,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
@@ -1267,15 +1326,13 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 const SizedBox(height: 14),
                 Text(
                   _errorMessage!,
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 13,
-                    color: colors.accentSecondary,
+                  style: CoveType.readout.copyWith(
+                    color: cv.statusAlertText,
                   ),
                 ),
               ],
 
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
 
               // Save Button
               CovePillButton(
@@ -1286,7 +1343,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
 
               if (isEditing) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: CoveSpace.md),
                 CovePillButton(
                   label: widget.existing!.isActive
                       ? 'Cancel / Pause Commitment'
@@ -1323,25 +1380,23 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
+    final cv = context.cv;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: CoveMotion.q(context),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? colors.accentPrimary : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          color: isSelected ? cv.accentFill : Colors.transparent,
+          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 13,
+          style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected
-                ? (context.isDark ? const Color(0xFF0B1F1E) : Colors.white)
-                : colors.textMuted,
+                ? cv.textOnAccent
+                : cv.textSecondary,
           ),
         ),
       ),
@@ -1354,18 +1409,24 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
+    final cv = context.cv;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        duration: CoveMotion.q(context),
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: CoveSpace.sm,
+        ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? colors.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? cv.surfaceCard : Colors.transparent,
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
           border: isSelected
-              ? Border.all(color: colors.accentPrimary.withValues(alpha: 0.5), width: 1)
+              ? Border.all(
+                  color: cv.accentFill.withValues(alpha: 0.5),
+                  width: 1,
+                )
               : null,
         ),
         child: Row(
@@ -1374,17 +1435,15 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? colors.textPrimary : colors.textMuted,
+              color: isSelected ? cv.textPrimary : cv.textSecondary,
             ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 12,
+                style: CoveType.rowSub.copyWith(
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? colors.textPrimary : colors.textMuted,
+                  color: isSelected ? cv.textPrimary : cv.textSecondary,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1396,29 +1455,27 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
   }
 
   Widget _buildCustomMonthChip({required String label, required int months}) {
-    final colors = context.colors;
+    final cv = context.cv;
     final isSelected = _customMonths == months;
     return InkWell(
       onTap: () => setState(() => _customMonths = months),
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(CoveRadius.pill),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: CoveMotion.q(context),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? colors.accentPrimary.withValues(alpha: 0.18) : colors.surfaceCard,
-          borderRadius: BorderRadius.circular(999),
+          color: isSelected ? cv.accentWash : cv.surfaceCard,
+          borderRadius: BorderRadius.circular(CoveRadius.pill),
           border: Border.all(
-            color: isSelected ? colors.accentPrimary : colors.borderHairline,
+            color: isSelected ? cv.accentFill : cv.lineHairline,
             width: 1,
           ),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 11,
+          style: CoveType.barLabel.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? colors.accentPrimary : colors.textMuted,
+            color: isSelected ? cv.accentText : cv.textSecondary,
           ),
         ),
       ),
@@ -1430,25 +1487,24 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(CoveRadius.pill),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: CoveMotion.q(context),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? colors.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          color: isSelected ? cv.surfaceCard : Colors.transparent,
+          borderRadius: BorderRadius.circular(CoveRadius.pill),
           border: isSelected
-              ? Border.all(color: colors.borderHairline, width: 1)
+              ? Border.all(color: cv.lineHairline, width: 1)
               : null,
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: cv.surfaceScrim.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   )
@@ -1457,10 +1513,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
         ),
         child: Text(
           label,
-          style: typography.bodyRegular.copyWith(
-            fontSize: 13,
+          style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? colors.textPrimary : colors.textMuted,
+            color: isSelected ? cv.textPrimary : cv.textSecondary,
           ),
           overflow: TextOverflow.ellipsis,
         ),
