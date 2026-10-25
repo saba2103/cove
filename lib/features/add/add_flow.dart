@@ -56,6 +56,9 @@ class AddFlow extends ConsumerStatefulWidget {
   /// Optional Again summary row on the picker (§6).
   final AddAgainSummary? againSummary;
 
+  /// Optional carried line pill on the active step when repeating via Again (§6).
+  final String? initialCarriedLine;
+
   static const double _kTileBorderWidth = 1.0; // (literal) 1dp picker tile border
   static const double _kInputUnderlineHeight = 1.5; // (literal) 1.5dp text input underline
   static const double _kRepeatIconSize = 18.0; // (literal) 18dp Again icon
@@ -70,6 +73,7 @@ class AddFlow extends ConsumerStatefulWidget {
     this.initialStepIndex,
     this.initialIsAdded = false,
     this.againSummary,
+    this.initialCarriedLine,
   });
 
   /// Presents the unified Add flow on a modal [CoveSheet].
@@ -135,6 +139,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   AddDraft? _draft;
   int _stepIndex = 0;
   bool _editingFromReview = false;
+  bool _startedFromAgain = false;
+  String? _againCarriedLine;
   bool _isAdded = false;
   bool _isSubmitting = false;
   String? _toastMessage;
@@ -155,6 +161,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     _draft = widget.initialDraft;
     _stepIndex = widget.initialStepIndex ?? 0;
     _isAdded = widget.initialIsAdded;
+    _againCarriedLine = widget.initialCarriedLine;
+    _startedFromAgain = widget.initialCarriedLine != null;
   }
 
   @override
@@ -330,6 +338,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       _draft = _createInitialDraft(kind, ctx);
       _stepIndex = 0;
       _editingFromReview = false;
+      _startedFromAgain = false;
+      _againCarriedLine = null;
       _isAdded = false;
       _toastMessage = null;
       _addingNewCategory = false;
@@ -344,6 +354,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     setState(() {
       _stepIndex = targetIndex;
       _editingFromReview = fromReviewField;
+      _startedFromAgain = false;
+      _againCarriedLine = null;
       _toastMessage = null;
       _addingNewCategory = false;
     });
@@ -363,9 +375,9 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final steps = _currentSteps(ctx);
     if (steps.isEmpty) return;
 
-    if (_editingFromReview) {
+    if ((_editingFromReview || _startedFromAgain) && _draft!.isComplete) {
       final reviewIdx = steps.indexOf(AddStep.review);
-      if (reviewIdx >= 0 && _draft!.isComplete) {
+      if (reviewIdx >= 0) {
         _goToStep(reviewIdx, fromReviewField: false);
         return;
       }
@@ -382,13 +394,29 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       setState(() => _addingNewCategory = false);
       return;
     }
-    if (_editingFromReview) {
+    if (_editingFromReview && _draft != null && _draft!.isComplete) {
       final steps = _currentSteps(ctx);
       final reviewIdx = steps.indexOf(AddStep.review);
       if (reviewIdx >= 0) {
         _goToStep(reviewIdx, fromReviewField: false);
         return;
       }
+    }
+    if (_startedFromAgain) {
+      if (widget.initialKind == null && widget.initialDraft == null) {
+        setState(() {
+          _activeKind = null;
+          _draft = null;
+          _stepIndex = 0;
+          _editingFromReview = false;
+          _startedFromAgain = false;
+          _againCarriedLine = null;
+          _toastMessage = null;
+        });
+      } else {
+        Navigator.of(context).maybePop();
+      }
+      return;
     }
     if (_stepIndex > 0) {
       _goToStep(_stepIndex - 1, fromReviewField: false);
@@ -400,6 +428,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         _draft = null;
         _stepIndex = 0;
         _editingFromReview = false;
+        _startedFromAgain = false;
+        _againCarriedLine = null;
         _toastMessage = null;
       });
     } else {
@@ -425,7 +455,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           currency: currency,
         );
         final controller = ref.read(expenseControllerProvider);
-        await controller.logExpense(
+        final createdId = await controller.logExpense(
           title: args.title,
           amount: args.amount,
           currency: args.currency,
@@ -437,10 +467,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           isTransfer: args.isTransfer,
           visibility: args.visibility,
         );
+        await ref
+            .read(addAgainPreferenceProvider.notifier)
+            .setAgain(AddKind.expense, createdId);
       } else if (d is EventDraft) {
         final args = d.toCreateArgs();
         final controller = ref.read(calendarControllerProvider);
-        await controller.createEvent(
+        final createdId = await controller.createEvent(
           title: args.title,
           description: args.description,
           startTime: args.startTime,
@@ -449,6 +482,9 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           location: args.location,
           recurrence: args.recurrence,
         );
+        await ref
+            .read(addAgainPreferenceProvider.notifier)
+            .setAgain(AddKind.event, createdId);
       } else if (d is TaskDraft) {
         final args = d.toCreateArgs(fallbackListId: ctx.activeListId);
         final controller = ref.read(listControllerProvider);
@@ -459,13 +495,16 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         if (targetListId == null || targetListId.isEmpty) {
           throw StateError('No list selected for task.');
         }
-        await controller.addItem(
+        final createdId = await controller.addItem(
           listId: targetListId,
           title: args.title,
           notes: args.notes,
           dueDate: args.dueDate,
           listName: args.newListName,
         );
+        await ref
+            .read(addAgainPreferenceProvider.notifier)
+            .setAgain(AddKind.task, createdId);
       } else if (d is HabitDraft) {
         final args = d.toCreateArgs();
         final controller = ref.read(habitControllerProvider);
@@ -569,6 +608,260 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       _draft = _createInitialDraft(kind, ctx);
       _stepIndex = 0;
       _editingFromReview = false;
+      _startedFromAgain = false;
+      _againCarriedLine = null;
+      _isAdded = false;
+      _toastMessage = null;
+      _addingNewCategory = false;
+      _pendingCreatedRoutineId = null;
+      _pendingCreatedRoutineDays = null;
+    });
+    _syncTextControllerToCurrentStep();
+  }
+
+  AddAgainSummary? _resolveLiveAgainSummary(AddFlowContext ctx) {
+    if (widget.againSummary != null) return widget.againSummary;
+
+    final pref = ref.watch(addAgainPreferenceProvider);
+    final currency = ref.watch(currencyPreferenceProvider);
+    final expenses = ref.watch(activeHomeExpensesProvider).value;
+    final listItems = ref.watch(activeHomeAllListItemsProvider).value;
+    final lists = ref.watch(activeHomeListsProvider).value;
+    final events = ref.watch(activeHomeCalendarEventsProvider).value;
+
+    if (pref == null) return null;
+
+    switch (pref.kind) {
+      case AddKind.expense:
+        if (expenses == null) return null;
+        LocalExpense? expense;
+        for (final e in expenses) {
+          if (e.id == pref.id && !e.isTransfer) {
+            expense = e;
+            break;
+          }
+        }
+        if (expense == null) return null;
+        final matchedExpense = expense;
+        final cleanCategory = cleanExpenseCategoryName(matchedExpense.category);
+        final titleAndContext = '${matchedExpense.title} · $cleanCategory';
+        final formattedAmount =
+            '${currency.symbol}${formatCoveAmount(matchedExpense.amount)}';
+        final lastReadout = 'last $formattedAmount';
+        final methodLabel =
+            formatExpensePaymentMethod(matchedExpense.paymentMethod);
+        final carriedParts = <String>[
+          matchedExpense.title,
+          cleanCategory,
+          ?methodLabel,
+        ];
+        final carriedLine =
+            '${carriedParts.join(' · ')} — last time $formattedAmount';
+        return AddAgainSummary(
+          kind: AddKind.expense,
+          titleAndContext: titleAndContext,
+          lastReadout: lastReadout,
+          onTap: () => _startAgainExpense(ctx, matchedExpense, carriedLine),
+        );
+
+      case AddKind.task:
+        if (listItems == null) return null;
+        LocalListItem? item;
+        for (final i in listItems) {
+          if (i.id == pref.id) {
+            item = i;
+            break;
+          }
+        }
+        if (item == null) return null;
+        final matchedItem = item;
+        String? listName;
+        if (lists != null) {
+          for (final l in lists) {
+            if (l.id == matchedItem.listId) {
+              listName = l.name;
+              break;
+            }
+          }
+        }
+        final cleanListName =
+            (listName != null && listName.trim().isNotEmpty)
+                ? listName.trim()
+                : null;
+        final titleAndContext = cleanListName != null
+            ? '${matchedItem.title} · $cleanListName'
+            : matchedItem.title;
+        final lastReadout = matchedItem.dueDate != null
+            ? 'last by ${DateFormat('EEEE').format(matchedItem.dueDate!)}'
+            : 'last no due date';
+        final carriedParts = <String>[
+          matchedItem.title,
+          ?cleanListName,
+        ];
+        final lastTimePart = matchedItem.dueDate != null
+            ? 'by ${DateFormat('EEEE').format(matchedItem.dueDate!)}'
+            : 'no particular day';
+        final carriedLine =
+            '${carriedParts.join(' · ')} — last time $lastTimePart';
+        return AddAgainSummary(
+          kind: AddKind.task,
+          titleAndContext: titleAndContext,
+          lastReadout: lastReadout,
+          onTap: () => _startAgainTask(ctx, matchedItem, carriedLine),
+        );
+
+      case AddKind.event:
+        if (events == null) return null;
+        LocalCalendarEvent? event;
+        for (final ev in events) {
+          if (ev.id == pref.id) {
+            event = ev;
+            break;
+          }
+        }
+        if (event == null) return null;
+        final matchedEvent = event;
+        final hasLocation = matchedEvent.location != null &&
+            matchedEvent.location!.trim().isNotEmpty;
+        final titleAndContext = hasLocation
+            ? '${matchedEvent.title} · ${matchedEvent.location!.trim()}'
+            : matchedEvent.title;
+        final weekday = DateFormat('EEEE').format(matchedEvent.startTime);
+        final lastReadout = 'last $weekday';
+        final timeLabel = matchedEvent.isAllDay
+            ? 'All day'
+            : _formatHourMinute(
+                matchedEvent.startTime.hour,
+                matchedEvent.startTime.minute,
+              );
+        final carriedParts = <String>[
+          matchedEvent.title,
+          timeLabel,
+          if (hasLocation) matchedEvent.location!.trim(),
+        ];
+        final carriedLine = '${carriedParts.join(' · ')} — last time $weekday';
+        return AddAgainSummary(
+          kind: AddKind.event,
+          titleAndContext: titleAndContext,
+          lastReadout: lastReadout,
+          onTap: () => _startAgainEvent(ctx, matchedEvent, carriedLine),
+        );
+
+      case AddKind.habit:
+      case AddKind.commitment:
+      case AddKind.routine:
+        return null;
+    }
+  }
+
+  void _startAgainExpense(
+    AddFlowContext ctx,
+    LocalExpense expense,
+    String carriedLine,
+  ) {
+    final cleanCategory = cleanExpenseCategoryName(expense.category);
+    final isPrivate = expense.splitRatio < 0.0;
+    final isShared = expense.splitRatio > 0.0;
+    final paidByPartner = !isPrivate &&
+        ctx.hasPartner &&
+        (expense.paidBy == ctx.partnerUserId ||
+            (expense.paidBy != ctx.viewerUserId &&
+                expense.paidBy != 'me' &&
+                expense.paidBy != 'user_alex'));
+    final rawMethod = expense.paymentMethod?.trim().toLowerCase();
+    final hasMethod = rawMethod != null && rawMethod.isNotEmpty;
+
+    final draft = ExpenseDraft(
+      amount: null,
+      title: expense.title,
+      expenseDate: ctx.anchor,
+      category: cleanCategory,
+      payer: paidByPartner ? ExpensePayer.partner : ExpensePayer.you,
+      splitHalfAndHalf: isPrivate ? false : isShared,
+      isPrivate: isPrivate,
+      paymentMethod: hasMethod ? rawMethod : null,
+      paymentMethodSkipped: !hasMethod,
+      viewerUserId: ctx.viewerUserId,
+      partnerUserId: ctx.partnerUserId,
+      hasPartner: ctx.hasPartner,
+    );
+
+    final steps = draft.stepsFor(ctx);
+    final targetIdx = steps.indexOf(AddStep.expenseAmount);
+    setState(() {
+      _activeKind = AddKind.expense;
+      _draft = draft;
+      _stepIndex = targetIdx >= 0 ? targetIdx : 0;
+      _startedFromAgain = true;
+      _againCarriedLine = carriedLine;
+      _editingFromReview = false;
+      _isAdded = false;
+      _toastMessage = null;
+      _addingNewCategory = false;
+      _pendingCreatedRoutineId = null;
+      _pendingCreatedRoutineDays = null;
+    });
+    _syncTextControllerToCurrentStep();
+  }
+
+  void _startAgainTask(
+    AddFlowContext ctx,
+    LocalListItem item,
+    String carriedLine,
+  ) {
+    final draft = TaskDraft(
+      title: item.title,
+      listId: item.listId,
+      dueDate: null,
+      noParticularDay: false,
+      listCount: ctx.listCount,
+      openedFromList: ctx.openedFromList,
+    );
+
+    final steps = draft.stepsFor(ctx);
+    final targetIdx = steps.indexOf(AddStep.taskByWhen);
+    setState(() {
+      _activeKind = AddKind.task;
+      _draft = draft;
+      _stepIndex = targetIdx >= 0 ? targetIdx : 0;
+      _startedFromAgain = true;
+      _againCarriedLine = carriedLine;
+      _editingFromReview = false;
+      _isAdded = false;
+      _toastMessage = null;
+      _addingNewCategory = false;
+      _pendingCreatedRoutineId = null;
+      _pendingCreatedRoutineDays = null;
+    });
+    _syncTextControllerToCurrentStep();
+  }
+
+  void _startAgainEvent(
+    AddFlowContext ctx,
+    LocalCalendarEvent event,
+    String carriedLine,
+  ) {
+    final hasLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
+    final draft = EventDraft(
+      title: event.title,
+      day: null,
+      hour: event.startTime.hour,
+      minute: event.startTime.minute,
+      isAllDay: event.isAllDay,
+      location: hasLocation ? event.location!.trim() : null,
+      locationSkipped: !hasLocation,
+    );
+
+    final steps = draft.stepsFor(ctx);
+    final targetIdx = steps.indexOf(AddStep.eventDay);
+    setState(() {
+      _activeKind = AddKind.event;
+      _draft = draft;
+      _stepIndex = targetIdx >= 0 ? targetIdx : 0;
+      _startedFromAgain = true;
+      _againCarriedLine = carriedLine;
+      _editingFromReview = false;
       _isAdded = false;
       _toastMessage = null;
       _addingNewCategory = false;
@@ -596,6 +889,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final hasDatedAnchor = widget.anchor != null;
     final anchorUpper =
         DateFormat('EEE d MMM').format(ctx.anchor).toUpperCase();
+    final resolvedAgain = _resolveLiveAgainSummary(ctx);
 
     return CoveSheet(
       onDismiss: () => Navigator.of(context).maybePop(),
@@ -657,9 +951,9 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           ],
 
           // Optional Again row (§6)
-          if (widget.againSummary != null) ...[
+          if (resolvedAgain != null) ...[
             const SizedBox(height: CoveSpace.md),
-            _buildAgainRow(context, widget.againSummary!),
+            _buildAgainRow(context, resolvedAgain),
           ],
 
           // Inline toast banner for Coming in 3.12e/f
@@ -748,6 +1042,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       onTap: summary.onTap,
       child: ExcludeSemantics(
         child: GestureDetector(
+          key: const ValueKey('add_picker_again_row'),
           behavior: HitTestBehavior.opaque,
           onTap: summary.onTap,
           child: Container(
@@ -1425,6 +1720,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       case AddStep.expenseAmount:
         return AddKeypad(
           value: d.amount ?? 0,
+          carriedLine: _againCarriedLine,
           onChanged: (val) {
             setState(() {
               _draft = d.copyWith(amount: val > 0 ? val : null);
@@ -1818,6 +2114,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           anchorDate: ctx.anchor,
           today: ctx.today,
           selectedDate: d.day,
+          carriedLine: _againCarriedLine,
           onSelected: (picked) {
             setState(() {
               _draft = d.copyWith(day: picked);
@@ -2021,6 +2318,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           today: ctx.today,
           selectedDate: d.noParticularDay ? null : d.dueDate,
           showNoParticularDay: true,
+          isNoParticularDaySelected: d.noParticularDay,
+          carriedLine: _againCarriedLine,
           onSelected: (picked) {
             setState(() {
               _draft = d.copyWith(

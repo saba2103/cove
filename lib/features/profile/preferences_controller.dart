@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/add_draft.dart';
 
 class CurrencyOption {
   final String code;
@@ -178,3 +180,101 @@ class CurrencyNotifier extends Notifier<CurrencyOption> {
 
 final currencyPreferenceProvider =
     NotifierProvider<CurrencyNotifier, CurrencyOption>(CurrencyNotifier.new);
+
+/// Persisted `{kind, id}` reference for the **Again** row in the Add picker
+/// (`design/specs/14-add-flow.md` §6).
+///
+/// Only `expense`, `task`, and `event` are ever stored here; `habit`,
+/// `commitment`, and `routine` renew themselves and never become Again.
+@immutable
+class AddAgainPreference {
+  final AddKind kind;
+  final String id;
+
+  const AddAgainPreference({
+    required this.kind,
+    required this.id,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AddAgainPreference && kind == other.kind && id == other.id;
+
+  @override
+  int get hashCode => Object.hash(kind, id);
+}
+
+class AddAgainPreferenceNotifier extends Notifier<AddAgainPreference?> {
+  static const String kindPreferenceKey = 'cove_add_again_kind';
+  static const String idPreferenceKey = 'cove_add_again_id';
+  static AddAgainPreference? cachedInitialAgain;
+
+  static bool isSupportedKind(AddKind kind) =>
+      kind == AddKind.expense ||
+      kind == AddKind.task ||
+      kind == AddKind.event;
+
+  static AddKind? parseSupportedKind(String? rawKind) {
+    switch (rawKind) {
+      case 'expense':
+        return AddKind.expense;
+      case 'task':
+        return AddKind.task;
+      case 'event':
+        return AddKind.event;
+      default:
+        return null;
+    }
+  }
+
+  @override
+  AddAgainPreference? build() {
+    _load();
+    return cachedInitialAgain;
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rawKind = prefs.getString(kindPreferenceKey);
+      final rawId = prefs.getString(idPreferenceKey);
+      final kind = parseSupportedKind(rawKind);
+      if (kind != null && rawId != null && rawId.isNotEmpty) {
+        final loaded = AddAgainPreference(kind: kind, id: rawId);
+        if (state != loaded) {
+          state = loaded;
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setAgain(AddKind kind, String id) async {
+    if (!isSupportedKind(kind)) return;
+    final cleanId = id.trim();
+    if (cleanId.isEmpty) return;
+
+    final next = AddAgainPreference(kind: kind, id: cleanId);
+    state = next;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(kindPreferenceKey, kind.name);
+      await prefs.setString(idPreferenceKey, cleanId);
+    } catch (_) {}
+  }
+
+  Future<void> clear() async {
+    state = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(kindPreferenceKey);
+      await prefs.remove(idPreferenceKey);
+    } catch (_) {}
+  }
+}
+
+final addAgainPreferenceProvider =
+    NotifierProvider<AddAgainPreferenceNotifier, AddAgainPreference?>(
+  AddAgainPreferenceNotifier.new,
+);

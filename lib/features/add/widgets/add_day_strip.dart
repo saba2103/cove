@@ -26,12 +26,15 @@ class AddDayStrip extends StatefulWidget {
   final ValueChanged<DateTime> onSelected;
   final VoidCallback? onSelectNoParticularDay;
   final bool showNoParticularDay;
+  final bool? isNoParticularDaySelected;
   final VoidCallback? onTapAnotherDate;
+  final String? carriedLine;
 
   static const double kCellMinWidth = CoveSize.hit; // 48dp minimum target width
   static const double kCellHeight = 68.0; // (literal) 68dp tall day cell
   static const double _kSelectedBorder = 1.5; // (literal) 1.5dp selected ring
   static const double _kNormalBorder = 1.0; // (literal) 1dp cell ring
+  static const double _kCarriedIconSize = 16.0; // (literal) 16dp repeat icon
 
   const AddDayStrip({
     super.key,
@@ -42,7 +45,9 @@ class AddDayStrip extends StatefulWidget {
     required this.onSelected,
     this.onSelectNoParticularDay,
     this.showNoParticularDay = false,
+    this.isNoParticularDaySelected,
     this.onTapAnotherDate,
+    this.carriedLine,
   }) : assert(days.length == 7, 'AddDayStrip requires 7 anchored days.');
 
   static const List<String> _weekdayCaps = <String>[
@@ -216,14 +221,48 @@ class _AddDayStripState extends State<AddDayStrip> {
     final cv = context.cv;
     final anchorIsToday =
         AddDayStrip.isSameDay(widget.anchorDate, widget.today);
+    final noParticularDayActive =
+        widget.isNoParticularDaySelected ?? (widget.selectedDate == null);
     final fullLabel = widget.selectedDate != null
         ? dayLabel(widget.selectedDate!, widget.today)
-        : 'No particular day';
+        : (noParticularDayActive ? 'No particular day' : 'Pick a day');
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.carriedLine != null && widget.carriedLine!.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: CoveSpace.md,
+            ),
+            decoration: BoxDecoration(
+              color: cv.surfaceCard,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.inline),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.autorenew,
+                  size: AddDayStrip._kCarriedIconSize,
+                  color: cv.accentText,
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Expanded(
+                  child: Text(
+                    widget.carriedLine!,
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: CoveSpace.md),
+        ],
+
         // Optional carried line when anchor != today (§4)
         if (!anchorIsToday) ...[
           Text(
@@ -295,7 +334,7 @@ class _AddDayStripState extends State<AddDayStrip> {
           Center(
             child: _QuietActionPill(
               label: 'No particular day',
-              selected: widget.selectedDate == null,
+              selected: noParticularDayActive,
               onTap: widget.onSelectNoParticularDay,
             ),
           ),

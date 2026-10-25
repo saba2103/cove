@@ -105,6 +105,19 @@ Future<void> main() async {
     if (prefInitials != null) {
       UserProfileNotifier.cachedUseInitials = prefInitials;
     }
+    final prefAgainKind = AddAgainPreferenceNotifier.parseSupportedKind(
+      prefs.getString(AddAgainPreferenceNotifier.kindPreferenceKey),
+    );
+    final prefAgainId =
+        prefs.getString(AddAgainPreferenceNotifier.idPreferenceKey);
+    if (prefAgainKind != null &&
+        prefAgainId != null &&
+        prefAgainId.isNotEmpty) {
+      AddAgainPreferenceNotifier.cachedInitialAgain = AddAgainPreference(
+        kind: prefAgainKind,
+        id: prefAgainId,
+      );
+    }
   } catch (e) {
     debugPrint('Failed to preload preferences: $e');
   }

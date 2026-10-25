@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../golden/golden_harness.dart';
 
@@ -34,6 +35,7 @@ class _SpyExpenseController extends ExpenseController {
   final List<ExpenseCreateArgs> calls = <ExpenseCreateArgs>[];
   bool shouldFail = false;
   Completer<void>? inFlightCompleter;
+  void Function(String id, ExpenseCreateArgs args)? onLogged;
 
   _SpyExpenseController(super.ref);
 
@@ -56,21 +58,22 @@ class _SpyExpenseController extends ExpenseController {
     if (shouldFail) {
       throw StateError('Simulated logExpense failure');
     }
-    calls.add(
-      ExpenseCreateArgs(
-        title: title,
-        amount: amount,
-        currency: currency,
-        expenseDate: expenseDate!,
-        paidBy: paidBy,
-        category: category!,
-        notes: notes,
-        paymentMethod: paymentMethod,
-        isTransfer: isTransfer,
-        visibility: visibility,
-      ),
+    final args = ExpenseCreateArgs(
+      title: title,
+      amount: amount,
+      currency: currency,
+      expenseDate: expenseDate!,
+      paidBy: paidBy,
+      category: category!,
+      notes: notes,
+      paymentMethod: paymentMethod,
+      isTransfer: isTransfer,
+      visibility: visibility,
     );
-    return 'exp-created-${calls.length}';
+    calls.add(args);
+    final id = 'exp-created-${calls.length}';
+    onLogged?.call(id, args);
+    return id;
   }
 }
 
@@ -316,6 +319,11 @@ void main() {
   final fixedNow = DateTime(2026, 10, 5, 10, 30);
   final fixedToday = DateTime(2026, 10, 5);
 
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    AddAgainPreferenceNotifier.cachedInitialAgain = null;
+  });
+
   List<Override> buildOverrides({
     required _SpyExpenseController Function(Ref ref) expenseBuilder,
     required _SpyCalendarController Function(Ref ref) calendarBuilder,
@@ -326,6 +334,7 @@ void main() {
     List<LocalList> lists = const <LocalList>[],
     List<LocalSubscription> subscriptions = const <LocalSubscription>[],
     List<Routine> routines = const <Routine>[],
+    Stream<List<LocalExpense>> Function()? expensesStreamBuilder,
   }) {
     return <Override>[
       authProvider.overrideWith(_StubAuthNotifier.new),
@@ -359,7 +368,10 @@ void main() {
         (ref) => Stream<List<RoutineEvent>>.value(const <RoutineEvent>[]),
       ),
       activeHomeExpensesProvider.overrideWith(
-        (ref) => Stream<List<LocalExpense>>.value(const <LocalExpense>[]),
+        (ref) =>
+            expensesStreamBuilder != null
+                ? expensesStreamBuilder()
+                : Stream<List<LocalExpense>>.value(const <LocalExpense>[]),
       ),
       activeHomeCalendarEventsProvider.overrideWith(
         (ref) => Stream<List<LocalCalendarEvent>>.value(
@@ -1853,6 +1865,392 @@ void main() {
         expect(spyRoutineB.createdEvents.single.title, 'Evening stretch');
         expect(spyRoutineB.createdEvents.single.startMinutes, 540);
         expect(spyRoutineB.createdEvents.single.endMinutes, 585);
+      });
+    },
+  );
+
+  testWidgets(
+    '11. Again (expense): after adding an expense, picker shows Again from DB record; deleting it removes the row; Again leaves amount empty and Next lands on review',
+    (tester) async {
+      await loadCoveFonts();
+      final dbExpenses = <LocalExpense>[];
+      final expensesStreamController =
+          StreamController<List<LocalExpense>>.broadcast();
+      addTearDown(expensesStreamController.close);
+
+      void emitExpenses() {
+        expensesStreamController.add(
+          List<LocalExpense>.unmodifiable(dbExpenses),
+        );
+      }
+
+      late _SpyExpenseController spyExpense;
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final overrides = buildOverrides(
+          expenseBuilder: (ref) {
+            spyExpense = _SpyExpenseController(ref)
+              ..onLogged = (id, args) {
+                final splitRatio =
+                    args.visibility == ExpenseVisibility.privateToMe
+                        ? -1.0
+                        : (args.visibility == ExpenseVisibility.partnerCanSee
+                            ? 0.0
+                            : 0.5);
+                dbExpenses.add(
+                  LocalExpense(
+                    id: id,
+                    homeId: 'home_1',
+                    title: args.title,
+                    amount: args.amount,
+                    currency: args.currency ?? 'INR',
+                    paidBy: args.paidBy,
+                    splitRatio: splitRatio,
+                    expenseDate: args.expenseDate,
+                    category: args.category,
+                    paymentMethod: args.paymentMethod,
+                    isTransfer: args.isTransfer,
+                    createdAt: args.expenseDate,
+                  ),
+                );
+                emitExpenses();
+              };
+            return spyExpense;
+          },
+          calendarBuilder: _SpyCalendarController.new,
+          expensesStreamBuilder: () async* {
+            yield List<LocalExpense>.unmodifiable(dbExpenses);
+            yield* expensesStreamController.stream;
+          },
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('again_expense_scope'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(key: ValueKey('add_flow_1')),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Initially no Again row on the picker
+        expect(find.byKey(const ValueKey('add_picker_again_row')), findsNothing);
+
+        // 1. Add an expense through AddFlow
+        await tester.tap(find.byKey(const ValueKey('add_picker_tile_expense')));
+        await tester.pumpAndSettle();
+
+        for (final key in ['2', '1', '4', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          "Namdhari's",
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3: When? -> Today, 5 Oct
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 4: Which category? -> Groceries
+        await tester.tap(find.bySemanticsLabel('Groceries'));
+        await tester.pumpAndSettle();
+
+        // Step 5: Who paid? -> Saba (split)
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 6: On what? -> Card
+        await tester.tap(find.bySemanticsLabel('Card'));
+        await tester.pumpAndSettle();
+
+        // Step 7: Review -> Add expense
+        expect(find.text('Does this look right?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add expense'));
+        await tester.pumpAndSettle();
+        expect(find.text('Added.'), findsOneWidget);
+
+        // Verify local preferences stored {kind: expense, id: exp-created-1}
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString(AddAgainPreferenceNotifier.kindPreferenceKey),
+          'expense',
+        );
+        expect(
+          prefs.getString(AddAgainPreferenceNotifier.idPreferenceKey),
+          'exp-created-1',
+        );
+
+        // 2. Reopen the picker: shows Again with title, category, and amount from the DB record
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('again_expense_scope_reopened'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(key: ValueKey('add_flow_2')),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('add_picker_again_row')),
+          findsOneWidget,
+        );
+        expect(
+          find.bySemanticsLabel(
+            "Again: Namdhari's · Groceries, last ₹2,140",
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('last ₹2,140'), findsOneWidget);
+
+        // Verify values are read live from the DB record (not cached):
+        // mutate the DB record's amount and confirm the picker reflects it, then restore
+        dbExpenses[0] = dbExpenses[0].copyWith(amount: 2350);
+        emitExpenses();
+        await tester.pumpAndSettle();
+        expect(find.text('last ₹2,350'), findsOneWidget);
+
+        dbExpenses[0] = dbExpenses[0].copyWith(amount: 2140);
+        emitExpenses();
+        await tester.pumpAndSettle();
+        expect(find.text('last ₹2,140'), findsOneWidget);
+
+        // 3. Tap Again: starts expense with everything carried except amount,
+        // lands on step 1 with the carried line, and Next goes straight to review
+        await tester.tap(find.byKey(const ValueKey('add_picker_again_row')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('How much?'), findsOneWidget);
+        expect(
+          find.text("Namdhari's · Groceries · Card — last time ₹2,140"),
+          findsOneWidget,
+        );
+        // Amount is empty (₹0), so Next is disabled until an amount is entered
+        expect(find.bySemanticsLabel('₹0'), findsOneWidget);
+        expect(
+          tester.widget<AddStepFoot>(find.byType(AddStepFoot)).enabled,
+          isFalse,
+        );
+
+        // Enter new amount ₹1,850 and tap Next -> lands straight on Review!
+        for (final key in ['1', '8', '5', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Does this look right?'), findsOneWidget);
+        expect(find.text("Namdhari's"), findsWidgets);
+        expect(find.text('Groceries'), findsWidgets);
+        expect(find.text('₹1,850'), findsWidgets);
+
+        // 4. Deleting that expense from the database removes the Again row from the picker
+        dbExpenses.clear();
+        emitExpenses();
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('again_expense_scope_after_delete'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(key: ValueKey('add_flow_3')),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const ValueKey('add_picker_again_row')), findsNothing);
+      });
+    },
+  );
+
+  testWidgets(
+    '12. Again: habits, commitments, and routines never become Again',
+    (tester) async {
+      await loadCoveFonts();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final overrides = buildOverrides(
+          expenseBuilder: _SpyExpenseController.new,
+          calendarBuilder: _SpyCalendarController.new,
+          habitBuilder: _SpyHabitController.new,
+          subscriptionBuilder: _SpySubscriptionController.new,
+          routineBuilder: _SpyRoutineController.new,
+        );
+
+        // 1. Add a Habit -> never becomes Again
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('habit_no_again'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(initialKind: AddKind.habit),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Read 20 pages',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Every day'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Both of you'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Add habit'));
+        await tester.pumpAndSettle();
+        expect(find.text('Added.'), findsOneWidget);
+
+        final prefsAfterHabit = await SharedPreferences.getInstance();
+        expect(
+          prefsAfterHabit.getString(
+            AddAgainPreferenceNotifier.kindPreferenceKey,
+          ),
+          isNull,
+        );
+        expect(
+          prefsAfterHabit.getString(AddAgainPreferenceNotifier.idPreferenceKey),
+          isNull,
+        );
+
+        // 2. Add a Commitment -> never becomes Again
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('commitment_no_again'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(initialKind: AddKind.commitment),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Rent',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        for (final key in ['1', '0', '0', '0']) {
+          await tester.tap(find.bySemanticsLabel(key));
+          await tester.pump();
+        }
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.bySemanticsLabel('Every month, twelve times a year'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Day 1'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Skip'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Add commitment'));
+        await tester.pumpAndSettle();
+        expect(find.text('Added.'), findsOneWidget);
+
+        final prefsAfterCommitment = await SharedPreferences.getInstance();
+        expect(
+          prefsAfterCommitment.getString(
+            AddAgainPreferenceNotifier.kindPreferenceKey,
+          ),
+          isNull,
+        );
+        expect(
+          prefsAfterCommitment.getString(
+            AddAgainPreferenceNotifier.idPreferenceKey,
+          ),
+          isNull,
+        );
+
+        // 3. Add a Routine -> never becomes Again
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('routine_no_again'),
+            overrides: overrides,
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(initialKind: AddKind.routine),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Morning walk',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('30 min'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+        expect(find.text('Added.'), findsOneWidget);
+
+        final prefsAfterRoutine = await SharedPreferences.getInstance();
+        expect(
+          prefsAfterRoutine.getString(
+            AddAgainPreferenceNotifier.kindPreferenceKey,
+          ),
+          isNull,
+        );
+        expect(
+          prefsAfterRoutine.getString(
+            AddAgainPreferenceNotifier.idPreferenceKey,
+          ),
+          isNull,
+        );
       });
     },
   );
