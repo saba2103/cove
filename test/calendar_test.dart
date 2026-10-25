@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -151,6 +152,10 @@ void main() {
     email: 'alex@example.com',
     displayName: 'Alex',
   );
+
+  setUpAll(() async {
+    await loadCoveFonts();
+  });
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -349,7 +354,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open creation sheet via gold + Add round button
+      // Open Add picker via gold + Add round button
       await tester.tap(find.byKey(const ValueKey('calendar_add_button')));
       await tester.pumpAndSettle();
 
@@ -357,17 +362,37 @@ void main() {
       await tester.tap(find.text('Event'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Add Calendar Event'), findsOneWidget);
+      expect(find.text('What is it?'), findsOneWidget);
 
-      // Enter event title
-      final titleField = find.byType(TextField).first;
-      await tester.enterText(titleField, 'Dinner with Sarah');
+      // Step 1: Enter event title
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Dinner with Sarah',
+      );
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pumpAndSettle();
 
-      // Tap Save
-      final saveBtn = find.text('Create Shared Event');
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
+      // Step 2: Which day? -> tap Today or first day pill to auto-advance
+      await tester.tap(find.bySemanticsLabel('Next').evaluate().isNotEmpty
+          ? find.bySemanticsLabel('Next')
+          : find.bySemanticsLabel(RegExp(r'^Today,')).first);
+      await tester.pumpAndSettle();
+
+      // Step 3: What time? -> Next
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 4: Where? -> Skip
+      await tester.tap(find.bySemanticsLabel('Skip'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Review -> Add event
+      await tester.tap(find.bySemanticsLabel('Add event'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // Verify event was emitted through sync engine

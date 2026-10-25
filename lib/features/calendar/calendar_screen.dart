@@ -8,7 +8,7 @@ import '../../core/widgets/cove_max_width.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
-import 'calendar_create_sheet.dart';
+import '../add/add_flow.dart';
 import 'views/calendar_agenda_view.dart';
 
 enum CalendarViewMode {
@@ -131,9 +131,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               outboxEvents: outboxEvents,
               selectedDate: _selectedDate,
               onSelectDate: (d) => setState(() => _selectedDate = d),
-              onAddEvent: () => CalendarCreateSheet.show(
+              onAddEvent: () => AddFlow.show(
                 context,
-                selectedDate: _selectedDate,
+                anchor: _selectedDate,
               ),
               hasPartner: hasPartner,
             ),

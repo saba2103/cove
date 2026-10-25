@@ -14,6 +14,8 @@ import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import 'habit_controller.dart';
@@ -117,7 +119,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               label: '+ New',
               variant: CoveButtonVariant.secondary,
               isCompact: true,
-              onPressed: () => HabitFormSheet.show(context),
+              onPressed: () => AddFlow.show(context, kind: AddKind.habit),
             ),
           ),
         ],
@@ -145,7 +147,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
           'Track personal rhythms together or privately without gamified noise or guilt.',
       action: CovePillButton(
         label: 'Create First Habit',
-        onPressed: () => HabitFormSheet.show(context),
+        onPressed: () => AddFlow.show(context, kind: AddKind.habit),
       ),
     );
   }

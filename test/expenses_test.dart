@@ -3,6 +3,7 @@ import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
 import 'package:cove/core/widgets/cove_row.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
+import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
 import 'package:cove/features/expenses/expense_form_sheet.dart';
@@ -23,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -129,6 +131,10 @@ void main() {
     email: 'sarah@cove.test',
     displayName: 'Sarah',
   );
+
+  setUpAll(() async {
+    await loadCoveFonts();
+  });
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -247,28 +253,51 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open bottom sheet
+      // Open AddFlow
       await tester.tap(find.text('Log First Expense'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ExpenseFormSheet), findsOneWidget);
+      expect(find.byType(AddFlow), findsOneWidget);
 
-      // Enter merchant title
-      final textFields = find.descendant(
-        of: find.byType(ExpenseFormSheet),
-        matching: find.byType(TextField),
+      // Step 1: Enter amount (42) via keypad
+      for (final key in ['4', '2']) {
+        await tester.tap(find.bySemanticsLabel(key));
+      }
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 2: Enter merchant title
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Farmers Market Produce',
       );
-      await tester.enterText(textFields.at(0), 'Farmers Market Produce');
       await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
 
-      // Enter amount
-      await tester.enterText(textFields.at(1), '42.50');
-      await tester.pump();
+      // Step 3: When? -> tap Today to auto-advance
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Today,')).first);
+      await tester.pumpAndSettle();
 
-      // Tap Log Expense
-      final logBtn = find.widgetWithText(CovePillButton, 'Log Expense');
-      await tester.ensureVisible(logBtn);
-      await tester.tap(logBtn);
+      // Step 4: Which category? -> Groceries (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Groceries'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Who paid? (You + Split it half and half default) -> Next
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 6: On what? -> Card (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Card'));
+      await tester.pumpAndSettle();
+
+      // Step 7: Review -> Add expense
+      await tester.tap(find.bySemanticsLabel('Add expense'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // 1. Verify dispatchLocalEvent was called with expense_logged
@@ -276,13 +305,13 @@ void main() {
       expect(fakeEngine.dispatchedEvents.first['eventType'], equals('expense_logged'));
       final payload = fakeEngine.dispatchedEvents.first['payload'] as Map<String, dynamic>;
       expect(payload['title'], equals('Farmers Market Produce'));
-      expect(payload['amount'], equals(42.50));
+      expect(payload['amount'], equals(42.0));
       expect(payload['visibility'], equals('shared'));
       expect(payload['split_ratio'], equals(0.5));
 
       // 2. Verify hero total & row in ExpensesScreen
       expect(find.text('Farmers Market Produce'), findsOneWidget);
-      expect(find.text('\$42.50'), findsWidgets);
+      expect(find.text('\$42'), findsWidgets);
       expect(find.byType(CoveSyncTick), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
@@ -305,25 +334,50 @@ void main() {
       await tester.tap(find.text('Log First Expense'));
       await tester.pumpAndSettle();
 
-      final textFields = find.descendant(
-        of: find.byType(ExpenseFormSheet),
-        matching: find.byType(TextField),
-      );
-      await tester.enterText(textFields.at(0), 'Vintage Acoustic Guitar');
+      // Step 1: Enter amount (450) via keypad
+      for (final key in ['4', '5', '0']) {
+        await tester.tap(find.bySemanticsLabel(key));
+      }
       await tester.pump();
-
-      await tester.enterText(textFields.at(1), '450.00');
-      await tester.pump();
-
-      // Tap 'Partner sees' pill
-      await tester.ensureVisible(find.text('Partner sees'));
-      await tester.tap(find.text('Partner sees'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pumpAndSettle();
 
-      // Tap Log Expense
-      final logBtn = find.widgetWithText(CovePillButton, 'Log Expense');
-      await tester.ensureVisible(logBtn);
-      await tester.tap(logBtn);
+      // Step 2: Enter merchant title
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Vintage Acoustic Guitar',
+      );
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 3: When? -> tap Today to auto-advance
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Today,')).first);
+      await tester.pumpAndSettle();
+
+      // Step 4: Which category? -> Groceries (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Groceries'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Who paid? -> Turn off Split it half and half (partner_can_see) -> Next
+      final splitToggle = find.text('Split it half and half');
+      await tester.ensureVisible(splitToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(splitToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 6: On what? -> Card (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Card'));
+      await tester.pumpAndSettle();
+
+      // Step 7: Review -> Add expense
+      await tester.tap(find.bySemanticsLabel('Add expense'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // Verify event was emitted with split_ratio = 0.0 and visibility = partner_can_see
@@ -357,25 +411,50 @@ void main() {
       await tester.tap(find.text('Log First Expense'));
       await tester.pumpAndSettle();
 
-      final textFields = find.descendant(
-        of: find.byType(ExpenseFormSheet),
-        matching: find.byType(TextField),
-      );
-      await tester.enterText(textFields.at(0), 'Secret Anniversary Gift');
+      // Step 1: Enter amount (120) via keypad
+      for (final key in ['1', '2', '0']) {
+        await tester.tap(find.bySemanticsLabel(key));
+      }
       await tester.pump();
-
-      await tester.enterText(textFields.at(1), '120.00');
-      await tester.pump();
-
-      // Select Private to me
-      await tester.ensureVisible(find.text('Private'));
-      await tester.tap(find.text('Private'));
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pumpAndSettle();
 
-      // Submit
-      final logBtn = find.widgetWithText(CovePillButton, 'Log Expense');
-      await tester.ensureVisible(logBtn);
-      await tester.tap(logBtn);
+      // Step 2: Enter merchant title
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Secret Anniversary Gift',
+      );
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 3: When? -> tap Today to auto-advance
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Today,')).first);
+      await tester.pumpAndSettle();
+
+      // Step 4: Which category? -> Groceries (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Groceries'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Who paid? -> Turn on Keep it private -> Next
+      final privateToggle = find.text('Keep it private');
+      await tester.ensureVisible(privateToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(privateToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 6: On what? -> Card (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Card'));
+      await tester.pumpAndSettle();
+
+      // Step 7: Review -> Add expense
+      await tester.tap(find.bySemanticsLabel('Add expense'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // ZERO events emitted to sync engine!
@@ -597,6 +676,14 @@ void main() {
 
       // Now the hero card also displays the transfer total ($250) alongside the ledger row (2 occurrences)
       expect(find.text('\$250'), findsNWidgets(2));
+
+      // Verify header 'Record a transfer' action opens ExpenseFormSheet preset to Transfer
+      await tester.tap(find.byKey(const ValueKey('expenses_record_transfer_button')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseFormSheet), findsOneWidget);
+      expect(find.widgetWithText(CovePillButton, 'Record Transfer'), findsOneWidget);
+      Navigator.of(tester.element(find.byType(ExpenseFormSheet))).pop();
+      await tester.pumpAndSettle();
 
       // Verify controller logging a transfer directly
       final container = ProviderScope.containerOf(

@@ -21,6 +21,8 @@ import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
@@ -236,11 +238,25 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     title: 'Expenses',
                     actions: [
                       CoveRoundButton(
+                        key: const ValueKey('expenses_record_transfer_button'),
+                        icon: Icons.swap_horiz_rounded,
+                        variant: CoveRoundButtonVariant.ghost,
+                        tooltip: 'Record a transfer',
+                        semanticLabel: 'Record a transfer',
+                        onPressed: () => ExpenseFormSheet.show(
+                          context,
+                          initialIsTransfer: true,
+                        ),
+                      ),
+                      CoveRoundButton(
                         icon: Icons.add_rounded,
                         variant: CoveRoundButtonVariant.gold,
                         tooltip: 'Log Expense',
                         semanticLabel: 'Log Expense',
-                        onPressed: () => ExpenseFormSheet.show(context),
+                        onPressed: () => AddFlow.show(
+                          context,
+                          kind: AddKind.expense,
+                        ),
                       ),
                     ],
                   ),
@@ -254,7 +270,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       action: CovePillButton(
                         label: 'Log First Expense',
                         icon: const Icon(Icons.add, size: CoveSpace.md),
-                        onPressed: () => ExpenseFormSheet.show(context),
+                        onPressed: () => AddFlow.show(
+                          context,
+                          kind: AddKind.expense,
+                        ),
                       ),
                     ),
                   ),
@@ -437,12 +456,26 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         '$standingMonthName · ${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)}',
                     actions: [
                       CoveRoundButton(
+                        key: const ValueKey('expenses_record_transfer_button'),
+                        icon: Icons.swap_horiz_rounded,
+                        variant: CoveRoundButtonVariant.ghost,
+                        tooltip: 'Record a transfer',
+                        semanticLabel: 'Record a transfer',
+                        onPressed: () => ExpenseFormSheet.show(
+                          context,
+                          initialIsTransfer: true,
+                        ),
+                      ),
+                      CoveRoundButton(
                         key: const ValueKey('expenses_add_button'),
                         icon: Icons.add_rounded,
                         variant: CoveRoundButtonVariant.gold,
                         tooltip: 'Log Expense',
                         semanticLabel: 'Log Expense',
-                        onPressed: () => ExpenseFormSheet.show(context),
+                        onPressed: () => AddFlow.show(
+                          context,
+                          kind: AddKind.expense,
+                        ),
                       ),
                     ],
                   ),
@@ -1466,7 +1499,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               icon: Icons.add_rounded,
               tooltip: 'Log Expense',
               semanticLabel: 'Log Expense',
-              onPressed: () => ExpenseFormSheet.show(context),
+              onPressed: () => AddFlow.show(
+                context,
+                kind: AddKind.expense,
+                anchor: dayDate,
+              ),
             ),
           ],
         ),

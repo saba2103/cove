@@ -17,13 +17,14 @@ import '../../core/widgets/cove_section_label.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
 import 'commitment_detail_sheet.dart';
 import 'commitment_models.dart';
-import 'subscription_form_sheet.dart';
 
 enum EmiSortMode {
   byWho,
@@ -1474,7 +1475,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
         action: CovePillButton(
           label: 'Add Loan or EMI',
           icon: const Icon(Icons.add, size: 16),
-          onPressed: () => SubscriptionFormSheet.show(context),
+          onPressed: () => AddFlow.show(
+            context,
+            kind: AddKind.commitment,
+          ),
         ),
       ),
     );

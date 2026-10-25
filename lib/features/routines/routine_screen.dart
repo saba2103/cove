@@ -8,6 +8,8 @@ import '../../core/widgets/cove_max_width.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../sync/providers/active_home_provider.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -74,7 +76,6 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   void _openEventForm(
     String routineId, {
     RoutineEvent? event,
-    int? initialStartMinutes,
   }) {
     showModalBottomSheet<void>(
       context: context,
@@ -83,7 +84,6 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       builder: (ctx) => RoutineEventFormSheet(
         routineId: routineId,
         event: event,
-        initialStartMinutes: initialStartMinutes,
       ),
     );
   }
@@ -294,7 +294,10 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           icon: Icons.add_rounded,
                           variant: CoveRoundButtonVariant.gold,
                           semanticLabel: 'Add Event',
-                          onPressed: () => _openEventForm(currentRoutine.id),
+                          onPressed: () => AddFlow.show(
+                            context,
+                            kind: AddKind.routine,
+                          ),
                         ),
                       ],
                     ),
@@ -594,9 +597,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _openEventForm(
-            routineId,
-            initialStartMinutes: hour * 60,
+          onTap: () => AddFlow.show(
+            context,
+            kind: AddKind.routine,
           ),
           child: SizedBox(
             height: _hourHeight,

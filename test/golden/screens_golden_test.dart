@@ -5,7 +5,6 @@ import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/activity/activity_screen.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/backup/drive_backup_controller.dart';
-import 'package:cove/features/calendar/calendar_create_sheet.dart';
 import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/expenses/category_detail_sheet.dart';
 import 'package:cove/features/expenses/expense_detail_sheet.dart';
@@ -755,22 +754,6 @@ void main() {
           initialHomes: [_kSeedHome],
           initialHomeMetadata: _kSeedHomeMetadata,
           initialDriveBackupState: _kSeedBackupState,
-        ),
-        overrides: _createGoldenOverrides(),
-        wrap: wrapInAppShellConstraint,
-        allowedOverflows: _kKnownLegacyOverflows,
-      );
-    });
-
-    testWidgets('calendar_create_sheet', (tester) async {
-      await goldenMatrix(
-        tester,
-        'calendar_create_sheet',
-        Scaffold(
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: CalendarCreateSheet(selectedDate: _kFixedDate),
-          ),
         ),
         overrides: _createGoldenOverrides(),
         wrap: wrapInAppShellConstraint,

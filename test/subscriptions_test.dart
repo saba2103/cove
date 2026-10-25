@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
 import 'package:cove/core/widgets/slips/cove_voucher.dart';
+import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/routines/routine_controller.dart';
 import 'package:cove/features/subscriptions/commitment_detail_sheet.dart';
 import 'package:cove/features/subscriptions/commitment_models.dart';
 import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
@@ -25,6 +27,7 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -119,8 +122,9 @@ void main() {
     displayName: 'Sarah',
   );
 
-  setUpAll(() {
+  setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    await loadCoveFonts();
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     drift.driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -214,6 +218,13 @@ void main() {
         return controller.stream;
       }),
       activeHomeOutboxProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeRoutinesProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeExpensesProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeCalendarEventsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeHabitsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeAllHabitCheckinsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeListsProvider.overrideWith((ref) => Stream.value([])),
+      activeHomeAllListItemsProvider.overrideWith((ref) => Stream.value([])),
     ];
   }
 
@@ -253,24 +264,49 @@ void main() {
       await tester.tap(find.text('Add First Commitment'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(SubscriptionFormSheet), findsOneWidget);
+      expect(find.byType(AddFlow), findsOneWidget);
 
-      // Enter Service Name
-      final nameField = find.byType(TextField).at(0);
-      await tester.enterText(nameField, 'Spotify Duo');
-      FocusManager.instance.primaryFocus?.unfocus();
+      // Step 1: What is it? -> Enter Name -> Next
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Spotify Duo',
+      );
       await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
 
-      // Enter Amount
-      final amountField = find.byType(TextField).at(1);
-      await tester.enterText(amountField, '16.99');
-      FocusManager.instance.primaryFocus?.unfocus();
+      // Step 2: How much, each time? -> Enter 17 via keypad -> Next
+      for (final key in ['1', '7']) {
+        await tester.tap(find.bySemanticsLabel(key));
+      }
       await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
 
-      // Tap Add Commitment
-      final saveBtn = find.widgetWithText(CovePillButton, 'Add Commitment');
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
+      // Step 3: How often does it come? -> Every month (auto-advances)
+      await tester.tap(
+        find.bySemanticsLabel('Every month, twelve times a year'),
+      );
+      await tester.pumpAndSettle();
+
+      // Step 4: Which day of the month? -> Day 15 (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Day 15'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Paid from? -> Skip
+      await tester.tap(find.bySemanticsLabel('Skip'));
+      await tester.pumpAndSettle();
+
+      // Step 6: Whose is it? (Both of you default) -> Next
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 7: Review -> Add commitment
+      await tester.tap(find.bySemanticsLabel('Add commitment'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // 1. Verify dispatchLocalEvent was triggered with subscription_added
@@ -278,13 +314,13 @@ void main() {
       expect(fakeEngine.dispatchedEvents.first['eventType'], equals('subscription_added'));
       final payload = fakeEngine.dispatchedEvents.first['payload'] as Map<String, dynamic>;
       expect(payload['name'], equals('Spotify Duo'));
-      expect(payload['amount'], equals(16.99));
+      expect(payload['amount'], equals(17.0));
       expect(payload['is_private'], isFalse);
 
       // 2. Verify subscription renders in list with Bodoni Moda total
       expect(find.text('Spotify Duo'), findsOneWidget);
-      expect(find.text('\$16.99.00'), findsNothing);
-      expect(find.text('\$16.99'), findsWidgets); // Hero total and row
+      expect(find.text('\$17.00'), findsNothing);
+      expect(find.text('\$17'), findsWidgets); // Hero total and row
       expect(find.textContaining('Monthly'), findsWidgets);
     });
 
@@ -303,31 +339,56 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open Form Sheet
+      // Open AddFlow
       await tester.tap(find.text('Add First Commitment'));
       await tester.pumpAndSettle();
 
-      // Fill name & amount
-      final nameField = find.byType(TextField).at(0);
-      await tester.enterText(nameField, 'Secret Book Club');
-      FocusManager.instance.primaryFocus?.unfocus();
+      // Step 1: What is it? -> Enter Name -> Next
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Secret Book Club',
+      );
       await tester.pump();
-
-      final amountField = find.byType(TextField).at(1);
-      await tester.enterText(amountField, '25.00');
-      FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pump();
-
-      // Select "Private to Me"
-      final privatePill = find.text('Private to Me');
-      await tester.ensureVisible(privatePill);
-      await tester.tap(privatePill);
+      await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pumpAndSettle();
 
-      // Tap Add Commitment
-      final saveBtn = find.widgetWithText(CovePillButton, 'Add Commitment');
-      await tester.ensureVisible(saveBtn);
-      await tester.tap(saveBtn);
+      // Step 2: How much, each time? -> Enter 25 via keypad -> Next
+      for (final key in ['2', '5']) {
+        await tester.tap(find.bySemanticsLabel(key));
+      }
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 3: How often does it come? -> Every month (auto-advances)
+      await tester.tap(
+        find.bySemanticsLabel('Every month, twelve times a year'),
+      );
+      await tester.pumpAndSettle();
+
+      // Step 4: Which day of the month? -> Day 15 (auto-advances)
+      await tester.tap(find.bySemanticsLabel('Day 15'));
+      await tester.pumpAndSettle();
+
+      // Step 5: Paid from? -> Skip
+      await tester.tap(find.bySemanticsLabel('Skip'));
+      await tester.pumpAndSettle();
+
+      // Step 6: Whose is it? -> Turn on "Keep it private" -> Next
+      final privateToggle = find.text('Keep it private');
+      await tester.ensureVisible(privateToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(privateToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 7: Review -> Add commitment
+      await tester.tap(find.bySemanticsLabel('Add commitment'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // CRITICAL ASSERTION:
@@ -616,8 +677,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap Add First Commitment
-      await tester.tap(find.text('Add First Commitment'));
+      // Open SubscriptionFormSheet (Edit form supports custom multi-month cycle)
+      final screenContext = tester.element(find.byType(SubscriptionsScreen));
+      unawaited(SubscriptionFormSheet.show(screenContext));
       await tester.pumpAndSettle();
 
       expect(find.byType(SubscriptionFormSheet), findsOneWidget);

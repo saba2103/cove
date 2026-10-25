@@ -22,13 +22,12 @@ import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../activity/activity_read_status_controller.dart';
 import '../activity/activity_screen.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
-import '../calendar/calendar_event_form_sheet.dart';
 import '../calendar/calendar_screen.dart';
-import '../expenses/expense_form_sheet.dart';
 import '../expenses/expenses_screen.dart';
 import '../habits/habit_controller.dart';
-import '../habits/habit_form_sheet.dart';
 import '../habits/habits_screen.dart';
 import '../home/home_settings_screen.dart';
 import '../home/home_switcher_sheet.dart';
@@ -36,7 +35,6 @@ import '../lists/list_controller.dart';
 import '../lists/lists_screen.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/profile_screen.dart';
-import '../subscriptions/subscription_form_sheet.dart';
 import '../subscriptions/subscriptions_screen.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_model.dart';
@@ -527,6 +525,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   currentUserId: currentUserId,
                   partnerName: todayData.partnerName,
                   slipVariant: slipVariant,
+                  now: now,
                 ),
                 const SizedBox(height: CoveSpace.section),
 
@@ -697,7 +696,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           readout: readout,
           addSemanticLabel: 'Add event',
           onOpenSection: openCalendar,
-          onAdd: () => CalendarEventFormSheet.show(context, initialDate: now),
+          onAdd: () => AddFlow.show(
+            context,
+            kind: AddKind.event,
+            anchor: now,
+          ),
         ),
         const SizedBox(height: CoveSpace.sm),
         CoveCarousel(children: tickets),
@@ -780,7 +783,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           readout: readout,
           addSemanticLabel: 'Add habit',
           onOpenSection: openHabits,
-          onAdd: () => HabitFormSheet.show(context),
+          onAdd: () => AddFlow.show(context, kind: AddKind.habit),
         ),
         const SizedBox(height: CoveSpace.sm),
         CoveCarousel(children: cards),
@@ -859,7 +862,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           readout: readout,
           addSemanticLabel: 'Add expense',
           onOpenSection: openExpenses,
-          onAdd: () => ExpenseFormSheet.show(context),
+          onAdd: () => AddFlow.show(
+            context,
+            kind: AddKind.expense,
+            anchor: now,
+          ),
         ),
         const SizedBox(height: CoveSpace.sm),
         Padding(
@@ -887,6 +894,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required String currentUserId,
     required String partnerName,
     required CoveSlipVariant slipVariant,
+    required DateTime now,
   }) {
     final openCount = tasks.where((t) => !t.isCompleted).length;
     final readout = openCount == 0 ? 'all clear' : '$openCount open';
@@ -897,6 +905,9 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       );
     }
 
+    final primaryListId = tasks.isNotEmpty
+        ? tasks.first.listId
+        : (listsSummary.isNotEmpty ? listsSummary.first.listId : null);
     final primaryListName = tasks.isNotEmpty
         ? tasks.first.listName
         : (listsSummary.isNotEmpty ? listsSummary.first.name : 'Grocery');
@@ -945,7 +956,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           readout: readout,
           addSemanticLabel: 'Add list item',
           onOpenSection: openLists,
-          onAdd: openLists,
+          onAdd: () => AddFlow.show(
+            context,
+            kind: AddKind.task,
+            listId: primaryListId,
+            anchor: now,
+          ),
         ),
         const SizedBox(height: CoveSpace.sm),
         Padding(
@@ -1010,7 +1026,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             readout: readout,
             addSemanticLabel: 'Add commitment',
             onOpenSection: openCommitments,
-            onAdd: () => SubscriptionFormSheet.show(context),
+            onAdd: () => AddFlow.show(context, kind: AddKind.commitment),
           ),
           const SizedBox(height: CoveSpace.xs),
           Padding(
@@ -1061,7 +1077,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           readout: readout,
           addSemanticLabel: 'Add commitment',
           onOpenSection: openCommitments,
-          onAdd: () => SubscriptionFormSheet.show(context),
+          onAdd: () => AddFlow.show(context, kind: AddKind.commitment),
         ),
         const SizedBox(height: CoveSpace.sm),
         CoveCarousel(children: vouchers),

@@ -15,17 +15,20 @@ import 'expense_controller.dart';
 class ExpenseFormSheet extends ConsumerStatefulWidget {
   final LocalExpense? initialExpense;
   final DateTime? initialDate;
+  final bool initialIsTransfer;
 
   const ExpenseFormSheet({
     super.key,
     this.initialExpense,
     this.initialDate,
+    this.initialIsTransfer = false,
   });
 
   static Future<String?> show(
     BuildContext context, {
     LocalExpense? initialExpense,
     DateTime? initialDate,
+    bool initialIsTransfer = false,
   }) {
     return showModalBottomSheet<String>(
       context: context,
@@ -34,6 +37,7 @@ class ExpenseFormSheet extends ConsumerStatefulWidget {
       builder: (_) => ExpenseFormSheet(
         initialExpense: initialExpense,
         initialDate: initialDate,
+        initialIsTransfer: initialIsTransfer,
       ),
     );
   }
@@ -97,6 +101,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
       _currency = ref.read(currencyPreferenceProvider).code;
       if (widget.initialDate != null) {
         _expenseDate = widget.initialDate!;
+      }
+      if (widget.initialIsTransfer) {
+        _isTransfer = true;
+        _selectedCategory = 'Transfer';
       }
       final user = ref.read(authProvider).value;
       if (user != null) {

@@ -20,6 +20,8 @@ import '../../core/widgets/cove_section_label.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/add_draft.dart';
+import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
@@ -28,7 +30,6 @@ import 'commitment_detail_sheet.dart';
 import 'commitment_models.dart';
 import 'commitments_helicopter_screen.dart';
 import 'emi_tracker_screen.dart';
-import 'subscription_form_sheet.dart';
 
 /// Segment filter modes for the Commitments screen (`design/screens/commitments.md`).
 enum CommitmentKindFilter {
@@ -435,7 +436,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                       variant: CoveRoundButtonVariant.gold,
                       tooltip: 'Add Commitment',
                       semanticLabel: 'Add Commitment',
-                      onPressed: () => SubscriptionFormSheet.show(context),
+                      onPressed: () => AddFlow.show(
+                        context,
+                        kind: AddKind.commitment,
+                      ),
                     ),
                   ],
                 ),
@@ -1504,7 +1508,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                       variant: CoveRoundButtonVariant.gold,
                       tooltip: 'Add Commitment',
                       semanticLabel: 'Add Commitment',
-                      onPressed: () => SubscriptionFormSheet.show(context),
+                      onPressed: () => AddFlow.show(
+                        context,
+                        kind: AddKind.commitment,
+                      ),
                     ),
                   ],
                 ),
@@ -1521,7 +1528,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                         Icons.add,
                         size: _kInlineIconSize,
                       ),
-                      onPressed: () => SubscriptionFormSheet.show(context),
+                      onPressed: () => AddFlow.show(
+                        context,
+                        kind: AddKind.commitment,
+                      ),
                     ),
                   ),
                 ),

@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_checkbox.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
+import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/habits/habit_controller.dart';
-import 'package:cove/features/habits/habit_form_sheet.dart';
 import 'package:cove/features/habits/habit_streak_calculator.dart';
 import 'package:cove/features/habits/habits_screen.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -157,6 +158,10 @@ void main() {
     email: 'sarah@example.com',
     displayName: 'Sarah',
   );
+
+  setUpAll(() async {
+    await loadCoveFonts();
+  });
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -307,21 +312,36 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open creation sheet via "+ New" button
+      // Open AddFlow via "+ New" button
       await tester.tap(find.widgetWithText(CovePillButton, '+ New'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(HabitFormSheet), findsOneWidget);
-      expect(find.text('New Habit or Rhythm'), findsOneWidget);
+      expect(find.byType(AddFlow), findsOneWidget);
+      expect(find.text('What is the habit?'), findsOneWidget);
 
-      // Enter name
-      final nameField = find.byType(TextField).first;
-      await tester.enterText(nameField, 'Morning Walk');
+      // Step 1: Enter name
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Morning Walk',
+      );
       await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
 
-      // Submit
-      final createButton = find.widgetWithText(CovePillButton, 'Create Habit');
-      await tester.tap(createButton);
+      // Step 2: How often? -> tap Every day (auto-advances to Step 3)
+      await tester.tap(find.bySemanticsLabel('Every day'));
+      await tester.pumpAndSettle();
+
+      // Step 3: Who can see it? -> tap Both of you (auto-advances to Step 4)
+      await tester.tap(find.bySemanticsLabel('Both of you'));
+      await tester.pumpAndSettle();
+
+      // Step 4: Review -> Add habit
+      await tester.tap(find.bySemanticsLabel('Add habit'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // 1. Verify dispatchLocalEvent was called
@@ -349,15 +369,29 @@ void main() {
       await tester.tap(find.widgetWithText(CovePillButton, '+ New'));
       await tester.pumpAndSettle();
 
-      final nameField = find.byType(TextField).first;
-      await tester.enterText(nameField, 'Meditation & Breathwork');
+      // Step 1: Enter name
+      await tester.enterText(
+        find.byKey(const ValueKey('add_flow_text_input')),
+        'Meditation & Breathwork',
+      );
       await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
 
-      // Select 'Private to Me'
-      await tester.tap(find.text('Private to Me'));
-      await tester.pump();
+      // Step 2: How often? -> tap Every day (auto-advances to Step 3)
+      await tester.tap(find.bySemanticsLabel('Every day'));
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(CovePillButton, 'Create Habit'));
+      // Step 3: Who can see it? -> Select 'Only you' (auto-advances to Step 4)
+      await tester.tap(find.bySemanticsLabel('Only you'));
+      await tester.pumpAndSettle();
+
+      // Step 4: Review -> Add habit
+      await tester.tap(find.bySemanticsLabel('Add habit'));
+      await tester.pumpAndSettle();
+
+      // Close Added confirmation
+      await tester.tap(find.bySemanticsLabel('Close'));
       await tester.pumpAndSettle();
 
       // ZERO sync engine events emitted!
