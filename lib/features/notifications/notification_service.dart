@@ -316,20 +316,31 @@ class NotificationService {
     return closedId;
   }
 
+  /// Maximum time the background handler waits for the main isolate to send
+  /// `'received'` on the reply port before treating the port mapping as stale.
+  static const Duration defaultForwardReceiptTimeout = Duration(seconds: 1);
+
   /// Background isolate entry helper invoked from `_firebaseMessagingBackgroundHandler`
   /// in `main.dart`.
   ///
-  /// 1. Looks up [mainIsolatePortName] in [IsolateNameServer]. If the main
-  ///    isolate is alive, forwards the message data to it (which runs the
-  ///    pipeline with its normal database and providers) and returns without
-  ///    ever touching SQLite.
-  /// 2. Only when the main app is not running, opens its own, separate,
-  ///    unshared read-only connection (`OpenMode.readOnly` + `busy_timeout`,
-  ///    `enableMigrations: false`, wrapped in [ReadOnlyQueryExecutor]) for the
-  ///    duration of the pipeline and closes it in `finally`.
+  /// 1. Looks up [mainIsolatePortName] in [IsolateNameServer]. If a port is
+  ///    registered, forwards the message data to it and waits up to
+  ///    [forwardReceiptTimeout] (1 second) for an immediate `'received'`
+  ///    receipt. If `'received'` arrives, returns
+  ///    [PipelineOutcomeKind.forwardedToMainIsolate] without touching SQLite.
+  ///    If no receipt arrives (the mapping is stale because the main isolate is
+  ///    gone), removes the port mapping and continues down the read-only path in
+  ///    the background so the notification is still shown.
+  /// 2. Only when the main app is not running (or a stale mapping failed to
+  ///    receipt), opens its own, separate, unshared read-only connection
+  ///    (`OpenMode.readOnly` + `busy_timeout`, `enableMigrations: false`,
+  ///    wrapped in [ReadOnlyQueryExecutor]) for the duration of the pipeline
+  ///    and closes it in `finally`.
   static Future<PipelineResult> handleBackgroundRemoteMessage(
     RemoteMessage message, {
     String portName = mainIsolatePortName,
+    Duration forwardReceiptTimeout = defaultForwardReceiptTimeout,
+    Future<void> Function()? onStalePortFallback,
     File? databaseFile,
     Future<File> Function()? resolveDatabaseFile,
     AppDatabase? databaseOverride,
@@ -351,22 +362,34 @@ class NotificationService {
     final mainPort = IsolateNameServer.lookupPortByName(portName);
     if (mainPort != null) {
       final replyReceivePort = ReceivePort();
+      Object? receipt;
       try {
         mainPort.send(<String, dynamic>{
           'data': Map<String, dynamic>.from(message.data),
           'has_notification_block': message.notification != null,
           'reply_port': replyReceivePort.sendPort,
         });
-        await replyReceivePort.first.timeout(
-          const Duration(milliseconds: 250),
+        receipt = await replyReceivePort.first.timeout(
+          forwardReceiptTimeout,
           onTimeout: () => null,
         );
+      } catch (_) {
+        receipt = null;
       } finally {
         replyReceivePort.close();
       }
-      return const PipelineResult(
-        kind: PipelineOutcomeKind.forwardedToMainIsolate,
-      );
+      if (receipt == 'received') {
+        return const PipelineResult(
+          kind: PipelineOutcomeKind.forwardedToMainIsolate,
+        );
+      }
+      // No receipt arrived within 1 second — the port mapping is stale because
+      // the main isolate is gone. Remove the port mapping and continue down the
+      // read-only path in the background so the notification is still shown.
+      IsolateNameServer.removePortNameMapping(portName);
+      if (onStalePortFallback != null) {
+        await onStalePortFallback();
+      }
     }
 
     onReadOnlyDatabaseOpened?.call();
@@ -606,10 +629,19 @@ class NotificationService {
   StreamSubscription? _fcmTokenSub;
   ReceivePort? _mainIsolateReceivePort;
   String? _registeredPortName;
+  Future<void>? _pendingForwardedFuture;
+
+  /// Waits for any in-flight message forwarded via [registerMainIsolatePort]
+  /// to finish [handleIncomingMessage].
+  Future<void> waitForForwardedMessage() =>
+      _pendingForwardedFuture ?? Future<void>.value();
 
   /// Registers a [ReceivePort] with [IsolateNameServer] so that while the main
   /// isolate is alive, `_firebaseMessagingBackgroundHandler` forwards incoming
   /// message data here instead of touching SQLite.
+  ///
+  /// Acknowledges receipt immediately by sending `'received'` on `reply_port`
+  /// before processing anything, then runs [handleIncomingMessage].
   void registerMainIsolatePort({String portName = mainIsolatePortName}) {
     unregisterMainIsolatePort(portName: portName);
     final receivePort = ReceivePort();
@@ -622,25 +654,23 @@ class NotificationService {
       final map = rawMessage.map(
         (key, value) => MapEntry(key.toString(), value),
       );
+      final replyPort = map['reply_port'];
+      if (replyPort is SendPort) {
+        replyPort.send('received');
+      }
       final rawData = map['data'];
       final data = rawData is Map
           ? rawData.map((k, v) => MapEntry(k.toString(), v))
           : <String, dynamic>{};
       final hasNotificationBlock = map['has_notification_block'] == true;
-      final replyPort = map['reply_port'];
+      final future = handleIncomingMessage(
+        data,
+        hasNotificationBlock: hasNotificationBlock,
+      );
+      _pendingForwardedFuture = future.then<void>((_) {}, onError: (_) {});
       try {
-        await handleIncomingMessage(
-          data,
-          hasNotificationBlock: hasNotificationBlock,
-        );
-        if (replyPort is SendPort) {
-          replyPort.send(true);
-        }
-      } catch (_) {
-        if (replyPort is SendPort) {
-          replyPort.send(false);
-        }
-      }
+        await future;
+      } catch (_) {}
     });
   }
 

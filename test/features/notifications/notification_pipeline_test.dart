@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:ui' show IsolateNameServer;
 
 import 'package:clock/clock.dart';
@@ -1054,6 +1055,10 @@ void main() {
         expect(bgReadOnlyOpenCount, 0);
         expect(bgSink.shown, isEmpty);
 
+        // Wait for the main isolate's async handleIncomingMessage to complete
+        // (since 'received' was sent immediately before processing).
+        await mainService.waitForForwardedMessage();
+
         // Main isolate received the forwarded data and ran the pipeline with its
         // own database and providers.
         expect(mainSink.shown, hasLength(1));
@@ -1129,6 +1134,183 @@ void main() {
           ),
         ),
       );
+    });
+
+    test(
+        '(e) Stale port mapping (ReceivePort closed without unregistering) -> removes stale mapping, falls back to read-only path, and shows notification',
+        () async {
+      await withClock(Clock.fixed(fixedNow), () async {
+        final tempDir = await Directory.systemTemp.createTemp('cove_314c_e_');
+        addTearDown(() async {
+          IsolateNameServer.removePortNameMapping(
+            NotificationService.mainIsolatePortName,
+          );
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+        final writerDb = _openWriterDatabaseOnFile(dbFile);
+        addTearDown(writerDb.close);
+        await _seedHousehold(writerDb);
+        await writerDb.into(writerDb.localActivityEvents).insert(
+              LocalActivityEventsCompanion.insert(
+                id: 'ev-stale-port-1',
+                homeId: 'home-indiranagar',
+                actorId: 'user-ancy',
+                eventType: 'expense_logged',
+                payloadJson: jsonEncode(<String, dynamic>{
+                  'id': 'exp-stale-port-1',
+                  'title': 'Coffee beans — dark roast',
+                  'amount': 820,
+                }),
+                createdAt: fixedNow,
+              ),
+            );
+
+        // Register a port and close its ReceivePort WITHOUT unregistering from
+        // IsolateNameServer (simulating a stale mapping after the main isolate died).
+        final staleReceivePort = ReceivePort();
+        IsolateNameServer.removePortNameMapping(
+          NotificationService.mainIsolatePortName,
+        );
+        IsolateNameServer.registerPortWithName(
+          staleReceivePort.sendPort,
+          NotificationService.mainIsolatePortName,
+        );
+        staleReceivePort.close();
+
+        // Confirm the stale port mapping is still registered before delivery.
+        expect(
+          IsolateNameServer.lookupPortByName(
+            NotificationService.mainIsolatePortName,
+          ),
+          isNotNull,
+        );
+
+        final bgSink = FakeNotificationSink();
+        final prefs = await SharedPreferences.getInstance();
+        var bgReadOnlyOpenCount = 0;
+        var staleFallbackCalled = false;
+
+        final bgResult = await NotificationService.handleBackgroundRemoteMessage(
+          RemoteMessage(
+            data: <String, dynamic>{
+              'home_id': 'home-indiranagar',
+              'event_id': 'ev-stale-port-1',
+              'event_type': 'expense_logged',
+            },
+          ),
+          databaseFile: dbFile,
+          onStalePortFallback: () async {
+            staleFallbackCalled = true;
+          },
+          onReadOnlyDatabaseOpened: () => bgReadOnlyOpenCount += 1,
+          sinkOverride: bgSink,
+          sharedPreferencesOverride: prefs,
+          viewerUserIdOverride: 'user-saba',
+        );
+
+        // Stale port mapping was removed after no 'received' receipt arrived.
+        expect(
+          IsolateNameServer.lookupPortByName(
+            NotificationService.mainIsolatePortName,
+          ),
+          isNull,
+        );
+        expect(staleFallbackCalled, isTrue);
+
+        // Background fell back to the read-only path and showed the notification.
+        expect(bgReadOnlyOpenCount, 1);
+        expect(bgResult.kind, PipelineOutcomeKind.shown);
+        expect(bgSink.shown, hasLength(1));
+        expect(bgSink.shown.single.title, 'Expenses');
+        expect(
+          bgSink.shown.single.body,
+          'Ancy logged ₹820 for Coffee beans — dark roast',
+        );
+      });
+    });
+
+    test(
+        '(f) Live main isolate that receipts -> one notification, shown by the main isolate only, never twice',
+        () async {
+      await withClock(Clock.fixed(fixedNow), () async {
+        final tempDir = await Directory.systemTemp.createTemp('cove_314c_f_');
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+        final writerDb = _openWriterDatabaseOnFile(dbFile);
+        addTearDown(writerDb.close);
+        await _seedHousehold(writerDb);
+        await writerDb.into(writerDb.localActivityEvents).insert(
+              LocalActivityEventsCompanion.insert(
+                id: 'ev-live-receipt-1',
+                homeId: 'home-indiranagar',
+                actorId: 'user-ancy',
+                eventType: 'expense_logged',
+                payloadJson: jsonEncode(<String, dynamic>{
+                  'id': 'exp-live-receipt-1',
+                  'title': 'Coffee beans — dark roast',
+                  'amount': 820,
+                }),
+                createdAt: fixedNow,
+              ),
+            );
+
+        final mainSink = FakeNotificationSink();
+        final mainService = NotificationService(
+          appDatabase: writerDb,
+          notificationSink: mainSink,
+          getCurrentUserId: () => 'user-saba',
+          getPartnerName: () => 'Ancy',
+          getCurrencySymbol: () => '₹',
+        );
+        addTearDown(mainService.dispose);
+        mainService.registerMainIsolatePort();
+
+        final bgSink = FakeNotificationSink();
+        final prefs = await SharedPreferences.getInstance();
+        var bgReadOnlyOpenCount = 0;
+
+        final bgResult = await NotificationService.handleBackgroundRemoteMessage(
+          RemoteMessage(
+            data: <String, dynamic>{
+              'home_id': 'home-indiranagar',
+              'event_id': 'ev-live-receipt-1',
+              'event_type': 'expense_logged',
+            },
+          ),
+          databaseFile: dbFile,
+          onReadOnlyDatabaseOpened: () => bgReadOnlyOpenCount += 1,
+          sinkOverride: bgSink,
+          sharedPreferencesOverride: prefs,
+          viewerUserIdOverride: 'user-saba',
+        );
+
+        await mainService.waitForForwardedMessage();
+
+        // Main isolate acknowledged with 'received', so background returned
+        // forwardedToMainIsolate without opening any DB or showing anything.
+        expect(bgResult.kind, PipelineOutcomeKind.forwardedToMainIsolate);
+        expect(bgReadOnlyOpenCount, 0);
+        expect(bgSink.shown, isEmpty);
+
+        // Exactly one notification was shown across both isolates — by the
+        // main isolate only, never twice.
+        expect(mainSink.shown, hasLength(1));
+        expect(mainSink.shown.length + bgSink.shown.length, 1);
+        expect(mainSink.shown.single.title, 'Expenses');
+        expect(
+          mainSink.shown.single.body,
+          'Ancy logged ₹820 for Coffee beans — dark roast',
+        );
+      });
     });
   });
 }

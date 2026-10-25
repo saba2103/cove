@@ -76,22 +76,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     if (message.notification != null) {
       return;
     }
-    // If the main isolate is alive, forward the message data to it and return
-    // immediately without opening Firebase, Supabase, or the database.
+    Future<void> ensureBackgroundServicesInitialized() async {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } catch (_) {}
+      await _ensureSupabaseInitialized();
+    }
+
+    // If no main isolate port is registered, initialize Firebase and Supabase
+    // upfront. If a port is registered, handleBackgroundRemoteMessage waits up
+    // to 1 second for 'received'; only if the mapping is stale does it call
+    // onStalePortFallback and continue down the read-only path.
     if (IsolateNameServer.lookupPortByName(
           NotificationService.mainIsolatePortName,
-        ) !=
+        ) ==
         null) {
-      await NotificationService.handleBackgroundRemoteMessage(message);
-      return;
+      await ensureBackgroundServicesInitialized();
     }
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } catch (_) {}
-    await _ensureSupabaseInitialized();
-    await NotificationService.handleBackgroundRemoteMessage(message);
+    await NotificationService.handleBackgroundRemoteMessage(
+      message,
+      onStalePortFallback: ensureBackgroundServicesInitialized,
+    );
   } catch (e) {
     debugPrint('[FCM] Background message handler error: $e');
   }

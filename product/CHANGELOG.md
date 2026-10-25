@@ -7,6 +7,12 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Fix to 3.14c — Forwarding Receipt & Stale-Port Fallback (`Oct 25, 2026`)**:
+  - *Outcome*:
+    1. **Immediate `'received'` Receipt on Main Isolate**: In [`NotificationService.registerMainIsolatePort`](../lib/features/notifications/notification_service.dart), the main isolate now sends `'received'` on `reply_port` immediately before processing anything, and then runs `handleIncomingMessage`.
+    2. **1-Second Receipt Wait & Stale-Port Fallback**: `NotificationService.handleBackgroundRemoteMessage` (and `_firebaseMessagingBackgroundHandler` in [`lib/main.dart`](../lib/main.dart)) waits up to 1 second (`defaultForwardReceiptTimeout`) for `'received'`. It never returns `forwardedToMainIsolate` without that receipt; if no receipt arrives because the `IsolateNameServer` port mapping is stale, it removes the stale mapping (`IsolateNameServer.removePortNameMapping`) and continues down the read-only path in the background so the notification is still shown.
+  - *Under the Hood*:
+    - Added real-file tests `(e)` (stale port with closed `ReceivePort` removes mapping, falls back to the read-only path, and shows the notification) and `(f)` (live main isolate that receipts shows the notification once on the main isolate only, never twice) in [`test/features/notifications/notification_pipeline_test.dart`](../test/features/notifications/notification_pipeline_test.dart).
 - **Fix to 3.14c — Background Never Shares or Alters the App's Database Connection (`Oct 25, 2026`)**:
   - *Outcome*:
     1. **Restored Unshared Main Connection**: Restored `AppDatabase`'s default constructor in [`lib/sync/db/app_database.dart`](../lib/sync/db/app_database.dart) without `shareAcrossIsolates`, adding only `setup: (db) { db.execute('PRAGMA busy_timeout = 5000;'); }` on `DriftNativeOptions` while leaving the default SQLite journal mode (`delete`) untouched.
