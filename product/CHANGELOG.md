@@ -7,6 +7,21 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.12c — The Add Flow Step Pieces (`Oct 25, 2026`)**:
+  - *Outcome*: Built the eleven stateless/dumb Add step piece widgets in [`lib/features/add/widgets/`](../lib/features/add/widgets/) to [`design/specs/14-add-flow.md`](../design/specs/14-add-flow.md) §§2–4 and [`design/screens/add-steps/*.png`](../design/screens/add-steps/), reusing existing primitives (`CoveAvatar`, `CoveToggleSwitch`, `CoveSheet`, `CoveRoundButton`):
+    1. [`AddProgressSegments`](../lib/features/add/widgets/add_progress_segments.dart): segmented progress bar filled up to and including the current step.
+    2. [`AddCrumbs`](../lib/features/add/widgets/add_crumbs.dart): wrapping pill crumbs for answered steps (`>= 48dp` targets, never ellipsizing).
+    3. [`AddStepFoot`](../lib/features/add/widgets/add_step_foot.dart): visibility chip (`Both can see it` / `Only you can see it`) on the left and gold `Next →` / `Add {kind}` / `Done` pill button on the right (plus `Add another` outlined pill on Added confirmation).
+    4. [`AddKeypad`](../lib/features/add/widgets/add_keypad.dart): hero figure (`₹` + formatted Indian amount or plain integer, optional subtitle and Again carried-line pill) above a `3 × 4` keypad (`1–9`, `00`, `0`, delete, `CoveSize.row` tall, up to 7 digits).
+    5. [`AddDayStrip`](../lib/features/add/widgets/add_day_strip.dart) & [`AddAnotherDateSheet`](../lib/features/add/widgets/add_day_strip.dart): 7-cell anchored day strip with gold anchor ring, filled selection, non-today anchor carried line, full date readout, optional `No particular day` chip, and `Another date` opening a month calendar sheet on `CoveSheet`.
+    6. [`AddMonthDayGrid`](../lib/features/add/widgets/add_month_day_grid.dart): 7-column `1–28` grid for monthly commitments with `>= 48×48dp` targets and horizontal scroll at cover width.
+    7. [`AddNextDatePicker`](../lib/features/add/widgets/add_next_date_picker.dart): 12-month chip strip (this month and the next eleven) above the `1–28` grid for quarterly and yearly commitments.
+    8. [`AddClockFace`](../lib/features/add/widgets/add_clock_face.dart): `08 : 00` digital boxes + `AM`/`PM` pair above a 12-position circular clock face (hour mode auto-advancing to 5-minute steps, plus optional `All day` chip for events).
+    9. [`AddWeekToggles`](../lib/features/add/widgets/add_week_toggles.dart): Monday-first `M T W T F S S` toggles with horizontal scroll at cover width, minimum-1-active-day guard, and summary hint (`Every day`, `5 days a week`).
+    10. [`AddChoiceList`](../lib/features/add/widgets/add_choice_list.dart): `CoveRadius.inline` option rows supporting category colour swatches and trailing tertiary subtitles (`twelve times a year`).
+    11. [`AddPersonPicker`](../lib/features/add/widgets/add_person_picker.dart): side-by-side `CoveAvatar.profile` person tiles, full-width `Both of you` tile (`CovePerson.both` unfilled ring), and `CoveToggleSwitch` rows.
+  - *Under the Hood*:
+    - Added [`test/golden/add_step_pieces_golden_test.dart`](../test/golden/add_step_pieces_golden_test.dart) generating 48 goldens (8 piece showcases × 3 widths × 2 modes) and verifying that at `320dp` cover width no interactive target across any step piece is under `48×48dp`.
 - **Task 3.12b — Shared Slip Stamp, Visibility Line, Field Taps, `CoveBand` & `CoveAddMark` (`Oct 25, 2026`)**:
   - *Outcome*: Extended the paper-and-ink slip system to [`design/specs/14-add-flow.md`](../design/specs/14-add-flow.md) §§1, 8, and 9:
     1. Extracted [`CoveSlipStamp`](../lib/core/widgets/slips/cove_slip.dart) (`-8°` rotated outlined caps) onto [`CoveSlip`](../lib/core/widgets/slips/cove_slip.dart) and migrated [`CoveVoucher`](../lib/core/widgets/slips/cove_voucher.dart)'s `PAID` stamp to use it without altering any existing voucher goldens, enabling the `ADDED` stamp across all slips.
