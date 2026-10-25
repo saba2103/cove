@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveLoading extends StatelessWidget {
   final double size;
   final String? message;
 
+  static const double _kStrokeWidth =
+      1.6; // (literal) 1.6dp loading indicator stroke
+
   const CoveLoading({
     super.key,
-    this.size = 24,
+    this.size = CoveSize.avatarInline,
     this.message,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(CoveSpace.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -25,20 +28,17 @@ class CoveLoading extends StatelessWidget {
               width: size,
               height: size,
               child: CircularProgressIndicator(
-                strokeWidth: 1.6,
-                valueColor: AlwaysStoppedAnimation<Color>(colors.accentPrimary),
-                backgroundColor: colors.borderHairline,
+                strokeWidth: _kStrokeWidth,
+                valueColor: AlwaysStoppedAnimation<Color>(cv.accentFill),
+                backgroundColor: cv.lineHairline,
               ),
             ),
             if (message != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: CoveSpace.md),
               Text(
                 message!,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: colors.textMuted,
+                style: CoveType.rowSub.copyWith(
+                  color: cv.textSecondary,
                 ),
               ),
             ],

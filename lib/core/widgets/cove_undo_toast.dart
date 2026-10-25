@@ -1,8 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveUndoToast {
+  static const double _kHorizontalInset =
+      16.0; // (literal) 16dp snackbar horizontal inset
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp snackbar hairline border
+  static const double _kIconSize =
+      18.0; // (literal) 18dp snackbar icon glyph size
+
   static void show(
     BuildContext context, {
     required String message,
@@ -11,8 +18,7 @@ class CoveUndoToast {
     IconData icon = Icons.delete_outline_rounded,
     Duration duration = const Duration(seconds: 5),
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -20,34 +26,43 @@ class CoveUndoToast {
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+        margin: const EdgeInsets.symmetric(
+          horizontal: _kHorizontalInset,
+          vertical: CoveSpace.md,
         ),
-        backgroundColor: colors.surfaceCard,
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kHorizontalInset,
+          vertical: CoveSpace.sm,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.inline),
+          ),
+          side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
+        ),
+        backgroundColor: cv.surfaceCard,
         duration: duration,
         elevation: 6,
         content: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: CoveSize.avatarHeader,
+              height: CoveSize.avatarHeader,
               decoration: BoxDecoration(
-                color: colors.accentPrimary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+                color: cv.accentWash,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveSpace.sm),
+                ),
               ),
-              child: Icon(icon, color: colors.accentPrimary, size: 18),
+              child: Icon(icon, color: cv.accentFill, size: _kIconSize),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CoveSpace.md),
             Expanded(
               child: Text(
                 message,
-                style: typography.bodyMedium.copyWith(
-                  fontSize: 14,
+                style: CoveType.readout.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
+                  color: cv.textPrimary,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -57,7 +72,7 @@ class CoveUndoToast {
         ),
         action: SnackBarAction(
           label: actionLabel,
-          textColor: colors.accentPrimary,
+          textColor: cv.accentText,
           onPressed: () async {
             messenger.hideCurrentSnackBar();
             await onUndo();

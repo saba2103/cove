@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 import 'cove_brand_mark.dart';
 
 /// Serene, editorial launch splash screen for Cove.
@@ -10,6 +10,21 @@ class CoveSplashScreen extends StatefulWidget {
   final Duration? minDuration;
   final VoidCallback? onFinished;
   final bool showProgress;
+
+  static const double _kAmbientGlowSize =
+      220.0; // (literal) 220dp splash ambient radial glow diameter
+  static const double _kBrandMarkSize =
+      80.0; // (literal) 80dp splash brand mark size
+  static const double _kBrandMarkStroke =
+      1.8; // (literal) 1.8dp splash brand mark stroke
+  static const double _kMarkToTitleGap =
+      28.0; // (literal) 28dp mark-to-wordmark gap
+  static const double _kTaglineToSpinnerGap =
+      36.0; // (literal) 36dp tagline-to-spinner gap
+  static const double _kSpinnerSize =
+      18.0; // (literal) 18dp splash progress spinner diameter
+  static const double _kSpinnerStroke =
+      1.5; // (literal) 1.5dp splash progress spinner stroke
 
   const CoveSplashScreen({
     super.key,
@@ -70,7 +85,7 @@ class _CoveSplashScreenState extends State<CoveSplashScreen>
       ),
     );
 
-    _titleSlide = Tween<double>(begin: 8.0, end: 0.0).animate(
+    _titleSlide = Tween<double>(begin: CoveSpace.sm, end: 0.0).animate(
       CurvedAnimation(
         parent: _entranceController,
         curve: const Interval(0.30, 0.70, curve: Curves.easeOutCubic),
@@ -115,23 +130,23 @@ class _CoveSplashScreenState extends State<CoveSplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       body: Stack(
         children: [
           // Subtle ambient radial glow behind brand mark
           Center(
             child: Container(
-              width: 220,
-              height: 220,
+              width: CoveSplashScreen._kAmbientGlowSize,
+              height: CoveSplashScreen._kAmbientGlowSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    colors.accentPrimary.withValues(alpha: 0.08),
-                    colors.accentPrimary.withValues(alpha: 0.02),
+                    cv.accentFill.withValues(alpha: 0.08),
+                    cv.accentFill.withValues(alpha: 0.02),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.55, 1.0],
@@ -141,10 +156,15 @@ class _CoveSplashScreenState extends State<CoveSplashScreen>
           ),
           Center(
             child: AnimatedBuilder(
-              animation: Listenable.merge([_entranceController, _breathingController]),
+              animation: Listenable.merge([
+                _entranceController,
+                _breathingController,
+              ]),
               builder: (context, child) {
                 final combinedScale = _markScale.value *
-                    (_entranceController.isCompleted ? _breathingScale.value : 1.0);
+                    (_entranceController.isCompleted
+                        ? _breathingScale.value
+                        : 1.0);
 
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -154,54 +174,56 @@ class _CoveSplashScreenState extends State<CoveSplashScreen>
                       opacity: _markOpacity.value,
                       child: Transform.scale(
                         scale: combinedScale,
-                        child: const CoveBrandMark(size: 80, strokeWidth: 1.8),
+                        child: const CoveBrandMark(
+                          size: CoveSplashScreen._kBrandMarkSize,
+                          strokeWidth: CoveSplashScreen._kBrandMarkStroke,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: CoveSplashScreen._kMarkToTitleGap),
 
-                    // "Cove" Title in Bodoni Moda
+                    // "Cove" Title in Libre Bodoni
                     Opacity(
                       opacity: _titleOpacity.value,
                       child: Transform.translate(
                         offset: Offset(0, _titleSlide.value),
                         child: Text(
                           'Cove',
-                          style: TextStyle(
-                            fontFamily: 'LibreBodoni',
-                            fontSize: 34,
+                          style: CoveType.greeting.copyWith(
                             fontWeight: FontWeight.w500,
-                            color: colors.textPrimary,
+                            color: cv.textPrimary,
                             letterSpacing: 1.2,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: CoveSpace.sm),
 
-                    // Tagline or Status Message in General Sans
+                    // Tagline or Status Message
                     Opacity(
                       opacity: _subtitleOpacity.value,
                       child: Text(
                         widget.message ?? 'A quiet operating system for two',
-                        style: TextStyle(
-                          fontFamily: 'GeneralSans',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: colors.textMuted,
+                        style: CoveType.readout.copyWith(
+                          color: cv.textSecondary,
                           letterSpacing: 0.3,
                         ),
                       ),
                     ),
 
                     if (widget.showProgress) ...[
-                      const SizedBox(height: 36),
+                      const SizedBox(
+                        height: CoveSplashScreen._kTaglineToSpinnerGap,
+                      ),
                       SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: CoveSplashScreen._kSpinnerSize,
+                        height: CoveSplashScreen._kSpinnerSize,
                         child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(colors.accentPrimary),
-                          backgroundColor: colors.borderHairline,
+                          strokeWidth: CoveSplashScreen._kSpinnerStroke,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            cv.accentFill,
+                          ),
+                          backgroundColor: cv.lineHairline,
                         ),
                       ),
                     ],

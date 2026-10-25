@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveTabRow extends StatelessWidget {
   final List<String> tabs;
@@ -9,6 +9,13 @@ class CoveTabRow extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final ReorderCallback? onReorder;
   final Widget? trailing;
+
+  static const double _kReorderRowHeight =
+      44.0; // (literal) 44dp horizontal reorder tab strip height
+  static const double _kProxyBorderWidth =
+      1.0; // (literal) 1dp proxy border stroke
+  static const double _kIndicatorHeight =
+      2.0; // (literal) 2dp active tab underline rule
 
   const CoveTabRow({
     super.key,
@@ -22,11 +29,11 @@ class CoveTabRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     if (onReorder != null) {
       return SizedBox(
-        height: 44,
+        height: _kReorderRowHeight,
         child: ReorderableListView.builder(
           scrollDirection: Axis.horizontal,
           buildDefaultDragHandles: false,
@@ -37,23 +44,32 @@ class CoveTabRow extends StatelessWidget {
             return AnimatedBuilder(
               animation: animation,
               builder: (BuildContext context, Widget? child) {
-                final double animValue = Curves.easeInOut.transform(animation.value);
+                final double animValue =
+                    CoveMotion.easing.transform(animation.value);
                 final double scale = ui.lerpDouble(1, 1.05, animValue)!;
                 return Material(
                   color: Colors.transparent,
-                  shadowColor: Colors.black.withValues(alpha: 0.35),
+                  shadowColor: cv.surfaceScrim,
                   elevation: 6 * animValue,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(CoveRadius.inline),
+                  ),
                   child: Transform.scale(
                     scale: scale,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.xs,
+                      ),
                       decoration: BoxDecoration(
-                        color: colors.surfaceCard.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(8),
+                        color: cv.surfaceCard.withValues(alpha: 0.92),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveRadius.inline),
+                        ),
                         border: Border.all(
-                          color: colors.accentPrimary.withValues(alpha: 0.4 * animValue),
-                          width: 1,
+                          color: cv.accentFill.withValues(
+                            alpha: 0.4 * animValue,
+                          ),
+                          width: _kProxyBorderWidth,
                         ),
                       ),
                       child: child,
@@ -66,7 +82,10 @@ class CoveTabRow extends StatelessWidget {
           },
           footer: trailing != null
               ? Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  padding: const EdgeInsets.only(
+                    top: CoveSpace.xs,
+                    bottom: CoveSpace.xs,
+                  ),
                   child: trailing!,
                 )
               : null,
@@ -79,10 +98,16 @@ class CoveTabRow extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...List.generate(tabs.length, (index) => _buildTabItem(context, index)),
+          ...List.generate(
+            tabs.length,
+            (index) => _buildTabItem(context, index),
+          ),
           if (trailing != null) ...[
             Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 4),
+              padding: const EdgeInsets.only(
+                top: CoveSpace.xs,
+                bottom: CoveSpace.xs,
+              ),
               child: trailing!,
             ),
           ],
@@ -92,7 +117,8 @@ class CoveTabRow extends StatelessWidget {
   }
 
   Widget _buildTabItem(BuildContext context, int index) {
-    final colors = context.colors;
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
     final isSelected = index == selectedIndex;
     final key = (tabKeys != null && index < tabKeys!.length)
         ? tabKeys![index]
@@ -103,29 +129,33 @@ class CoveTabRow extends StatelessWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: Padding(
-        padding: const EdgeInsets.only(right: 24, top: 8, bottom: 4),
+        padding: const EdgeInsets.only(
+          right: CoveSpace.lg,
+          top: CoveSpace.sm,
+          bottom: CoveSpace.xs,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               tabs[index],
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 15,
+              style: CoveType.rowTitle.copyWith(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? colors.textPrimary : colors.textSubtle,
+                color: isSelected ? cv.textPrimary : cv.textTertiary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CoveSpace.xs),
             AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOutCubic,
-              height: 2,
-              width: isSelected ? 28 : 0,
+              duration: duration,
+              curve: CoveMotion.easing,
+              height: _kIndicatorHeight,
+              width: isSelected ? CoveSize.avatarRow : 0,
               decoration: BoxDecoration(
-                color: isSelected ? colors.accentPrimary : Colors.transparent,
-                borderRadius: BorderRadius.circular(1),
+                color: isSelected ? cv.accentFill : Colors.transparent,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.pill),
+                ),
               ),
             ),
           ],

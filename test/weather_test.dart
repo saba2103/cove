@@ -98,7 +98,7 @@ void main() {
         ),
       );
 
-      // In light mode primary variant: textColor is 0xFFFFFFFF
+      // In light mode primary variant: textColor is cv.textOnAccent
       final iconFinder = find.byType(Icon);
       expect(iconFinder, findsOneWidget);
       final iconWidget = tester.widget<Icon>(iconFinder);
@@ -107,7 +107,7 @@ void main() {
       final textWidget = tester.widget<Text>(textFinder);
 
       expect(iconWidget.color, textWidget.style?.color);
-      expect(iconWidget.color, const Color(0xFFFFFFFF));
+      expect(iconWidget.color, CoveTokens.light.textOnAccent);
     });
 
     testWidgets('CovePillButton in dark mode matches icon to dark text color',
@@ -133,7 +133,7 @@ void main() {
       final textWidget = tester.widget<Text>(textFinder);
 
       expect(iconWidget.color, textWidget.style?.color);
-      expect(iconWidget.color, const Color(0xFF0B1F1E));
+      expect(iconWidget.color, CoveTokens.dark.textOnAccent);
     });
 
     testWidgets('Disabled CovePillButton tints both icon and text with muted alpha',
@@ -161,7 +161,7 @@ void main() {
       expect(iconWidget.color, textWidget.style?.color);
       expect(
         iconWidget.color,
-        const Color(0xFFFFFFFF).withValues(alpha: 0.38),
+        CoveTokens.light.textOnAccent.withValues(alpha: 0.38),
       );
     });
   });

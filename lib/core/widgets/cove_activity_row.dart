@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 import 'cove_sync_tick.dart';
 
 class CoveActivityRow extends StatelessWidget {
@@ -8,6 +8,13 @@ class CoveActivityRow extends StatelessWidget {
   final String timestamp;
   final CoveSyncStatus syncStatus;
   final VoidCallback? onTap;
+
+  static const double _kHorizontalPadding =
+      16.0; // (literal) 16dp activity row horizontal inset
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp avatar circle hairline border
+  static const double _kSyncTickSize =
+      13.0; // (literal) 13dp sync tick glyph size
 
   const CoveActivityRow({
     super.key,
@@ -20,50 +27,48 @@ class CoveActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
     final initial = authorName.isNotEmpty ? authorName[0].toUpperCase() : '•';
 
     return InkWell(
       onTap: onTap,
-      splashColor: colors.accentPrimary.withValues(alpha: 0.05),
+      splashColor: cv.accentWash,
       highlightColor: Colors.transparent,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kHorizontalPadding,
+          vertical: CoveSpace.md,
+        ),
         child: Row(
           children: [
             // Subtle initial circle
             Container(
-              width: 28,
-              height: 28,
+              width: CoveSize.avatarRow,
+              height: CoveSize.avatarRow,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.surfaceRow,
+                color: cv.surfaceRow,
                 border: Border.all(
-                  color: colors.borderHairline,
-                  width: 1,
+                  color: cv.lineHairline,
+                  width: _kBorderWidth,
                 ),
               ),
               alignment: Alignment.center,
               child: Text(
                 initial,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 12,
+                style: CoveType.rowSub.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: colors.textMuted,
+                  color: cv.textSecondary,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CoveSpace.md),
             // Text content
             Expanded(
               child: RichText(
                 text: TextSpan(
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 14,
-                    color: colors.textPrimary,
-                    height: 1.35,
+                  style: CoveType.readout.copyWith(
+                    color: cv.textPrimary,
                   ),
                   children: [
                     TextSpan(
@@ -74,30 +79,29 @@ class CoveActivityRow extends StatelessWidget {
                       text: actionText,
                       style: TextStyle(
                         fontWeight: FontWeight.w400,
-                        color: colors.textPrimary.withValues(alpha: 0.85),
+                        color: cv.textPrimary.withValues(alpha: 0.85),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CoveSpace.md),
             // Timestamp and delivery indicator
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   timestamp,
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 12,
-                    color: colors.textSubtle,
+                  style: CoveType.rowSub.copyWith(
+                    color: cv.textTertiary,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: CoveSpace.xs),
                 CoveSyncTick(
                   status: syncStatus,
-                  size: 13,
+                  size: _kSyncTickSize,
+                  color: cv.textSecondary,
                 ),
               ],
             ),

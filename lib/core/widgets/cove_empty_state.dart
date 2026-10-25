@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? description;
   final Widget? action;
+
+  static const double _kIconCircleSize =
+      56.0; // (literal) 56dp empty-state icon medallion diameter
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp medallion hairline border
+  static const double _kIconToTitleGap =
+      16.0; // (literal) 16dp medallion-to-title gap
 
   const CoveEmptyState({
     super.key,
@@ -17,60 +24,58 @@ class CoveEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.section,
+          vertical: CoveSpace.xl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: _kIconCircleSize,
+              height: _kIconCircleSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.surfaceRow,
+                color: cv.surfaceRow,
                 border: Border.all(
-                  color: colors.borderHairline,
-                  width: 1,
+                  color: cv.lineHairline,
+                  width: _kBorderWidth,
                 ),
               ),
               alignment: Alignment.center,
               child: Icon(
                 icon,
-                size: 24,
-                color: colors.textMuted,
+                size: CoveSize.avatarInline,
+                color: cv.textSecondary,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _kIconToTitleGap),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 16,
+              style: CoveType.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: cv.textPrimary,
               ),
             ),
             if (description != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: CoveSpace.xs),
               Text(
                 description!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: colors.textMuted,
+                style: CoveType.readout.copyWith(
+                  color: cv.textSecondary,
                   height: 1.4,
                 ),
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
               action!,
             ],
           ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CovePillInput extends StatelessWidget {
   final TextEditingController? controller;
@@ -16,6 +16,13 @@ class CovePillInput extends StatelessWidget {
 
   /// Hides typed characters (passwords, passphrases). Disables autocorrect.
   final bool obscureText;
+
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp pill input hairline border
+  static const double _kHorizontalPadding =
+      16.0; // (literal) 16dp pill input horizontal inset
+  static const double _kCursorWidth =
+      1.5; // (literal) 1.5dp text cursor width
 
   const CovePillInput({
     super.key,
@@ -35,24 +42,26 @@ class CovePillInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
-      height: 48,
+      height: CoveSize.hit,
       decoration: BoxDecoration(
-        color: colors.surfaceRow,
-        borderRadius: BorderRadius.circular(999),
+        color: cv.surfaceRow,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.pill),
+        ),
         border: Border.all(
-          color: colors.borderHairline,
-          width: 1,
+          color: cv.lineHairline,
+          width: _kBorderWidth,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: _kHorizontalPadding),
       child: Row(
         children: [
           if (prefixIcon != null) ...[
             prefixIcon!,
-            const SizedBox(width: 10),
+            const SizedBox(width: CoveSpace.sm),
           ],
           Expanded(
             child: TextField(
@@ -67,30 +76,26 @@ class CovePillInput extends StatelessWidget {
               textInputAction: textInputAction,
               onChanged: onChanged,
               onSubmitted: onSubmitted,
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: colors.textPrimary,
+              style: CoveType.readout.copyWith(
+                color: cv.textPrimary,
               ),
-              cursorColor: colors.accentPrimary,
-              cursorWidth: 1.5,
+              cursorColor: cv.accentFill,
+              cursorWidth: _kCursorWidth,
               decoration: InputDecoration(
                 hintText: hintText,
-                hintStyle: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: colors.textSubtle,
+                hintStyle: CoveType.readout.copyWith(
+                  color: cv.textTertiary,
                 ),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: CoveSpace.md,
+                ),
               ),
             ),
           ),
           if (suffix != null) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: CoveSpace.sm),
             suffix!,
           ],
         ],

@@ -274,6 +274,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
+            theme: CoveTheme.darkTheme,
             home: Scaffold(
               body: Builder(
                 builder: (context) => TextButton(

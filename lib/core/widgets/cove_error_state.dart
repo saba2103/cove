@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 import 'cove_pill_button.dart';
 
 /// A calm, non-alarming error or disconnected state presentation.
@@ -8,6 +8,13 @@ class CoveErrorState extends StatelessWidget {
   final String title;
   final String? description;
   final Widget? action;
+
+  static const double _kIconCircleSize =
+      56.0; // (literal) 56dp state icon medallion diameter
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp medallion border stroke
+  static const double _kIconToTitleGap =
+      16.0; // (literal) 16dp medallion-to-title gap
 
   const CoveErrorState({
     super.key,
@@ -71,7 +78,8 @@ class CoveErrorState extends StatelessWidget {
       key: key,
       icon: Icons.info_outline,
       title: title,
-      description: description ?? 'We could not load this information right now.',
+      description:
+          description ?? 'We could not load this information right now.',
       action: onRetry != null
           ? CovePillButton(
               label: retryLabel,
@@ -84,60 +92,58 @@ class CoveErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.section,
+          vertical: CoveSpace.xl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: _kIconCircleSize,
+              height: _kIconCircleSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colors.accentSecondary.withValues(alpha: 0.12),
+                color: cv.accentWash,
                 border: Border.all(
-                  color: colors.accentSecondary.withValues(alpha: 0.25),
-                  width: 1,
+                  color: cv.lineStrong,
+                  width: _kBorderWidth,
                 ),
               ),
               alignment: Alignment.center,
               child: Icon(
                 icon,
-                size: 24,
-                color: colors.accentSecondary,
+                size: CoveSize.avatarInline,
+                color: cv.accentFill,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _kIconToTitleGap),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 16,
+              style: CoveType.rowTitle.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: cv.textPrimary,
               ),
             ),
             if (description != null) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: CoveSpace.xs),
               Text(
                 description!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: colors.textMuted,
+                style: CoveType.readout.copyWith(
+                  color: cv.textSecondary,
                   height: 1.4,
                 ),
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
               action!,
             ],
           ],

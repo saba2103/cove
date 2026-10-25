@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveStreakIndicator extends StatelessWidget {
   final int count;
@@ -13,7 +13,7 @@ class CoveStreakIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -22,22 +22,17 @@ class CoveStreakIndicator extends StatelessWidget {
       children: [
         Text(
           '$count',
-          style: TextStyle(
-            fontFamily: 'LibreBodoni',
-            fontSize: 22,
+          style: CoveType.slipTitle.copyWith(
             fontWeight: FontWeight.w500,
-            color: colors.accentTint,
+            color: cv.accentTint,
             height: 1.0,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: CoveSpace.xs),
         Text(
           label,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-            color: colors.textMuted,
+          style: CoveType.rowSub.copyWith(
+            color: cv.textSecondary,
           ),
         ),
       ],

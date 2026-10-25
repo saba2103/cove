@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_theme.dart';
+import '../theme/cove_tokens.dart';
 
 class CoveToggleSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
+
+  static const double _kKnobSize =
+      20.0; // (literal) 20dp switch thumb diameter (28dp track - 2 * 4dp inset)
+  static const double _kBorderWidth =
+      1.5; // (literal) 1.5dp off-track border stroke
 
   const CoveToggleSwitch({
     super.key,
@@ -13,44 +18,40 @@ class CoveToggleSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final isDark = context.isDark;
+    final cv = context.cv;
+    final duration = CoveMotion.q(context);
 
-    const width = 46.0;
-    const height = 26.0;
-    const knobSize = 20.0;
-    const padding = 3.0;
-
-    final knobColorOn =
-        isDark ? const Color(0xFF0B1F1E) : const Color(0xFFFFFFFF);
-    final knobColorOff = colors.textMuted;
+    final knobColorOn = cv.textOnAccent;
+    final knobColorOff = cv.textSecondary;
 
     return GestureDetector(
       onTap: onChanged != null ? () => onChanged!(!value) : null,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOutCubic,
-        width: width,
-        height: height,
-        padding: const EdgeInsets.all(padding),
+        duration: duration,
+        curve: CoveMotion.easing,
+        width: CoveSize.hit,
+        height: CoveSize.avatarRow,
+        padding: const EdgeInsets.all(CoveSpace.xs),
         decoration: BoxDecoration(
-          color: value ? colors.accentPrimary : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          color: value ? cv.accentFill : Colors.transparent,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.pill),
+          ),
           border: value
               ? null
               : Border.all(
-                  color: colors.textMuted.withValues(alpha: 0.35),
-                  width: 1.5,
+                  color: cv.lineStrong,
+                  width: _kBorderWidth,
                 ),
         ),
         child: AnimatedAlign(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOutCubic,
+          duration: duration,
+          curve: CoveMotion.easing,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
-            width: knobSize,
-            height: knobSize,
+            width: _kKnobSize,
+            height: _kKnobSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: value ? knobColorOn : knobColorOff,
