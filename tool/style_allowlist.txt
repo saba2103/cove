@@ -21,7 +21,6 @@ lib/core/widgets/cove_tab_row.dart 4
 lib/core/widgets/cove_toggle_switch.dart 3
 lib/core/widgets/cove_undo_toast.dart 3
 lib/core/widgets/cove_web_sidebar.dart 22
-lib/features/activity/activity_detail_sheet.dart 6
 lib/features/app_shell.dart 9
 lib/features/auth/sign_in_screen.dart 4
 lib/features/backup/drive_backup_section.dart 1

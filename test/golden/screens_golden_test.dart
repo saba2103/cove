@@ -1,4 +1,5 @@
 import 'package:cove/core/widgets/cove_sync_tick.dart';
+import 'package:cove/features/activity/activity_detail_sheet.dart';
 import 'package:cove/features/activity/activity_models.dart';
 import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/activity/activity_screen.dart';
@@ -882,6 +883,24 @@ void main() {
             alignment: Alignment.bottomCenter,
             child: CommitmentDetailSheet(
               subscription: _kSeedSubscriptions[1],
+            ),
+          ),
+        ),
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('activity_detail_sheet', (tester) async {
+      await goldenMatrix(
+        tester,
+        'activity_detail_sheet',
+        Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CalendarEventDetailSheet(
+              event: _kSeedCalendarEvents.first,
             ),
           ),
         ),

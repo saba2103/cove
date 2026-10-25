@@ -2,13 +2,18 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_actor_avatar.dart';
+import '../../core/widgets/cove_detail_sheet.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../core/widgets/cove_undo_toast.dart';
+import '../../core/widgets/slips/cove_slip.dart';
+import '../../core/widgets/slips/cove_ticket.dart';
+import '../../sync/db/app_database.dart';
+import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
 import '../calendar/calendar_controller.dart';
@@ -21,8 +26,8 @@ import '../lists/list_controller.dart';
 import '../lists/list_item_detail_sheet.dart';
 import '../profile/preferences_controller.dart';
 import '../roadmap/roadmap_controller.dart';
+import '../subscriptions/commitment_detail_sheet.dart';
 import '../subscriptions/subscription_controller.dart';
-import '../subscriptions/subscription_form_sheet.dart';
 import 'activity_formatter.dart';
 import 'activity_models.dart';
 
@@ -124,7 +129,7 @@ class ActivityDetailDispatcher {
                   ..where((t) => t.id.equals(entityId)))
                 .getSingleOrNull();
             if (event != null && context.mounted) {
-              await CalendarEventFormSheet.show(context, existing: event);
+              await CalendarEventDetailSheet.show(context, event);
               return;
             }
           }
@@ -136,7 +141,7 @@ class ActivityDetailDispatcher {
                   ..where((t) => t.id.equals(entityId)))
                 .getSingleOrNull();
             if (sub != null && context.mounted) {
-              await SubscriptionFormSheet.show(context, existing: sub);
+              await CommitmentDetailSheet.show(context, sub);
               return;
             }
           }
@@ -154,8 +159,189 @@ class ActivityDetailDispatcher {
   }
 }
 
+/// Detail sheet for a calendar event (`design/specs/13-detail-sheet.md`),
+/// built on [CoveDetailSheet] with a paper-variant [CoveTicket] slip.
+class CalendarEventDetailSheet extends ConsumerWidget {
+  final LocalCalendarEvent event;
+
+  static const double _kDialogBorderWidth =
+      1.0; // (literal) 1dp dialog hairline border
+
+  const CalendarEventDetailSheet({
+    super.key,
+    required this.event,
+  });
+
+  static Future<void> show(
+    BuildContext context,
+    LocalCalendarEvent event,
+  ) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => CalendarEventDetailSheet(event: event),
+    );
+  }
+
+  static String _formatContextLabel(LocalCalendarEvent event) {
+    final rec = event.recurrence?.trim().toLowerCase();
+    if (rec != null && rec.isNotEmpty && rec != 'none') {
+      switch (rec) {
+        case 'daily':
+          return 'EVERY DAY';
+        case 'weekly':
+          return 'EVERY WEEK';
+        case 'biweekly':
+          return 'EVERY 2 WEEKS';
+        case 'monthly':
+          return 'EVERY MONTH';
+        case 'yearly':
+          return 'EVERY YEAR';
+        default:
+          return rec.toUpperCase();
+      }
+    }
+    return DateFormat('EEE d MMM').format(event.startTime.toLocal()).toUpperCase();
+  }
+
+  Future<void> _handleEdit(BuildContext context) async {
+    Navigator.of(context).pop();
+    await CalendarEventFormSheet.show(context, existing: event);
+  }
+
+  Future<void> _handleDelete(BuildContext context, WidgetRef ref) async {
+    final cv = context.cv;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cv.surfaceCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(
+            Radius.circular(CoveRadius.inline),
+          ),
+          side: BorderSide(
+            color: cv.lineHairline,
+            width: _kDialogBorderWidth,
+          ),
+        ),
+        title: Text(
+          'Delete Event?',
+          style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+        ),
+        content: Text(
+          'Remove "${event.title}" from your shared calendar?',
+          style: CoveType.readout.copyWith(color: cv.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Cancel',
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Delete',
+              style: CoveType.rowTitle.copyWith(color: cv.statusAlertText),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await ref.read(calendarControllerProvider).deleteEvent(event.id);
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+    final whoLabel = hasPartner ? 'Both of you' : 'You';
+
+    final startLocal = event.startTime.toLocal();
+    final datePart = DateFormat('EEEE, d MMM').format(startLocal);
+    final hasLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
+    final trimmedLocation = hasLocation ? event.location!.trim() : null;
+
+    final ticketDateLine = trimmedLocation != null
+        ? '$datePart · $trimmedLocation'
+        : datePart;
+
+    final hour12 =
+        startLocal.hour % 12 == 0 ? 12 : startLocal.hour % 12;
+    final hourStr = event.isAllDay
+        ? 'ALL'
+        : (startLocal.minute == 0
+            ? '$hour12'
+            : DateFormat('h:mm').format(startLocal));
+    final meridiemStr = event.isAllDay
+        ? 'DAY'
+        : DateFormat('a').format(startLocal).toUpperCase();
+
+    final timePhrase = event.isAllDay
+        ? 'All day'
+        : DateFormat('h:mm a').format(startLocal);
+    final meaningTitle = '$datePart · $timePhrase';
+    final meaningSubtitle = trimmedLocation != null
+        ? '$trimmedLocation · $whoLabel'
+        : whoLabel;
+
+    final contextLabel = _formatContextLabel(event);
+
+    return CoveDetailSheet(
+      kindGlyph: const Icon(Icons.calendar_today_rounded),
+      kindLabel: 'EVENT',
+      contextLabel: contextLabel,
+      onClose: () => Navigator.of(context).pop(),
+      slip: CoveTicket(
+        key: ValueKey('event_ticket_${event.id}'),
+        variant: CoveSlipVariant.paper,
+        title: event.title,
+        date: ticketDateLine,
+        owner: whoLabel,
+        hour: hourStr,
+        meridiem: meridiemStr,
+        capsLabel: 'COVE · PLAN',
+      ),
+      meaningPanel: CoveDetailMeaningPanel.icon(
+        icon: Icons.event_outlined,
+        title: meaningTitle,
+        subtitle: meaningSubtitle,
+      ),
+      editVerb: CoveDetailVerb(
+        label: 'Edit',
+        icon: Icons.edit_outlined,
+        onPressed: () => _handleEdit(context),
+      ),
+      menuItems: [
+        CoveDetailMenuItem(
+          label: 'Delete this event',
+          icon: Icons.delete_outline_rounded,
+          isDestructive: true,
+          onSelected: () => _handleDelete(context, ref),
+        ),
+      ],
+    );
+  }
+}
+
 class ActivityEventDetailSheet extends ConsumerWidget {
   final FormattedActivityItem item;
+
+  static const double _kGrabHandleWidth = 36.0; // (literal)
+  static const double _kGrabHandleHeight = 4.0; // (literal)
+  static const double _kGrabHandleRadius = 2.0; // (literal)
+  static const double _kSyncTickSize = 14.0; // (literal)
+  static const double _kAvatarSize = 38.0; // (literal)
+  static const double _kRowIconSize = 18.0; // (literal)
 
   const ActivityEventDetailSheet({super.key, required this.item});
 
@@ -360,10 +546,14 @@ class ActivityEventDetailSheet extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
+        final cv = context.cv;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to undo: $e'),
-            backgroundColor: context.colors.accentSecondary,
+            content: Text(
+              'Failed to undo: $e',
+              style: CoveType.body.copyWith(color: cv.textPrimary),
+            ),
+            backgroundColor: cv.statusAlert,
           ),
         );
       }
@@ -372,8 +562,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final dateFormat = DateFormat('EEEE, MMMM d, y • h:mm a');
     final formattedDate = dateFormat.format(item.timestamp.toLocal());
 
@@ -401,14 +590,16 @@ class ActivityEventDetailSheet extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       padding: EdgeInsets.fromLTRB(
-        24,
-        16,
-        24,
-        MediaQuery.of(context).padding.bottom + 24,
+        CoveSpace.xl,
+        CoveSpace.lg,
+        CoveSpace.xl,
+        MediaQuery.of(context).padding.bottom + CoveSpace.xl,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -418,79 +609,80 @@ class ActivityEventDetailSheet extends ConsumerWidget {
             // Drag handle
             Center(
               child: Container(
-                width: 36,
-                height: 4,
+                width: _kGrabHandleWidth,
+                height: _kGrabHandleHeight,
                 decoration: BoxDecoration(
-                  color: colors.textMuted.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+                  color: cv.textTertiary.withValues(alpha: 0.3),
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(_kGrabHandleRadius),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.xl),
 
             // Module & Sync status header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.sm,
+                    vertical: CoveSpace.xs,
+                  ),
                   decoration: BoxDecoration(
-                    color: colors.accentPrimary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: cv.surfaceRow,
+                    borderRadius: const BorderRadius.all(
+                      Radius.circular(CoveRadius.inline),
+                    ),
                   ),
                   child: Text(
                     item.module.label.toUpperCase(),
-                    style: typography.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                      letterSpacing: 0.8,
-                      color: colors.accentPrimary,
+                    style: CoveType.capsCard.copyWith(
+                      color: cv.accentTint,
                     ),
                   ),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CoveSyncTick(status: item.syncStatus, size: 14),
-                    const SizedBox(width: 6),
+                    CoveSyncTick(status: item.syncStatus, size: _kSyncTickSize),
+                    const SizedBox(width: CoveSpace.xs),
                     Text(
                       item.syncStatus == CoveSyncStatus.syncedToPartner
                           ? 'Synced E2EE'
                           : 'Saved Locally',
-                      style: typography.caption.copyWith(
-                        color: colors.textMuted,
-                        fontSize: 12,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.textTertiary,
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: CoveSpace.lg),
 
             // Action description with Actor Avatar
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CoveActorAvatar(item: item, size: 38, showBadge: true),
-                const SizedBox(width: 14),
+                CoveActorAvatar(item: item, size: _kAvatarSize, showBadge: true),
+                const SizedBox(width: CoveSpace.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${item.actorName} ${item.actionText}',
-                        style: typography.title.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        style: CoveType.title.copyWith(
+                          color: cv.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: CoveSpace.xs),
                       Text(
                         formattedDate,
-                        style: typography.caption.copyWith(
-                          color: colors.textMuted,
-                          fontSize: 13,
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
                         ),
                       ),
                     ],
@@ -498,70 +690,88 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.xl),
 
             // Contextual Breakdown Card
             CoveGroupedCard(
               children: [
                 CoveGroupedRow(
-                  leading: Icon(item.icon, size: 18, color: colors.accentPrimary),
-                  title: Text('Subject', style: typography.caption),
+                  leading: Icon(item.icon, size: _kRowIconSize, color: cv.accentTint),
+                  title: Text(
+                    'Subject',
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  ),
                   trailing: Text(
                     title,
-                    style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                    style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                   ),
                 ),
                 if (listName != null && listName.isNotEmpty)
                   CoveGroupedRow(
-                    leading: Icon(Icons.checklist, size: 18, color: colors.textMuted),
-                    title: Text('List', style: typography.caption),
+                    leading: Icon(Icons.checklist, size: _kRowIconSize, color: cv.textTertiary),
+                    title: Text(
+                      'List',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
                     trailing: Text(
                       listName,
-                      style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+                      style: CoveType.body.copyWith(color: cv.textPrimary),
                     ),
                   ),
                 if (category != null && category.isNotEmpty)
                   CoveGroupedRow(
-                    leading: Icon(Icons.label_outline, size: 18, color: colors.textMuted),
-                    title: Text('Category', style: typography.caption),
+                    leading: Icon(Icons.label_outline, size: _kRowIconSize, color: cv.textTertiary),
+                    title: Text(
+                      'Category',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
                     trailing: Text(
                       category,
-                      style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+                      style: CoveType.body.copyWith(color: cv.textPrimary),
                     ),
                   ),
                 if (amount != null)
                   CoveGroupedRow(
-                    leading: Icon(Icons.payments_outlined, size: 18, color: colors.textMuted),
-                    title: Text('Amount', style: typography.caption),
+                    leading: Icon(Icons.payments_outlined, size: _kRowIconSize, color: cv.textTertiary),
+                    title: Text(
+                      'Amount',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
                     trailing: Text(
                       '$sym${formatCoveAmount(amount)}',
-                      style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                     ),
                   ),
                 if (prev != null) ...[
                   CoveGroupedRow(
-                    leading: Icon(Icons.history_rounded, size: 18, color: colors.accentPrimary),
-                    title: Text('Prior Value', style: typography.caption),
+                    leading: Icon(Icons.history_rounded, size: _kRowIconSize, color: cv.accentTint),
+                    title: Text(
+                      'Prior Value',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
                     trailing: Text(
                       '${prev['title'] ?? ''}${prev['amount'] != null ? ' ($prevSym${formatCoveAmount(prev['amount'])})' : ''}',
-                      style: typography.bodyMedium.copyWith(
-                        color: colors.textMuted,
+                      style: CoveType.body.copyWith(
+                        color: cv.textTertiary,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
                   ),
                 ],
                 CoveGroupedRow(
-                  leading: Icon(Icons.person_outline, size: 18, color: colors.textMuted),
-                  title: Text('Actor', style: typography.caption),
+                  leading: Icon(Icons.person_outline, size: _kRowIconSize, color: cv.textTertiary),
+                  title: Text(
+                    'Actor',
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  ),
                   trailing: Text(
                     item.actorName,
-                    style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+                    style: CoveType.body.copyWith(color: cv.textPrimary),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: CoveSpace.xl),
 
             // Undo CTA Button (if action is reversible)
             if (canUndo) ...[
@@ -571,7 +781,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                 variant: CoveButtonVariant.primary,
                 isFullWidth: true,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: CoveSpace.sm),
             ],
 
             // Close Button

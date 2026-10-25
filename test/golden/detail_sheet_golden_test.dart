@@ -12,7 +12,9 @@ import 'package:cove/core/widgets/slips/cove_dial.dart';
 import 'package:cove/core/widgets/slips/cove_habit_card.dart';
 import 'package:cove/core/widgets/slips/cove_receipt.dart';
 import 'package:cove/core/widgets/slips/cove_slip.dart';
+import 'package:cove/core/widgets/slips/cove_ticket.dart';
 import 'package:cove/core/widgets/slips/cove_voucher.dart';
+import 'package:cove/features/activity/activity_detail_sheet.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/category_detail_sheet.dart';
 import 'package:cove/features/expenses/expense_controller.dart';
@@ -754,6 +756,66 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'CalendarEventDetailSheet renders paper CoveTicket, meaning panel, Edit verb, and Delete this event in ⋯ menu',
+    (tester) async {
+      final event = LocalCalendarEvent(
+        id: 'cal_1',
+        homeId: 'home_1',
+        title: 'Dinner with Sarah at Bastian',
+        description: 'Table reserved for 8:00 PM',
+        startTime: DateTime(2026, 10, 15, 20, 0),
+        endTime: DateTime(2026, 10, 15, 22, 0),
+        isAllDay: false,
+        location: 'Bandra West',
+        createdAt: DateTime(2026, 1, 10, 9, 0),
+        createdBy: 'user_alex',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeHomeHasPartnerProvider.overrideWith(
+              _TestActivePartnerNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            theme: coveThemeFor(Brightness.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: CalendarEventDetailSheet(event: event),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final ticket = tester.widget<CoveTicket>(find.byType(CoveTicket));
+      expect(ticket.variant, CoveSlipVariant.paper);
+      expect(ticket.title, 'Dinner with Sarah at Bastian');
+      expect(ticket.hour, '8');
+      expect(ticket.meridiem, 'PM');
+      expect(ticket.owner, 'Both of you');
+
+      expect(find.text('Thursday, 15 Oct · 8:00 PM'), findsOneWidget);
+      expect(find.text('Bandra West · Both of you'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('cove_detail_sheet_menu_button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Delete this event'), findsOneWidget);
+    },
+  );
+}
+
+class _TestActivePartnerNotifier extends ActiveHomePartnerNotifier {
+  @override
+  bool build() => true;
 }
 
 class _TestAuthNotifier extends Notifier<AsyncValue<CoveUser?>>
