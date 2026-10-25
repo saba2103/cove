@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' show IsolateNameServer;
 
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
@@ -17,6 +19,7 @@ import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:drift_flutter/drift_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -87,6 +90,21 @@ Future<void> _seedHousehold(AppDatabase db) async {
       );
 }
 
+AppDatabase _openWriterDatabaseOnFile(File file) {
+  return AppDatabase(
+    driftDatabase(
+      name: 'cove_db',
+      native: DriftNativeOptions(
+        databasePath: () async => file.path,
+        tempDirectoryPath: () async => file.parent.path,
+        setup: (db) {
+          db.execute('PRAGMA busy_timeout = 5000;');
+        },
+      ),
+    ),
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -94,8 +112,17 @@ void main() {
 
   setUp(() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    IsolateNameServer.removePortNameMapping(
+      NotificationService.mainIsolatePortName,
+    );
     SharedPreferences.setMockInitialValues(<String, Object>{});
     NotificationDetailDispatcher.resetState();
+  });
+
+  tearDown(() {
+    IsolateNameServer.removePortNameMapping(
+      NotificationService.mainIsolatePortName,
+    );
   });
 
   group('NotificationPipeline (3.14c)', () {
@@ -706,6 +733,402 @@ void main() {
         expect(sink.shown.last.title, 'Sunday balcony tea');
         expect(sink.shown.last.body, 'A quiet moment, together.');
       });
+    });
+  });
+
+  group('Real SQLite File & Isolate Concurrency Guarantees (3.14c)', () {
+    test(
+        '(a) Writer connection open (as the main app) -> run the background read path -> the writer can still insert, update and delete afterwards',
+        () async {
+      await withClock(Clock.fixed(fixedNow), () async {
+        final tempDir = await Directory.systemTemp.createTemp('cove_314c_a_');
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+        final writerDb = _openWriterDatabaseOnFile(dbFile);
+        addTearDown(writerDb.close);
+
+        await _seedHousehold(writerDb);
+        await writerDb.into(writerDb.localActivityEvents).insert(
+              LocalActivityEventsCompanion.insert(
+                id: 'ev-file-a-1',
+                homeId: 'home-indiranagar',
+                actorId: 'user-ancy',
+                eventType: 'expense_logged',
+                payloadJson: jsonEncode(<String, dynamic>{
+                  'id': 'exp-file-a-1',
+                  'title': 'Coffee beans — dark roast',
+                  'amount': 820,
+                }),
+                createdAt: fixedNow,
+              ),
+            );
+
+        // Verify the database's journal mode is untouched ('delete').
+        final journalRow =
+            await writerDb.customSelect('PRAGMA journal_mode;').getSingle();
+        expect(journalRow.read<String>('journal_mode'), 'delete');
+
+        // Ensure no main isolate port is registered so the background path opens
+        // its own unshared OpenMode.readOnly connection against the same file.
+        final bgSink = FakeNotificationSink();
+        final prefs = await SharedPreferences.getInstance();
+        var readOnlyOpenedCount = 0;
+
+        final bgResult = await NotificationService.handleBackgroundRemoteMessage(
+          RemoteMessage(
+            data: <String, dynamic>{
+              'home_id': 'home-indiranagar',
+              'event_id': 'ev-file-a-1',
+              'event_type': 'expense_logged',
+            },
+          ),
+          databaseFile: dbFile,
+          onReadOnlyDatabaseOpened: () => readOnlyOpenedCount += 1,
+          sinkOverride: bgSink,
+          sharedPreferencesOverride: prefs,
+          viewerUserIdOverride: 'user-saba',
+        );
+
+        expect(readOnlyOpenedCount, 1);
+        expect(bgResult.kind, PipelineOutcomeKind.shown);
+        expect(bgSink.shown, hasLength(1));
+        expect(
+          bgSink.shown.single.body,
+          'Ancy logged ₹820 for Coffee beans — dark roast',
+        );
+
+        // Afterwards, the writer connection can still INSERT, UPDATE, and DELETE.
+        await writerDb.into(writerDb.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp-after-bg-read',
+                homeId: 'home-indiranagar',
+                title: 'Filter coffee powder',
+                amount: 340,
+                paidBy: 'user-saba',
+                expenseDate: fixedNow,
+                createdAt: fixedNow,
+              ),
+            );
+
+        var inserted = await (writerDb.select(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-bg-read')))
+            .getSingleOrNull();
+        expect(inserted, isNotNull);
+        expect(inserted!.amount, 340);
+
+        await (writerDb.update(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-bg-read')))
+            .write(const LocalExpensesCompanion(amount: Value(410)));
+
+        var updated = await (writerDb.select(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-bg-read')))
+            .getSingleOrNull();
+        expect(updated, isNotNull);
+        expect(updated!.amount, 410);
+
+        final deletedCount = await (writerDb.delete(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-bg-read')))
+            .go();
+        expect(deletedCount, 1);
+
+        final afterDelete = await (writerDb.select(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-bg-read')))
+            .getSingleOrNull();
+        expect(afterDelete, isNull);
+      });
+    });
+
+    test(
+        '(b) The background read path opened first -> open the main AppDatabase -> its migrations run and it can write, both while the reader is open and after it closes',
+        () async {
+      await withClock(Clock.fixed(fixedNow), () async {
+        final tempDir = await Directory.systemTemp.createTemp('cove_314c_b_');
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+        // 1. Open the background read-only connection FIRST before the main
+        //    AppDatabase has ever opened or migrated the file.
+        final readerDb = AppDatabase.readOnly(file: dbFile);
+        var readerClosed = false;
+        addTearDown(() async {
+          if (!readerClosed) {
+            await readerDb.close();
+          }
+        });
+
+        // Trigger the reader connection to open by running the pipeline on it.
+        final bgSink = FakeNotificationSink();
+        final prefs = await SharedPreferences.getInstance();
+        final preMigrationPipeline = NotificationPipeline(
+          database: readerDb,
+          sink: bgSink,
+          sharedPreferences: prefs,
+          getViewerUserId: () => 'user-saba',
+          decryptEvent: ({
+            required String homeId,
+            required String eventId,
+            required String eventType,
+            required Map<String, dynamic> data,
+          }) async {
+            return DecryptedEvent(
+              id: eventId,
+              homeId: homeId,
+              eventType: eventType,
+              actorId: 'user-ancy',
+              payload: const <String, dynamic>{
+                'id': 'exp-pre-1',
+                'title': 'Sourdough loaf',
+                'amount': 260,
+                'actor_name': 'Ancy',
+                'currency': 'INR',
+              },
+            );
+          },
+        );
+
+        final preRes = await preMigrationPipeline.handleRemoteMessage(
+          RemoteMessage(
+            data: <String, dynamic>{
+              'home_id': 'home-indiranagar',
+              'event_id': 'ev-pre-1',
+              'event_type': 'expense_logged',
+            },
+          ),
+        );
+        expect(preRes.kind, PipelineOutcomeKind.shown);
+
+        // 2. While the reader is STILL OPEN, open the main AppDatabase on the same file.
+        final writerDb = _openWriterDatabaseOnFile(dbFile);
+        addTearDown(writerDb.close);
+
+        // Verify migrations ran (user_version == schemaVersion) and writer can
+        // insert, update, and delete WHILE the reader is open.
+        await _seedHousehold(writerDb);
+        final versionRow =
+            await writerDb.customSelect('PRAGMA user_version;').getSingle();
+        expect(
+          versionRow.read<int>('user_version'),
+          writerDb.schemaVersion,
+        );
+
+        await writerDb.into(writerDb.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp-while-reader-open',
+                homeId: 'home-indiranagar',
+                title: 'Avocados',
+                amount: 250,
+                paidBy: 'user-ancy',
+                expenseDate: fixedNow,
+                createdAt: fixedNow,
+              ),
+            );
+        await (writerDb.update(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-while-reader-open')))
+            .write(const LocalExpensesCompanion(amount: Value(275)));
+        expect(
+          (await (writerDb.select(writerDb.localExpenses)
+                    ..where((t) => t.id.equals('exp-while-reader-open')))
+                  .getSingle())
+              .amount,
+          275,
+        );
+        await (writerDb.delete(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-while-reader-open')))
+            .go();
+
+        // Reader can also read the migrated tables while open.
+        final homeFromReader = await (readerDb.select(readerDb.localHomes)
+              ..where((t) => t.id.equals('home-indiranagar')))
+            .getSingleOrNull();
+        expect(homeFromReader?.name, 'Indiranagar');
+
+        // 3. Close the reader connection and verify the writer STILL works
+        //    after the reader closes.
+        await readerDb.close();
+        readerClosed = true;
+
+        await writerDb.into(writerDb.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp-after-reader-closed',
+                homeId: 'home-indiranagar',
+                title: 'Olive oil',
+                amount: 950,
+                paidBy: 'user-saba',
+                expenseDate: fixedNow,
+                createdAt: fixedNow,
+              ),
+            );
+        await (writerDb.update(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-reader-closed')))
+            .write(const LocalExpensesCompanion(amount: Value(990)));
+        expect(
+          (await (writerDb.select(writerDb.localExpenses)
+                    ..where((t) => t.id.equals('exp-after-reader-closed')))
+                  .getSingle())
+              .amount,
+          990,
+        );
+        final deletedAfterClose = await (writerDb.delete(writerDb.localExpenses)
+              ..where((t) => t.id.equals('exp-after-reader-closed')))
+            .go();
+        expect(deletedAfterClose, 1);
+      });
+    });
+
+    test(
+        '(c) Main port registered -> the background handler forwards and opens no connection',
+        () async {
+      await withClock(Clock.fixed(fixedNow), () async {
+        final tempDir = await Directory.systemTemp.createTemp('cove_314c_c_');
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+        final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+        final writerDb = _openWriterDatabaseOnFile(dbFile);
+        addTearDown(writerDb.close);
+        await _seedHousehold(writerDb);
+        await writerDb.into(writerDb.localActivityEvents).insert(
+              LocalActivityEventsCompanion.insert(
+                id: 'ev-forward-1',
+                homeId: 'home-indiranagar',
+                actorId: 'user-ancy',
+                eventType: 'expense_logged',
+                payloadJson: jsonEncode(<String, dynamic>{
+                  'id': 'exp-forward-1',
+                  'title': 'Coffee beans — dark roast',
+                  'amount': 820,
+                }),
+                createdAt: fixedNow,
+              ),
+            );
+
+        final mainSink = FakeNotificationSink();
+        final mainService = NotificationService(
+          appDatabase: writerDb,
+          notificationSink: mainSink,
+          getCurrentUserId: () => 'user-saba',
+          getPartnerName: () => 'Ancy',
+          getCurrencySymbol: () => '₹',
+        );
+        addTearDown(mainService.dispose);
+
+        // Register the main isolate's ReceivePort with IsolateNameServer.
+        mainService.registerMainIsolatePort();
+        expect(
+          IsolateNameServer.lookupPortByName(
+            NotificationService.mainIsolatePortName,
+          ),
+          isNotNull,
+        );
+
+        final bgSink = FakeNotificationSink();
+        var bgReadOnlyOpenCount = 0;
+
+        final bgResult = await NotificationService.handleBackgroundRemoteMessage(
+          RemoteMessage(
+            data: <String, dynamic>{
+              'home_id': 'home-indiranagar',
+              'event_id': 'ev-forward-1',
+              'event_type': 'expense_logged',
+            },
+          ),
+          databaseFile: dbFile,
+          onReadOnlyDatabaseOpened: () => bgReadOnlyOpenCount += 1,
+          sinkOverride: bgSink,
+        );
+
+        // Background handler forwarded to main isolate and opened NO database connection.
+        expect(bgResult.kind, PipelineOutcomeKind.forwardedToMainIsolate);
+        expect(bgReadOnlyOpenCount, 0);
+        expect(bgSink.shown, isEmpty);
+
+        // Main isolate received the forwarded data and ran the pipeline with its
+        // own database and providers.
+        expect(mainSink.shown, hasLength(1));
+        expect(mainSink.shown.single.title, 'Expenses');
+        expect(
+          mainSink.shown.single.body,
+          'Ancy logged ₹820 for Coffee beans — dark roast',
+        );
+      });
+    });
+
+    test(
+        '(d) The read-only connection rejects a write at the SQLite level, not just in Dart',
+        () async {
+      final tempDir = await Directory.systemTemp.createTemp('cove_314c_d_');
+      addTearDown(() async {
+        if (tempDir.existsSync()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final dbFile = File('${tempDir.path}/cove_db.sqlite');
+
+      // Initialize the database file schema via a normal writer connection, then close it.
+      final writerDb = _openWriterDatabaseOnFile(dbFile);
+      await _seedHousehold(writerDb);
+      await writerDb.close();
+
+      // Open the raw SQLite read-only executor (`OpenMode.readOnly`) directly,
+      // bypassing the Dart `ReadOnlyQueryExecutor` wrapper so SQL statements reach
+      // the SQLite C engine itself.
+      final rawSqliteReadOnlyDb = AppDatabase(
+        AppDatabase.openReadOnlySqliteExecutor(file: dbFile),
+      );
+      addTearDown(rawSqliteReadOnlyDb.close);
+
+      // Reads succeed at the SQLite level.
+      final homes =
+          await rawSqliteReadOnlyDb.select(rawSqliteReadOnlyDb.localHomes).get();
+      expect(homes, hasLength(1));
+      expect(homes.single.name, 'Indiranagar');
+
+      // Writes are rejected by SQLite itself with SqliteException (SQLITE_READONLY = 8).
+      await expectLater(
+        () => rawSqliteReadOnlyDb.into(rawSqliteReadOnlyDb.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp-sqlite-readonly',
+                homeId: 'home-indiranagar',
+                title: 'Forbidden SQLite write',
+                amount: 100,
+                paidBy: 'user-ancy',
+                expenseDate: fixedNow,
+                createdAt: fixedNow,
+              ),
+            ),
+        throwsA(
+          isA<SqliteException>().having(
+            (e) => e.resultCode,
+            'resultCode (SQLITE_READONLY)',
+            8,
+          ),
+        ),
+      );
+
+      await expectLater(
+        () => rawSqliteReadOnlyDb.customStatement(
+          "UPDATE local_homes SET name = 'Mutated' WHERE id = 'home-indiranagar';",
+        ),
+        throwsA(
+          isA<SqliteException>().having(
+            (e) => e.resultCode,
+            'resultCode (SQLITE_READONLY)',
+            8,
+          ),
+        ),
+      );
     });
   });
 }

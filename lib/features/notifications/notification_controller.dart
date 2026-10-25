@@ -34,6 +34,7 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
     service.handleIncomingMessage(payload.toMap());
   };
 
+  service.registerMainIsolatePort();
   ref.onDispose(() => service.dispose());
   return service;
 });

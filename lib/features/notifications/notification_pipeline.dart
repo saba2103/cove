@@ -196,6 +196,10 @@ enum PipelineOutcomeKind {
   /// render a duplicate card.
   ignoredNotificationBlock,
 
+  /// Main isolate is alive and registered in `IsolateNameServer`; the background
+  /// handler forwarded the message data to the main isolate without touching SQLite.
+  forwardedToMainIsolate,
+
   /// Event was already processed recently (deduplicated).
   deduplicated,
 

@@ -1,3 +1,5 @@
+import 'dart:ui' show IsolateNameServer;
+
 import 'package:drift/drift.dart' as drift;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -24,6 +26,7 @@ import 'features/today/today_screen.dart';
 import 'features/expenses/expenses_screen.dart';
 import 'features/habits/habits_screen.dart';
 import 'features/lists/lists_screen.dart';
+import 'features/notifications/notification_controller.dart';
 import 'features/notifications/notification_service.dart';
 import 'features/profile/home_metadata_controller.dart';
 import 'features/profile/preferences_controller.dart';
@@ -71,6 +74,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     // Rule 4: While old messages carrying a notification block are still arriving,
     // Android renders them itself; do not show a second copy.
     if (message.notification != null) {
+      return;
+    }
+    // If the main isolate is alive, forward the message data to it and return
+    // immediately without opening Firebase, Supabase, or the database.
+    if (IsolateNameServer.lookupPortByName(
+          NotificationService.mainIsolatePortName,
+        ) !=
+        null) {
+      await NotificationService.handleBackgroundRemoteMessage(message);
       return;
     }
     try {
@@ -139,9 +151,13 @@ Future<void> main() async {
     debugPrint('Failed to preload preferences: $e');
   }
 
+  final container = ProviderContainer();
+  container.read(notificationServiceProvider).registerMainIsolatePort();
+
   runApp(
-    const ProviderScope(
-      child: CoveApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const CoveApp(),
     ),
   );
 }

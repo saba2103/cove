@@ -1,5 +1,12 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider/path_provider.dart';
+// ignore: depend_on_referenced_packages
+import 'package:sqlite3/sqlite3.dart' show OpenMode, sqlite3;
 
 part 'app_database.g.dart';
 
@@ -276,34 +283,68 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ??
             driftDatabase(
               name: 'cove_db',
-              native: const DriftNativeOptions(shareAcrossIsolates: true),
+              native: DriftNativeOptions(
+                setup: (db) {
+                  db.execute('PRAGMA busy_timeout = 5000;');
+                },
+              ),
               web: DriftWebOptions(
                 sqlite3Wasm: Uri.parse('sqlite3.wasm'),
                 driftWorker: Uri.parse('drift_worker.js'),
               ),
             ));
 
-  /// Opens a strictly read-only database handle for the background notification
-  /// isolate (`design/specs/15-notifications.md` / 3.14c).
+  /// Opens an unshared, strictly read-only SQLite connection (`OpenMode.readOnly`
+  /// + `PRAGMA busy_timeout = 5000`, `enableMigrations: false`) to [file]
+  /// (or the default `cove_db.sqlite` file in the application documents directory).
   ///
-  /// Guarantees that the background isolate and main isolate cannot corrupt each
-  /// other:
-  /// 1. Suppresses `beforeOpen` migrations so the background isolate never runs
-  ///    `onCreate` / `onUpgrade` DDL concurrently with the main isolate.
-  /// 2. Sets `PRAGMA busy_timeout = 5000` and `PRAGMA query_only = ON` on the
-  ///    connection so SQLite rejects any write at the C engine level and waits
-  ///    cleanly if the main isolate is committing a write transaction.
-  /// 3. Rejects `runInsert`, `runUpdate`, `runDelete`, `runBatched`, and
-  ///    non-PRAGMA `runCustom` in Dart with a [StateError] before touching SQLite.
-  factory AppDatabase.readOnly([QueryExecutor? inner]) {
+  /// Used only when the main app is not running. Never shares across isolates,
+  /// never runs migrations, and never writes.
+  static QueryExecutor openReadOnlySqliteExecutor({
+    File? file,
+    Future<File> Function()? resolveFile,
+  }) {
+    return LazyDatabase(() async {
+      final targetFile = file ??
+          (resolveFile != null
+              ? await resolveFile()
+              : File(
+                  '${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}cove_db.sqlite',
+                ));
+      if (!targetFile.existsSync()) {
+        targetFile.parent.createSync(recursive: true);
+        targetFile.createSync();
+      }
+      final rawDb = sqlite3.open(
+        targetFile.path,
+        mode: OpenMode.readOnly,
+      );
+      return NativeDatabase.opened(
+        rawDb,
+        enableMigrations: false,
+        closeUnderlyingOnClose: true,
+        setup: (db) {
+          db.execute('PRAGMA busy_timeout = 5000;');
+        },
+      );
+    });
+  }
+
+  /// Opens a strictly read-only database handle for the background notification
+  /// isolate when the main app is not running (`design/specs/15-notifications.md` / 3.14c).
+  ///
+  /// Opens its own, separate, unshared connection to the database file with
+  /// `OpenMode.readOnly` + `busy_timeout = 5000` (`enableMigrations: false`),
+  /// wrapped in [ReadOnlyQueryExecutor] as an extra Dart-level guard.
+  factory AppDatabase.readOnly({
+    QueryExecutor? inner,
+    File? file,
+    Future<File> Function()? resolveFile,
+  }) {
     final base = inner ??
-        driftDatabase(
-          name: 'cove_db',
-          native: const DriftNativeOptions(shareAcrossIsolates: true),
-          web: DriftWebOptions(
-            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-            driftWorker: Uri.parse('drift_worker.js'),
-          ),
+        openReadOnlySqliteExecutor(
+          file: file,
+          resolveFile: resolveFile,
         );
     return AppDatabase(ReadOnlyQueryExecutor(base));
   }
@@ -965,6 +1006,8 @@ class ReadOnlyQueryExecutor extends QueryExecutor {
     this.suppressMigrations = true,
   });
 
+  QueryExecutor get inner => _inner;
+
   @override
   SqlDialect get dialect => _inner.dialect;
 
@@ -973,12 +1016,7 @@ class ReadOnlyQueryExecutor extends QueryExecutor {
     final effectiveUser = suppressMigrations
         ? _NoMigrationExecutorUser(user.schemaVersion)
         : user;
-    final opened = await _inner.ensureOpen(effectiveUser);
-    try {
-      await _inner.runCustom('PRAGMA busy_timeout = 5000;', const []);
-      await _inner.runCustom('PRAGMA query_only = ON;', const []);
-    } catch (_) {}
-    return opened;
+    return _inner.ensureOpen(effectiveUser);
   }
 
   @override
@@ -1016,11 +1054,6 @@ class ReadOnlyQueryExecutor extends QueryExecutor {
 
   @override
   Future<void> runCustom(String statement, [List<Object?>? args]) {
-    final trimmed = statement.trim().toUpperCase();
-    if (trimmed.startsWith('PRAGMA BUSY_TIMEOUT') ||
-        trimmed.startsWith('PRAGMA QUERY_ONLY')) {
-      return _inner.runCustom(statement, args);
-    }
     writeAttempts += 1;
     throw StateError(
       'ReadOnlyQueryExecutor: custom SQL ($statement) is forbidden in the read-only notification pipeline.',

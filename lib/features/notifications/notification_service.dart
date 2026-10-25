@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:ui';
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../sync/db/app_database.dart';
@@ -15,6 +19,7 @@ import 'notification_models.dart';
 import 'notification_pipeline.dart';
 
 class NotificationService {
+  static const String mainIsolatePortName = 'cove_fcm_main_isolate_port';
   final SupabaseClient? supabaseClient;
   final SyncEngine? syncEngine;
   final AppDatabase? appDatabase;
@@ -314,16 +319,27 @@ class NotificationService {
   /// Background isolate entry helper invoked from `_firebaseMessagingBackgroundHandler`
   /// in `main.dart`.
   ///
-  /// Opens a strictly read-only [AppDatabase.readOnly] handle so the background
-  /// isolate and main isolate can never corrupt each other, runs the 8-second
-  /// budgeted [NotificationPipeline], and closes the read-only DB handle in `finally`.
+  /// 1. Looks up [mainIsolatePortName] in [IsolateNameServer]. If the main
+  ///    isolate is alive, forwards the message data to it (which runs the
+  ///    pipeline with its normal database and providers) and returns without
+  ///    ever touching SQLite.
+  /// 2. Only when the main app is not running, opens its own, separate,
+  ///    unshared read-only connection (`OpenMode.readOnly` + `busy_timeout`,
+  ///    `enableMigrations: false`, wrapped in [ReadOnlyQueryExecutor]) for the
+  ///    duration of the pipeline and closes it in `finally`.
   static Future<PipelineResult> handleBackgroundRemoteMessage(
     RemoteMessage message, {
+    String portName = mainIsolatePortName,
+    File? databaseFile,
+    Future<File> Function()? resolveDatabaseFile,
     AppDatabase? databaseOverride,
+    void Function()? onReadOnlyDatabaseOpened,
     SupabaseClient? supabaseClientOverride,
     HomeKeyStore? keyStoreOverride,
     LocalNotificationSink? sinkOverride,
     NotificationEventDecryptor? decryptEventOverride,
+    SharedPreferences? sharedPreferencesOverride,
+    String? viewerUserIdOverride,
     Duration budget = NotificationPipeline.defaultBudget,
   }) async {
     if (message.notification != null) {
@@ -332,7 +348,33 @@ class NotificationService {
       );
     }
 
-    final db = databaseOverride ?? AppDatabase.readOnly();
+    final mainPort = IsolateNameServer.lookupPortByName(portName);
+    if (mainPort != null) {
+      final replyReceivePort = ReceivePort();
+      try {
+        mainPort.send(<String, dynamic>{
+          'data': Map<String, dynamic>.from(message.data),
+          'has_notification_block': message.notification != null,
+          'reply_port': replyReceivePort.sendPort,
+        });
+        await replyReceivePort.first.timeout(
+          const Duration(milliseconds: 250),
+          onTimeout: () => null,
+        );
+      } finally {
+        replyReceivePort.close();
+      }
+      return const PipelineResult(
+        kind: PipelineOutcomeKind.forwardedToMainIsolate,
+      );
+    }
+
+    onReadOnlyDatabaseOpened?.call();
+    final db = databaseOverride ??
+        AppDatabase.readOnly(
+          file: databaseFile,
+          resolveFile: resolveDatabaseFile,
+        );
     try {
       final plugin = FlutterLocalNotificationsPlugin();
       final sink = sinkOverride ??
@@ -366,7 +408,9 @@ class NotificationService {
         supabaseClient: supabase,
         keyStore: keyStoreOverride ?? HomeKeyStore(),
         budget: budget,
-        getViewerUserId: () => supabase?.auth.currentUser?.id,
+        sharedPreferences: sharedPreferencesOverride,
+        getViewerUserId: () =>
+            viewerUserIdOverride ?? supabase?.auth.currentUser?.id,
       );
 
       return await bgPipeline.handleRemoteMessage(message);
@@ -560,10 +604,61 @@ class NotificationService {
   StreamSubscription? _fcmMessageSub;
   StreamSubscription? _fcmOpenSub;
   StreamSubscription? _fcmTokenSub;
+  ReceivePort? _mainIsolateReceivePort;
+  String? _registeredPortName;
+
+  /// Registers a [ReceivePort] with [IsolateNameServer] so that while the main
+  /// isolate is alive, `_firebaseMessagingBackgroundHandler` forwards incoming
+  /// message data here instead of touching SQLite.
+  void registerMainIsolatePort({String portName = mainIsolatePortName}) {
+    unregisterMainIsolatePort(portName: portName);
+    final receivePort = ReceivePort();
+    _mainIsolateReceivePort = receivePort;
+    _registeredPortName = portName;
+    IsolateNameServer.removePortNameMapping(portName);
+    IsolateNameServer.registerPortWithName(receivePort.sendPort, portName);
+    receivePort.listen((dynamic rawMessage) async {
+      if (rawMessage is! Map) return;
+      final map = rawMessage.map(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final rawData = map['data'];
+      final data = rawData is Map
+          ? rawData.map((k, v) => MapEntry(k.toString(), v))
+          : <String, dynamic>{};
+      final hasNotificationBlock = map['has_notification_block'] == true;
+      final replyPort = map['reply_port'];
+      try {
+        await handleIncomingMessage(
+          data,
+          hasNotificationBlock: hasNotificationBlock,
+        );
+        if (replyPort is SendPort) {
+          replyPort.send(true);
+        }
+      } catch (_) {
+        if (replyPort is SendPort) {
+          replyPort.send(false);
+        }
+      }
+    });
+  }
+
+  /// Unregisters the main-isolate [ReceivePort] from [IsolateNameServer].
+  void unregisterMainIsolatePort({String? portName}) {
+    final targetName = portName ?? _registeredPortName ?? mainIsolatePortName;
+    if (_mainIsolateReceivePort != null) {
+      _mainIsolateReceivePort!.close();
+      _mainIsolateReceivePort = null;
+      _registeredPortName = null;
+      IsolateNameServer.removePortNameMapping(targetName);
+    }
+  }
 
   /// Initializes FCM listeners for foreground messages, background taps, and token refresh.
   /// Gracefully catches errors when Firebase is not initialized or platform is unsupported.
   Future<void> initializeFcm({String? fallbackToken}) async {
+    registerMainIsolatePort();
     try {
       final fcm = FirebaseMessaging.instance;
 
@@ -623,6 +718,7 @@ class NotificationService {
   }
 
   void dispose() {
+    unregisterMainIsolatePort();
     _fcmMessageSub?.cancel();
     _fcmOpenSub?.cancel();
     _fcmTokenSub?.cancel();
