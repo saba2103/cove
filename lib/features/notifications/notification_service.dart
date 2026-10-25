@@ -7,7 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/sync_engine.dart';
-import 'notification_formatter.dart';
+import 'notification_copy.dart';
 import 'notification_models.dart';
 
 class NotificationService {
@@ -187,16 +187,17 @@ class NotificationService {
     if (partnerName != null &&
         partnerName.isNotEmpty &&
         (payload.actorName == null || payload.actorName == 'Partner')) {
-      final formatted = NotificationFormatter.format(
+      final fallback = composeFallbackNotification(
+        homeName: payload.title.isNotEmpty ? payload.title : 'Home',
+        partnerName: partnerName,
+        homeId: payload.homeId,
+        eventId: payload.eventId ?? '',
         eventType: payload.eventType,
-        payload: const {},
-        actorName: partnerName,
-        preferredCurrencySymbol: getCurrencySymbol?.call(),
       );
       return payload.copyWith(
         actorName: partnerName,
-        title: formatted.title,
-        body: formatted.body,
+        title: fallback.title,
+        body: fallback.body,
       );
     }
 

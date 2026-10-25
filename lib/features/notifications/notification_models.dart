@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'notification_formatter.dart';
+import 'package:clock/clock.dart';
+import 'notification_copy.dart';
 
 enum NotificationModule {
   subscriptions,
@@ -232,25 +233,53 @@ class CoveNotificationPayload {
     String? actorName,
     String? homeName,
     String? preferredCurrencySymbol,
+    String? viewerUserId,
+    DateTime? today,
+    int? untickedItemsLeft,
+    int? habitStreak,
+    bool? createdByViewer,
   }) {
     final module = moduleForEventType(eventType);
-    final formatted = NotificationFormatter.format(
-      eventType: eventType,
-      payload: payload,
-      actorName: actorName,
-      homeName: homeName,
-      preferredCurrencySymbol: preferredCurrencySymbol,
+    final resolvedPartner = _resolveActorName(actorName, payload);
+    final resolvedHome = (homeName != null && homeName.trim().isNotEmpty)
+        ? homeName.trim()
+        : ((payload['home_name'] as String?)?.trim().isNotEmpty == true
+            ? (payload['home_name'] as String).trim()
+            : 'Home');
+    final resolvedSymbol = resolveNotificationCurrencySymbol(
+      payload['currency'] as String?,
+      fallbackSymbol: preferredCurrencySymbol,
+    );
+
+    final copy = composeNotification(
+      DecryptedEvent(
+        id: eventId ?? (payload['id'] as String? ?? ''),
+        homeId: homeId,
+        eventType: eventType,
+        actorId: actorId,
+        payload: payload,
+      ),
+      NotificationContext(
+        partnerName: resolvedPartner,
+        homeName: resolvedHome,
+        currencySymbol: resolvedSymbol,
+        today: today ?? clock.now(),
+        viewerUserId: viewerUserId ?? '',
+        untickedItemsLeft: untickedItemsLeft,
+        habitStreak: habitStreak,
+        createdByViewer: createdByViewer ?? false,
+      ),
     );
 
     return CoveNotificationPayload(
       homeId: homeId,
-      module: module,
+      module: copy?.groupKey ?? module,
       eventType: eventType,
       eventId: eventId,
-      title: formatted.title,
-      body: formatted.body,
+      title: copy?.title ?? resolvedHome,
+      body: copy?.body ?? '',
       payload: payload,
-      actorName: actorName,
+      actorName: actorName ?? resolvedPartner,
     );
   }
 
@@ -260,6 +289,7 @@ class CoveNotificationPayload {
     String? actorName,
     String? homeName,
     String? preferredCurrencySymbol,
+    DateTime? today,
   }) {
     final homeId = (data['home_id'] as String?) ?? '';
     final eventType = (data['event_type'] as String?) ?? 'generic';
@@ -280,20 +310,50 @@ class CoveNotificationPayload {
     }
 
     final effectiveActorName = (data['actor_name'] as String?) ?? actorName;
+    final resolvedPartner = _resolveActorName(effectiveActorName, payloadMap);
+    final resolvedHome = (homeName != null && homeName.trim().isNotEmpty)
+        ? homeName.trim()
+        : ((data['home_name'] as String?)?.trim().isNotEmpty == true
+            ? (data['home_name'] as String).trim()
+            : 'Home');
 
     String title;
     String body;
 
     if (payloadMap != null && payloadMap.isNotEmpty) {
-      final formatted = NotificationFormatter.format(
-        eventType: eventType,
-        payload: payloadMap,
-        actorName: effectiveActorName,
-        homeName: homeName,
-        preferredCurrencySymbol: preferredCurrencySymbol,
+      final resolvedSymbol = resolveNotificationCurrencySymbol(
+        payloadMap['currency'] as String?,
+        fallbackSymbol: preferredCurrencySymbol,
       );
-      title = formatted.title;
-      body = formatted.body;
+      final copy = composeNotification(
+        DecryptedEvent(
+          id: eventId ?? (payloadMap['id'] as String? ?? ''),
+          homeId: homeId,
+          eventType: eventType,
+          payload: payloadMap,
+        ),
+        NotificationContext(
+          partnerName: resolvedPartner,
+          homeName: resolvedHome,
+          currencySymbol: resolvedSymbol,
+          today: today ?? clock.now(),
+          viewerUserId: '',
+        ),
+      );
+      if (copy != null && copy.canStartCard) {
+        title = copy.title;
+        body = copy.body;
+      } else {
+        final fallback = composeFallbackNotification(
+          homeName: resolvedHome,
+          partnerName: resolvedPartner,
+          homeId: homeId,
+          eventId: eventId ?? '',
+          eventType: eventType,
+        );
+        title = fallback.title;
+        body = fallback.body;
+      }
     } else if (data['title'] != null &&
         data['body'] != null &&
         data['title'].toString().isNotEmpty &&
@@ -302,15 +362,15 @@ class CoveNotificationPayload {
       title = data['title'].toString();
       body = data['body'].toString();
     } else {
-      final formatted = NotificationFormatter.format(
+      final fallback = composeFallbackNotification(
+        homeName: resolvedHome,
+        partnerName: resolvedPartner,
+        homeId: homeId,
+        eventId: eventId ?? '',
         eventType: eventType,
-        payload: const {},
-        actorName: effectiveActorName,
-        homeName: homeName,
-        preferredCurrencySymbol: preferredCurrencySymbol,
       );
-      title = formatted.title;
-      body = formatted.body;
+      title = fallback.title;
+      body = fallback.body;
     }
 
     return CoveNotificationPayload(
@@ -323,6 +383,34 @@ class CoveNotificationPayload {
       payload: payloadMap,
       actorName: effectiveActorName,
     );
+  }
+
+  static String _resolveActorName(
+    String? actorName,
+    Map<String, dynamic>? payload,
+  ) {
+    if (actorName != null &&
+        actorName.trim().isNotEmpty &&
+        actorName.trim() != 'Partner') {
+      return actorName.trim();
+    }
+    if (payload != null) {
+      final pActor = payload['actor_name'];
+      if (pActor is String &&
+          pActor.trim().isNotEmpty &&
+          pActor.trim() != 'Partner') {
+        return pActor.trim();
+      }
+      final pDisplay = payload['display_name'];
+      if (pDisplay is String &&
+          pDisplay.trim().isNotEmpty &&
+          pDisplay.trim() != 'Partner') {
+        return pDisplay.trim();
+      }
+    }
+    return (actorName != null && actorName.trim().isNotEmpty)
+        ? actorName.trim()
+        : 'Partner';
   }
 
   CoveNotificationPayload copyWith({

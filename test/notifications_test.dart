@@ -8,7 +8,7 @@ import 'package:cove/features/expenses/expense_detail_sheet.dart';
 import 'package:cove/features/lists/list_item_detail_sheet.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
 import 'package:cove/features/notifications/notification_detail_dispatcher.dart';
-import 'package:cove/features/notifications/notification_formatter.dart';
+import 'package:cove/features/notifications/notification_copy.dart';
 import 'package:cove/features/notifications/notification_models.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:cove/features/profile/profile_screen.dart';
@@ -224,98 +224,136 @@ void main() {
   });
 
   group('Enriched Push & In-App Notifications', () {
-    test('Expense notifications format detailed amounts, titles, categories, and payment methods', () {
-      final res = NotificationFormatter.format(
-        eventType: 'expense_logged',
-        payload: {
-          'amount': 250.0,
-          'currency': 'INR',
-          'title': 'Coffee',
-          'category': 'Food & Dining',
-          'payment_method': 'upi',
-        },
-        actorName: 'Sophia',
+    final fixedToday = DateTime(2026, 9, 18, 12, 0); // Friday
+
+    NotificationContext ctxFor(String partnerName, {int? untickedItemsLeft, int? habitStreak}) =>
+        NotificationContext(
+          partnerName: partnerName,
+          homeName: 'Our Home',
+          currencySymbol: '₹',
+          today: fixedToday,
+          viewerUserId: 'viewer_1',
+          untickedItemsLeft: untickedItemsLeft,
+          habitStreak: habitStreak,
+        );
+
+    test('Expense notifications format amounts and titles in Quiet Ledger voice', () {
+      final res = composeNotification(
+        const DecryptedEvent(
+          eventType: 'expense_logged',
+          payload: {
+            'amount': 250.0,
+            'currency': 'INR',
+            'title': 'Coffee',
+            'category': 'Food & Dining',
+            'payment_method': 'upi',
+          },
+        ),
+        ctxFor('Sophia'),
       );
 
-      expect(res.title, 'Sophia • Expenses');
-      expect(res.body, "Logged ₹250 for 'Coffee' (Food & Dining • UPI)");
+      expect(res, isNotNull);
+      expect(res!.title, 'Expenses');
+      expect(res.body, 'Sophia logged ₹250 for Coffee');
     });
 
-    test('Shared list notifications format item name, list name, and completion status', () {
-      final addRes = NotificationFormatter.format(
-        eventType: 'list_item_added',
-        payload: {
-          'title': 'Oat Milk',
-          'list_name': 'Groceries',
-        },
-        actorName: 'Sophia',
+    test('Shared list notifications format item name, list name, and remaining count', () {
+      final addRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'list_item_added',
+          payload: {
+            'title': 'Oat Milk',
+            'list_name': 'Groceries',
+            'list_id': 'list-1',
+          },
+        ),
+        ctxFor('Sophia'),
       );
-      expect(addRes.title, 'Sophia • Groceries');
-      expect(addRes.body, "Added 'Oat Milk' to Groceries");
+      expect(addRes, isNotNull);
+      expect(addRes!.title, 'Groceries');
+      expect(addRes.body, 'Sophia added Oat Milk');
+      expect(addRes.batchKey, 'list-1');
+      expect(addRes.batchLine, '+ Oat Milk');
 
-      final checkRes = NotificationFormatter.format(
-        eventType: 'list_item_toggled',
-        payload: {
-          'title': 'Oat Milk',
-          'is_completed': true,
-          'list_name': 'Groceries',
-        },
-        actorName: 'Sophia',
+      final checkRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'list_item_toggled',
+          payload: {
+            'title': 'Oat Milk',
+            'is_completed': true,
+            'list_name': 'Groceries',
+            'list_id': 'list-1',
+          },
+        ),
+        ctxFor('Sophia', untickedItemsLeft: 3),
       );
-      expect(checkRes.title, 'Sophia • Groceries');
-      expect(checkRes.body, "Completed 'Oat Milk' in Groceries");
+      expect(checkRes, isNotNull);
+      expect(checkRes!.title, 'Groceries');
+      expect(checkRes.body, 'Sophia ticked off Oat Milk — three left');
+      expect(checkRes.batchKey, 'list-1');
+      expect(checkRes.batchLine, '✓ Oat Milk');
     });
 
-    test('Habit check-in notifications include streak counters and cheering', () {
-      final habitRes = NotificationFormatter.format(
-        eventType: 'habit_checkin_toggled',
-        payload: {
-          'habit_name': 'Morning Run',
-          'checked': true,
-          'streak': 5,
-        },
-        actorName: 'Sophia',
+    test('Habit check-in notifications format streak count and suppress cheering', () {
+      final habitRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'habit_checkin_toggled',
+          payload: {
+            'habit_name': 'Morning Run',
+            'checked': true,
+            'streak': 5,
+          },
+        ),
+        ctxFor('Sophia', habitStreak: 5),
       );
-      expect(habitRes.title, 'Sophia • Habits');
-      expect(habitRes.body, "Checked in on 'Morning Run' (5-day streak! 🔥)");
+      expect(habitRes, isNotNull);
+      expect(habitRes!.title, 'Morning Run');
+      expect(habitRes.body, 'Sophia kept it. Five days running.');
 
-      final cheerRes = NotificationFormatter.format(
-        eventType: 'habit_checkin_acknowledged',
-        payload: {
-          'habit_name': 'Morning Run',
-        },
-        actorName: 'Sophia',
+      final cheerRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'habit_checkin_acknowledged',
+          payload: {
+            'habit_name': 'Morning Run',
+          },
+        ),
+        ctxFor('Sophia'),
       );
-      expect(cheerRes.title, 'Sophia • Habits');
-      expect(cheerRes.body, "Acknowledged your check-in on 'Morning Run'! 🙌");
+      expect(cheerRes, isNull);
     });
 
     test('Calendar notifications format event title and scheduled time', () {
-      final calRes = NotificationFormatter.format(
-        eventType: 'calendar_event_added',
-        payload: {
-          'title': 'Dinner with parents',
-          'start_time': '2026-09-20T19:30:00.000Z',
-        },
-        actorName: 'Sophia',
+      final calRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'calendar_event_added',
+          payload: {
+            'title': 'Dinner with parents',
+            'start_time': '2026-09-20T19:30:00',
+          },
+        ),
+        ctxFor('Sophia'),
       );
-      expect(calRes.title, 'Sophia • Calendar');
-      expect(calRes.body, contains("Scheduled 'Dinner with parents' for"));
+      expect(calRes, isNotNull);
+      expect(calRes!.title, 'Dinner with parents');
+      expect(calRes.body, 'Sophia put it in for Sunday, 7:30 PM');
     });
 
     test('Commitment notifications format subscription name, cost, and frequency', () {
-      final subRes = NotificationFormatter.format(
-        eventType: 'subscription_added',
-        payload: {
-          'name': 'Netflix',
-          'amount': 649.0,
-          'currency': 'INR',
-          'billing_cycle': 'monthly',
-        },
-        actorName: 'Sophia',
+      final subRes = composeNotification(
+        const DecryptedEvent(
+          eventType: 'subscription_added',
+          payload: {
+            'name': 'Netflix',
+            'amount': 649.0,
+            'currency': 'INR',
+            'billing_cycle': 'monthly',
+          },
+        ),
+        ctxFor('Sophia'),
       );
-      expect(subRes.title, 'Sophia • Commitments');
-      expect(subRes.body, "Added subscription 'Netflix' (₹649 / monthly)");
+      expect(subRes, isNotNull);
+      expect(subRes!.title, 'Commitments');
+      expect(subRes.body, 'Sophia added Netflix — ₹649 a month');
     });
 
     test('CoveNotificationPayload.fromDecrypted creates enriched instance', () {
@@ -331,8 +369,8 @@ void main() {
         actorName: 'Alex',
       );
 
-      expect(payload.title, 'Alex • Groceries');
-      expect(payload.body, "Added 'Avocados' to Groceries");
+      expect(payload.title, 'Groceries');
+      expect(payload.body, 'Alex added Avocados');
       expect(payload.payload?['title'], 'Avocados');
       expect(payload.actorName, 'Alex');
     });
@@ -408,7 +446,7 @@ void main() {
 
       expect(result, isNotNull);
       expect(result!.module, NotificationModule.lists);
-      expect(result.body, "Added 'an item' to shared lists");
+      expect(result.body, 'Partner made a change. Open to see it.');
 
       // Sync engine was woken silently
       expect(syncEngine.pulledHomeIds, contains('home_alpha'));
