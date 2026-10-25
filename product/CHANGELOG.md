@@ -7,6 +7,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.14b — 90-Second Notification Batching per List (`Oct 25, 2026`)**:
+  - *Outcome*:
+    1. **Pure Per-List Batching State Machine (`NotificationBatcher`)**: Added [`lib/features/notifications/notification_batcher.dart`](../lib/features/notifications/notification_batcher.dart) with zero Flutter or plugin imports, implementing `BatchDecision offer(NotificationCopy copy, DateTime now)` and `int? closeBatch(String listId)` to [`design/specs/15-notifications.md`](../design/specs/15-notifications.md) §5.
+    2. **Decisions (`showNew`, `replace`, `rideAlong`, `drop`)**: First change in a list batch starts a plain card (`BatchDecisionKind.showNew`, empty `lines`); subsequent changes within 90s of the batch's first change replace that card (`same id`, `onlyAlertOnce: true`, summary body `"{partner} made {n} changes"`, and ordered InboxStyle `lines`); removals (`list_item_deleted`, `canStartCard: false`) ride along into an open batch (`BatchDecisionKind.rideAlong`) or drop (`BatchDecisionKind.drop`) when no batch is open; `closeBatch(listId)` closes the batch when the user opens the list.
+    3. **JSON Round-Trip & Local Preferences Persistence**: Added `toJson()` / `NotificationBatcher.fromJson()` (`toJsonString()` / `fromJsonString()`) and [`NotificationBatcherPreferences`](../lib/features/profile/preferences_controller.dart) (`load`, `save`, `closeBatch`) in `preferences_controller.dart` so batch state survives across fresh background isolates.
+  - *Under the Hood*:
+    - Added fixed-clock unit tests in [`test/features/notifications/notification_batcher_test.dart`](../test/features/notifications/notification_batcher_test.dart) covering single add, add + tick at `+30s`, four changes including a removal, `+91s` window expiry, removal with no open batch, interleaved Groceries & Coorg trip batches, `closeBatch`, and mid-batch JSON + `SharedPreferences` round-trips.
 - **Task 3.14a — The Quiet Ledger Notification Copy (`Oct 25, 2026`)**:
   - *Outcome*:
     1. **Pure Notification Copy Function (`composeNotification`)**: Added [`lib/features/notifications/notification_copy.dart`](../lib/features/notifications/notification_copy.dart) implementing `NotificationCopy? composeNotification(DecryptedEvent event, NotificationContext ctx)` (plus `composeFallbackNotification` and `composeCheckinReminder`) with zero Flutter, plugin, or provider imports, following [`design/specs/15-notifications.md`](../design/specs/15-notifications.md) §1–§4.

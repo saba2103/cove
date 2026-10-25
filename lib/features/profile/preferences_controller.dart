@@ -7,6 +7,7 @@ import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../add/add_draft.dart';
+import '../notifications/notification_batcher.dart';
 
 class CurrencyOption {
   final String code;
@@ -278,3 +279,43 @@ final addAgainPreferenceProvider =
     NotifierProvider<AddAgainPreferenceNotifier, AddAgainPreference?>(
   AddAgainPreferenceNotifier.new,
 );
+
+/// Persists [NotificationBatcher] state in local `SharedPreferences` so the
+/// 90-second per-list batch window survives across background isolates
+/// (`design/specs/15-notifications.md` §5).
+class NotificationBatcherPreferences {
+  static const String preferenceKey = NotificationBatcher.preferencesKey;
+
+  const NotificationBatcherPreferences._();
+
+  static Future<NotificationBatcher> load([SharedPreferences? prefs]) async {
+    try {
+      final resolvedPrefs = prefs ?? await SharedPreferences.getInstance();
+      await resolvedPrefs.reload();
+      final raw = resolvedPrefs.getString(preferenceKey);
+      return NotificationBatcher.fromJsonString(raw);
+    } catch (_) {
+      return NotificationBatcher();
+    }
+  }
+
+  static Future<void> save(
+    NotificationBatcher batcher, [
+    SharedPreferences? prefs,
+  ]) async {
+    try {
+      final resolvedPrefs = prefs ?? await SharedPreferences.getInstance();
+      await resolvedPrefs.setString(preferenceKey, batcher.toJsonString());
+    } catch (_) {}
+  }
+
+  static Future<int?> closeBatch(
+    String listId, [
+    SharedPreferences? prefs,
+  ]) async {
+    final batcher = await load(prefs);
+    final closedId = batcher.closeBatch(listId);
+    await save(batcher, prefs);
+    return closedId;
+  }
+}
