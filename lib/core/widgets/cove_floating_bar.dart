@@ -146,13 +146,8 @@ class CoveFloatingBarState {
     ),
     CoveFloatingBarItem(
       id: 'year',
-      label: 'Year',
+      label: 'The year',
       icon: Icons.date_range_outlined,
-    ),
-    CoveFloatingBarItem(
-      id: 'savings',
-      label: 'Savings',
-      icon: Icons.savings_outlined,
     ),
   ];
 

@@ -210,7 +210,6 @@ class ComponentShowcaseScreen extends ConsumerStatefulWidget {
 class _ComponentShowcaseScreenState
     extends ConsumerState<ComponentShowcaseScreen> {
   int _selectedTab = 0;
-  int _navIndex = 0;
   bool _item1Checked = false;
   bool _item2Checked = true;
   bool _notificationsEnabled = true;
@@ -263,9 +262,8 @@ class _ComponentShowcaseScreenState
           ),
         ],
       ),
-      bottomNavigationBar: CoveBottomNav(
-        currentIndex: _navIndex,
-        onTap: (index) => setState(() => _navIndex = index),
+      bottomNavigationBar: const CoveFloatingBar(
+        state: CoveFloatingBarState.rest(selectedId: 'home'),
       ),
       body: Center(
         child: ConstrainedBox(

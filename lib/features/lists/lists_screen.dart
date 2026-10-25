@@ -727,8 +727,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: Column(
-        children: [
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
           // Pinned Header: Tab Row & Underline
           Container(
             color: colors.background,
@@ -858,7 +860,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
           // Pinned Bottom Capsule Input
           _buildPinnedInputBar(context, activeList),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -914,13 +917,16 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       });
     }
 
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+
     return RefreshIndicator(
       color: colors.accentPrimary,
       backgroundColor: colors.surfaceCard,
       onRefresh: _handleRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
         children: [
           // Actions row: remaining count & "Clear completed"
           Row(
@@ -1039,9 +1045,6 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               ),
             ],
           ],
-
-          // Space to scroll past pinned input
-          const SizedBox(height: 24),
         ],
       ),
     );
@@ -1196,6 +1199,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
   Widget _buildPinnedInputBar(BuildContext context, LocalList activeList) {
     final colors = context.colors;
+    final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 880;
+    final bottomPadding = isWide
+        ? 16.0
+        : CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
 
     return Container(
       decoration: BoxDecoration(
@@ -1204,9 +1211,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           top: BorderSide(color: colors.borderHairline, width: 1),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+      padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPadding),
       child: SafeArea(
         top: false,
+        bottom: isWide,
         child: CovePillInput(
           controller: _inputController,
           focusNode: _inputFocusNode,

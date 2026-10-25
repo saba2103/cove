@@ -26,6 +26,7 @@ class CalendarScreen extends ConsumerStatefulWidget {
   final List<LocalSubscription>? initialSubscriptions;
   final CalendarViewMode initialMode;
   final DateTime? initialSelectedDate;
+  final ValueChanged<DateTime>? onSelectedDateChanged;
 
   const CalendarScreen({
     super.key,
@@ -33,6 +34,7 @@ class CalendarScreen extends ConsumerStatefulWidget {
     this.initialSubscriptions,
     this.initialMode = CalendarViewMode.day,
     this.initialSelectedDate,
+    this.onSelectedDateChanged,
   });
 
   @override
@@ -51,6 +53,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void initState() {
     super.initState();
     _selectedDate = widget.initialSelectedDate ?? clock.now();
+  }
+
+  @override
+  void didUpdateWidget(covariant CalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSelectedDate != null &&
+        widget.initialSelectedDate != oldWidget.initialSelectedDate) {
+      _selectedDate = widget.initialSelectedDate!;
+    }
   }
 
   @override
@@ -130,7 +141,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               subscriptions: subscriptions,
               outboxEvents: outboxEvents,
               selectedDate: _selectedDate,
-              onSelectDate: (d) => setState(() => _selectedDate = d),
+              onSelectDate: (d) {
+                setState(() => _selectedDate = d);
+                widget.onSelectedDateChanged?.call(d);
+              },
               onAddEvent: () => AddFlow.show(
                 context,
                 anchor: _selectedDate,

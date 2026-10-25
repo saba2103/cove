@@ -1,44 +1,62 @@
+import 'dart:async';
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/cove_theme.dart';
-import '../core/widgets/cove_bottom_nav.dart';
+import '../core/widgets/cove_floating_bar.dart';
 import '../core/widgets/cove_web_sidebar.dart';
-import 'activity/activity_read_status_controller.dart';
+import '../sync/providers/active_home_provider.dart';
+import '../sync/providers/cove_sync_providers.dart';
 import 'activity/activity_screen.dart';
+import 'add/add_flow.dart';
+import 'backup/drive_backup_controller.dart';
 import 'calendar/calendar_screen.dart';
+import 'changelog/whats_fresh_modal.dart';
 import 'expenses/expenses_screen.dart';
 import 'habits/habits_screen.dart';
 import 'home/home_controller.dart';
-import 'home/home_switcher_sheet.dart';
 import 'lists/lists_screen.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/notification_detail_dispatcher.dart';
 import 'notifications/notification_models.dart';
-import 'auth/auth_controller.dart';
-import 'backup/drive_backup_controller.dart';
-import 'changelog/whats_fresh_modal.dart';
-import 'profile/profile_screen.dart';
 import 'profile/user_profile_controller.dart';
 import 'routines/routine_screen.dart';
+import 'subscriptions/commitments_helicopter_screen.dart';
+import 'subscriptions/emi_tracker_screen.dart';
 import 'subscriptions/subscriptions_screen.dart';
 import 'today/today_screen.dart';
-import 'dart:async';
-import '../sync/providers/active_home_provider.dart';
-import '../sync/providers/cove_sync_providers.dart';
 import 'weather/weather_controller.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
+  /// Switches the active bar destination when an [AppShell] ancestor is present
+  /// on mobile/non-desktop layouts. Returns `true` if handled by [AppShell].
+  static bool maybeNavigateTo(BuildContext context, String destinationId) {
+    final state = context.findAncestorStateOfType<_AppShellState>();
+    if (state == null) return false;
+    final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
+    if (isDesktop) {
+      return state._navigateDesktopToDestination(destinationId);
+    }
+    state._handleSeatTap(destinationId);
+    return true;
+  }
+
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver {
-  int _currentIndex = 2;
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
+  int _currentIndex = 0;
+  String _activeDestination = 'home';
+  String _moneySeatId = 'expenses';
+  CoveFloatingBarState _barState =
+      const CoveFloatingBarState.rest(selectedId: 'home');
+  DateTime? _selectedCalendarDate;
   DateTime? _lastBackPressed;
   StreamSubscription? _navSub;
   StreamSubscription? _notifSub;
@@ -61,10 +79,12 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       });
 
       // Check if a notification launched the app and navigate to its module and detail sheet immediately
-      final pendingPayload = notifService.consumePendingNotificationPayload() ??
-          ref.read(notificationPayloadNavigationProvider);
-      final pendingModule = notifService.consumePendingNavigationModule() ??
-          ref.read(notificationNavigationProvider);
+      final pendingPayload =
+          notifService.consumePendingNotificationPayload() ??
+              ref.read(notificationPayloadNavigationProvider);
+      final pendingModule =
+          notifService.consumePendingNavigationModule() ??
+              ref.read(notificationNavigationProvider);
 
       if (pendingPayload != null) {
         ref.read(notificationPayloadNavigationProvider.notifier).navigateTo(null);
@@ -127,47 +147,167 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     super.dispose();
   }
 
+  bool _navigateDesktopToDestination(String destinationId) {
+    switch (destinationId) {
+      case 'home':
+        setState(() {
+          _currentIndex = 0;
+          _lastBackPressed = null;
+        });
+        return true;
+      case 'commitments':
+        setState(() {
+          _currentIndex = 1;
+          _lastBackPressed = null;
+        });
+        return true;
+      case 'day':
+      case 'calendar':
+        setState(() {
+          _currentIndex = 2;
+          _lastBackPressed = null;
+        });
+        return true;
+      case 'todo':
+      case 'tasks':
+        setState(() {
+          _currentIndex = 3;
+          _lastBackPressed = null;
+        });
+        return true;
+      case 'expenses':
+      case 'money':
+        setState(() {
+          _currentIndex = 4;
+          _lastBackPressed = null;
+        });
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  void _handleSeatTap(String id) {
+    setState(() {
+      _lastBackPressed = null;
+      switch (id) {
+        case 'home':
+          _activeDestination = 'home';
+          _currentIndex = 0;
+          _barState = const CoveFloatingBarState.rest(selectedId: 'home');
+          break;
+        case 'money':
+        case 'expenses':
+          _activeDestination = 'expenses';
+          _moneySeatId = 'expenses';
+          _currentIndex = 4;
+          _barState = const CoveFloatingBarState.money(selectedId: 'expenses');
+          break;
+        case 'commitments':
+          _activeDestination = 'commitments';
+          _moneySeatId = 'commitments';
+          _currentIndex = 1;
+          _barState =
+              const CoveFloatingBarState.money(selectedId: 'commitments');
+          break;
+        case 'more':
+          if (_barState.mode == CoveFloatingBarMode.more) {
+            _barState = CoveFloatingBarState.money(selectedId: _moneySeatId);
+          } else {
+            _barState = CoveFloatingBarState.more(selectedId: _moneySeatId);
+          }
+          break;
+        case 'tasks':
+        case 'todo':
+          _activeDestination = 'todo';
+          _currentIndex = 3;
+          _barState = const CoveFloatingBarState.tasks(selectedId: 'todo');
+          break;
+        case 'habits':
+          _activeDestination = 'habits';
+          _barState = const CoveFloatingBarState.tasks(selectedId: 'habits');
+          break;
+        case 'calendar':
+        case 'day':
+          _activeDestination = 'day';
+          _currentIndex = 2;
+          _selectedCalendarDate ??= clock.now();
+          _barState = const CoveFloatingBarState.calendar(selectedId: 'day');
+          break;
+        case 'routines':
+          _activeDestination = 'routines';
+          _barState =
+              const CoveFloatingBarState.calendar(selectedId: 'routines');
+          break;
+      }
+    });
+  }
+
+  void _handleOverflowItemTap(String id) {
+    setState(() {
+      _lastBackPressed = null;
+      _barState = CoveFloatingBarState.money(selectedId: _moneySeatId);
+    });
+    switch (id) {
+      case 'emis':
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const EmiTrackerScreen()),
+        );
+        break;
+      case 'year':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const CommitmentsHelicopterScreen(),
+          ),
+        );
+        break;
+    }
+  }
+
+  void _handleAddTap() {
+    if (_barState.mode == CoveFloatingBarMode.more) {
+      setState(() {
+        _barState = CoveFloatingBarState.money(selectedId: _moneySeatId);
+      });
+    }
+    final anchor = _activeDestination == 'day'
+        ? (_selectedCalendarDate ?? clock.now())
+        : clock.now();
+    AddFlow.show(context, anchor: anchor);
+  }
+
   void _navigateToModule(NotificationModule module) {
     if (!mounted) return;
 
     // Pop any open modals, sheets, or pushed routes to return to the root shell
     Navigator.of(context).popUntil((route) => route.isFirst);
 
+    final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
+
     switch (module) {
       case NotificationModule.home:
-        setState(() {
-          _currentIndex = 0;
-          _lastBackPressed = null;
-        });
+        _handleSeatTap('home');
         break;
       case NotificationModule.subscriptions:
-        setState(() {
-          _currentIndex = 1;
-          _lastBackPressed = null;
-        });
+        _handleSeatTap('commitments');
         break;
       case NotificationModule.calendar:
-        setState(() {
-          _currentIndex = 2;
-          _lastBackPressed = null;
-        });
+        _handleSeatTap('day');
         break;
       case NotificationModule.lists:
-        setState(() {
-          _currentIndex = 3;
-          _lastBackPressed = null;
-        });
+        _handleSeatTap('todo');
         break;
       case NotificationModule.expenses:
-        setState(() {
-          _currentIndex = 4;
-          _lastBackPressed = null;
-        });
+        _handleSeatTap('expenses');
         break;
       case NotificationModule.habits:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const HabitsScreen()),
-        );
+        if (isDesktop) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const HabitsScreen()),
+          );
+        } else {
+          _handleSeatTap('habits');
+        }
         break;
       case NotificationModule.activity:
         Navigator.of(context).push(
@@ -179,7 +319,11 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
 
   void _navigateToPayload(CoveNotificationPayload payload) {
     _navigateToModule(payload.module);
-    NotificationDetailDispatcher.openDetailForNotification(context, ref, payload);
+    NotificationDetailDispatcher.openDetailForNotification(
+      context,
+      ref,
+      payload,
+    );
   }
 
   void _showInAppNotificationBanner(CoveNotificationPayload payload) {
@@ -214,8 +358,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.lg,
+          vertical: CoveSpace.md,
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
+        ),
         backgroundColor: colors.surfaceCard,
         duration: const Duration(seconds: 4),
         content: Row(
@@ -225,11 +374,13 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               height: 36,
               decoration: BoxDecoration(
                 color: colors.accentPrimary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.inline),
+                ),
               ),
               child: Icon(icon, color: colors.accentPrimary, size: 20),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CoveSpace.md),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -237,8 +388,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                 children: [
                   Text(
                     payload.title,
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: CoveType.rowTitle.copyWith(
                       fontWeight: FontWeight.bold,
                       color: colors.textPrimary,
                     ),
@@ -246,8 +396,7 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                   const SizedBox(height: 2),
                   Text(
                     payload.body,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: CoveType.rowSub.copyWith(
                       color: colors.textMuted,
                     ),
                     maxLines: 2,
@@ -270,25 +419,17 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final typography = context.typography;
 
-    ref.listen<NotificationModule?>(notificationNavigationProvider, (prev, next) {
+    ref.listen<NotificationModule?>(notificationNavigationProvider, (
+      prev,
+      next,
+    ) {
       if (next != null) {
         _navigateToModule(next);
         ref.read(notificationNavigationProvider.notifier).navigateTo(null);
       }
     });
 
-    final profile = ref.watch(userProfileProvider);
-    final user = ref.watch(authProvider).value;
-    final effectiveName = profile.displayName.trim().isNotEmpty
-        ? profile.displayName.trim()
-        : (user?.displayName?.trim().isNotEmpty == true
-            ? user!.displayName!.trim()
-            : '');
-    final firstName = effectiveName.split(' ').firstOrNull ?? '';
-    final initialLetter =
-        firstName.isNotEmpty ? firstName[0].toUpperCase() : 'U';
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
 
     return PopScope(
@@ -302,16 +443,24 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
           return;
         }
 
-        // If not on Calendar tab, switch to Calendar first
-        if (_currentIndex != 2) {
-          setState(() {
-            _currentIndex = 2;
-            _lastBackPressed = null;
-          });
-          return;
+        if (isDesktop) {
+          if (_currentIndex != 0) {
+            setState(() {
+              _currentIndex = 0;
+              _lastBackPressed = null;
+            });
+            return;
+          }
+        } else {
+          // Android back: from any category destination -> Home.
+          if (_activeDestination != 'home' ||
+              _barState.mode != CoveFloatingBarMode.rest) {
+            _handleSeatTap('home');
+            return;
+          }
         }
 
-        // On Calendar tab: require double press within 2 seconds to exit
+        // From Home -> the system default, as today (double press within 2s to exit)
         final now = clock.now();
         if (_lastBackPressed == null ||
             now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
@@ -322,18 +471,18 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
               content: Text(
                 'Press back again to exit',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: CoveType.rowSub.copyWith(
                   color: colors.textPrimary,
-                  fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  fontFamily: 'GeneralSans',
                 ),
               ),
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(bottom: 76, left: 48, right: 48),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.card),
+                ),
                 side: BorderSide(color: colors.borderHairline),
               ),
               backgroundColor: colors.surfaceCard,
@@ -347,128 +496,6 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       },
       child: Scaffold(
         backgroundColor: colors.background,
-        appBar: isDesktop
-            ? null
-            : AppBar(
-                title: const HomeSwitcherAppBarTitle(),
-                actions: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.schedule_outlined,
-                      size: 22,
-                      color: colors.textPrimary,
-                    ),
-                    tooltip: 'Routines',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RoutineScreen()),
-                      );
-                    },
-                  ),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final unreadCount = ref.watch(unreadActivityCountProvider);
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              unreadCount > 0
-                                  ? Icons.notifications_rounded
-                                  : Icons.notifications_none_rounded,
-                              size: 22,
-                              color: colors.textPrimary,
-                            ),
-                            tooltip: 'Notifications',
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const ActivityScreen()),
-                              );
-                            },
-                          ),
-                          if (unreadCount > 0)
-                            Positioned(
-                              right: 6,
-                              top: 8,
-                              child: IgnorePointer(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: colors.accentSecondary,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  constraints: const BoxConstraints(
-                                      minWidth: 16, minHeight: 16),
-                                  child: Center(
-                                    child: Text(
-                                      unreadCount > 99 ? '99+' : '$unreadCount',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16, left: 4),
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                          );
-                        },
-                        child: CircleAvatar(
-                          radius: 17,
-                          backgroundColor: (profile.avatarUrl != null &&
-                                  profile.avatarUrl!.isNotEmpty)
-                              ? colors.surfaceRow
-                              : colors.accentPrimary,
-                          backgroundImage: (profile.avatarUrl != null &&
-                                  profile.avatarUrl!.isNotEmpty)
-                              ? NetworkImage(profile.avatarUrl!)
-                              : null,
-                          child: (profile.avatarUrl != null &&
-                                  profile.avatarUrl!.isNotEmpty)
-                              ? null
-                              : Text(
-                                  initialLetter,
-                                  style: typography.headline.copyWith(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: colors.surfaceRow,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        bottomNavigationBar: isDesktop
-            ? null
-            : CoveBottomNav(
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  if (_currentIndex != index) {
-                    setState(() {
-                      _currentIndex = index;
-                      _lastBackPressed = null;
-                    });
-                  }
-                },
-              ),
         body: isDesktop
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -489,26 +516,41 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
                       child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 1320),
-                          child: _buildCurrentTab(),
+                          child: _buildDesktopTab(),
                         ),
                       ),
                     ),
                   ),
                 ],
               )
-            : SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 540),
-                    child: _buildCurrentTab(),
+            : Stack(
+                children: [
+                  Positioned.fill(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 540),
+                        child: _buildBarDestination(),
+                      ),
+                    ),
                   ),
-                ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: CoveFloatingBar(
+                      state: _barState,
+                      onSeatTap: _handleSeatTap,
+                      onOverflowItemTap: _handleOverflowItemTap,
+                      onAddTap: _handleAddTap,
+                    ),
+                  ),
+                ],
               ),
       ),
     );
   }
 
-  Widget _buildCurrentTab() {
+  Widget _buildDesktopTab() {
     switch (_currentIndex) {
       case 0:
         return const TodayScreen();
@@ -521,7 +563,33 @@ class _AppShellState extends ConsumerState<AppShell> with WidgetsBindingObserver
       case 4:
         return const ExpensesScreen();
       default:
-        return const CalendarScreen();
+        return const TodayScreen();
+    }
+  }
+
+  Widget _buildBarDestination() {
+    switch (_activeDestination) {
+      case 'home':
+        return const TodayScreen();
+      case 'expenses':
+        return const ExpensesScreen();
+      case 'commitments':
+        return const SubscriptionsScreen();
+      case 'todo':
+        return const ListsScreen();
+      case 'habits':
+        return const HabitsScreen();
+      case 'day':
+        return CalendarScreen(
+          initialSelectedDate: _selectedCalendarDate,
+          onSelectedDateChanged: (d) {
+            _selectedCalendarDate = d;
+          },
+        );
+      case 'routines':
+        return const RoutineScreen();
+      default:
+        return const TodayScreen();
     }
   }
 }

@@ -24,6 +24,7 @@ import '../activity/activity_read_status_controller.dart';
 import '../activity/activity_screen.dart';
 import '../add/add_draft.dart';
 import '../add/add_flow.dart';
+import '../app_shell.dart';
 import '../auth/auth_controller.dart';
 import '../calendar/calendar_screen.dart';
 import '../expenses/expenses_screen.dart';
@@ -109,33 +110,38 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     });
   }
 
+  void _openDestination(
+    BuildContext context,
+    String destinationId,
+    Widget Function() fallbackBuilder,
+  ) {
+    if (AppShell.maybeNavigateTo(context, destinationId)) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => fallbackBuilder()),
+    );
+  }
+
   void _handleLetterTargetTap(BuildContext context, LetterTarget target) {
     switch (target.kind) {
       case LetterTargetKind.calendarSection:
       case LetterTargetKind.event:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CalendarScreen()),
-        );
+        _openDestination(context, 'day', () => const CalendarScreen());
       case LetterTargetKind.habitsSection:
       case LetterTargetKind.habit:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const HabitsScreen()),
-        );
+        _openDestination(context, 'habits', () => const HabitsScreen());
       case LetterTargetKind.expensesSection:
       case LetterTargetKind.expense:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ExpensesScreen()),
-        );
+        _openDestination(context, 'expenses', () => const ExpensesScreen());
       case LetterTargetKind.commitmentsSection:
       case LetterTargetKind.commitment:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SubscriptionsScreen()),
+        _openDestination(
+          context,
+          'commitments',
+          () => const SubscriptionsScreen(),
         );
       case LetterTargetKind.listsSection:
       case LetterTargetKind.list:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ListsScreen()),
-        );
+        _openDestination(context, 'todo', () => const ListsScreen());
       case LetterTargetKind.person:
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const HomeSettingsScreen()),
@@ -419,26 +425,22 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                         subtitle:
                             '${formatCoveCurrency(todayData.sharedMonthExpensesTotal, currency.symbol)} this month',
                         valueTone: CoveMetricValueTone.accentTint,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ExpensesScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _openDestination(
+                          context,
+                          'expenses',
+                          () => const ExpensesScreen(),
+                        ),
                       ),
                       CoveMetricCard(
                         label: 'Events',
                         value: '${calendarEvents.length}',
                         subtitle: _buildEventsMetricSubtitle(calendarEvents),
                         valueTone: CoveMetricValueTone.primary,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const CalendarScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _openDestination(
+                          context,
+                          'day',
+                          () => const CalendarScreen(),
+                        ),
                       ),
                       CoveMetricCard(
                         label: 'Habits',
@@ -449,13 +451,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                                   ? 'all done today'
                                   : '${formatLetterNumber(waitingHabits)} still waiting'),
                         valueTone: CoveMetricValueTone.primary,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const HabitsScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _openDestination(
+                          context,
+                          'habits',
+                          () => const HabitsScreen(),
+                        ),
                       ),
                       CoveMetricCard(
                         label: 'The list',
@@ -464,13 +464,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                             ? 'all clear'
                             : '$openTasksCount still open',
                         valueTone: CoveMetricValueTone.primary,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ListsScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => _openDestination(
+                          context,
+                          'todo',
+                          () => const ListsScreen(),
+                        ),
                       ),
                     ],
                   ),
@@ -634,9 +632,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         : '${formatLetterNumber(events.length)} today';
 
     void openCalendar() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const CalendarScreen()),
-      );
+      _openDestination(context, 'day', () => const CalendarScreen());
     }
 
     final tickets = events.isEmpty
@@ -724,9 +720,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         : '$completedHabits of $totalHabits';
 
     void openHabits() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const HabitsScreen()),
-      );
+      _openDestination(context, 'habits', () => const HabitsScreen());
     }
 
     final cards = habits.isEmpty
@@ -810,9 +804,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         : '$count ${count == 1 ? 'purchase' : 'purchases'}';
 
     void openExpenses() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ExpensesScreen()),
-      );
+      _openDestination(context, 'expenses', () => const ExpensesScreen());
     }
 
     final viewerSpent = expenses
@@ -900,9 +892,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final readout = openCount == 0 ? 'all clear' : '$openCount open';
 
     void openLists() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ListsScreen()),
-      );
+      _openDestination(context, 'todo', () => const ListsScreen());
     }
 
     final primaryListId = tasks.isNotEmpty
@@ -1008,8 +998,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         : '${commitments.length} · ${formatCoveCurrency(totalDue, currencySymbol)}';
 
     void openCommitments() {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SubscriptionsScreen()),
+      _openDestination(
+        context,
+        'commitments',
+        () => const SubscriptionsScreen(),
       );
     }
 

@@ -186,7 +186,7 @@ void main() {
   );
 
   testWidgets(
-    'CoveFloatingBar golden matrix — more state (Money overflow open: EMIs, Year, Savings)',
+    'CoveFloatingBar golden matrix — more state (Money overflow open: EMIs, The year)',
     (tester) async {
       await goldenMatrix(
         tester,

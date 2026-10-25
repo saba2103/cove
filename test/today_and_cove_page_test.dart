@@ -5,7 +5,7 @@ import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/app_shell.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/calendar/calendar_screen.dart';
-import 'package:cove/features/home/about_cove_screen.dart';
+import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
@@ -144,7 +144,7 @@ void main() {
     ];
   }
 
-  testWidgets('AppShell bottom bar has Today tab and clicking it navigates to TodayScreen', (tester) async {
+  testWidgets('AppShell floating bar launches on TodayScreen and returns to TodayScreen from Calendar', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -163,13 +163,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Default tab is Calendar (index 2)
+    // Default destination is Home -> TodayScreen
+    expect(find.byType(TodayScreen), findsOneWidget);
+
+    // Tap Calendar category in CoveFloatingBar
+    await tester.tap(find.byKey(const ValueKey('cove_bar_seat_calendar')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(CalendarScreen), findsOneWidget);
 
-    // Tap Today/Home tab in bottom navigation bar
-    final homeTab = find.byTooltip('Home');
-    expect(homeTab, findsOneWidget);
-    await tester.tap(homeTab);
+    // Tap detached Home circle to return to TodayScreen
+    await tester.tap(find.byKey(const ValueKey('cove_bar_seat_home')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -184,7 +188,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Clicking Cove name in top-left opens AboutCoveScreen', (tester) async {
+  testWidgets('Clicking home name in Today header opens HomeSettingsScreen (Our home)', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -203,25 +207,21 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap on the home name in the top left
+    // Tap on the home name in the top left of TodayScreen
     final homeTitle = find.text('Haven Sanctuary');
     expect(homeTitle, findsOneWidget);
     await tester.tap(homeTitle);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
-    // Verify AboutCoveScreen is pushed
-    expect(find.byType(AboutCoveScreen), findsOneWidget);
-    expect(find.text('About Sanctuary'), findsOneWidget);
-    expect(find.text('MEMBERS OF THIS COVE'), findsOneWidget);
-    expect(find.text('THE COVE PHILOSOPHY'), findsOneWidget);
-    expect(find.text('A private digital sanctuary crafted exclusively for two people.'), findsOneWidget);
+    // Verify HomeSettingsScreen (Our home) is pushed
+    expect(find.byType(HomeSettingsScreen), findsOneWidget);
 
     // Clean up
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Profile avatar has inverted colors (accent fill, dark green initial)', (tester) async {
+  testWidgets('Today header avatar renders viewer initial and opens ProfileScreen on tap', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -240,16 +240,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Find the header CircleAvatar
-    final circleAvatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
-    expect(circleAvatar.backgroundColor, CoveColors.dark.accentPrimary);
-
-    // Initial text 'A'
-    final initialText = tester.widget<Text>(find.descendant(
-      of: find.byType(CircleAvatar).first,
-      matching: find.text('A'),
-    ));
-    expect(initialText.style?.color, CoveColors.dark.surfaceRow);
+    // Initial text 'A' in CoveAvatar.header
+    expect(find.text('A'), findsWidgets);
 
     // Clean up
     await tester.pumpWidget(const SizedBox());

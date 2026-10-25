@@ -251,23 +251,28 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
           ),
           data: (routines) {
             if (routines.isEmpty) {
-              return CoveMaxWidth(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    CovePageHeader(
-                      title: 'Routines',
-                      actions: [
-                        CoveRoundButton(
-                          icon: Icons.add_rounded,
-                          variant: CoveRoundButtonVariant.gold,
-                          semanticLabel: 'New Routine',
-                          onPressed: _openRoutineForm,
-                        ),
-                      ],
-                    ),
-                    Expanded(child: _buildEmptyState(cv)),
-                  ],
+              return SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: CoveSpace.barClearance + bottomInset,
+                ),
+                child: CoveMaxWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CovePageHeader(
+                        title: 'Routines',
+                        actions: [
+                          CoveRoundButton(
+                            icon: Icons.add_rounded,
+                            variant: CoveRoundButtonVariant.gold,
+                            semanticLabel: 'New Routine',
+                            onPressed: _openRoutineForm,
+                          ),
+                        ],
+                      ),
+                      _buildEmptyState(cv),
+                    ],
+                  ),
                 ),
               );
             }

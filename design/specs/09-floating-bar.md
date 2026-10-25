@@ -25,7 +25,7 @@ Home   ·   Money   ·   [ + ]   ·   Tasks   ·   Calendar
 
 Tapping a category detaches Home and shows that category's three seats in the middle:
 
-- **Money** → Expenses · Commitments · More → (EMIs, Year, Savings)
+- **Money** → Expenses · Bills · More → (EMIs, The year)
 - **Tasks** → Todo · Habits
 - **Calendar** → Day · Routines
 

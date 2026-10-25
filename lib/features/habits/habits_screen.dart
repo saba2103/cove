@@ -108,6 +108,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           'Habits & Rhythms',
           style: typography.headline.copyWith(fontSize: 20),
@@ -125,6 +126,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: isDesktop ? 1200 : 540),
@@ -140,15 +142,22 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return CoveEmptyState(
-      icon: Icons.repeat_outlined,
-      title: 'No Habits Logged',
-      description:
-          'Track personal rhythms together or privately without gamified noise or guilt.',
-      action: CovePillButton(
-        label: 'Create First Habit',
-        onPressed: () => AddFlow.show(context, kind: AddKind.habit),
-      ),
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+    return ListView(
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      children: [
+        CoveEmptyState(
+          icon: Icons.repeat_outlined,
+          title: 'No Habits Logged',
+          description:
+              'Track personal rhythms together or privately without gamified noise or guilt.',
+          action: CovePillButton(
+            label: 'Create First Habit',
+            onPressed: () => AddFlow.show(context, kind: AddKind.habit),
+          ),
+        ),
+      ],
     );
   }
 
@@ -179,10 +188,12 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         .toList();
 
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 960;
+    final bottomPadding =
+        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
 
     if (isDesktop) {
       return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        padding: EdgeInsets.fromLTRB(32, 24, 32, bottomPadding),
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,7 +289,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
       children: [
         // 1. YOUR HABITS
         if (yourShared.isNotEmpty) ...[
