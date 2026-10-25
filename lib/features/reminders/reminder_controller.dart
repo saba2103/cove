@@ -6,9 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../notifications/notification_models.dart';
+import '../notifications/notification_pipeline.dart';
 import 'reminder_models.dart';
 
 class ReminderNotifier extends Notifier<List<CheckinReminder>> {
@@ -267,32 +270,63 @@ class ReminderNotifier extends Notifier<List<CheckinReminder>> {
     } catch (_) {}
   }
 
-  /// Triggers an immediate preview notification with the warm welcoming copy.
-  Future<void> previewNotification(CheckinReminder reminder) async {
+  /// Triggers an immediate preview notification with the Spec §2 copy:
+  /// `{reminder label, else Evening}` / `A quiet moment, together.`
+  Future<void> previewNotification(
+    CheckinReminder reminder, {
+    LocalNotificationSink? sink,
+  }) async {
     try {
-      const androidDetails = AndroidNotificationDetails(
+      final copy = reminder.notificationCopy;
+      final id = clock.now().millisecondsSinceEpoch ~/ 1000;
+      if (sink != null) {
+        final homeId = ref.read(activeHomeIdProvider) ?? '';
+        await sink.show(
+          RenderedNotification(
+            id: id,
+            channelId: 'cove_checkin_reminders',
+            groupKey: 'cove_group_checkin',
+            module: NotificationModule.home,
+            color: CoveTokens.dark.accentFill,
+            title: copy.title,
+            body: copy.body,
+            tapPayload: CoveNotificationPayload(
+              homeId: homeId,
+              module: NotificationModule.home,
+              eventType: 'checkin_reminder',
+              title: copy.title,
+              body: copy.body,
+            ),
+          ),
+        );
+        return;
+      }
+
+      final androidDetails = AndroidNotificationDetails(
         'cove_checkin_reminders',
         'Daily Check-ins',
         channelDescription: 'Gentle warm reminders to pause and check into Cove together',
         importance: Importance.max,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_stat_cove',
+        color: CoveTokens.dark.accentFill,
+        groupKey: 'cove_group_checkin',
       );
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
+        threadIdentifier: 'cove_group_checkin',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
 
-      final id = clock.now().millisecondsSinceEpoch ~/ 1000;
       await _localNotifications.show(
         id: id,
-        title: 'Cove · A warm pause for the two of you',
-        body: reminder.message,
+        title: copy.title,
+        body: copy.body,
         notificationDetails: details,
       );
     } catch (e) {

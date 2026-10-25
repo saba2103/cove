@@ -445,7 +445,7 @@ void main() {
       await pumpEventQueue();
 
       expect(result, isNotNull);
-      expect(result!.module, NotificationModule.lists);
+      expect(result!.module, NotificationModule.activity);
       expect(result.body, 'Partner made a change. Open to see it.');
 
       // Sync engine was woken silently
@@ -453,7 +453,7 @@ void main() {
 
       // Banner event was emitted
       expect(receivedEvents.length, 1);
-      expect(receivedEvents.first.module, NotificationModule.lists);
+      expect(receivedEvents.first.module, NotificationModule.activity);
 
       await sub.cancel();
       service.dispose();

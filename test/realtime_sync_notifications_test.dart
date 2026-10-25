@@ -11,6 +11,7 @@ import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -63,6 +64,7 @@ void main() {
   const partnerUserId = 'user-partner-you';
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     db = AppDatabase(NativeDatabase.memory());
     localStateStore = LocalStateStoreImpl(db);
     cryptoService = SodiumCryptoService();

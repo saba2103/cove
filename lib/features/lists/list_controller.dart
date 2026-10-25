@@ -326,3 +326,19 @@ class ListController {
 final listControllerProvider = Provider<ListController>((ref) {
   return ListController(ref);
 });
+
+/// Tracks a target `listId` to select on `ListsScreen` when navigating from a
+/// batched list notification tap (`design/specs/15-notifications.md` §6).
+class SelectedListIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void selectList(String? listId) {
+    state = listId;
+  }
+}
+
+final selectedListIdProvider =
+    NotifierProvider<SelectedListIdNotifier, String?>(
+  SelectedListIdNotifier.new,
+);

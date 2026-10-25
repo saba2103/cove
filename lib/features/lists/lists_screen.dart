@@ -16,6 +16,7 @@ import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
+import '../notifications/notification_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import 'create_list_dialog.dart';
 import 'list_controller.dart';
@@ -40,6 +41,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
   int _selectedTabIndex = 0;
   String? _selectedListId;
+
+  /// Visible for tests to verify which list tab is currently active.
+  String? get activeListIdForTest => _lastClosedBatchListId ?? _selectedListId;
+  String? _lastClosedBatchListId;
   List<String>? _customListOrder;
 
   final TextEditingController _inputController = TextEditingController();
@@ -445,6 +450,27 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     final colors = context.colors;
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
 
+    ref.listen<String?>(selectedListIdProvider, (prev, next) {
+      if (next != null && next.isNotEmpty) {
+        setState(() {
+          _selectedListId = next;
+        });
+        ref.read(selectedListIdProvider.notifier).selectList(null);
+      }
+    });
+
+    final pendingTargetListId = ref.read(selectedListIdProvider);
+    if (pendingTargetListId != null &&
+        pendingTargetListId.isNotEmpty &&
+        _selectedListId != pendingTargetListId) {
+      _selectedListId = pendingTargetListId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(selectedListIdProvider.notifier).selectList(null);
+        }
+      });
+    }
+
     if (widget.initialLists != null) {
       return _buildWithLists(context, widget.initialLists!, hasPartner: hasPartner);
     }
@@ -513,6 +539,15 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       safeIndex = _selectedTabIndex.clamp(0, orderedLists.length - 1);
     }
     final activeList = orderedLists[safeIndex];
+    if (_lastClosedBatchListId != activeList.id) {
+      _lastClosedBatchListId = activeList.id;
+      final openedListId = activeList.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(notificationServiceProvider).onListOpened(openedListId);
+        }
+      });
+    }
 
     final typography = context.typography;
     final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 880;

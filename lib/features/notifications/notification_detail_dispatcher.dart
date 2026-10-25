@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
@@ -7,8 +8,10 @@ import '../auth/auth_controller.dart';
 import '../calendar/calendar_event_form_sheet.dart';
 import '../expenses/expense_detail_sheet.dart';
 import '../habits/habit_detail_sheet.dart';
+import '../lists/list_controller.dart';
 import '../lists/list_item_detail_sheet.dart';
 import '../subscriptions/commitment_detail_sheet.dart';
+import 'notification_controller.dart';
 import 'notification_models.dart';
 
 /// Dispatches push notification deep links directly to the corresponding
@@ -60,6 +63,18 @@ class NotificationDetailDispatcher {
         try {
           rawPayload = jsonDecode(ev.payloadJson) as Map<String, dynamic>;
         } catch (_) {}
+      }
+    }
+
+    if (payload.module == NotificationModule.lists) {
+      final listId = payload.listId ?? (rawPayload?['list_id'] as String?);
+      final isBatch = payload.isBatch || (rawPayload?['is_batch'] == true);
+      if (listId != null && listId.isNotEmpty) {
+        ref.read(selectedListIdProvider.notifier).selectList(listId);
+        unawaited(ref.read(notificationServiceProvider).onListOpened(listId));
+      }
+      if (isBatch) {
+        return;
       }
     }
 
@@ -155,6 +170,14 @@ class NotificationDetailDispatcher {
 
           final resolvedItem = item;
           if (resolvedItem != null && context.mounted) {
+            ref
+                .read(selectedListIdProvider.notifier)
+                .selectList(resolvedItem.listId);
+            unawaited(
+              ref
+                  .read(notificationServiceProvider)
+                  .onListOpened(resolvedItem.listId),
+            );
             final list = await (db.select(db.localLists)
                   ..where((t) => t.id.equals(resolvedItem.listId)))
                 .getSingleOrNull();

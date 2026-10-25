@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:clock/clock.dart';
 import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
+import '../notifications/notification_copy.dart';
 
 class CheckinReminder {
   final String id;
@@ -24,6 +25,20 @@ class CheckinReminder {
     final dt = DateTime(2026, 1, 1, hour, minute);
     return DateFormat('h:mm a').format(dt);
   }
+
+  /// Optional custom label for this check-in reminder, or `null` when using
+  /// the default preset so `composeCheckinReminder` falls back to `'Evening'`.
+  String? get reminderLabel {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty || kDefaultWarmPresets.contains(trimmed)) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  /// Spec §2 notification copy (`{reminder label, else Evening}` / `A quiet moment, together.`).
+  NotificationCopy get notificationCopy =>
+      composeCheckinReminder(label: reminderLabel);
 
   CheckinReminder copyWith({
     String? id,

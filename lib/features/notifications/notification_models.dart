@@ -135,6 +135,8 @@ class CoveNotificationPayload {
   final String body;
   final Map<String, dynamic>? payload;
   final String? actorName;
+  final String? listId;
+  final bool isBatch;
 
   const CoveNotificationPayload({
     required this.homeId,
@@ -145,6 +147,8 @@ class CoveNotificationPayload {
     required this.body,
     this.payload,
     this.actorName,
+    this.listId,
+    this.isBatch = false,
   });
 
   /// Anti-spam collapse key for FCM / Android Tag / APNs collapse-id:
@@ -373,6 +377,11 @@ class CoveNotificationPayload {
       body = fallback.body;
     }
 
+    final listId = (data['list_id'] as String?) ??
+        (payloadMap?['list_id'] as String?);
+    final isBatch =
+        (data['is_batch'] == true) || (payloadMap?['is_batch'] == true);
+
     return CoveNotificationPayload(
       homeId: homeId,
       module: module,
@@ -382,6 +391,8 @@ class CoveNotificationPayload {
       body: body,
       payload: payloadMap,
       actorName: effectiveActorName,
+      listId: listId,
+      isBatch: isBatch,
     );
   }
 
@@ -422,6 +433,8 @@ class CoveNotificationPayload {
     String? body,
     Map<String, dynamic>? payload,
     String? actorName,
+    String? listId,
+    bool? isBatch,
   }) {
     return CoveNotificationPayload(
       homeId: homeId ?? this.homeId,
@@ -432,6 +445,8 @@ class CoveNotificationPayload {
       body: body ?? this.body,
       payload: payload ?? this.payload,
       actorName: actorName ?? this.actorName,
+      listId: listId ?? this.listId,
+      isBatch: isBatch ?? this.isBatch,
     );
   }
 
@@ -445,6 +460,8 @@ class CoveNotificationPayload {
       'title': title,
       'body': body,
       if (actorName != null) 'actor_name': actorName,
+      if (listId != null) 'list_id': listId,
+      if (isBatch) 'is_batch': true,
       if (payload != null) 'payload': payload,
     };
   }

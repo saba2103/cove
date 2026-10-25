@@ -276,11 +276,37 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ??
             driftDatabase(
               name: 'cove_db',
+              native: const DriftNativeOptions(shareAcrossIsolates: true),
               web: DriftWebOptions(
                 sqlite3Wasm: Uri.parse('sqlite3.wasm'),
                 driftWorker: Uri.parse('drift_worker.js'),
               ),
             ));
+
+  /// Opens a strictly read-only database handle for the background notification
+  /// isolate (`design/specs/15-notifications.md` / 3.14c).
+  ///
+  /// Guarantees that the background isolate and main isolate cannot corrupt each
+  /// other:
+  /// 1. Suppresses `beforeOpen` migrations so the background isolate never runs
+  ///    `onCreate` / `onUpgrade` DDL concurrently with the main isolate.
+  /// 2. Sets `PRAGMA busy_timeout = 5000` and `PRAGMA query_only = ON` on the
+  ///    connection so SQLite rejects any write at the C engine level and waits
+  ///    cleanly if the main isolate is committing a write transaction.
+  /// 3. Rejects `runInsert`, `runUpdate`, `runDelete`, `runBatched`, and
+  ///    non-PRAGMA `runCustom` in Dart with a [StateError] before touching SQLite.
+  factory AppDatabase.readOnly([QueryExecutor? inner]) {
+    final base = inner ??
+        driftDatabase(
+          name: 'cove_db',
+          native: const DriftNativeOptions(shareAcrossIsolates: true),
+          web: DriftWebOptions(
+            sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+            driftWorker: Uri.parse('drift_worker.js'),
+          ),
+        );
+    return AppDatabase(ReadOnlyQueryExecutor(base));
+  }
 
   @override
   int get schemaVersion => 11;
@@ -923,4 +949,118 @@ class AppDatabase extends _$AppDatabase {
     return row != null;
   }
 }
+
+/// A [QueryExecutor] decorator that enforces strictly read-only SQLite access.
+///
+/// Used by [AppDatabase.readOnly] in the background notification isolate and in
+/// pipeline tests to guarantee zero writes to the database or outbox.
+class ReadOnlyQueryExecutor extends QueryExecutor {
+  final QueryExecutor _inner;
+  final bool suppressMigrations;
+  int writeAttempts = 0;
+  int selectCount = 0;
+
+  ReadOnlyQueryExecutor(
+    this._inner, {
+    this.suppressMigrations = true,
+  });
+
+  @override
+  SqlDialect get dialect => _inner.dialect;
+
+  @override
+  Future<bool> ensureOpen(QueryExecutorUser user) async {
+    final effectiveUser = suppressMigrations
+        ? _NoMigrationExecutorUser(user.schemaVersion)
+        : user;
+    final opened = await _inner.ensureOpen(effectiveUser);
+    try {
+      await _inner.runCustom('PRAGMA busy_timeout = 5000;', const []);
+      await _inner.runCustom('PRAGMA query_only = ON;', const []);
+    } catch (_) {}
+    return opened;
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    String statement,
+    List<Object?> args,
+  ) {
+    selectCount += 1;
+    return _inner.runSelect(statement, args);
+  }
+
+  @override
+  Future<int> runInsert(String statement, List<Object?> args) {
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: INSERT is forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  Future<int> runUpdate(String statement, List<Object?> args) {
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: UPDATE is forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  Future<int> runDelete(String statement, List<Object?> args) {
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: DELETE is forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  Future<void> runCustom(String statement, [List<Object?>? args]) {
+    final trimmed = statement.trim().toUpperCase();
+    if (trimmed.startsWith('PRAGMA BUSY_TIMEOUT') ||
+        trimmed.startsWith('PRAGMA QUERY_ONLY')) {
+      return _inner.runCustom(statement, args);
+    }
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: custom SQL ($statement) is forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  Future<void> runBatched(BatchedStatements statements) {
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: batched writes are forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  TransactionExecutor beginTransaction() {
+    writeAttempts += 1;
+    throw StateError(
+      'ReadOnlyQueryExecutor: transactions are forbidden in the read-only notification pipeline.',
+    );
+  }
+
+  @override
+  QueryExecutor beginExclusive() => this;
+
+  @override
+  Future<void> close() => _inner.close();
+}
+
+class _NoMigrationExecutorUser extends QueryExecutorUser {
+  @override
+  final int schemaVersion;
+
+  _NoMigrationExecutorUser(this.schemaVersion);
+
+  @override
+  Future<void> beforeOpen(
+    QueryExecutor executor,
+    OpeningDetails details,
+  ) async {}
+}
+
 

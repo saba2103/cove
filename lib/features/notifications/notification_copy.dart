@@ -287,7 +287,8 @@ NotificationCopy? composeNotification(
     // -------------------------------------------------------------------------
     // EXPENSES (§2 & §3)
     // -------------------------------------------------------------------------
-    case 'expense_logged': {
+    case 'expense_logged':
+    case 'expense_added': {
       final title = _extractString(p, const ['title', 'name']) ?? '';
       if (title.isEmpty) return null;
       final amount = (p['amount'] as num?)?.toDouble() ?? 0.0;

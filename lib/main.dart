@@ -24,6 +24,7 @@ import 'features/today/today_screen.dart';
 import 'features/expenses/expenses_screen.dart';
 import 'features/habits/habits_screen.dart';
 import 'features/lists/lists_screen.dart';
+import 'features/notifications/notification_service.dart';
 import 'features/profile/home_metadata_controller.dart';
 import 'features/profile/preferences_controller.dart';
 import 'features/profile/profile_screen.dart';
@@ -34,13 +35,51 @@ import 'sync/db/app_database.dart';
 import 'sync/providers/active_home_provider.dart';
 import 'sync/providers/cove_sync_providers.dart';
 
+const String _kSupabaseUrl = String.fromEnvironment(
+  'SUPABASE_URL',
+  defaultValue: 'https://dklecfmiccevnkhxnwmo.supabase.co',
+);
+const String _kSupabaseKey = String.fromEnvironment(
+  'SUPABASE_PUBLISHABLE_KEY',
+  defaultValue: String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_ZyWIEhlCfe_GkrpnK0T3EQ_YqYW0_Jw',
+  ),
+);
+
+Future<void> _ensureSupabaseInitialized() async {
+  if (_kSupabaseUrl.isEmpty || _kSupabaseKey.isEmpty) return;
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+  try {
+    await Supabase.initialize(
+      url: _kSupabaseUrl,
+      // ignore: deprecated_member_use
+      anonKey: _kSupabaseKey,
+    );
+  } catch (e) {
+    debugPrint('Supabase initialization failed: $e');
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('[FCM] Background message received: ${message.messageId}');
+    WidgetsFlutterBinding.ensureInitialized();
+    // Rule 4: While old messages carrying a notification block are still arriving,
+    // Android renders them itself; do not show a second copy.
+    if (message.notification != null) {
+      return;
+    }
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (_) {}
+    await _ensureSupabaseInitialized();
+    await NotificationService.handleBackgroundRemoteMessage(message);
   } catch (e) {
     debugPrint('[FCM] Background message handler error: $e');
   }
@@ -63,29 +102,7 @@ Future<void> main() async {
     debugPrint('Firebase initialization failed: $e');
   }
 
-  const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://dklecfmiccevnkhxnwmo.supabase.co',
-  );
-  const supabaseKey = String.fromEnvironment(
-    'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: String.fromEnvironment(
-      'SUPABASE_ANON_KEY',
-      defaultValue: 'sb_publishable_ZyWIEhlCfe_GkrpnK0T3EQ_YqYW0_Jw',
-    ),
-  );
-
-  if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
-    try {
-      await Supabase.initialize(
-        url: supabaseUrl,
-        // ignore: deprecated_member_use
-        anonKey: supabaseKey,
-      );
-    } catch (e) {
-      debugPrint('Supabase initialization failed: $e');
-    }
-  }
+  await _ensureSupabaseInitialized();
 
   try {
     final prefs = await SharedPreferences.getInstance();

@@ -5,10 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/key_management/home_key_store.dart';
 import '../../sync/sync_engine.dart';
+import '../profile/preferences_controller.dart';
 import 'notification_copy.dart';
 import 'notification_models.dart';
+import 'notification_pipeline.dart';
 
 class NotificationService {
   final SupabaseClient? supabaseClient;
@@ -19,6 +23,9 @@ class NotificationService {
   final String? Function()? getCurrencySymbol;
   final void Function(NotificationModule module)? onNavigate;
   final void Function(CoveNotificationPayload payload)? onNavigatePayload;
+  final LocalNotificationSink? notificationSink;
+  final NotificationEventDecryptor? decryptEvent;
+  final Duration budget;
 
   NotificationModule? _pendingNavigationModule;
   CoveNotificationPayload? _pendingNotificationPayload;
@@ -41,6 +48,27 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _localNotificationsInitialized = false;
 
+  late final LocalNotificationSink _sink = notificationSink ??
+      FlutterLocalNotificationSink(
+        plugin: _localNotifications,
+        ensureInitialized: () async {
+          if (!_localNotificationsInitialized) {
+            await initializeLocalNotifications();
+          }
+        },
+      );
+
+  late final NotificationPipeline pipeline = NotificationPipeline(
+    sink: _sink,
+    database: appDatabase,
+    decryptEvent: decryptEvent,
+    supabaseClient: supabaseClient,
+    budget: budget,
+    getViewerUserId: () => currentUserId,
+    getPartnerName: getPartnerName,
+    getCurrencySymbol: getCurrencySymbol,
+  );
+
   final StreamController<CoveNotificationPayload> _notificationStreamController =
       StreamController<CoveNotificationPayload>.broadcast();
 
@@ -59,6 +87,9 @@ class NotificationService {
     this.getCurrencySymbol,
     this.onNavigate,
     this.onNavigatePayload,
+    this.notificationSink,
+    this.decryptEvent,
+    this.budget = NotificationPipeline.defaultBudget,
   });
 
 
@@ -204,17 +235,22 @@ class NotificationService {
     return payload;
   }
 
-  /// Handles incoming push notification payloads.
-  /// 1. Silently wakes the sync engine to fetch & decrypt latest partner events.
-  /// 2. Evaluates local per-module mute preferences before deciding to show an alert/banner.
+  /// Handles incoming push notification payloads through the unified
+  /// [NotificationPipeline] (`design/specs/15-notifications.md` §4–§6).
+  ///
+  /// When [hasNotificationBlock] is `true` (legacy server message carrying a
+  /// `notification` block), Android displays it itself so we do not show a
+  /// second copy.
   Future<CoveNotificationPayload?> handleIncomingMessage(
-      Map<String, dynamic> data) async {
-    final payload = CoveNotificationPayload.fromMap(
-      data,
-      preferredCurrencySymbol: getCurrencySymbol?.call(),
-    );
+    Map<String, dynamic> data, {
+    bool hasNotificationBlock = false,
+  }) async {
+    if (hasNotificationBlock || data['__has_notification_block'] == true) {
+      return null;
+    }
 
-    final eId = payload.eventId;
+    final homeId = (data['home_id'] as String?) ?? '';
+    final eId = data['event_id'] as String?;
     if (eId != null && eId.isNotEmpty) {
       if (_recentNotifiedEventIds.contains(eId)) {
         return null;
@@ -225,61 +261,129 @@ class NotificationService {
       }
     }
 
-    // 1. Silent sync wake: pull unread events so decrypted data is ready
-    if (syncEngine != null && payload.homeId.isNotEmpty) {
+    // 1. Silent sync wake in foreground: pull unread events so UI streams stay fresh
+    if (syncEngine != null && homeId.isNotEmpty) {
       try {
-        await syncEngine!.pullLatestEvents(homeId: payload.homeId);
+        await syncEngine!.pullLatestEvents(homeId: homeId);
       } catch (e) {
         debugPrint('[NotificationService] Error pulling latest events: $e');
       }
     }
 
-    // Profile, avatar, and settings updates are internal sync operations and must NOT generate notifications
-    const silentSyncEvents = {
-      'member_profile_updated',
-      'profile_updated',
-      'user_profile_updated',
-      'avatar_updated',
-      'avatar_changed',
-      'name_updated',
-      'display_name_updated',
-      'home_currency_updated',
-      'home_updated',
-      'preferences_updated',
-      'settings_updated',
-    };
+    // 2. Run the unified read-only pipeline: decrypt -> compose -> batch -> show/replace/drop
+    final result = await pipeline.handleDataMessage(
+      data,
+      hasNotificationBlock: hasNotificationBlock,
+    );
 
-    if (silentSyncEvents.contains(payload.eventType)) {
-      return null;
-    }
-
-    // Enrich payload with decrypted details and partner name from local SQLite
-    final enrichedPayload = await enrichPayload(payload);
-
-    // 2. Evaluate local notification preferences
-    final prefs = await getPreferences();
-    if (prefs.isMuted(enrichedPayload.module)) {
+    if (result.kind == PipelineOutcomeKind.muted) {
+      final eventType = (data['event_type'] as String?) ?? 'generic';
+      final module = CoveNotificationPayload.moduleForEventType(eventType);
       debugPrint(
-          '[NotificationService] Notification for ${enrichedPayload.module.name} is muted locally. Silent wake only.');
+        '[NotificationService] Notification for ${module.name} is muted locally. Silent wake only.',
+      );
       return null;
     }
 
-    // 3. Trigger local Android / iOS system notification
-    unawaited(showLocalNotification(enrichedPayload));
-
-    // 4. Emit notification event for in-app floating banner display
-    if (!_notificationStreamController.isClosed) {
-      _notificationStreamController.add(enrichedPayload);
+    if (!result.didShowNotification || result.payload == null) {
+      return null;
     }
-    return enrichedPayload;
+
+    final payload = result.payload!;
+    if (!_notificationStreamController.isClosed) {
+      _notificationStreamController.add(payload);
+    }
+    return payload;
+  }
+
+  /// Closes the open 90s batch for [listId] and cancels its active system
+  /// notification card when the user opens that list in the app (§5).
+  Future<int?> onListOpened(String listId) async {
+    if (listId.isEmpty) return null;
+    final closedId = await NotificationBatcherPreferences.closeBatch(listId);
+    if (closedId != null) {
+      try {
+        await _sink.cancel(id: closedId, tag: listId);
+      } catch (e) {
+        debugPrint('[NotificationService] Error cancelling list batch card: $e');
+      }
+    }
+    return closedId;
+  }
+
+  /// Background isolate entry helper invoked from `_firebaseMessagingBackgroundHandler`
+  /// in `main.dart`.
+  ///
+  /// Opens a strictly read-only [AppDatabase.readOnly] handle so the background
+  /// isolate and main isolate can never corrupt each other, runs the 8-second
+  /// budgeted [NotificationPipeline], and closes the read-only DB handle in `finally`.
+  static Future<PipelineResult> handleBackgroundRemoteMessage(
+    RemoteMessage message, {
+    AppDatabase? databaseOverride,
+    SupabaseClient? supabaseClientOverride,
+    HomeKeyStore? keyStoreOverride,
+    LocalNotificationSink? sinkOverride,
+    NotificationEventDecryptor? decryptEventOverride,
+    Duration budget = NotificationPipeline.defaultBudget,
+  }) async {
+    if (message.notification != null) {
+      return const PipelineResult(
+        kind: PipelineOutcomeKind.ignoredNotificationBlock,
+      );
+    }
+
+    final db = databaseOverride ?? AppDatabase.readOnly();
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final sink = sinkOverride ??
+          FlutterLocalNotificationSink(
+            plugin: plugin,
+            ensureInitialized: () async {
+              const androidSettings = AndroidInitializationSettings(
+                RenderedNotification.smallIconResource,
+              );
+              const iosSettings = DarwinInitializationSettings();
+              await plugin.initialize(
+                settings: const InitializationSettings(
+                  android: androidSettings,
+                  iOS: iosSettings,
+                ),
+              );
+            },
+          );
+
+      SupabaseClient? supabase = supabaseClientOverride;
+      if (supabase == null) {
+        try {
+          supabase = Supabase.instance.client;
+        } catch (_) {}
+      }
+
+      final bgPipeline = NotificationPipeline(
+        sink: sink,
+        database: db,
+        decryptEvent: decryptEventOverride,
+        supabaseClient: supabase,
+        keyStore: keyStoreOverride ?? HomeKeyStore(),
+        budget: budget,
+        getViewerUserId: () => supabase?.auth.currentUser?.id,
+      );
+
+      return await bgPipeline.handleRemoteMessage(message);
+    } finally {
+      if (databaseOverride == null) {
+        await db.close();
+      }
+    }
   }
 
   /// Initializes local notifications plugin for Android / iOS.
   Future<void> initializeLocalNotifications() async {
     if (kIsWeb) return;
     try {
-      const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings(
+        RenderedNotification.smallIconResource,
+      );
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -310,7 +414,7 @@ class NotificationService {
       if (androidPlugin != null) {
         await androidPlugin.createNotificationChannel(
           const AndroidNotificationChannel(
-            'cove_partner_activity',
+            RenderedNotification.channelIdValue,
             'Partner Activity',
             description: 'Realtime updates and notifications for household activity',
             importance: Importance.max,
@@ -350,44 +454,17 @@ class NotificationService {
   Future<void> showLocalNotification(CoveNotificationPayload payload) async {
     if (kIsWeb) return;
     try {
-      if (!_localNotificationsInitialized) {
-        await initializeLocalNotifications();
-      }
-
-      final styleInformation = BigTextStyleInformation(
-        payload.body,
-        contentTitle: payload.title,
-        summaryText: payload.module.displayName,
-      );
-
-      final androidDetails = AndroidNotificationDetails(
-        'cove_partner_activity',
-        'Partner Activity',
-        channelDescription:
-            'Realtime updates and notifications for household activity',
-        importance: Importance.max,
-        priority: Priority.high,
-        ticker: 'Cove Partner Update',
-        icon: '@mipmap/ic_launcher',
-        styleInformation: styleInformation,
-      );
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
-      final details = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-
       final id = clock.now().millisecondsSinceEpoch ~/ 1000;
-      await _localNotifications.show(
-        id: id,
-        title: payload.title,
-        body: payload.body,
-        notificationDetails: details,
-        payload: jsonEncode(payload.toMap()),
+      await _sink.show(
+        RenderedNotification(
+          id: id,
+          groupKey: 'cove_group_${payload.module.name}',
+          module: payload.module,
+          color: CoveTokens.dark.accentFill,
+          title: payload.title,
+          body: payload.body,
+          tapPayload: payload,
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] Error displaying local notification: $e');
@@ -501,7 +578,10 @@ class NotificationService {
       _fcmMessageSub?.cancel();
       _fcmMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         debugPrint('[NotificationService] onMessage received in foreground: ${message.data}');
-        handleIncomingMessage(message.data);
+        handleIncomingMessage(
+          message.data,
+          hasNotificationBlock: message.notification != null,
+        );
       });
 
       // 2. Check if a notification launched the app from a terminated state
