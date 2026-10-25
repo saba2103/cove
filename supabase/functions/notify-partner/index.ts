@@ -2,16 +2,21 @@
 // Cove Supabase Edge Function: notify-partner
 // Triggered on INSERT to public.home_events.
 // Looks up the OTHER home member(s), finds their registered device token(s),
-// and sends a data-only push message via Firebase Cloud Messaging (FCM v1).
-// Zero-Knowledge: Only unencrypted metadata (home_id, event_id, event_type,
-// module) is sent; the receiving phone decrypts the event, writes the Quiet
-// Ledger copy, batches list changes, and renders the local notification.
+// and sends an FCM v1 message tailored to what each device can handle:
+// - platform === "android:data-v1": data-only message (the phone decrypts the
+//   event, writes the Quiet Ledger copy, batches list changes, and renders the
+//   local notification).
+// - every other platform ("android", "ios", etc.): the legacy notification
+//   message exactly as 42c300a sent (notification block, title, body, and
+//   collapse key).
 // ==============================================================================
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
 
-interface HomeEventRecord {
+export const DATA_V1_PLATFORM = "android:data-v1";
+
+export interface HomeEventRecord {
   id: string;
   home_id: string;
   actor_id: string;
@@ -19,20 +24,24 @@ interface HomeEventRecord {
   created_at: string;
 }
 
-interface WebhookPayload {
+export interface WebhookPayload {
   type: "INSERT";
   table: "home_events";
   record: HomeEventRecord;
   schema: "public";
 }
 
+export interface UserDeviceRow {
+  fcm_token: string;
+  platform?: string | null;
+}
+
 // Server-side silent filter matching design/specs/15-notifications.md §3
-// wherever event_type alone decides. Events whose notification eligibility
-// depends on decrypted content or open batch state (e.g. list_item_toggled
-// done vs not done, list_item_deleted riding along in an open batch,
-// habit_checkin_toggled kept vs unchecked, calendar_event_updated date/time
-// change) are forwarded to the phone, which decides after decrypting.
-const SILENT_SYNC_EVENTS = new Set([
+// wherever event_type alone decides. Applies to both android:data-v1 and
+// legacy devices. Events whose notification eligibility depends on decrypted
+// content or open batch state (list_item_toggled, list_item_deleted,
+// habit_checkin_toggled, calendar_event_updated) pass through.
+export const SILENT_SYNC_EVENTS = new Set([
   // §3 Shared lists: item edited, list renamed/archived/deleted/reordered, completed cleared
   "list_item_updated",
   "list_item_edited",
@@ -106,7 +115,7 @@ const SILENT_SYNC_EVENTS = new Set([
   "checkin_reminder_deleted",
 ]);
 
-function isSilentEventType(eventType: string): boolean {
+export function isSilentEventType(eventType: string): boolean {
   if (SILENT_SYNC_EVENTS.has(eventType)) {
     return true;
   }
@@ -121,44 +130,164 @@ function isSilentEventType(eventType: string): boolean {
   return false;
 }
 
-// Maps event_type to its module identifier for the data-only FCM payload.
-function resolveModule(eventType: string): string {
+// Module and enriched notification text mapping (restored verbatim from 42c300a)
+export function resolveNotificationContent(
+  eventType: string,
+  actorName: string,
+  homeName?: string
+): { module: string; title: string; body: string } {
+  const homeContext = homeName ? ` in ${homeName}` : "";
   switch (eventType) {
     // Shared Lists
     case "list_item_added":
+      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} added an item to your shared lists${homeContext}` };
     case "list_item_toggled":
+      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} updated a list item${homeContext}` };
     case "list_item_deleted":
+      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} removed a list item${homeContext}` };
     case "list_created":
-      return "lists";
+      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} created a new shared list${homeContext}` };
+    case "list_completed_cleared":
+      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} cleared completed list items${homeContext}` };
 
     // Expenses
     case "expense_logged":
-    case "expense_added":
-      return "expenses";
+      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} logged a new expenditure${homeContext}` };
+    case "expense_updated":
+      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} updated an expense${homeContext}` };
+    case "expense_deleted":
+      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} removed an expense${homeContext}` };
 
-    // Commitments / Subscriptions
+    // Subscriptions
     case "subscription_added":
+      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} added a new recurring commitment${homeContext}` };
+    case "subscription_updated":
+      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} updated a commitment${homeContext}` };
     case "subscription_cancelled":
-      return "subscriptions";
+      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} paused or deactivated a commitment${homeContext}` };
+    case "subscription_reactivated":
+      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} reactivated a commitment${homeContext}` };
 
     // Habits
     case "habit_created":
+      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} created a new daily rhythm${homeContext}` };
     case "habit_checkin_toggled":
-      return "habits";
+      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} completed a daily habit check-in! 🔥` };
+    case "habit_checkin_acknowledged":
+      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} cheered for your habit check-in! 🙌` };
+    case "habit_deleted":
+      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} removed a rhythm${homeContext}` };
 
     // Shared Calendar
     case "calendar_event_added":
+      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} scheduled a new event on your shared calendar${homeContext}` };
     case "calendar_event_updated":
+      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} updated an event on the shared calendar` };
     case "calendar_event_deleted":
-      return "calendar";
+      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} removed an event from the calendar` };
 
     // Home / Members
     case "member_joined":
-      return "home";
+      return { module: "home", title: "Cove • Home", body: `${actorName} joined ${homeName || "your Home"}!` };
+    case "home_created":
+      return { module: "home", title: "Cove • Home", body: `${actorName} created ${homeName || "a new Home"}` };
 
     default:
-      return "activity";
+      return { module: "activity", title: `${actorName} • Activity`, body: `${actorName} updated household activity${homeContext}` };
   }
+}
+
+// Maps event_type to its module identifier for the data-only FCM payload.
+export function resolveModule(eventType: string): string {
+  if (eventType === "expense_added") {
+    return "expenses";
+  }
+  return resolveNotificationContent(eventType, "Partner").module;
+}
+
+// Builds the data-only FCM v1 message for android:data-v1 devices (3.14d/e).
+export function buildDataOnlyMessage(
+  token: string,
+  record: HomeEventRecord
+) {
+  return {
+    message: {
+      token,
+      data: {
+        home_id: record.home_id,
+        event_id: record.id,
+        event_type: record.event_type,
+        module: resolveModule(record.event_type),
+      },
+      android: {
+        priority: "HIGH",
+      },
+    },
+  };
+}
+
+// Builds the legacy FCM v1 message exactly as 42c300a did.
+export function buildLegacyMessage(
+  token: string,
+  record: HomeEventRecord,
+  actorName: string,
+  homeName?: string
+) {
+  const content = resolveNotificationContent(record.event_type, actorName, homeName);
+  const collapseKey = `${record.home_id}_${content.module}`;
+  return {
+    message: {
+      token,
+      notification: {
+        title: content.title,
+        body: content.body,
+      },
+      data: {
+        home_id: record.home_id,
+        module: content.module,
+        event_type: record.event_type,
+        event_id: record.id,
+        actor_name: actorName,
+        title: content.title,
+        body: content.body,
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+      android: {
+        collapse_key: collapseKey,
+        priority: "HIGH",
+        notification: {
+          tag: collapseKey,
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      },
+      apns: {
+        headers: {
+          "apns-collapse-id": collapseKey,
+          "apns-push-type": "alert",
+          "apns-priority": "10",
+        },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
+    },
+  };
+}
+
+// Selects the data-only vs legacy FCM v1 message based on device.platform.
+export function buildMessageForDevice(
+  device: UserDeviceRow,
+  record: HomeEventRecord,
+  actorName: string,
+  homeName?: string
+) {
+  if (device.platform === DATA_V1_PLATFORM) {
+    return buildDataOnlyMessage(device.fcm_token, record);
+  }
+  return buildLegacyMessage(device.fcm_token, record, actorName, homeName);
 }
 
 // Generate Google Cloud OAuth2 Access Token for FCM v1 API using service account credentials
@@ -276,14 +405,38 @@ serve(async (req: Request) => {
       });
     }
 
-    // 3. Build the data-only payload (no notification block, no title/body, no collapse key)
-    const module = resolveModule(record.event_type);
-    const dataPayload = {
-      home_id: record.home_id,
-      event_id: record.id,
-      event_type: record.event_type,
-      module,
-    };
+    // 3. Look up actor's display name and home name when needed for legacy devices
+    let actorName = "Partner";
+    let homeName: string | undefined;
+    const hasLegacyDevice = devices.some(
+      (d: UserDeviceRow) => d.platform !== DATA_V1_PLATFORM
+    );
+
+    if (hasLegacyDevice) {
+      try {
+        const { data: actorUser } = await supabase.auth.admin.getUserById(record.actor_id);
+        if (actorUser && actorUser.user) {
+          const meta = actorUser.user.user_metadata || {};
+          actorName =
+            meta.display_name ||
+            meta.full_name ||
+            meta.name ||
+            actorUser.user.email?.split("@")[0] ||
+            "Partner";
+        }
+      } catch (_) {}
+
+      try {
+        const { data: home } = await supabase
+          .from("homes")
+          .select("name")
+          .eq("id", record.home_id)
+          .single();
+        if (home && home.name) {
+          homeName = home.name;
+        }
+      } catch (_) {}
+    }
 
     // 4. Send via Firebase Cloud Messaging v1
     const firebaseProjectId = Deno.env.get("FIREBASE_PROJECT_ID");
@@ -291,22 +444,26 @@ serve(async (req: Request) => {
     const firebasePrivateKey = Deno.env.get("FIREBASE_PRIVATE_KEY");
 
     if (!firebaseProjectId || !firebaseClientEmail || !firebasePrivateKey) {
-      console.log("[notify-partner] Firebase credentials not configured. Data-only payload:", {
+      const simulatedMessages = devices.map((device: UserDeviceRow) =>
+        buildMessageForDevice(device, record, actorName, homeName)
+      );
+      console.log("[notify-partner] Firebase credentials not configured. Notification payloads:", {
         recipientCount: devices.length,
-        data: dataPayload,
+        messages: simulatedMessages,
       });
 
       return new Response(
         JSON.stringify({
           status: "simulated",
-          message: "Firebase credentials not configured in Supabase secrets. Data-only payload logged.",
+          message: "Firebase credentials not configured in Supabase secrets. Payloads logged.",
           recipientCount: devices.length,
-          data: dataPayload,
+          messages: simulatedMessages,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    // Obtain access token
     const accessToken = await getGoogleAccessToken(
       firebaseClientEmail,
       firebasePrivateKey.replace(/\\n/g, "\n")
@@ -315,16 +472,8 @@ serve(async (req: Request) => {
     const fcmEndpoint = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`;
     const sendResults = [];
 
-    for (const device of devices) {
-      const message = {
-        message: {
-          token: device.fcm_token,
-          data: dataPayload,
-          android: {
-            priority: "HIGH",
-          },
-        },
-      };
+    for (const device of devices as UserDeviceRow[]) {
+      const message = buildMessageForDevice(device, record, actorName, homeName);
 
       const resp = await fetch(fcmEndpoint, {
         method: "POST",

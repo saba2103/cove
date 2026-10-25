@@ -7,6 +7,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.14e — Data-Only Only for Phones That Support It (`Oct 25, 2026`)**:
+  - *Outcome*:
+    1. **Android Capability Tag (`platform: 'android:data-v1'`)**: Updated [`NotificationService.registerDeviceToken`](../lib/features/notifications/notification_service.dart) (`defaultPlatformString()`) to register `platform: 'android:data-v1'` (`NotificationService.androidDataV1Platform`) on Android builds that include 3.14c. Because `registerDeviceToken` upserts on `fcm_token` at every launch, existing `'android'` rows automatically upgrade when the new build opens.
+    2. **Per-Device Branching in `notify-partner`**: Updated [`supabase/functions/notify-partner/index.ts`](../supabase/functions/notify-partner/index.ts) (`buildMessageForDevice`) so devices with `platform === 'android:data-v1'` receive the data-only FCM v1 message (`buildDataOnlyMessage`), while every other device receives the legacy notification message (`buildLegacyMessage` + `resolveNotificationContent` restored verbatim from `42c300a`, with the same `notification` block, `title`, `body`, and `collapse_key`). The §3 server-side silent filter (`isSilentEventType`) applies to both.
+    3. **Updated Deployment Runbook (`supabase/README.md`)**: Updated [`supabase/README.md`](../supabase/README.md) to remove the "both phones first" prerequisite and document running `supabase functions download notify-partner` before deploying so the currently running production version is saved and used for rollback.
+  - *Under the Hood*:
+    - Added [`test/features/notifications/notify_partner_314e_test.dart`](../test/features/notifications/notify_partner_314e_test.dart) testing `registerDeviceToken` (`platform: 'android:data-v1'` upsert on Android, `'ios'` / `'macos'` on Apple platforms) and executing `supabase/functions/notify-partner/index.ts` against `42c300a`'s implementation to verify per-device branching and silent-filter parity.
 - **Task 3.14d — Data-Only Push in `notify-partner` (`Oct 25, 2026`)**:
   - *Outcome*:
     1. **Data-Only FCM v1 Payload (`notify-partner`)**: Updated [`supabase/functions/notify-partner/index.ts`](../supabase/functions/notify-partner/index.ts) so the FCM v1 message contains no `notification` block, no `title` or `body` anywhere in the message, and no `collapse_key`. It sends only `data: { home_id, event_id, event_type, module }` with `android: { priority: "HIGH" }`.

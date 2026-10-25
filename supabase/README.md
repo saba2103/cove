@@ -66,34 +66,50 @@ Or configure your local configuration file / `.env` in later missions.
 
 ## 5. Deploying `notify-partner`
 
-`supabase/functions/notify-partner/index.ts` sends **data-only** FCM v1 messages (`home_id`, `event_id`, `event_type`, `module` — with no `notification` block, no title or body, no collapse key, and Android priority `HIGH`). The receiving phone decrypts the event, composes the Quiet Ledger copy (`design/specs/15-notifications.md`), applies 90-second per-list batching, and renders the local notification.
+`supabase/functions/notify-partner/index.ts` branches per device based on `public.user_devices.platform`, so **deploying is safe at any time** (there is no "both phones first" prerequisite):
+- **`platform === "android:data-v1"`** (registered automatically on launch by Android builds that include 3.14c+): sends a **data-only** FCM v1 message (`home_id`, `event_id`, `event_type`, `module`, Android priority `HIGH`, no `notification` block, no collapse key). The phone decrypts the event, writes the Quiet Ledger copy (`design/specs/15-notifications.md`), applies 90-second per-list batching, and shows the local notification.
+- **Every other device** (`"android"`, `"ios"`, etc.): sends the **legacy** FCM v1 message exactly as `42c300a` did (`notification` block, `title`, `body`, and `collapse_key`).
 
-### Prerequisite
-**Both phones must already be running an app build that includes 3.14c** (`624b3de` / `a60c7ba` / `662ec23`) before deploying `notify-partner`. Older builds ignore data-only FCM messages and rely on the server-provided `notification` block, so deploying `notify-partner` before updating both phones would stop notifications on whichever phone has not been updated yet.
+The server-side silent filter (§3) applies to both paths.
 
-### Deploy Command
+### 1. Save the Currently Running Version Before Deploying
+Before deploying, download the version of `notify-partner` that is actually running on Supabase (in case it differs from git) and back it up outside the tracked function directory:
+
+```bash
+# Stash or back up your local 3.14e index.ts first so download doesn't overwrite it without a copy
+cp supabase/functions/notify-partner/index.ts /tmp/notify-partner.314e.index.ts
+
+# Download the currently deployed function from Supabase
+supabase functions download notify-partner --project-ref <your-project-ref>
+cp supabase/functions/notify-partner/index.ts /tmp/notify-partner.running-backup.index.ts
+
+# Restore the 3.14e version to deploy
+cp /tmp/notify-partner.314e.index.ts supabase/functions/notify-partner/index.ts
+```
+
+### 2. Deploy Command
 From the repository root:
 
 ```bash
 supabase functions deploy notify-partner --project-ref <your-project-ref>
 ```
 
-### How to Roll Back
-If either phone is still on a pre-3.14c build or you need to restore the legacy server-rendered `notification` payload, check out the previous version of `supabase/functions/notify-partner/index.ts` from commit `42c300a` (`42c300ae13d7919b285615837050d18416fff854` — or the commit immediately preceding 3.14d, `624b3de`) and redeploy:
+### 3. How to Roll Back
+To roll back to the exact version that was running before the deploy, restore the downloaded backup (or `42c300a` from git if needed) and redeploy:
 
 ```bash
-# Restore the previous version of notify-partner from commit 42c300a
-git checkout 42c300a -- supabase/functions/notify-partner/index.ts
+# Restore the version downloaded via `supabase functions download notify-partner`
+cp /tmp/notify-partner.running-backup.index.ts supabase/functions/notify-partner/index.ts
 
-# Redeploy to Supabase
+# Redeploy the previous running version
 supabase functions deploy notify-partner --project-ref <your-project-ref>
 
-# When ready to return to the 3.14d version in your working tree:
+# (Optional) Return your working tree to HEAD afterwards
 git checkout HEAD -- supabase/functions/notify-partner/index.ts
 ```
 
-### Two-Phone Verification Check
-Once both phones run a build with 3.14c and `notify-partner` is deployed:
+### 4. Two-Phone Verification Check
+Once a phone is running a 3.14c+ build (so its row in `public.user_devices` has `platform = 'android:data-v1'`) and `notify-partner` is deployed:
 1. Lock or background **Phone B**.
 2. On **Phone A**, log **one expense** (e.g., `Coffee beans — dark roast` for `₹820`) and add **three items to Groceries** within 90 seconds (e.g., `Milk`, `Curd, 500g`, `Sourdough`).
 3. Check **Phone B**'s notification shade:

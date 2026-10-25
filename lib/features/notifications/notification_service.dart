@@ -110,13 +110,17 @@ class NotificationService {
   String? get currentUserId =>
       getCurrentUserId?.call() ?? supabaseClient?.auth.currentUser?.id;
 
+  /// Platform string registered in `public.user_devices.platform` by Android
+  /// builds that include the 3.14c on-device notification pipeline.
+  static const String androidDataV1Platform = 'android:data-v1';
+
   /// Registers an FCM token against the user's account in public.user_devices.
   Future<bool> registerDeviceToken(String token, {String? platform}) async {
     final uid = currentUserId;
     if (uid == null || supabaseClient == null) return false;
 
     try {
-      final detectedPlatform = platform ?? _defaultPlatform();
+      final detectedPlatform = platform ?? defaultPlatformString();
       await supabaseClient!.from('user_devices').upsert({
         'user_id': uid,
         'fcm_token': token,
@@ -610,11 +614,13 @@ class NotificationService {
     );
   }
 
-  String _defaultPlatform() {
+  /// Returns the default `user_devices.platform` value for the current target
+  /// platform (`'android:data-v1'` on Android builds that include 3.14c).
+  String defaultPlatformString() {
     if (kIsWeb) return 'web';
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'android';
+        return androidDataV1Platform;
       case TargetPlatform.iOS:
         return 'ios';
       case TargetPlatform.macOS:
