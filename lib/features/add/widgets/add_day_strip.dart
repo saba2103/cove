@@ -212,11 +212,14 @@ class _AddDayStripState extends State<AddDayStrip> {
 
         const SizedBox(height: CoveSpace.md),
 
-        // Full date label below the strip
-        Text(
-          fullLabel,
-          textAlign: TextAlign.center,
-          style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+        // Full date label below the strip (excluded from semantics since the
+        // selected day cell in the strip already announces dayLabel)
+        ExcludeSemantics(
+          child: Text(
+            fullLabel,
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
         ),
 
         if (widget.showNoParticularDay) ...[

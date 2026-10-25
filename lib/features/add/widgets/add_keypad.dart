@@ -13,7 +13,7 @@ import '../../../core/utils/cove_currency_formatter.dart';
 /// - 3 × 4 keypad: `1–9`, `00`, `0`, delete. Each key is [CoveSize.row] (`52dp`)
 ///   tall (`>= 48dp`) and shrinks horizontally to fit `320dp` cover width.
 /// - Enforces at most [maxDigits] digits (default `7`). Whole numbers only.
-class AddKeypad extends StatelessWidget {
+class AddKeypad extends StatefulWidget {
   final int value;
   final ValueChanged<int> onChanged;
   final bool showCurrencySymbol;
@@ -35,38 +35,72 @@ class AddKeypad extends StatelessWidget {
     this.carriedLine,
   });
 
+  @override
+  State<AddKeypad> createState() => _AddKeypadState();
+}
+
+class _AddKeypadState extends State<AddKeypad> {
+  late int _currentValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentValue = widget.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant AddKeypad oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _currentValue = widget.value;
+    }
+  }
+
   void _appendDigits(String digits) {
-    final currentStr = value <= 0 ? '' : value.toString();
-    if (currentStr.length >= maxDigits) return;
-    final remaining = maxDigits - currentStr.length;
+    final currentStr = _currentValue <= 0 ? '' : _currentValue.toString();
+    if (currentStr.length >= widget.maxDigits) return;
+    final remaining = widget.maxDigits - currentStr.length;
     final toAdd =
         digits.length > remaining ? digits.substring(0, remaining) : digits;
     final nextStr = '$currentStr$toAdd';
     final nextVal = int.tryParse(nextStr) ?? 0;
-    onChanged(nextVal);
+    setState(() {
+      _currentValue = nextVal;
+    });
+    widget.onChanged(nextVal);
   }
 
   void _backspace() {
-    if (value <= 0) {
-      onChanged(0);
+    if (_currentValue <= 0) {
+      setState(() {
+        _currentValue = 0;
+      });
+      widget.onChanged(0);
       return;
     }
-    final currentStr = value.toString();
+    final currentStr = _currentValue.toString();
     if (currentStr.length <= 1) {
-      onChanged(0);
+      setState(() {
+        _currentValue = 0;
+      });
+      widget.onChanged(0);
       return;
     }
     final nextStr = currentStr.substring(0, currentStr.length - 1);
-    onChanged(int.tryParse(nextStr) ?? 0);
+    final nextVal = int.tryParse(nextStr) ?? 0;
+    setState(() {
+      _currentValue = nextVal;
+    });
+    widget.onChanged(nextVal);
   }
 
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
-    final hasValue = value > 0;
-    final formattedValue = showCurrencySymbol
-        ? formatCoveAmount(hasValue ? value : 0)
-        : (hasValue ? value : 0).toString();
+    final hasValue = _currentValue > 0;
+    final formattedValue = widget.showCurrencySymbol
+        ? formatCoveAmount(hasValue ? _currentValue : 0)
+        : (hasValue ? _currentValue : 0).toString();
     final figureColor = hasValue ? cv.accentText : cv.textTertiary;
 
     return Column(
@@ -76,7 +110,8 @@ class AddKeypad extends StatelessWidget {
         // 1. Hero figure
         Semantics(
           container: true,
-          label: showCurrencySymbol ? '₹$formattedValue' : formattedValue,
+          label:
+              widget.showCurrencySymbol ? '₹$formattedValue' : formattedValue,
           child: ExcludeSemantics(
             child: Center(
               child: Row(
@@ -84,7 +119,7 @@ class AddKeypad extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  if (showCurrencySymbol) ...[
+                  if (widget.showCurrencySymbol) ...[
                     Text(
                       '₹',
                       style: CoveType.title.copyWith(color: cv.textTertiary),
@@ -104,16 +139,16 @@ class AddKeypad extends StatelessWidget {
           ),
         ),
 
-        if (subtitle != null && subtitle!.isNotEmpty) ...[
+        if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
           const SizedBox(height: CoveSpace.sm),
           Text(
-            subtitle!,
+            widget.subtitle!,
             textAlign: TextAlign.center,
             style: CoveType.rowSub.copyWith(color: cv.textTertiary),
           ),
         ],
 
-        if (carriedLine != null && carriedLine!.isNotEmpty) ...[
+        if (widget.carriedLine != null && widget.carriedLine!.isNotEmpty) ...[
           const SizedBox(height: CoveSpace.md),
           Container(
             padding: const EdgeInsets.symmetric(
@@ -130,13 +165,13 @@ class AddKeypad extends StatelessWidget {
               children: [
                 Icon(
                   Icons.autorenew,
-                  size: _kCarriedIconSize,
+                  size: AddKeypad._kCarriedIconSize,
                   color: cv.accentText,
                 ),
                 const SizedBox(width: CoveSpace.sm),
                 Expanded(
                   child: Text(
-                    carriedLine!,
+                    widget.carriedLine!,
                     style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                   ),
                 ),

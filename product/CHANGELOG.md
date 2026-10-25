@@ -7,6 +7,14 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.12d — The Add Flow, with Expense & Event (`Oct 25, 2026`)**:
+  - *Outcome*: Built [`AddFlow`](../lib/features/add/add_flow.dart) and [`AddFlow.show(context, {AddKind? kind, DateTime? anchor, String? listId})`](../lib/features/add/add_flow.dart) to [`design/specs/14-add-flow.md`](../design/specs/14-add-flow.md) §§1, 2, 5, and 7:
+    1. **The Picker (§1)**: 2×3 tile grid with [`CoveAddMark`](../lib/core/widgets/slips/cove_add_mark.dart) marks (`Event`, `Expense`, `Task`, `Habit`, `Commitment`, `Routine`), `ADD` / `ADD · {ANCHOR}` eyebrow, optional `Again` row, and `"Coming in 3.12e/f"` toast for `Task`, `Habit`, `Commitment`, and `Routine`. Passing `kind` to `AddFlow.show` skips the picker.
+    2. **The Step Page (§2)**: back/close `CoveRoundButton`s, `KIND · STEP OF TOTAL` eyebrow, `AddProgressSegments`, `AddCrumbs` (tapping any crumb jumps to that step and preserves later answers), centred question (`CoveType.title`), scrollable step body, and `AddStepFoot`.
+    3. **Expense (7 steps) & Event (5 steps) End-to-End (§5, §7)**: wired `ExpenseDraft` through [`ExpenseController.logExpense`](../lib/features/expenses/expense_controller.dart) (including custom category creation via `CustomCategoriesNotifier.addCategory`) and `EventDraft` through [`CalendarController.createEvent`](../lib/features/calendar/calendar_controller.dart) (`start + 1 hour` for timed events, `00:00` to `23:59` for all-day events).
+    4. **Review, Add & Added (§7)**: renders `CoveReceipt` / `CoveTicket` in `CoveSlipVariant.paper` with `CoveSlipFieldTaps` (tapping any field jumps to that step and `Next` returns directly to review); committing transitions in-place to `Added.` with the `-8°` `ADDED` stamp and `Add another` / `Done` actions, while a failing controller keeps the draft on review and shows an error toast.
+  - *Under the Hood*:
+    - Added widget tests in [`test/features/add/add_flow_test.dart`](../test/features/add/add_flow_test.dart) and 54 goldens (`add_flow_picker`, `add_flow_expense_1_amount` through `add_flow_expense_7_review`, and `add_flow_expense_8_added` across 3 widths × 2 modes) in [`test/golden/add_flow_expense_golden_test.dart`](../test/golden/add_flow_expense_golden_test.dart).
 - **Task 3.12c — The Add Flow Step Pieces (`Oct 25, 2026`)**:
   - *Outcome*: Built the eleven stateless/dumb Add step piece widgets in [`lib/features/add/widgets/`](../lib/features/add/widgets/) to [`design/specs/14-add-flow.md`](../design/specs/14-add-flow.md) §§2–4 and [`design/screens/add-steps/*.png`](../design/screens/add-steps/), reusing existing primitives (`CoveAvatar`, `CoveToggleSwitch`, `CoveSheet`, `CoveRoundButton`):
     1. [`AddProgressSegments`](../lib/features/add/widgets/add_progress_segments.dart): segmented progress bar filled up to and including the current step.
