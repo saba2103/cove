@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/cove_theme.dart';
+import '../../../../core/theme/cove_tokens.dart';
 import '../changelog_models.dart';
 
 class ChangelogPreviewMockup extends StatelessWidget {
   final ChangelogPreviewType previewType;
 
-  const ChangelogPreviewMockup({
-    super.key,
-    required this.previewType,
-  });
+  const ChangelogPreviewMockup({super.key, required this.previewType});
 
   @override
   Widget build(BuildContext context) {
@@ -31,17 +28,31 @@ class ChangelogPreviewMockup extends StatelessWidget {
 class _HelicopterPreview extends StatelessWidget {
   const _HelicopterPreview();
 
+  static const double _kHeaderIconSize =
+      14.0; // (literal) 14dp helicopter grid header icon
+  static const double _kBadgeRadius =
+      6.0; // (literal) 6dp 50/50 badge corner radius
+  static const double _kCurrentBorderWidth =
+      1.2; // (literal) 1.2dp active mini month cell border stroke
+  static const double _kNormalBorderWidth =
+      1.0; // (literal) 1dp inactive mini month cell border stroke
+  static const double _kBarHeight =
+      2.0; // (literal) 2dp mini month split bar height and gap
+  static const double _kBarRadius =
+      1.0; // (literal) 1dp mini month split bar corner radius
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(CoveSpace.md),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.borderHairline),
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.inline),
+        ),
+        border: Border.all(color: cv.lineHairline),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -52,53 +63,60 @@ class _HelicopterPreview extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.grid_view_rounded, size: 14, color: colors.accentPrimary),
-                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.grid_view_rounded,
+                    size: _kHeaderIconSize,
+                    color: cv.accentFill,
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
                   Text(
                     '2026 Commitments',
-                    style: typography.caption.copyWith(
+                    style: CoveType.rowSub.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                      color: cv.textPrimary,
                     ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CoveSpace.sm,
+                  vertical: CoveSpace.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: colors.accentPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  color: cv.accentWash,
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(_kBadgeRadius),
+                  ),
                 ),
                 child: Text(
                   '50/50 ON',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 9,
+                  style: CoveType.barLabel.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: colors.accentPrimary,
+                    color: cv.accentText,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: CoveSpace.sm),
           // 3x2 Mini Month Grid
           Row(
             children: [
               _buildMiniMonth(context, 'Jan', '₹24k', true),
-              const SizedBox(width: 6),
+              const SizedBox(width: CoveSpace.sm),
               _buildMiniMonth(context, 'Feb', '₹18k', false),
-              const SizedBox(width: 6),
+              const SizedBox(width: CoveSpace.sm),
               _buildMiniMonth(context, 'Mar', '₹32k', false),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: CoveSpace.sm),
           Row(
             children: [
               _buildMiniMonth(context, 'Apr', '₹19k', false),
-              const SizedBox(width: 6),
+              const SizedBox(width: CoveSpace.sm),
               _buildMiniMonth(context, 'May', '₹21k', false),
-              const SizedBox(width: 6),
+              const SizedBox(width: CoveSpace.sm),
               _buildMiniMonth(context, 'Jun', '₹27k', false),
             ],
           ),
@@ -107,18 +125,28 @@ class _HelicopterPreview extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniMonth(BuildContext context, String name, String amount, bool isCurrent) {
-    final colors = context.colors;
+  Widget _buildMiniMonth(
+    BuildContext context,
+    String name,
+    String amount,
+    bool isCurrent,
+  ) {
+    final cv = context.cv;
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        padding: const EdgeInsets.symmetric(
+          vertical: CoveSpace.sm,
+          horizontal: CoveSpace.sm,
+        ),
         decoration: BoxDecoration(
-          color: colors.surfaceRow,
-          borderRadius: BorderRadius.circular(8),
+          color: cv.surfaceRow,
+          borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.sm)),
           border: Border.all(
-            color: isCurrent ? colors.accentPrimary.withValues(alpha: 0.6) : colors.borderHairline,
-            width: isCurrent ? 1.2 : 1.0,
+            color: isCurrent
+                ? cv.accentFill.withValues(alpha: 0.6)
+                : cv.lineHairline,
+            width: isCurrent ? _kCurrentBorderWidth : _kNormalBorderWidth,
           ),
         ),
         child: Column(
@@ -129,51 +157,53 @@ class _HelicopterPreview extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: CoveType.barLabel.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isCurrent ? colors.accentPrimary : colors.textPrimary,
+                    color: isCurrent ? cv.accentText : cv.textPrimary,
                   ),
                 ),
                 if (isCurrent)
                   Container(
-                    width: 4,
-                    height: 4,
+                    width: CoveSpace.xs,
+                    height: CoveSpace.xs,
                     decoration: BoxDecoration(
-                      color: colors.accentPrimary,
+                      color: cv.accentFill,
                       shape: BoxShape.circle,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: CoveSpace.xs),
             Text(
               amount,
-              style: TextStyle(
-                fontSize: 11,
+              style: CoveType.barLabel.copyWith(
                 fontWeight: FontWeight.w700,
-                color: colors.textPrimary,
+                color: cv.textPrimary,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: CoveSpace.xs),
             Row(
               children: [
                 Expanded(
                   child: Container(
-                    height: 2,
+                    height: _kBarHeight,
                     decoration: BoxDecoration(
-                      color: colors.accentPrimary,
-                      borderRadius: BorderRadius.circular(1),
+                      color: cv.accentFill,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(_kBarRadius),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 2),
+                const SizedBox(width: _kBarHeight),
                 Expanded(
                   child: Container(
-                    height: 2,
+                    height: _kBarHeight,
                     decoration: BoxDecoration(
-                      color: colors.accentSecondary,
-                      borderRadius: BorderRadius.circular(1),
+                      color: cv.statusAlert,
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(_kBarRadius),
+                      ),
                     ),
                   ),
                 ),
@@ -192,16 +222,26 @@ class _HelicopterPreview extends StatelessWidget {
 class _SmartDecimalsPreview extends StatelessWidget {
   const _SmartDecimalsPreview();
 
+  static const double _kDividerHeight =
+      16.0; // (literal) 16dp comparison row divider vertical extent
+  static const double _kArrowIconSize =
+      10.0; // (literal) 10dp before-to-after comparison arrow icon
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.md,
+        vertical: CoveSpace.md,
+      ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.borderHairline),
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.inline),
+        ),
+        border: Border.all(color: cv.lineHairline),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -214,7 +254,10 @@ class _SmartDecimalsPreview extends StatelessWidget {
             after: '₹250',
             isClean: true,
           ),
-          Divider(color: colors.borderHairline.withValues(alpha: 0.5), height: 16),
+          Divider(
+            color: cv.lineHairline.withValues(alpha: 0.5),
+            height: _kDividerHeight,
+          ),
           // Before / After Comparison 2
           _buildComparisonRow(
             context,
@@ -223,7 +266,10 @@ class _SmartDecimalsPreview extends StatelessWidget {
             after: '₹1,450',
             isClean: true,
           ),
-          Divider(color: colors.borderHairline.withValues(alpha: 0.5), height: 16),
+          Divider(
+            color: cv.lineHairline.withValues(alpha: 0.5),
+            height: _kDividerHeight,
+          ),
           // Kept precision when non-zero
           _buildComparisonRow(
             context,
@@ -244,7 +290,7 @@ class _SmartDecimalsPreview extends StatelessWidget {
     required String after,
     required bool isClean,
   }) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -252,50 +298,52 @@ class _SmartDecimalsPreview extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: colors.textMuted,
+            style: CoveType.barLabel.copyWith(
+              color: cv.textSecondary,
               fontWeight: FontWeight.w500,
             ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: CoveSpace.sm),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               before,
-              style: TextStyle(
-                fontSize: 11,
+              style: CoveType.barLabel.copyWith(
                 decoration: TextDecoration.lineThrough,
-                color: colors.textMuted.withValues(alpha: 0.5),
-                fontFamily: 'monospace',
+                color: cv.textSecondary.withValues(alpha: 0.5),
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_rounded, size: 10, color: Colors.grey),
-            const SizedBox(width: 8),
+            const SizedBox(width: CoveSpace.sm),
+            Icon(
+              Icons.arrow_forward_rounded,
+              size: _kArrowIconSize,
+              color: cv.textTertiary,
+            ),
+            const SizedBox(width: CoveSpace.sm),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: CoveSpace.sm,
+                vertical: CoveSpace.xs,
+              ),
               decoration: BoxDecoration(
-                color: isClean
-                    ? colors.accentPrimary.withValues(alpha: 0.15)
-                    : colors.surfaceRow,
-                borderRadius: BorderRadius.circular(4),
+                color: isClean ? cv.accentWash : cv.surfaceRow,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveSpace.xs),
+                ),
                 border: Border.all(
                   color: isClean
-                      ? colors.accentPrimary.withValues(alpha: 0.3)
-                      : colors.borderHairline,
+                      ? cv.accentFill.withValues(alpha: 0.3)
+                      : cv.lineHairline,
                 ),
               ),
               child: Text(
                 after,
-                style: TextStyle(
-                  fontSize: 11,
+                style: CoveType.barLabel.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: isClean ? colors.accentPrimary : colors.textPrimary,
-                  fontFamily: 'monospace',
+                  color: isClean ? cv.accentText : cv.textPrimary,
                 ),
               ),
             ),
@@ -312,16 +360,30 @@ class _SmartDecimalsPreview extends StatelessWidget {
 class _ProfileStudioPreview extends StatelessWidget {
   const _ProfileStudioPreview();
 
+  static const double _kHorizontalPadding =
+      16.0; // (literal) 16dp profile studio preview horizontal inset
+  static const double _kAvatarBorderWidth =
+      1.5; // (literal) 1.5dp profile avatar and camera badge ring stroke
+  static const double _kBadgeOffset =
+      -2.0; // (literal) -2dp camera badge corner overhang offset
+  static const double _kSmallIconSize =
+      10.0; // (literal) 10dp camera badge and pill chip icon glyph
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _kHorizontalPadding,
+        vertical: CoveSpace.md,
+      ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.borderHairline),
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.inline),
+        ),
+        border: Border.all(color: cv.lineHairline),
       ),
       child: Row(
         children: [
@@ -330,40 +392,49 @@ class _ProfileStudioPreview extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: CoveSize.hit,
+                height: CoveSize.hit,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colors.accentPrimary,
-                  border: Border.all(color: colors.borderHairline, width: 1.5),
+                  color: cv.accentFill,
+                  border: Border.all(
+                    color: cv.lineHairline,
+                    width: _kAvatarBorderWidth,
+                  ),
                 ),
                 child: Center(
                   child: Text(
                     'S',
-                    style: TextStyle(
-                      fontSize: 20,
+                    style: CoveType.slipTitle.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: colors.textPrimary,
+                      color: cv.textPrimary,
                     ),
                   ),
                 ),
               ),
               Positioned(
-                bottom: -2,
-                right: -2,
+                bottom: _kBadgeOffset,
+                right: _kBadgeOffset,
                 child: Container(
-                  padding: const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(CoveSpace.xs),
                   decoration: BoxDecoration(
-                    color: colors.accentPrimary,
+                    color: cv.accentFill,
                     shape: BoxShape.circle,
-                    border: Border.all(color: colors.background, width: 1.5),
+                    border: Border.all(
+                      color: cv.surfaceCanvas,
+                      width: _kAvatarBorderWidth,
+                    ),
                   ),
-                  child: Icon(Icons.camera_alt_rounded, size: 10, color: colors.background),
+                  child: Icon(
+                    Icons.camera_alt_rounded,
+                    size: _kSmallIconSize,
+                    color: cv.surfaceCanvas,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: CoveSpace.md),
           // Chips Row
           Expanded(
             child: Column(
@@ -372,23 +443,33 @@ class _ProfileStudioPreview extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _buildPillChip(context, Icons.photo_library_outlined, 'Upload Photo'),
-                    const SizedBox(width: 6),
-                    _buildPillChip(context, Icons.text_fields_rounded, 'Initials'),
+                    _buildPillChip(
+                      context,
+                      Icons.photo_library_outlined,
+                      'Upload Photo',
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    _buildPillChip(
+                      context,
+                      Icons.text_fields_rounded,
+                      'Initials',
+                    ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: CoveSpace.sm),
                 Row(
                   children: [
-                    Icon(Icons.done_all_rounded, size: 12, color: colors.accentPrimary),
-                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.done_all_rounded,
+                      size: CoveSpace.md,
+                      color: cv.accentFill,
+                    ),
+                    const SizedBox(width: CoveSpace.xs),
                     Text(
                       'Frame 0 Instant Sync',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
+                      style: CoveType.barLabel.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: colors.accentPrimary,
+                        color: cv.accentText,
                       ),
                     ),
                   ],
@@ -402,26 +483,28 @@ class _ProfileStudioPreview extends StatelessWidget {
   }
 
   Widget _buildPillChip(BuildContext context, IconData icon, String label) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.sm,
+        vertical: CoveSpace.xs,
+      ),
       decoration: BoxDecoration(
-        color: colors.surfaceRow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.borderHairline),
+        color: cv.surfaceRow,
+        borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.md)),
+        border: Border.all(color: cv.lineHairline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: colors.textMuted),
-          const SizedBox(width: 4),
+          Icon(icon, size: _kSmallIconSize, color: cv.textSecondary),
+          const SizedBox(width: CoveSpace.xs),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 10,
+            style: CoveType.barLabel.copyWith(
               fontWeight: FontWeight.w500,
-              color: colors.textPrimary,
+              color: cv.textPrimary,
             ),
           ),
         ],
@@ -436,19 +519,28 @@ class _ProfileStudioPreview extends StatelessWidget {
 class _GenericPreview extends StatelessWidget {
   const _GenericPreview();
 
+  static const double _kFallbackHeight =
+      70.0; // (literal) 70dp generic changelog preview fallback box height
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
-      height: 70,
+      height: _kFallbackHeight,
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.borderHairline),
+        color: cv.surfaceCard,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveRadius.inline),
+        ),
+        border: Border.all(color: cv.lineHairline),
       ),
       child: Center(
-        child: Icon(Icons.auto_awesome_rounded, size: 28, color: colors.accentPrimary),
+        child: Icon(
+          Icons.auto_awesome_rounded,
+          size: CoveSize.avatarRow,
+          color: cv.accentFill,
+        ),
       ),
     );
   }

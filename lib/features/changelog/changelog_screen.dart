@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'changelog_models.dart';
 import 'whats_fresh_modal.dart';
@@ -7,31 +7,44 @@ import 'whats_fresh_modal.dart';
 class ChangelogScreen extends StatelessWidget {
   const ChangelogScreen({super.key});
 
+  static const double _kBackIconSize =
+      18.0; // (literal) 18dp AppBar back chevron icon size
+  static const double _kButtonIconSize =
+      14.0; // (literal) 14dp What's Fresh pill button sparkle icon
+  static const double _kVerticalPadding =
+      16.0; // (literal) 16dp vertical scroll inset
+  static const double _kChipRadius =
+      6.0; // (literal) 6dp changelog version/category tag corner radius
+  static const double _kIntroBottomGap =
+      28.0; // (literal) 28dp vertical gap below intro header card
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: _kBackIconSize,
+          ),
           onPressed: () => Navigator.of(context).pop(),
           tooltip: 'Back',
         ),
         title: Text(
           'Changelog & Updates',
-          style: typography.headline.copyWith(fontSize: 20),
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 14),
+            padding: const EdgeInsets.only(right: CoveSpace.md),
             child: CovePillButton(
               label: "What's Fresh",
-              icon: const Icon(Icons.auto_awesome, size: 14),
+              icon: const Icon(Icons.auto_awesome, size: _kButtonIconSize),
               isCompact: true,
               variant: CoveButtonVariant.secondary,
               onPressed: () => WhatsFreshModal.show(context, force: true),
@@ -41,27 +54,36 @@ class ChangelogScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CoveSpace.gutter,
+            vertical: _kVerticalPadding,
+          ),
           children: [
             // Intro Header Card
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(CoveSpace.gutter),
               decoration: BoxDecoration(
-                color: colors.surfaceCard,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: colors.borderHairline),
+                color: cv.surfaceCard,
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.card),
+                ),
+                border: Border.all(color: cv.lineHairline),
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(CoveSpace.md),
                     decoration: BoxDecoration(
-                      color: colors.accentPrimary.withValues(alpha: 0.12),
+                      color: cv.accentWash,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.history_edu_rounded, size: 22, color: colors.accentPrimary),
+                    child: Icon(
+                      Icons.history_edu_rounded,
+                      size: CoveSize.avatarInline,
+                      color: cv.accentFill,
+                    ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: CoveSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,35 +92,38 @@ class ChangelogScreen extends StatelessWidget {
                           children: [
                             Text(
                               'Cove Evolution',
-                              style: typography.bodyMedium.copyWith(
+                              style: CoveType.rowTitle.copyWith(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                                color: cv.textPrimary,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: CoveSpace.sm),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: CoveSpace.sm,
+                                vertical: CoveSpace.xs,
+                              ),
                               decoration: BoxDecoration(
-                                color: colors.accentPrimary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
+                                color: cv.accentWash,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(_kChipRadius),
+                                ),
                               ),
                               child: Text(
                                 'LATEST v$kCoveCurrentAppVersion',
-                                style: TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 9.5,
+                                style: CoveType.barLabel.copyWith(
                                   fontWeight: FontWeight.w700,
-                                  color: colors.accentPrimary,
+                                  color: cv.accentText,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: CoveSpace.xs),
                         Text(
                           'Every update is engineered to protect domestic harmony, privacy, and calm.',
-                          style: typography.caption.copyWith(
-                            color: colors.textMuted,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textSecondary,
                             height: 1.35,
                           ),
                         ),
@@ -108,17 +133,14 @@ class ChangelogScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: _kIntroBottomGap),
 
             // Timeline Header
             Text(
               'RELEASE TIMELINE',
-              style: typography.caption.copyWith(
-                letterSpacing: 1.0,
-                fontWeight: FontWeight.w600,
-              ),
+              style: CoveType.capsPage.copyWith(color: cv.textSecondary),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: CoveSpace.md),
 
             // Timeline Items
             ...List.generate(kChangelogItems.length, (index) {
@@ -133,7 +155,7 @@ class ChangelogScreen extends StatelessWidget {
               );
             }),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: CoveSpace.section),
           ],
         ),
       ),
@@ -152,10 +174,34 @@ class _TimelineItemRow extends StatelessWidget {
     required this.isLast,
   });
 
+  static const double _kTimelineLineOffset =
+      14.0; // (literal) 14dp vertical offset to center timeline stem on node dot
+  static const double _kTimelineLineWidth =
+      1.5; // (literal) 1.5dp timeline vertical axis line stroke
+  static const double _kNodeBorderWidth =
+      2.0; // (literal) 2dp timeline node dot ring stroke
+  static const double _kNodeBlurRadius =
+      6.0; // (literal) 6dp featured timeline node glow blur
+  static const double _kNodeSpreadRadius =
+      1.0; // (literal) 1dp featured timeline node glow spread
+  static const double _kCardPadding =
+      16.0; // (literal) 16dp timeline card interior padding
+  static const double _kFeaturedBorderWidth =
+      1.2; // (literal) 1.2dp featured changelog card border width
+  static const double _kNormalBorderWidth =
+      1.0; // (literal) 1dp standard changelog card hairline border width
+  static const double _kChipRadius =
+      6.0; // (literal) 6dp changelog version/category tag corner radius
+  static const double _kCategoryIconSize =
+      16.0; // (literal) 16dp changelog item category icon glyph
+  static const double _kUnderTheHoodRadius =
+      10.0; // (literal) 10dp Under the Hood code box corner radius
+  static const double _kTerminalIconSize =
+      11.0; // (literal) 11dp terminal prompt icon in Under the Hood header
+
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return IntrinsicHeight(
       child: Row(
@@ -165,39 +211,41 @@ class _TimelineItemRow extends StatelessWidget {
           // TIMELINE AXIS: VERTICAL LINE & GLOWING NODE
           // -------------------------------------------------------------
           SizedBox(
-            width: 24,
+            width: CoveSpace.lg,
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
                 // Vertical Line
                 Positioned(
-                  top: isFirst ? 14 : 0,
+                  top: isFirst ? _kTimelineLineOffset : 0,
                   bottom: isLast ? null : 0,
-                  height: isLast ? 14 : null,
+                  height: isLast ? _kTimelineLineOffset : null,
                   child: Container(
-                    width: 1.5,
-                    color: colors.borderHairline,
+                    width: _kTimelineLineWidth,
+                    color: cv.lineHairline,
                   ),
                 ),
                 // Glowing Node Dot
                 Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  width: 12,
-                  height: 12,
+                  margin: const EdgeInsets.only(top: CoveSpace.sm),
+                  width: CoveSpace.md,
+                  height: CoveSpace.md,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: item.isFeatured ? colors.accentPrimary : colors.surfaceCard,
+                    color: item.isFeatured ? cv.accentFill : cv.surfaceCard,
                     border: Border.all(
-                      color: item.isFeatured ? colors.accentPrimary : colors.textMuted.withValues(alpha: 0.6),
-                      width: 2,
+                      color: item.isFeatured
+                          ? cv.accentFill
+                          : cv.textSecondary.withValues(alpha: 0.6),
+                      width: _kNodeBorderWidth,
                     ),
                     boxShadow: item.isFeatured
                         ? [
                             BoxShadow(
-                              color: colors.accentPrimary.withValues(alpha: 0.4),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            )
+                              color: cv.accentFill.withValues(alpha: 0.4),
+                              blurRadius: _kNodeBlurRadius,
+                              spreadRadius: _kNodeSpreadRadius,
+                            ),
                           ]
                         : null,
                   ),
@@ -205,24 +253,28 @@ class _TimelineItemRow extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: CoveSpace.md),
 
           // -------------------------------------------------------------
           // CONTENT CARD
           // -------------------------------------------------------------
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 22),
+              padding: const EdgeInsets.only(bottom: CoveSpace.gutter),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(_kCardPadding),
                 decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  borderRadius: BorderRadius.circular(18),
+                  color: cv.surfaceCard,
+                  borderRadius: const BorderRadius.all(
+                    Radius.circular(CoveRadius.card),
+                  ),
                   border: Border.all(
                     color: item.isFeatured
-                        ? colors.accentPrimary.withValues(alpha: 0.3)
-                        : colors.borderHairline,
-                    width: item.isFeatured ? 1.2 : 1.0,
+                        ? cv.accentFill.withValues(alpha: 0.3)
+                        : cv.lineHairline,
+                    width: item.isFeatured
+                        ? _kFeaturedBorderWidth
+                        : _kNormalBorderWidth,
                   ),
                 ),
                 child: Column(
@@ -232,124 +284,135 @@ class _TimelineItemRow extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CoveSpace.sm,
+                            vertical: CoveSpace.xs,
+                          ),
                           decoration: BoxDecoration(
-                            color: colors.accentPrimary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
+                            color: cv.accentWash,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(_kChipRadius),
+                            ),
                           ),
                           child: Text(
                             item.version,
-                            style: TextStyle(
-                              fontFamily: 'GeneralSans',
-                              fontSize: 10,
+                            style: CoveType.barLabel.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: colors.accentPrimary,
+                              color: cv.accentText,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: CoveSpace.sm),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CoveSpace.sm,
+                            vertical: CoveSpace.xs,
+                          ),
                           decoration: BoxDecoration(
-                            color: colors.surfaceRow,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: colors.borderHairline),
+                            color: cv.surfaceRow,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(_kChipRadius),
+                            ),
+                            border: Border.all(color: cv.lineHairline),
                           ),
                           child: Text(
                             item.category.toUpperCase(),
-                            style: TextStyle(
-                              fontFamily: 'GeneralSans',
-                              fontSize: 9.5,
+                            style: CoveType.barLabel.copyWith(
                               letterSpacing: 0.6,
                               fontWeight: FontWeight.w600,
-                              color: colors.textMuted,
+                              color: cv.textSecondary,
                             ),
                           ),
                         ),
                         const Spacer(),
                         Text(
                           item.date,
-                          style: typography.caption.copyWith(
-                            fontSize: 11,
+                          style: CoveType.barLabel.copyWith(
                             fontWeight: FontWeight.w500,
-                            color: colors.textMuted,
+                            color: cv.textSecondary,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Icon(item.icon, size: 16, color: colors.textMuted),
+                        const SizedBox(width: CoveSpace.sm),
+                        Icon(
+                          item.icon,
+                          size: _kCategoryIconSize,
+                          color: cv.textSecondary,
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: CoveSpace.sm),
 
                     // Feature Title
                     Text(
                       item.title,
-                      style: typography.bodyMedium.copyWith(
-                        fontSize: 16,
+                      style: CoveType.rowTitle.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: colors.textPrimary,
+                        color: cv.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: CoveSpace.xs),
 
                     // Tagline (Benefit Headline)
                     Text(
                       item.tagline,
-                      style: typography.caption.copyWith(
-                        fontSize: 12.5,
+                      style: CoveType.rowSub.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: colors.accentPrimary,
+                        color: cv.accentText,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: CoveSpace.sm),
 
                     // Outcome & Human Benefit
                     Text(
                       item.outcome,
-                      style: typography.bodyMedium.copyWith(
-                        fontSize: 13,
+                      style: CoveType.readout.copyWith(
                         height: 1.45,
-                        color: colors.textPrimary.withValues(alpha: 0.88),
+                        color: cv.textPrimary.withValues(alpha: 0.88),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: CoveSpace.md),
 
                     // Monospaced "Under the Hood" Container
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(CoveSpace.md),
                       decoration: BoxDecoration(
-                        color: colors.surfaceRow,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: colors.borderHairline.withValues(alpha: 0.7)),
+                        color: cv.surfaceRow,
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(_kUnderTheHoodRadius),
+                        ),
+                        border: Border.all(
+                          color: cv.lineHairline.withValues(alpha: 0.7),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.terminal_rounded, size: 11, color: colors.textMuted),
-                              const SizedBox(width: 5),
+                              Icon(
+                                Icons.terminal_rounded,
+                                size: _kTerminalIconSize,
+                                color: cv.textSecondary,
+                              ),
+                              const SizedBox(width: CoveSpace.xs),
                               Text(
                                 'UNDER THE HOOD',
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: 9,
+                                style: CoveType.barLabel.copyWith(
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.7,
-                                  color: colors.textMuted,
+                                  color: cv.textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: CoveSpace.xs),
                           Text(
                             item.underTheHood,
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 10.5,
+                            style: CoveType.barLabel.copyWith(
+                              fontWeight: FontWeight.w400,
                               height: 1.35,
-                              color: colors.textMuted,
+                              color: cv.textSecondary,
                             ),
                           ),
                         ],

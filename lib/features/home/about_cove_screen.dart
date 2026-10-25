@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_sync_tick.dart';
@@ -20,15 +20,40 @@ import 'home_switcher_sheet.dart';
 class AboutCoveScreen extends ConsumerWidget {
   const AboutCoveScreen({super.key});
 
-  Future<void> _showPairingModal(BuildContext context, WidgetRef ref, String homeId) async {
-    final payload = await ref.read(homeControllerProvider).getPairingPayload(homeId);
+  static const double _kVerticalPadding =
+      16.0; // (literal) 16dp vertical scroll inset and action button right margin
+  static const double _kHeroCircleSize =
+      88.0; // (literal) 88dp hero sanctuary monogram circle diameter
+  static const double _kHeroBorderWidth =
+      2.0; // (literal) 2dp hero sanctuary monogram ring stroke
+  static const double _kHeroIconSize =
+      44.0; // (literal) 44dp deterministic home icon glyph inside 88dp circle
+  static const double _kHeroSectionGap =
+      28.0; // (literal) 28dp vertical gap below hero sanctuary monogram
+  static const double _kPhilosophySectionGap =
+      36.0; // (literal) 36dp vertical gap below philosophy card
+  static const double _kChevronSize =
+      18.0; // (literal) 18dp list tile trailing chevron and philosophy header icon
+  static const double _kPillarIconSize =
+      16.0; // (literal) 16dp philosophy pillar icon glyph
+  static const double _kPillarIconBoxRadius =
+      10.0; // (literal) 10dp philosophy pillar icon box corner radius
+
+  Future<void> _showPairingModal(
+    BuildContext context,
+    WidgetRef ref,
+    String homeId,
+  ) async {
+    final payload = await ref
+        .read(homeControllerProvider)
+        .getPairingPayload(homeId);
     if (payload != null && context.mounted) {
       showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
         builder: (_) => Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(CoveSpace.gutter),
           child: PairingQrView(payload: payload),
         ),
       );
@@ -37,8 +62,7 @@ class AboutCoveScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     final activeHome = ref.watch(activeHomeProvider).value;
     final homes = ref.watch(userHomesProvider).value ?? [];
@@ -52,28 +76,34 @@ class AboutCoveScreen extends ConsumerWidget {
     final effectiveUserName = userProfile.displayName.trim().isNotEmpty
         ? userProfile.displayName.trim()
         : (currentUser?.displayName?.trim().isNotEmpty == true
-            ? currentUser!.displayName!.trim()
-            : 'You');
-    final userInitial = effectiveUserName.isNotEmpty ? effectiveUserName[0].toUpperCase() : 'U';
+              ? currentUser!.displayName!.trim()
+              : 'You');
+    final userInitial = effectiveUserName.isNotEmpty
+        ? effectiveUserName[0].toUpperCase()
+        : 'U';
 
-    final partnerName = partnerProfile.displayName.isNotEmpty ? partnerProfile.displayName : 'Partner';
-    final partnerInitial = partnerName.isNotEmpty ? partnerName[0].toUpperCase() : 'P';
+    final partnerName = partnerProfile.displayName.isNotEmpty
+        ? partnerProfile.displayName
+        : 'Partner';
+    final partnerInitial = partnerName.isNotEmpty
+        ? partnerName[0].toUpperCase()
+        : 'P';
 
     final createdDateStr = activeHome != null
         ? DateFormat('MMMM yyyy').format(activeHome.createdAt)
         : 'Recently';
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
         title: Text(
           'About Sanctuary',
-          style: typography.headline.copyWith(fontSize: 18),
+          style: CoveType.letter.copyWith(color: cv.textPrimary),
         ),
         actions: [
           if (homes.length > 1)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: _kVerticalPadding),
               child: CovePillButton(
                 label: 'Switch Home',
                 isCompact: true,
@@ -84,67 +114,72 @@ class AboutCoveScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.gutter,
+          vertical: _kVerticalPadding,
+        ),
         children: [
           // --- 1. HERO COVE MONOGRAM & NAME ---
           Center(
             child: Column(
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: CoveSpace.sm),
                 Container(
-                  width: 88,
-                  height: 88,
+                  width: _kHeroCircleSize,
+                  height: _kHeroCircleSize,
                   decoration: BoxDecoration(
-                    color: colors.surfaceCard,
+                    color: cv.surfaceCard,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: colors.accentPrimary.withValues(alpha: 0.4),
-                      width: 2,
+                      color: cv.accentFill.withValues(alpha: 0.4),
+                      width: _kHeroBorderWidth,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: colors.accentPrimary.withValues(alpha: 0.12),
-                        blurRadius: 24,
-                        spreadRadius: 4,
+                        color: cv.accentFill.withValues(alpha: 0.12),
+                        blurRadius: CoveSpace.lg,
+                        spreadRadius: CoveSpace.xs,
                       ),
                     ],
                   ),
                   child: Center(
                     child: activeHome != null
-                        ? DeterministicHomeIcon(homeId: activeHome.id, size: 44)
-                        : Icon(Icons.home_outlined, size: 40, color: colors.accentPrimary),
+                        ? DeterministicHomeIcon(
+                            homeId: activeHome.id,
+                            size: _kHeroIconSize,
+                          )
+                        : Icon(
+                            Icons.home_outlined,
+                            size: CoveSize.buttonRound,
+                            color: cv.accentFill,
+                          ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: _kVerticalPadding),
                 Text(
                   homeName,
-                  style: TextStyle(
-                    fontFamily: 'LibreBodoni',
-                    fontSize: 32,
+                  style: CoveType.slipFigure.copyWith(
                     fontWeight: FontWeight.w600,
                     fontStyle: FontStyle.italic,
-                    color: colors.textPrimary,
+                    color: cv.textPrimary,
                     letterSpacing: -0.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: CoveSpace.xs),
                 Text(
                   'Established $createdDateStr · A private sanctuary for two',
-                  style: typography.caption.copyWith(
-                    color: colors.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: _kHeroSectionGap),
 
           // --- 2. PARTNERS CARD ---
           CoveCard(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(CoveSpace.gutter),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -153,99 +188,114 @@ class AboutCoveScreen extends ConsumerWidget {
                   children: [
                     Text(
                       'MEMBERS OF THIS COVE',
-                      style: typography.caption.copyWith(
-                        letterSpacing: 1.0,
-                        fontWeight: FontWeight.w600,
+                      style: CoveType.capsCard.copyWith(
+                        color: cv.textSecondary,
                       ),
                     ),
                     CoveSyncTick(
-                      status: hasPartner ? CoveSyncStatus.syncedToPartner : CoveSyncStatus.savedLocally,
+                      status: hasPartner
+                          ? CoveSyncStatus.syncedToPartner
+                          : CoveSyncStatus.savedLocally,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: _kVerticalPadding),
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 24,
-                      backgroundColor: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
-                          ? colors.surfaceRow
-                          : colors.accentPrimary,
-                      backgroundImage: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
+                      radius: CoveSpace.lg,
+                      backgroundColor:
+                          (userProfile.avatarUrl != null &&
+                              userProfile.avatarUrl!.isNotEmpty)
+                          ? cv.surfaceRow
+                          : cv.accentFill,
+                      backgroundImage:
+                          (userProfile.avatarUrl != null &&
+                              userProfile.avatarUrl!.isNotEmpty)
                           ? NetworkImage(userProfile.avatarUrl!)
                           : null,
-                      child: (userProfile.avatarUrl != null && userProfile.avatarUrl!.isNotEmpty)
+                      child:
+                          (userProfile.avatarUrl != null &&
+                              userProfile.avatarUrl!.isNotEmpty)
                           ? null
                           : Text(
                               userInitial,
-                              style: typography.headline.copyWith(
-                                fontSize: 20,
+                              style: CoveType.slipTitle.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: colors.surfaceRow,
+                                color: cv.surfaceRow,
                               ),
                             ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: CoveSpace.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             effectiveUserName,
-                            style: typography.bodyMedium.copyWith(
+                            style: CoveType.rowTitle.copyWith(
                               fontWeight: FontWeight.w700,
-                              fontSize: 15,
+                              color: cv.textPrimary,
                             ),
                           ),
                           Text(
                             'You · Sanctuary Member',
-                            style: typography.caption.copyWith(color: colors.textMuted),
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textSecondary,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                const Divider(),
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
+                Divider(color: cv.lineHairline),
+                const SizedBox(height: CoveSpace.md),
                 if (hasPartner)
                   Row(
                     children: [
                       CircleAvatar(
-                        radius: 24,
-                        backgroundColor: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
-                            ? colors.surfaceRow
-                            : colors.accentPrimary,
-                        backgroundImage: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
+                        radius: CoveSpace.lg,
+                        backgroundColor:
+                            (partnerProfile.avatarUrl != null &&
+                                partnerProfile.avatarUrl!.isNotEmpty)
+                            ? cv.surfaceRow
+                            : cv.accentFill,
+                        backgroundImage:
+                            (partnerProfile.avatarUrl != null &&
+                                partnerProfile.avatarUrl!.isNotEmpty)
                             ? NetworkImage(partnerProfile.avatarUrl!)
                             : null,
-                        child: (partnerProfile.avatarUrl != null && partnerProfile.avatarUrl!.isNotEmpty)
+                        child:
+                            (partnerProfile.avatarUrl != null &&
+                                partnerProfile.avatarUrl!.isNotEmpty)
                             ? null
                             : Text(
                                 partnerInitial,
-                                style: typography.headline.copyWith(
-                                  fontSize: 20,
+                                style: CoveType.slipTitle.copyWith(
                                   fontWeight: FontWeight.w700,
-                                  color: colors.surfaceRow,
+                                  color: cv.surfaceRow,
                                 ),
                               ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: CoveSpace.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               partnerName,
-                              style: typography.bodyMedium.copyWith(
+                              style: CoveType.rowTitle.copyWith(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
+                                color: cv.textPrimary,
                               ),
                             ),
                             Text(
                               'Partner · Connected & In Sync',
-                              style: typography.caption.copyWith(color: colors.accentPrimary),
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.accentText,
+                              ),
                             ),
                           ],
                         ),
@@ -256,27 +306,36 @@ class AboutCoveScreen extends ConsumerWidget {
                   Row(
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: CoveSize.hit,
+                        height: CoveSize.hit,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: colors.surfaceRow,
-                          border: Border.all(color: colors.borderHairline),
+                          color: cv.surfaceRow,
+                          border: Border.all(color: cv.lineHairline),
                         ),
-                        child: Icon(Icons.person_add_outlined, size: 22, color: colors.accentSecondary),
+                        child: Icon(
+                          Icons.person_add_outlined,
+                          size: CoveSize.avatarInline,
+                          color: cv.statusAlert,
+                        ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: CoveSpace.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Partner not yet joined',
-                              style: typography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                              style: CoveType.rowTitle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: cv.textPrimary,
+                              ),
                             ),
                             Text(
                               'Share your pairing code to link devices.',
-                              style: typography.caption.copyWith(color: colors.textMuted),
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -296,125 +355,174 @@ class AboutCoveScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CoveSpace.gutter),
 
           // --- 3. SANCTUARY ACTIONS & SETTINGS ---
           Material(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(18),
+            color: cv.surfaceCard,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(CoveRadius.card),
+            ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _kVerticalPadding,
+                vertical: CoveSpace.sm,
+              ),
               child: Column(
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.edit_outlined, color: colors.accentPrimary, size: 20),
-                    title: Text('Edit Cove Name', style: typography.bodyMedium),
-                    subtitle: Text(homeName, style: typography.caption),
-                    trailing: Icon(Icons.chevron_right, size: 18, color: colors.textSubtle),
+                    leading: Icon(
+                      Icons.edit_outlined,
+                      color: cv.accentFill,
+                      size: CoveSpace.gutter,
+                    ),
+                    title: Text(
+                      'Edit Cove Name',
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                    ),
+                    subtitle: Text(
+                      homeName,
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      size: _kChevronSize,
+                      color: cv.textTertiary,
+                    ),
                     onTap: () {
                       EditHomeDialog.show(context);
                     },
                   ),
-                  const Divider(),
+                  Divider(color: cv.lineHairline),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.qr_code_rounded, color: colors.accentPrimary, size: 20),
-                    title: Text('Pairing Code & QR', style: typography.bodyMedium),
-                    subtitle: Text('Add partner or new device', style: typography.caption),
-                    trailing: Icon(Icons.chevron_right, size: 18, color: colors.textSubtle),
+                    leading: Icon(
+                      Icons.qr_code_rounded,
+                      color: cv.accentFill,
+                      size: CoveSpace.gutter,
+                    ),
+                    title: Text(
+                      'Pairing Code & QR',
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                    ),
+                    subtitle: Text(
+                      'Add partner or new device',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      size: _kChevronSize,
+                      color: cv.textTertiary,
+                    ),
                     onTap: () {
                       if (activeHome != null) {
                         _showPairingModal(context, ref, activeHome.id);
                       }
                     },
                   ),
-                  const Divider(),
+                  Divider(color: cv.lineHairline),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.attach_money_rounded, color: colors.accentPrimary, size: 20),
-                    title: Text('Home Currency', style: typography.bodyMedium),
-                    subtitle: Text('${currency.name} (${currency.symbol})', style: typography.caption),
-                    trailing: Icon(Icons.chevron_right, size: 18, color: colors.textSubtle),
+                    leading: Icon(
+                      Icons.attach_money_rounded,
+                      color: cv.accentFill,
+                      size: CoveSpace.gutter,
+                    ),
+                    title: Text(
+                      'Home Currency',
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                    ),
+                    subtitle: Text(
+                      '${currency.name} (${currency.symbol})',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
+                    trailing: Icon(
+                      Icons.chevron_right,
+                      size: _kChevronSize,
+                      color: cv.textTertiary,
+                    ),
                     onTap: () => CurrencySelectorSheet.show(context),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CoveSpace.lg),
 
           // --- 4. THE COVE PHILOSOPHY ---
           Container(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(CoveSpace.gutter),
             decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: colors.borderHairline),
+              color: cv.surfaceCard,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.card),
+              ),
+              border: Border.all(color: cv.lineHairline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.auto_awesome_outlined, size: 18, color: colors.accentPrimary),
-                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.auto_awesome_outlined,
+                      size: _kChevronSize,
+                      color: cv.accentFill,
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
                     Text(
                       'THE COVE PHILOSOPHY',
-                      style: typography.caption.copyWith(
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w600,
-                        color: colors.accentPrimary,
-                      ),
+                      style: CoveType.capsCard.copyWith(color: cv.accentText),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
                 Text(
                   'A private digital sanctuary crafted exclusively for two people.',
-                  style: TextStyle(
-                    fontFamily: 'LibreBodoni',
-                    fontSize: 20,
+                  style: CoveType.letter.copyWith(
                     fontWeight: FontWeight.w500,
                     fontStyle: FontStyle.italic,
-                    color: colors.textPrimary,
+                    color: cv.textPrimary,
                     height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: CoveSpace.sm),
                 Text(
                   'Cove was born out of a desire for intimacy and calm. In a world of public feeds and noisy social networks, Cove exists as a quiet, encrypted sanctuary where two partners align their days, cherish shared rhythms, manage household finances, and grow together in complete digital peace.',
-                  style: typography.bodyMedium.copyWith(
-                    color: colors.textMuted,
-                    fontSize: 13,
+                  style: CoveType.readout.copyWith(
+                    color: cv.textSecondary,
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: CoveSpace.gutter),
                 _buildPillarRow(
                   context,
                   icon: Icons.shield_outlined,
                   title: 'Zero-Knowledge Cryptography',
-                  desc: 'End-to-end encrypted with LibSodium on your device. The cloud never sees your shared data.',
+                  desc:
+                      'End-to-end encrypted with LibSodium on your device. The cloud never sees your shared data.',
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
                 _buildPillarRow(
                   context,
                   icon: Icons.spa_outlined,
                   title: 'Calm Household Rhythms',
-                  desc: 'No addictive gamification or spam. Designed to help you live together with ease.',
+                  desc:
+                      'No addictive gamification or spam. Designed to help you live together with ease.',
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
                 _buildPillarRow(
                   context,
                   icon: Icons.sync_lock_outlined,
                   title: 'Seamless Multi-Device Sync',
-                  desc: 'Blind relay synchronizes changes instantaneously across iOS, Android, and Web.',
+                  desc:
+                      'Blind relay synchronizes changes instantaneously across iOS, Android, and Web.',
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: _kPhilosophySectionGap),
 
           // --- 5. APP VERSION & FOOTER ---
           Center(
@@ -422,21 +530,21 @@ class AboutCoveScreen extends ConsumerWidget {
               children: [
                 Text(
                   'Cove v2.0-alpha.1 (1) · Designed for Two',
-                  style: typography.caption.copyWith(
+                  style: CoveType.rowSub.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: colors.textMuted,
+                    color: cv.textSecondary,
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: CoveSpace.xs),
                 Text(
                   'Crafted with love for the two of you ❤️',
-                  style: typography.caption.copyWith(
-                    fontSize: 11,
-                    color: colors.textSubtle,
+                  style: CoveType.barLabel.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: cv.textTertiary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: CoveSpace.lg),
               ],
             ),
           ),
@@ -451,40 +559,40 @@ class AboutCoveScreen extends ConsumerWidget {
     required String title,
     required String desc,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: CoveSize.avatarHeader,
+          height: CoveSize.avatarHeader,
           decoration: BoxDecoration(
-            color: colors.surfaceRow,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: colors.borderHairline),
+            color: cv.surfaceRow,
+            borderRadius: const BorderRadius.all(
+              Radius.circular(_kPillarIconBoxRadius),
+            ),
+            border: Border.all(color: cv.lineHairline),
           ),
-          child: Icon(icon, size: 16, color: colors.accentPrimary),
+          child: Icon(icon, size: _kPillarIconSize, color: cv.accentFill),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: CoveSpace.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: typography.bodyMedium.copyWith(
+                style: CoveType.readout.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  color: cv.textPrimary,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: CoveSpace.xs),
               Text(
                 desc,
-                style: typography.caption.copyWith(
-                  color: colors.textMuted,
-                  fontSize: 12,
+                style: CoveType.rowSub.copyWith(
+                  color: cv.textSecondary,
                   height: 1.35,
                 ),
               ),

@@ -10,14 +10,10 @@
 lib/core/widgets/cove_web_sidebar.dart 22
 lib/features/calendar/calendar_event_form_sheet.dart 6
 lib/features/calendar/views/calendar_month_view.dart 7
-lib/features/changelog/changelog_screen.dart 17
-lib/features/changelog/whats_fresh_modal.dart 18
-lib/features/changelog/widgets/changelog_preview_mockup.dart 19
 lib/features/expenses/expense_form_sheet.dart 28
 lib/features/expenses/monthly_budget_sheet.dart 10
 lib/features/habits/habit_form_sheet.dart 16
 lib/features/habits/habits_screen.dart 12
-lib/features/home/about_cove_screen.dart 15
 lib/features/lists/create_list_dialog.dart 5
 lib/features/lists/lists_screen.dart 29
 lib/features/reminders/reminders_screen.dart 10
