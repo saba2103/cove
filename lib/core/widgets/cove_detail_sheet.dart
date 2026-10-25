@@ -218,24 +218,10 @@ class CoveDetailSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: CoveSpace.sm),
                     Expanded(
-                      child: Text.rich(
+                      child: _CoveDetailKindText(
                         key: const ValueKey('cove_detail_sheet_kind_text'),
-                        TextSpan(
-                          text: normalizedKind,
-                          style: CoveType.capsPage.copyWith(
-                            color: cv.textPrimary,
-                          ),
-                          children: [
-                            if (hasContext)
-                              TextSpan(
-                                text: ' · $trimmedContext',
-                                style: CoveType.capsPage.copyWith(
-                                  color: cv.textTertiary,
-                                ),
-                              ),
-                          ],
-                        ),
-                        softWrap: true,
+                        kind: normalizedKind,
+                        contextLabel: hasContext ? trimmedContext : null,
                       ),
                     ),
                     const SizedBox(width: CoveSpace.sm),
@@ -527,6 +513,88 @@ class _CoveDetailMenuButton extends StatelessWidget {
       variant: CoveRoundButtonVariant.ghost,
       semanticLabel: 'More actions',
       onPressed: enabled ? () => _openMenu(context) : null,
+    );
+  }
+}
+
+class _CoveDetailKindText extends StatelessWidget {
+  final String kind;
+  final String? contextLabel;
+
+  const _CoveDetailKindText({
+    super.key,
+    required this.kind,
+    this.contextLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    final kindStyle = CoveType.capsPage.copyWith(color: cv.textPrimary);
+    final contextStyle = CoveType.capsPage.copyWith(color: cv.textTertiary);
+
+    if (contextLabel == null || contextLabel!.isEmpty) {
+      return Text(
+        kind,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.clip,
+        style: kindStyle,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final singleLineSpan = TextSpan(
+          text: kind,
+          style: kindStyle,
+          children: [
+            TextSpan(
+              text: ' · $contextLabel',
+              style: contextStyle,
+            ),
+          ],
+        );
+
+        final painter = TextPainter(
+          text: singleLineSpan,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+
+        final fitsOnOneLine = painter.width <= constraints.maxWidth;
+
+        if (fitsOnOneLine) {
+          return Text.rich(
+            singleLineSpan,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.clip,
+          );
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              kind,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              style: kindStyle,
+            ),
+            Text(
+              contextLabel!,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              style: contextStyle,
+            ),
+          ],
+        );
+      },
     );
   }
 }

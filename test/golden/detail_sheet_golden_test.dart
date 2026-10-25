@@ -300,6 +300,43 @@ CoveDetailSheet _buildEmiDetailSheet() {
   );
 }
 
+CoveDetailSheet _buildEventDetailSheet() {
+  return CoveDetailSheet(
+    key: const ValueKey('detail_sheet_event'),
+    kindGlyph: const Icon(Icons.calendar_today_rounded),
+    kindLabel: 'EVENT',
+    contextLabel: 'THU 15 OCT',
+    slip: const CoveTicket(
+      key: ValueKey('event_slip'),
+      variant: CoveSlipVariant.paper,
+      title: 'Dinner with Sarah at Bastian',
+      date: 'Thursday, 15 Oct · Bandra West',
+      owner: 'Both of you',
+      hour: '8',
+      meridiem: 'PM',
+      capsLabel: 'COVE · PLAN',
+    ),
+    meaningPanel: CoveDetailMeaningPanel.icon(
+      icon: Icons.event_outlined,
+      title: 'Thursday, 15 Oct · 8:00 PM',
+      subtitle: 'Bandra West · Both of you',
+    ),
+    editVerb: CoveDetailVerb(
+      label: 'Edit',
+      icon: Icons.edit_outlined,
+      onPressed: () {},
+    ),
+    menuItems: [
+      CoveDetailMenuItem(
+        label: 'Delete this event',
+        icon: Icons.delete_outline_rounded,
+        isDestructive: true,
+        onSelected: () {},
+      ),
+    ],
+  );
+}
+
 void main() {
   testWidgets(
     'CoveDetailSheet golden matrix (expense, habit, and EMI fillings in both modes)',
@@ -342,7 +379,7 @@ void main() {
   );
 
   testWidgets(
-    'CoveDetailSheet kind line never ellipsizes or overflows at 320dp cover width with "COMMITMENT · EVERY MONTH" and "EXPENSE · EATING OUT"',
+    'CoveDetailSheet kind line never ellipsizes or overflows at 320dp cover width with "COMMITMENT · EVERY MONTH", "EXPENSE · EATING OUT", and "EVENT · THU 15 OCT"',
     (tester) async {
       tester.view
         ..physicalSize = CoveWidth.cover * 2
@@ -355,8 +392,9 @@ void main() {
       for (final sheet in <CoveDetailSheet>[
         _buildEmiDetailSheet(),
         _buildExpenseDetailSheet(),
+        _buildEventDetailSheet(),
       ]) {
-        final expectedText =
+        final expectedSingleLine =
             '${sheet.kindLabel} · ${sheet.contextLabel}';
 
         await tester.pumpWidget(
@@ -385,26 +423,52 @@ void main() {
         expect(find.byIcon(Icons.check_rounded), findsNothing);
         expect(find.text('✓'), findsNothing);
 
-        // 2. Kind text matches full expected string and never ellipsizes or overflows
+        // 2. Kind text renders either 1 line containing the whole string, or
+        //    exactly 2 lines where line 2 equals the context (without leading dot),
+        //    and never ellipsizes or overflows.
         final kindTextFinder = find.byKey(
           const ValueKey('cove_detail_sheet_kind_text'),
         );
         expect(kindTextFinder, findsOneWidget);
-        final textWidget = tester.widget<Text>(kindTextFinder);
-        expect(
-          textWidget.textSpan!.toPlainText(),
-          equals(expectedText),
-        );
-        expect(textWidget.maxLines, isNull);
-        expect(textWidget.overflow, isNot(equals(TextOverflow.ellipsis)));
 
-        final renderParagraph =
-            tester.renderObject<RenderParagraph>(kindTextFinder);
-        expect(
-          renderParagraph.didExceedMaxLines,
-          isFalse,
-          reason: '$expectedText must never be truncated or ellipsized',
+        final lineTextFinders = find.descendant(
+          of: kindTextFinder,
+          matching: find.byType(Text),
         );
+        final textWidgets =
+            tester.widgetList<Text>(lineTextFinders).toList();
+        final paragraphs =
+            tester.renderObjectList<RenderParagraph>(lineTextFinders).toList();
+
+        expect(
+          textWidgets.length,
+          anyOf(equals(1), equals(2)),
+          reason: '$expectedSingleLine must render as 1 or 2 lines',
+        );
+
+        String extractText(Text w) =>
+            w.data ?? w.textSpan?.toPlainText() ?? '';
+
+        if (textWidgets.length == 1) {
+          expect(extractText(textWidgets[0]), equals(expectedSingleLine));
+        } else {
+          expect(extractText(textWidgets[0]), equals(sheet.kindLabel));
+          expect(extractText(textWidgets[1]), equals(sheet.contextLabel));
+        }
+
+        for (var i = 0; i < textWidgets.length; i++) {
+          final w = textWidgets[i];
+          final p = paragraphs[i];
+          expect(w.maxLines, equals(1));
+          expect(w.softWrap, isFalse);
+          expect(w.overflow, isNot(equals(TextOverflow.ellipsis)));
+          expect(
+            p.didExceedMaxLines,
+            isFalse,
+            reason:
+                'Line ${i + 1} ("${extractText(w)}") of $expectedSingleLine must not exceed 1 line or overflow',
+          );
+        }
       }
     },
   );
