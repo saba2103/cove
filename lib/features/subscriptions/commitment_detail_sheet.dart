@@ -787,6 +787,7 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
         (effectivePaidInstallments >= totalInstallments! || _sub.isEmiFinished);
 
     final effectiveNextDate = _sessionNextBillingDate ?? _sub.nextBillingDate;
+    final voucherDate = _markedPaidInSession ? _sub.nextBillingDate : effectiveNextDate;
     final contextCadence = _formatContextCadence(_sub.billingCycle);
     final cadencePhrase = isEmi ? 'a month' : _formatCadencePhrase(_sub.billingCycle);
     final formattedAmount =
@@ -878,9 +879,9 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
         variant: CoveSlipVariant.paper,
         title: _sub.name,
         amount: formattedAmount,
-        dueDay: DateFormat('d').format(effectiveNextDate),
-        dueMonth: DateFormat('MMM').format(effectiveNextDate).toUpperCase(),
-        dueMonthSemantic: DateFormat('MMMM').format(effectiveNextDate),
+        dueDay: DateFormat('d').format(voucherDate),
+        dueMonth: DateFormat('MMM').format(voucherDate).toUpperCase(),
+        dueMonthSemantic: DateFormat('MMMM').format(voucherDate),
         capsLabel: 'COVE · $contextCadence',
         cadenceSuffix: cadencePhrase,
         state: voucherState,

@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
+import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/auth/auth_controller.dart';
+import 'package:cove/features/subscriptions/commitment_detail_sheet.dart';
 import 'package:cove/features/subscriptions/commitment_models.dart';
 import 'package:cove/features/subscriptions/commitment_projection_utils.dart';
 import 'package:cove/features/subscriptions/subscription_controller.dart';
@@ -1371,6 +1373,112 @@ void main() {
         expect(projection2027[m]!.totalAmount, 0.0);
       }
     });
+
+    testWidgets(
+      'Mark paid on an item due 15 Oct 2026 monthly shows 15 OCT paid voucher and Renews 15 Nov 2026 in meaning panel; Undo puts both back',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1400));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final sub = LocalSubscription(
+          id: 'sub_oct15',
+          homeId: 'home_1',
+          name: 'Spotify Duo',
+          amount: 14.0,
+          currency: 'USD',
+          billingCycle: 'monthly',
+          nextBillingDate: DateTime(2026, 10, 15),
+          category: 'Entertainment',
+          isActive: true,
+          isPrivate: false,
+          createdBy: 'user_alex',
+          createdAt: DateTime(2026, 1, 1),
+          endDate: null,
+          paidBy: 'user_alex',
+          financedThrough: null,
+          totalInstallments: null,
+          paidInstallments: null,
+        );
+
+        await db.into(db.localSubscriptions).insert(
+              LocalSubscriptionsCompanion.insert(
+                id: sub.id,
+                homeId: sub.homeId,
+                name: sub.name,
+                amount: sub.amount,
+                currency: drift.Value(sub.currency),
+                billingCycle: drift.Value(sub.billingCycle),
+                nextBillingDate: sub.nextBillingDate,
+                category: drift.Value(sub.category),
+                isActive: drift.Value(sub.isActive),
+                isPrivate: drift.Value(sub.isPrivate),
+                createdBy: drift.Value(sub.createdBy),
+                createdAt: sub.createdAt,
+                paidBy: drift.Value(sub.paidBy),
+              ),
+            );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: createOverrides(),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) => ElevatedButton(
+                    onPressed: () => CommitmentDetailSheet.show(
+                      context,
+                      sub,
+                    ),
+                    child: const Text('Open Detail'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Open Detail'));
+        await tester.pumpAndSettle();
+
+        // Initial state: voucher shows 15 OCT in due state, meaning panel says Renews 15 Oct 2026
+        var voucher = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+        expect(voucher.dueDay, '15');
+        expect(voucher.dueMonth, 'OCT');
+        expect(voucher.state, CoveVoucherState.due);
+        expect(find.text('PAID'), findsNothing);
+        expect(find.text('Renews 15 Oct 2026'), findsOneWidget);
+
+        // Tap "Mark paid" and confirm
+        await tester.tap(find.text('Mark paid'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Confirm Renewal'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // After marking paid: voucher STILL shows 15 OCT with paid state, meaning panel says Renews 15 Nov 2026
+        voucher = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+        expect(voucher.dueDay, '15');
+        expect(voucher.dueMonth, 'OCT');
+        expect(voucher.state, CoveVoucherState.paid);
+        expect(find.text('PAID'), findsOneWidget);
+        expect(find.text('Renews 15 Nov 2026'), findsOneWidget);
+
+        // Tap Undo on the toast: puts both back
+        final snackBarAction = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
+        snackBarAction.onPressed();
+        await tester.pumpAndSettle();
+
+        voucher = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+        expect(voucher.dueDay, '15');
+        expect(voucher.dueMonth, 'OCT');
+        expect(voucher.state, CoveVoucherState.due);
+        expect(find.text('PAID'), findsNothing);
+        expect(find.text('Renews 15 Oct 2026'), findsOneWidget);
+      },
+    );
   });
 }
 
