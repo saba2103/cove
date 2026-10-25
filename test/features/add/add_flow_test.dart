@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
+import 'package:cove/core/widgets/slips/cove_band.dart';
 import 'package:cove/core/widgets/slips/cove_habit_card.dart';
 import 'package:cove/core/widgets/slips/cove_note.dart';
+import 'package:cove/core/widgets/slips/cove_voucher.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/add/widgets/add_step_pieces.dart';
@@ -15,6 +17,9 @@ import 'package:cove/features/lists/list_controller.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/features/profile/preferences_controller.dart';
 import 'package:cove/features/profile/user_profile_controller.dart';
+import 'package:cove/features/routines/routine_controller.dart';
+import 'package:cove/features/routines/routine_models.dart';
+import 'package:cove/features/subscriptions/subscription_controller.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
@@ -174,6 +179,101 @@ class _SpyHabitController extends HabitController {
   }
 }
 
+class _SpySubscriptionController extends SubscriptionController {
+  final List<CommitmentCreateArgs> calls = <CommitmentCreateArgs>[];
+
+  _SpySubscriptionController(super.ref);
+
+  @override
+  Future<void> createSubscription({
+    required String name,
+    required double amount,
+    String? currency,
+    String billingCycle = 'monthly',
+    required DateTime nextBillingDate,
+    String? category,
+    bool isPrivate = false,
+    DateTime? endDate,
+    String? paidBy,
+    String? financedThrough,
+    int? totalInstallments,
+    int? paidInstallments,
+  }) async {
+    calls.add(
+      CommitmentCreateArgs(
+        name: name,
+        amount: amount,
+        currency: currency,
+        billingCycle: billingCycle,
+        nextBillingDate: nextBillingDate,
+        category: category ?? 'Other',
+        isPrivate: isPrivate,
+        endDate: endDate,
+        paidBy: paidBy!,
+        financedThrough: financedThrough,
+        totalInstallments: totalInstallments,
+        paidInstallments: paidInstallments,
+      ),
+    );
+  }
+}
+
+class _SpyRoutineController extends RoutineController {
+  final List<({String name, List<int> days})> createdRoutines =
+      <({String name, List<int> days})>[];
+  final List<
+      ({
+        String routineId,
+        String title,
+        int startMinutes,
+        int endMinutes,
+      })> createdEvents = <({
+    String routineId,
+    String title,
+    int startMinutes,
+    int endMinutes,
+  })>[];
+  final List<String> callOrder = <String>[];
+  bool shouldFailCreateRoutineEvent = false;
+
+  _SpyRoutineController(super.ref);
+
+  @override
+  Future<String> createRoutine({
+    required String name,
+    required List<int> days,
+  }) async {
+    final sorted = List<int>.from(days)..sort();
+    createdRoutines.add((name: name, days: sorted));
+    final id = 'created_routine_${createdRoutines.length}';
+    callOrder.add('createRoutine:$name:${sorted.join(",")}->$id');
+    return id;
+  }
+
+  @override
+  Future<String> createRoutineEvent({
+    required String routineId,
+    required String title,
+    required int startMinutes,
+    required int endMinutes,
+    String? category,
+    String? notes,
+  }) async {
+    if (shouldFailCreateRoutineEvent) {
+      callOrder.add('createRoutineEvent_FAILED:$routineId:$title');
+      throw StateError('Simulated createRoutineEvent failure');
+    }
+    createdEvents.add((
+      routineId: routineId,
+      title: title,
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
+    ));
+    callOrder.add('createRoutineEvent:$routineId:$title:$startMinutes-$endMinutes');
+    return 'routine_event_${createdEvents.length}';
+  }
+}
+
 class _StubAuthNotifier extends AuthNotifier {
   @override
   AsyncValue<CoveUser?> build() => const AsyncValue.data(
@@ -221,7 +321,11 @@ void main() {
     required _SpyCalendarController Function(Ref ref) calendarBuilder,
     _SpyListController Function(Ref ref)? listBuilder,
     _SpyHabitController Function(Ref ref)? habitBuilder,
+    _SpySubscriptionController Function(Ref ref)? subscriptionBuilder,
+    _SpyRoutineController Function(Ref ref)? routineBuilder,
     List<LocalList> lists = const <LocalList>[],
+    List<LocalSubscription> subscriptions = const <LocalSubscription>[],
+    List<Routine> routines = const <Routine>[],
   }) {
     return <Override>[
       authProvider.overrideWith(_StubAuthNotifier.new),
@@ -245,6 +349,15 @@ void main() {
       activeHomeHabitsProvider.overrideWith(
         (ref) => Stream<List<LocalHabit>>.value(const <LocalHabit>[]),
       ),
+      activeHomeSubscriptionsProvider.overrideWith(
+        (ref) => Stream<List<LocalSubscription>>.value(subscriptions),
+      ),
+      activeHomeRoutinesProvider.overrideWith(
+        (ref) => Stream<List<Routine>>.value(routines),
+      ),
+      activeHomeAllRoutineEventsProvider.overrideWith(
+        (ref) => Stream<List<RoutineEvent>>.value(const <RoutineEvent>[]),
+      ),
       activeHomeExpensesProvider.overrideWith(
         (ref) => Stream<List<LocalExpense>>.value(const <LocalExpense>[]),
       ),
@@ -262,11 +375,15 @@ void main() {
       if (listBuilder != null) listControllerProvider.overrideWith(listBuilder),
       if (habitBuilder != null)
         habitControllerProvider.overrideWith(habitBuilder),
+      if (subscriptionBuilder != null)
+        subscriptionControllerProvider.overrideWith(subscriptionBuilder),
+      if (routineBuilder != null)
+        routineControllerProvider.overrideWith(routineBuilder),
     ];
   }
 
   testWidgets(
-    '1. Walk an expense through all 7 steps; Add calls logExpense once with the draft args; Coming in 3.12e/f toast works',
+    '1. Walk an expense through all 7 steps; Add calls logExpense once with the draft args; picker tiles open their flows and Back returns to picker',
     (tester) async {
       await loadCoveFonts();
       late _SpyExpenseController spyExpense;
@@ -307,12 +424,14 @@ void main() {
         await tester.tap(find.text('Open Add'));
         await tester.pumpAndSettle();
 
-        // Tapping Commitment shows "Coming in 3.12e/f" toast and stays on picker
+        // Tapping Commitment opens Commitment Step 1, and Back returns to picker
         await tester.tap(
           find.byKey(const ValueKey('add_picker_tile_commitment')),
         );
-        await tester.pump();
-        expect(find.text('Coming in 3.12e/f'), findsWidgets);
+        await tester.pumpAndSettle();
+        expect(find.text('What is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Back'));
+        await tester.pumpAndSettle();
 
         // Tap Expense tile -> Step 1 of 7: How much?
         await tester.tap(
@@ -1161,6 +1280,579 @@ void main() {
             visibility: HabitVisibility.privateToMe,
           ),
         );
+      });
+    },
+  );
+
+  testWidgets(
+    '9. Walk Commitment through monthly, quarterly, yearly, and EMI (3 of 12 paid) paths; Paid from shows real financedThrough values; Both of you -> split; private selects you; review is CoveVoucher (punched for EMI)',
+    (tester) async {
+      await loadCoveFonts();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final existingSubs = <LocalSubscription>[
+          LocalSubscription(
+            id: 'sub_1',
+            homeId: 'home_1',
+            name: 'ACT Fibernet',
+            amount: 1180,
+            currency: 'INR',
+            billingCycle: 'monthly',
+            nextBillingDate: DateTime(2026, 10, 15),
+            category: 'Utilities',
+            isActive: true,
+            isPrivate: false,
+            financedThrough: 'BOB',
+            createdAt: fixedToday,
+          ),
+          LocalSubscription(
+            id: 'sub_2',
+            homeId: 'home_1',
+            name: 'Netflix',
+            amount: 649,
+            currency: 'INR',
+            billingCycle: 'monthly',
+            nextBillingDate: DateTime(2026, 10, 20),
+            category: 'Entertainment',
+            isActive: true,
+            isPrivate: false,
+            financedThrough: 'HDFC Regalia',
+            createdAt: fixedToday,
+          ),
+        ];
+
+        // --- Path A: Monthly commitment + real financedThrough chip + Both of you -> 'split' ---
+        late _SpySubscriptionController spySubA;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('sub_scope_a'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              subscriptionBuilder: (ref) =>
+                  spySubA = _SpySubscriptionController(ref),
+              subscriptions: existingSubs,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('commitment_a'),
+                  initialKind: AddKind.commitment,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 7: What is it?
+        expect(find.text('What is it?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Spotify Duo',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 7: How much, each time?
+        expect(find.text('How much, each time?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('1'));
+        await tester.tap(find.bySemanticsLabel('4'));
+        await tester.tap(find.bySemanticsLabel('9'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 7: How often does it come? -> Every month (no EMI steps)
+        expect(find.text('How often does it come?'), findsOneWidget);
+        await tester.tap(
+          find.bySemanticsLabel('Every month, twelve times a year'),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 4 of 7: Which day of the month? -> Day 8
+        expect(find.text('Which day of the month?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Day 8'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 7: Paid from? -> real financedThrough suggestions BOB & HDFC Regalia
+        expect(find.text('Paid from?'), findsOneWidget);
+        expect(find.bySemanticsLabel('BOB'), findsOneWidget);
+        expect(find.bySemanticsLabel('HDFC Regalia'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('BOB'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 7: Whose is it? -> tap Both of you
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Both of you'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 7 of 7: Review -> un-punched CoveVoucher
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final voucherA = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+        expect(voucherA.title, 'Spotify Duo');
+        expect(voucherA.totalInstallments, isNull);
+        expect(voucherA.paidFrom, 'BOB');
+        expect(voucherA.whose, 'Both of you');
+
+        await tester.tap(find.bySemanticsLabel('Add commitment'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spySubA.calls, hasLength(1));
+        expect(spySubA.calls.single.name, 'Spotify Duo');
+        expect(spySubA.calls.single.amount, 149.0);
+        expect(spySubA.calls.single.billingCycle, 'monthly');
+        expect(spySubA.calls.single.nextBillingDate, DateTime(2026, 10, 8));
+        expect(spySubA.calls.single.financedThrough, 'BOB');
+        expect(spySubA.calls.single.paidBy, 'split');
+        expect(spySubA.calls.single.isPrivate, isFalse);
+        expect(spySubA.calls.single.totalInstallments, isNull);
+
+        // --- Path B: Quarterly commitment + next-date picker + private selects you ---
+        late _SpySubscriptionController spySubB;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('sub_scope_b'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              subscriptionBuilder: (ref) =>
+                  spySubB = _SpySubscriptionController(ref),
+              subscriptions: existingSubs,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('commitment_b'),
+                  initialKind: AddKind.commitment,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Water purifier service',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel('1'));
+        await tester.tap(find.bySemanticsLabel('2'));
+        await tester.tap(find.bySemanticsLabel('0'));
+        await tester.tap(find.bySemanticsLabel('0'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.bySemanticsLabel('Every quarter, four times a year'),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 4 of 7: When is the next one due? (AddNextDatePicker)
+        expect(find.text('When is the next one due?'), findsWidgets);
+        expect(find.byType(AddNextDatePicker), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Month Nov'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Day 15'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 7: Paid from? -> Skip
+        expect(find.text('Paid from?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Skip'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 7: Whose is it? -> select partner (Ancy), then toggle Keep it private -> selects you
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Ancy'));
+        await tester.pump();
+        await tester.tap(find.text('Keep it private'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Review
+        expect(find.text('Does this look right?'), findsOneWidget);
+        expect(find.text('COVE · EVERY QUARTER'), findsOneWidget);
+        expect(find.text('ONLY YOU CAN SEE IT'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add commitment'));
+        await tester.pumpAndSettle();
+
+        expect(spySubB.calls, hasLength(1));
+        expect(spySubB.calls.single.billingCycle, 'every_3_months');
+        expect(spySubB.calls.single.nextBillingDate, DateTime(2026, 11, 15));
+        expect(spySubB.calls.single.financedThrough, isNull);
+        expect(spySubB.calls.single.paidBy, 'user_saba');
+        expect(spySubB.calls.single.isPrivate, isTrue);
+
+        // --- Path C: Yearly commitment ---
+        late _SpySubscriptionController spySubC;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('sub_scope_c'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              subscriptionBuilder: (ref) =>
+                  spySubC = _SpySubscriptionController(ref),
+              subscriptions: existingSubs,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('commitment_c'),
+                  initialKind: AddKind.commitment,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Car insurance',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel('9'));
+        await tester.tap(find.bySemanticsLabel('5'));
+        await tester.tap(find.bySemanticsLabel('0'));
+        await tester.tap(find.bySemanticsLabel('0'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.bySemanticsLabel('Every year, once, on a date'),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AddNextDatePicker), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Month Oct'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Day 20'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel('Skip'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('COVE · EVERY YEAR'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add commitment'));
+        await tester.pumpAndSettle();
+
+        expect(spySubC.calls, hasLength(1));
+        expect(spySubC.calls.single.billingCycle, 'annual');
+        expect(spySubC.calls.single.nextBillingDate, DateTime(2026, 10, 20));
+
+        // --- Path D: EMI commitment with 3 of 12 paid (9 steps, punched CoveVoucher) ---
+        late _SpySubscriptionController spySubD;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('sub_scope_d'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              subscriptionBuilder: (ref) =>
+                  spySubD = _SpySubscriptionController(ref),
+              subscriptions: existingSubs,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('commitment_d'),
+                  initialKind: AddKind.commitment,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 9: What is it?
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'AC — the instalment',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 9: How much, each time? -> 3974
+        await tester.tap(find.bySemanticsLabel('3'));
+        await tester.tap(find.bySemanticsLabel('9'));
+        await tester.tap(find.bySemanticsLabel('7'));
+        await tester.tap(find.bySemanticsLabel('4'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 9: How often does it come? -> It ends — an EMI
+        await tester.tap(
+          find.bySemanticsLabel('It ends — an EMI, a number of instalments'),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 4 of 9: How many instalments in all? -> 12
+        expect(find.text('How many instalments in all?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('1'));
+        await tester.tap(find.bySemanticsLabel('2'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 9: How many are paid already? -> 3
+        expect(find.text('How many are paid already?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('3'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 9: Which day of the month? -> Day 5
+        expect(find.text('Which day of the month?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Day 5'));
+        await tester.pumpAndSettle();
+
+        // Step 7 of 9: Paid from? -> HDFC Regalia
+        expect(find.text('Paid from?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('HDFC Regalia'));
+        await tester.pumpAndSettle();
+
+        // Step 8 of 9: Whose is it? -> default Saba
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 9 of 9: Review -> punched CoveVoucher with 3 of 12 paid
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final voucherD = tester.widget<CoveVoucher>(find.byType(CoveVoucher));
+        expect(voucherD.isEmi, isTrue);
+        expect(voucherD.totalInstallments, 12);
+        expect(voucherD.paidInstallments, 3);
+        expect(find.text('3 OF 12 PAID'), findsOneWidget);
+        expect(find.text('9 LEFT'), findsOneWidget);
+
+        await tester.tap(find.bySemanticsLabel('Add commitment'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spySubD.calls, hasLength(1));
+        expect(spySubD.calls.single.name, 'AC — the instalment');
+        expect(spySubD.calls.single.amount, 3974.0);
+        expect(spySubD.calls.single.billingCycle, 'monthly');
+        expect(spySubD.calls.single.nextBillingDate, DateTime(2026, 10, 5));
+        expect(spySubD.calls.single.endDate, DateTime(2026, 10 + 9, 5));
+        expect(spySubD.calls.single.totalInstallments, 12);
+        expect(spySubD.calls.single.paidInstallments, 3);
+        expect(spySubD.calls.single.financedThrough, 'HDFC Regalia');
+        expect(spySubD.calls.single.paidBy, 'user_saba');
+      });
+    },
+  );
+
+  testWidgets(
+    '10. Walk Routine into an existing routine set and into a new set (reporting what the user is left with if the second call fails); review is CoveBand',
+    (tester) async {
+      await loadCoveFonts();
+
+      await withClock(Clock.fixed(fixedNow), () async {
+        tester.view
+          ..physicalSize = const Size(411, 914) * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final existingRoutines = <Routine>[
+          Routine(
+            id: 'routine_weekdays_1',
+            homeId: 'home_1',
+            name: 'Weekday rhythm',
+            days: const <int>[1, 2, 3, 4, 5],
+            createdAt: fixedToday,
+          ),
+        ];
+
+        // --- Case A: Existing routine set (Mon-Fri matches routine_weekdays_1) ---
+        late _SpyRoutineController spyRoutineA;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('routine_scope_a'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              routineBuilder: (ref) => spyRoutineA = _SpyRoutineController(ref),
+              routines: existingRoutines,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('routine_a'),
+                  initialKind: AddKind.routine,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Step 1 of 5: What is it?
+        expect(find.text('What is it?'), findsOneWidget);
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Morning tea',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 2 of 5: When, usually? -> tap 8 o'clock (8:00 AM => 480)
+        expect(find.text('When, usually?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel("8 o'clock"));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 3 of 5: For how long? -> 30 min (auto-advances to Step 4)
+        expect(find.text('For how long?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('30 min'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 5: Which days? -> default Mon-Fri {1, 2, 3, 4, 5}
+        expect(find.text('Which days?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 5: Review -> CoveBand
+        expect(find.text('Does this look right?'), findsOneWidget);
+        final bandA = tester.widget<CoveBand>(find.byType(CoveBand));
+        expect(bandA.title, 'Morning tea');
+        expect(bandA.startMinutes, 480);
+        expect(bandA.endMinutes, 510);
+        expect(bandA.days, const <int>{1, 2, 3, 4, 5});
+
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spyRoutineA.createdRoutines, isEmpty);
+        expect(spyRoutineA.createdEvents, hasLength(1));
+        expect(spyRoutineA.createdEvents.single.routineId, 'routine_weekdays_1');
+        expect(spyRoutineA.createdEvents.single.title, 'Morning tea');
+        expect(spyRoutineA.createdEvents.single.startMinutes, 480);
+        expect(spyRoutineA.createdEvents.single.endMinutes, 510);
+
+        // --- Case B: New routine set (Mon, Wed, Fri) + second-call failure reporting & retry ---
+        late _SpyRoutineController spyRoutineB;
+        await tester.pumpWidget(
+          ProviderScope(
+            key: const ValueKey('routine_scope_b'),
+            overrides: buildOverrides(
+              expenseBuilder: _SpyExpenseController.new,
+              calendarBuilder: _SpyCalendarController.new,
+              routineBuilder: (ref) => spyRoutineB = _SpyRoutineController(ref)
+                ..shouldFailCreateRoutineEvent = true,
+              routines: existingRoutines,
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const Scaffold(
+                body: AddFlow(
+                  key: ValueKey('routine_b'),
+                  initialKind: AddKind.routine,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('add_flow_text_input')),
+          'Evening stretch',
+        );
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Default 9:00 AM (540)
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Duration: 45 min -> endMinutes = 585
+        await tester.tap(find.bySemanticsLabel('45 min'));
+        await tester.pumpAndSettle();
+
+        // Which days? Default is {1, 2, 3, 4, 5}. Toggle Tuesday and Thursday off -> {1, 3, 5}
+        await tester.tap(find.bySemanticsLabel('Tuesday'));
+        await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Thursday'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Review -> first Add routine attempt fails on createRoutineEvent after createRoutine succeeded
+        expect(find.byType(CoveBand), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+
+        // Reports what the user is left with ('Mon, Wed, Fri' routine set created) and does not leave an empty set silently
+        expect(spyRoutineB.createdRoutines, hasLength(1));
+        expect(spyRoutineB.createdRoutines.single.name, 'Mon, Wed, Fri');
+        expect(spyRoutineB.createdRoutines.single.days, const <int>[1, 3, 5]);
+        expect(spyRoutineB.createdEvents, isEmpty);
+        expect(
+          find.byKey(const ValueKey('add_flow_error_toast')),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining(
+            'Created the "Mon, Wed, Fri" routine set, but could not add "Evening stretch"',
+          ),
+          findsWidgets,
+        );
+        expect(find.text('Added.'), findsNothing);
+
+        // Retry succeeds and reuses the created routine set without creating a duplicate empty set
+        spyRoutineB.shouldFailCreateRoutineEvent = false;
+        await tester.tap(find.bySemanticsLabel('Add routine'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Added.'), findsOneWidget);
+        expect(spyRoutineB.createdRoutines, hasLength(1));
+        expect(spyRoutineB.createdEvents, hasLength(1));
+        expect(
+          spyRoutineB.createdEvents.single.routineId,
+          'created_routine_1',
+        );
+        expect(spyRoutineB.createdEvents.single.title, 'Evening stretch');
+        expect(spyRoutineB.createdEvents.single.startMinutes, 540);
+        expect(spyRoutineB.createdEvents.single.endMinutes, 585);
       });
     },
   );

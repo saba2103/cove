@@ -1319,9 +1319,7 @@ class CommitmentDraft extends AddDraft {
     final nextCycle = cycle ?? this.cycle;
 
     final int? nextTotal = identical(totalInstallments, _sentinel)
-        ? (nextCycle == CommitmentCycleOption.emi
-            ? (this.totalInstallments ?? 12)
-            : this.totalInstallments)
+        ? this.totalInstallments
         : totalInstallments as int?;
     final int? nextPaid = identical(paidInstallments, _sentinel)
         ? (nextCycle == CommitmentCycleOption.emi

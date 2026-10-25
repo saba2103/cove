@@ -1,4 +1,5 @@
 import 'package:clock/clock.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,10 +10,12 @@ import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_sheet.dart';
 import '../../core/widgets/slips/cove_add_mark.dart';
+import '../../core/widgets/slips/cove_band.dart';
 import '../../core/widgets/slips/cove_habit_card.dart';
 import '../../core/widgets/slips/cove_note.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../core/widgets/slips/cove_ticket.dart';
+import '../../core/widgets/slips/cove_voucher.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -25,6 +28,8 @@ import '../lists/list_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
+import '../routines/routine_controller.dart';
+import '../subscriptions/subscription_controller.dart';
 import 'add_draft.dart';
 import 'widgets/add_step_pieces.dart';
 
@@ -32,9 +37,8 @@ import 'widgets/add_step_pieces.dart';
 ///
 /// - When opened with `kind == null`, presents the 6-tile picker (§1).
 /// - When opened with a [kind], skips the picker and opens on step 1 of that kind (§2).
-/// - In 3.12d, [AddKind.expense] and [AddKind.event] are wired end-to-end
-///   through [ExpenseController.logExpense] and [CalendarController.createEvent];
-///   the remaining four tiles display `"Coming in 3.12e/f"`.
+/// - All six kinds (`expense`, `event`, `task`, `habit`, `commitment`, and
+///   `routine`) are wired end-to-end through their feature controllers.
 class AddFlow extends ConsumerStatefulWidget {
   final AddKind? initialKind;
   final DateTime? anchor;
@@ -136,6 +140,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   String? _toastMessage;
   bool _isErrorToast = false;
   bool _addingNewCategory = false;
+  String? _pendingCreatedRoutineId;
+  List<int>? _pendingCreatedRoutineDays;
 
   late final TextEditingController _textController;
   late final TextEditingController _newCategoryController;
@@ -182,6 +188,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final currentUser = ref.watch(authProvider).value;
     final partnerProfile = ref.watch(partnerProfileProvider);
     final lists = ref.watch(activeHomeListsProvider).value ?? const [];
+    ref.watch(activeHomeRoutinesProvider);
     final unarchivedLists = lists.where((l) => !l.isArchived).toList();
 
     final viewerId = currentUser?.id ?? 'user_alex';
@@ -283,6 +290,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       desired = d.newListName ?? '';
     } else if (step == AddStep.habitName && d is HabitDraft) {
       desired = d.name;
+    } else if (step == AddStep.commitmentName && d is CommitmentDraft) {
+      desired = d.name;
+    } else if (step == AddStep.commitmentPaidFrom && d is CommitmentDraft) {
+      desired = d.paidFrom ?? '';
+    } else if (step == AddStep.routineTitle && d is RoutineDraft) {
+      desired = d.title;
     }
     if (desired != null && _textController.text != desired) {
       _textController.value = TextEditingValue(
@@ -311,13 +324,6 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   }
 
   void _selectKindFromPicker(AddKind kind) {
-    if (kind != AddKind.expense &&
-        kind != AddKind.event &&
-        kind != AddKind.task &&
-        kind != AddKind.habit) {
-      _showToast('Coming in 3.12e/f');
-      return;
-    }
     final ctx = _buildFlowContext();
     setState(() {
       _activeKind = kind;
@@ -327,6 +333,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       _isAdded = false;
       _toastMessage = null;
       _addingNewCategory = false;
+      _pendingCreatedRoutineId = null;
+      _pendingCreatedRoutineDays = null;
     });
     _syncTextControllerToCurrentStep();
   }
@@ -467,6 +475,76 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           targetDaysPerWeek: args.targetDaysPerWeek,
           visibility: args.visibility,
         );
+      } else if (d is CommitmentDraft) {
+        final currency = ref.read(currencyPreferenceProvider).code;
+        final args = d.toCreateArgs(
+          today: ctx.today,
+          viewerUserId: ctx.viewerUserId,
+          partnerUserId: ctx.partnerUserId,
+          currency: currency,
+        );
+        final controller = ref.read(subscriptionControllerProvider);
+        await controller.createSubscription(
+          name: args.name,
+          amount: args.amount,
+          currency: args.currency,
+          billingCycle: args.billingCycle,
+          nextBillingDate: args.nextBillingDate,
+          category: args.category,
+          isPrivate: args.isPrivate,
+          endDate: args.endDate,
+          paidBy: args.paidBy,
+          financedThrough: args.financedThrough,
+          totalInstallments: args.totalInstallments,
+          paidInstallments: args.paidInstallments,
+        );
+      } else if (d is RoutineDraft) {
+        final existingRoutines =
+            ref.read(activeHomeRoutinesProvider).value ?? const [];
+        final args = d.toCreateArgs(existingRoutines: existingRoutines);
+        final controller = ref.read(routineControllerProvider);
+        String targetRoutineId;
+        var createdNewSet = false;
+        final createdSetName = args.newRoutineName ??
+            routineNameForDays(args.days);
+        if (args.existingRoutineId != null) {
+          targetRoutineId = args.existingRoutineId!;
+        } else if (_pendingCreatedRoutineId != null &&
+            _pendingCreatedRoutineDays != null &&
+            listEquals(_pendingCreatedRoutineDays, args.days)) {
+          targetRoutineId = _pendingCreatedRoutineId!;
+          createdNewSet = true;
+        } else {
+          targetRoutineId = await controller.createRoutine(
+            name: createdSetName,
+            days: args.days,
+          );
+          _pendingCreatedRoutineId = targetRoutineId;
+          _pendingCreatedRoutineDays = args.days;
+          createdNewSet = true;
+        }
+        try {
+          await controller.createRoutineEvent(
+            routineId: targetRoutineId,
+            title: args.title,
+            startMinutes: args.startMinutes,
+            endMinutes: args.endMinutes,
+          );
+          _pendingCreatedRoutineId = null;
+          _pendingCreatedRoutineDays = null;
+        } catch (eventErr) {
+          if (createdNewSet) {
+            if (mounted) {
+              setState(() => _isSubmitting = false);
+              _showToast(
+                'Created the "$createdSetName" routine set, but could not add "${args.title}": $eventErr',
+                isError: true,
+              );
+            }
+            return;
+          }
+          rethrow;
+        }
       }
 
       if (mounted) {
@@ -494,6 +572,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       _isAdded = false;
       _toastMessage = null;
       _addingNewCategory = false;
+      _pendingCreatedRoutineId = null;
+      _pendingCreatedRoutineDays = null;
     });
     _syncTextControllerToCurrentStep();
   }
@@ -961,10 +1041,38 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         return 'How often?';
       case AddStep.habitVisibility:
         return 'Who can see it?';
+      case AddStep.commitmentName:
+        return 'What is it?';
+      case AddStep.commitmentAmount:
+        return 'How much, each time?';
+      case AddStep.commitmentHowOften:
+        return 'How often does it come?';
+      case AddStep.commitmentEmiTotal:
+        return 'How many instalments in all?';
+      case AddStep.commitmentEmiPaid:
+        return 'How many are paid already?';
+      case AddStep.commitmentWhenDue:
+        final d = _draft;
+        if (d is CommitmentDraft &&
+            (d.cycle == CommitmentCycleOption.everyQuarter ||
+                d.cycle == CommitmentCycleOption.everyYear)) {
+          return 'When is the next one due?';
+        }
+        return 'Which day of the month?';
+      case AddStep.commitmentPaidFrom:
+        return 'Paid from?';
+      case AddStep.commitmentWhose:
+        return 'Whose is it?';
+      case AddStep.routineTitle:
+        return 'What is it?';
+      case AddStep.routineWhen:
+        return 'When, usually?';
+      case AddStep.routineDuration:
+        return 'For how long?';
+      case AddStep.routineDays:
+        return 'Which days?';
       case AddStep.review:
         return 'Does this look right?';
-      default:
-        return '';
     }
   }
 
@@ -976,11 +1084,16 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     if (d is HabitDraft && d.visibility == HabitVisibility.privateToMe) {
       return CoveSlipVisibility.onlyYouCanSee;
     }
+    if (d is CommitmentDraft && d.isPrivate) {
+      return CoveSlipVisibility.onlyYouCanSee;
+    }
     return CoveSlipVisibility.bothCanSee;
   }
 
   bool _canToggleVisibility() =>
-      _draft is ExpenseDraft || _draft is HabitDraft;
+      _draft is ExpenseDraft ||
+      _draft is HabitDraft ||
+      _draft is CommitmentDraft;
 
   void _toggleDraftPrivacy(AddFlowContext ctx) {
     final d = _draft;
@@ -995,6 +1108,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       if (nextVis == HabitVisibility.shared && !ctx.hasPartner) return;
       setState(() {
         _draft = d.copyWith(visibility: nextVis);
+      });
+    } else if (d is CommitmentDraft) {
+      setState(() {
+        _draft = d.copyWith(isPrivate: !d.isPrivate);
       });
     }
   }
@@ -1092,7 +1209,115 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           return null;
       }
     }
+    if (d is CommitmentDraft) {
+      switch (step) {
+        case AddStep.commitmentName:
+          return d.name.trim();
+        case AddStep.commitmentAmount:
+          return d.amount != null && d.amount! > 0
+              ? '$symbol${formatCoveAmount(d.amount!)}'
+              : null;
+        case AddStep.commitmentHowOften:
+          return _commitmentCycleCrumb(d.cycle);
+        case AddStep.commitmentEmiTotal:
+          return d.totalInstallments != null
+              ? '${d.totalInstallments} instalments'
+              : null;
+        case AddStep.commitmentEmiPaid:
+          return d.paidInstallments != null
+              ? '${d.paidInstallments} paid'
+              : null;
+        case AddStep.commitmentWhenDue:
+          if (d.cycle == CommitmentCycleOption.everyQuarter ||
+              d.cycle == CommitmentCycleOption.everyYear) {
+            final nextDate = d.resolveNextBillingDate(ctx.today);
+            return DateFormat('d MMM').format(nextDate);
+          }
+          final day = d.dayOfMonth ?? ctx.today.day.clamp(1, 28);
+          return 'the ${_ordinal(day)}';
+        case AddStep.commitmentPaidFrom:
+          return (d.paidFrom != null && d.paidFrom!.trim().isNotEmpty)
+              ? d.paidFrom!.trim()
+              : null;
+        case AddStep.commitmentWhose:
+          return _commitmentWhoseCrumb(d);
+        default:
+          return null;
+      }
+    }
+    if (d is RoutineDraft) {
+      switch (step) {
+        case AddStep.routineTitle:
+          return d.title.trim();
+        case AddStep.routineWhen:
+          final start = (d.startMinutes ?? 540).clamp(0, 1439);
+          return _formatHourMinute(start ~/ 60, start % 60);
+        case AddStep.routineDuration:
+          return _routineDurationCrumb(d.durationMinutes);
+        case AddStep.routineDays:
+          return routineNameForDays(d.days);
+        default:
+          return null;
+      }
+    }
     return null;
+  }
+
+  String _commitmentCycleCrumb(CommitmentCycleOption cycle) {
+    switch (cycle) {
+      case CommitmentCycleOption.everyMonth:
+        return 'Every month';
+      case CommitmentCycleOption.everyQuarter:
+        return 'Every quarter';
+      case CommitmentCycleOption.everyYear:
+        return 'Every year';
+      case CommitmentCycleOption.emi:
+        return 'EMI';
+    }
+  }
+
+  String _commitmentWhoseCrumb(CommitmentDraft d) {
+    if (d.isPrivate) return '${_viewerName()} · private';
+    switch (d.owner) {
+      case CommitmentOwner.you:
+        return _viewerName();
+      case CommitmentOwner.partner:
+        return _partnerName();
+      case CommitmentOwner.both:
+        return 'Both of you';
+    }
+  }
+
+  String _ordinal(int n) {
+    if (n >= 11 && n <= 13) return '${n}th';
+    switch (n % 10) {
+      case 1:
+        return '${n}st';
+      case 2:
+        return '${n}nd';
+      case 3:
+        return '${n}rd';
+      default:
+        return '${n}th';
+    }
+  }
+
+  String? _routineDurationCrumb(int? minutes) {
+    if (minutes == null) return null;
+    switch (minutes) {
+      case 15:
+        return '15 min';
+      case 30:
+        return '30 min';
+      case 45:
+        return '45 min';
+      case 60:
+        return '1 hour';
+      case 120:
+        return '2 hours';
+      default:
+        return '$minutes min';
+    }
   }
 
   String _resolveTaskListName(TaskDraft d) {
@@ -1180,6 +1405,12 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     }
     if (d is HabitDraft) {
       return _buildHabitStepBody(context, ctx, d, step);
+    }
+    if (d is CommitmentDraft) {
+      return _buildCommitmentStepBody(context, ctx, d, step);
+    }
+    if (d is RoutineDraft) {
+      return _buildRoutineStepBody(context, ctx, d, step);
     }
     return const SizedBox.shrink();
   }
@@ -2060,6 +2291,522 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     );
   }
 
+  Widget _buildCommitmentStepBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    CommitmentDraft d,
+    AddStep step,
+  ) {
+    switch (step) {
+      case AddStep.commitmentName:
+        final suggestions = _recentCommitmentNames();
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type a name',
+          suggestions: suggestions,
+          optional: false,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(name: text);
+            });
+          },
+          onPickSuggestion: (suggestion) {
+            _textController.text = suggestion;
+            setState(() {
+              _draft = d.copyWith(name: suggestion);
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.commitmentAmount:
+        return AddKeypad(
+          value: d.amount ?? 0,
+          showCurrencySymbol: true,
+          onChanged: (val) {
+            setState(() {
+              _draft = d.copyWith(amount: val > 0 ? val : null);
+            });
+          },
+        );
+
+      case AddStep.commitmentHowOften:
+        return AddChoiceList<CommitmentCycleOption>(
+          selectedValue: d.cycle,
+          onSelected: (cycle) {
+            setState(() {
+              _draft = d.copyWith(cycle: cycle);
+            });
+            _advanceStep(ctx);
+          },
+          options: const <AddChoiceOption<CommitmentCycleOption>>[
+            AddChoiceOption<CommitmentCycleOption>(
+              value: CommitmentCycleOption.everyMonth,
+              label: 'Every month',
+              subtitle: 'twelve times a year',
+            ),
+            AddChoiceOption<CommitmentCycleOption>(
+              value: CommitmentCycleOption.everyQuarter,
+              label: 'Every quarter',
+              subtitle: 'four times a year',
+            ),
+            AddChoiceOption<CommitmentCycleOption>(
+              value: CommitmentCycleOption.everyYear,
+              label: 'Every year',
+              subtitle: 'once, on a date',
+            ),
+            AddChoiceOption<CommitmentCycleOption>(
+              value: CommitmentCycleOption.emi,
+              label: 'It ends — an EMI',
+              subtitle: 'a number of instalments',
+            ),
+          ],
+        );
+
+      case AddStep.commitmentEmiTotal:
+        return AddKeypad(
+          value: d.totalInstallments ?? 0,
+          showCurrencySymbol: false,
+          onChanged: (val) {
+            setState(() {
+              _draft = d.copyWith(
+                totalInstallments: val >= 1 ? val : null,
+              );
+            });
+          },
+        );
+
+      case AddStep.commitmentEmiPaid:
+        return AddKeypad(
+          value: d.paidInstallments ?? 0,
+          showCurrencySymbol: false,
+          onChanged: (val) {
+            setState(() {
+              _draft = d.copyWith(paidInstallments: val);
+            });
+          },
+        );
+
+      case AddStep.commitmentWhenDue:
+        if (d.cycle == CommitmentCycleOption.everyQuarter ||
+            d.cycle == CommitmentCycleOption.everyYear) {
+          return AddNextDatePicker(
+            today: ctx.today,
+            selectedMonth: (d.dueMonth ?? ctx.today.month).clamp(1, 12),
+            selectedDay: (d.dayOfMonth ?? ctx.today.day).clamp(1, 28),
+            onChanged: (month, day, resolvedDate) {
+              setState(() {
+                _draft = d.copyWith(
+                  dueMonth: month,
+                  dayOfMonth: day,
+                  nextDueDate: resolvedDate,
+                );
+              });
+            },
+          );
+        }
+        return AddMonthDayGrid(
+          selectedDay: d.dayOfMonth,
+          onSelected: (day) {
+            setState(() {
+              _draft = d.copyWith(dayOfMonth: day);
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.commitmentPaidFrom:
+        final suggestions = _existingFinancedThroughValues();
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type an account or card',
+          suggestions: suggestions,
+          optional: true,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(
+                paidFrom: text,
+                paidFromSkipped: false,
+              );
+            });
+          },
+          onPickSuggestion: (suggestion) {
+            _textController.text = suggestion;
+            setState(() {
+              _draft = d.copyWith(
+                paidFrom: suggestion,
+                paidFromSkipped: false,
+              );
+            });
+            _advanceStep(ctx);
+          },
+          onSkip: () {
+            _textController.clear();
+            setState(() {
+              _draft = d.copyWith(
+                paidFrom: null,
+                paidFromSkipped: true,
+              );
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.commitmentWhose:
+        return _buildCommitmentWhoseBody(context, ctx, d);
+
+      case AddStep.review:
+        return _buildCommitmentReviewBody(context, ctx, d);
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildCommitmentWhoseBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    CommitmentDraft d,
+  ) {
+    final viewerName = _viewerName();
+    final partnerName = _partnerName();
+    final home = ref.watch(activeHomeProvider).value;
+    final creatorId = home?.createdBy ?? ctx.viewerUserId;
+    final viewerPerson = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: ctx.viewerUserId,
+    );
+    final partnerPerson = viewerPerson == CovePerson.a
+        ? CovePerson.b
+        : CovePerson.a;
+
+    final people = <AddPersonTileData<CommitmentOwner>>[
+      AddPersonTileData<CommitmentOwner>(
+        value: CommitmentOwner.you,
+        person: viewerPerson,
+        label: viewerName,
+        nameOrInitial: viewerName,
+        enabled: true,
+      ),
+      if (ctx.hasPartner) ...[
+        AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.partner,
+          person: partnerPerson,
+          label: partnerName,
+          nameOrInitial: partnerName,
+          enabled: !d.isPrivate,
+        ),
+        AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.both,
+          person: CovePerson.both,
+          label: 'Both of you',
+          enabled: !d.isPrivate,
+        ),
+      ],
+    ];
+
+    final toggles = <AddToggleRowData>[
+      AddToggleRowData(
+        id: 'private',
+        title: 'Keep it private',
+        subtitle: ctx.hasPartner
+            ? 'Only you will see it — it stays out of $partnerName’s Cove'
+            : 'Only you will see it',
+        icon: Icons.lock_outline,
+        value: d.isPrivate,
+        onChanged: (next) {
+          setState(() {
+            _draft = d.copyWith(isPrivate: next);
+          });
+        },
+      ),
+    ];
+
+    return AddPersonPicker<CommitmentOwner>(
+      people: people,
+      selectedValue: d.owner,
+      onSelected: (owner) {
+        setState(() {
+          _draft = d.copyWith(owner: owner);
+        });
+      },
+      toggles: toggles,
+    );
+  }
+
+  Widget _buildCommitmentReviewBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    CommitmentDraft d,
+  ) {
+    final cv = context.cv;
+    final currency = ref.watch(currencyPreferenceProvider);
+    final nextDate = d.resolveNextBillingDate(ctx.today);
+    final formattedAmount =
+        '${currency.symbol}${formatCoveAmount((d.amount ?? 0).toDouble())}';
+    final cleanPaidFrom =
+        (d.paidFrom != null && d.paidFrom!.trim().isNotEmpty)
+            ? d.paidFrom!.trim()
+            : null;
+    final whoseLabel = _commitmentReviewWhoseLabel(d);
+
+    final fieldTaps = _isAdded
+        ? null
+        : <CoveSlipField, VoidCallback>{
+            CoveSlipField.title: () => _goToStepEnum(
+                  AddStep.commitmentName,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.amount: () => _goToStepEnum(
+                  AddStep.commitmentAmount,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.cadence: () => _goToStepEnum(
+                  AddStep.commitmentHowOften,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.dueDate: () => _goToStepEnum(
+                  AddStep.commitmentWhenDue,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            if (d.isEmi)
+              CoveSlipField.installments: () => _goToStepEnum(
+                    AddStep.commitmentEmiTotal,
+                    ctx,
+                    fromReviewField: true,
+                  ),
+            if (cleanPaidFrom != null)
+              CoveSlipField.paidFrom: () => _goToStepEnum(
+                    AddStep.commitmentPaidFrom,
+                    ctx,
+                    fromReviewField: true,
+                  ),
+            CoveSlipField.owner: () => _goToStepEnum(
+                  AddStep.commitmentWhose,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.visibility: () => _goToStepEnum(
+                  AddStep.commitmentWhose,
+                  ctx,
+                  fromReviewField: true,
+                ),
+          };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveVoucher(
+          variant: CoveSlipVariant.paper,
+          title: d.name.trim(),
+          amount: formattedAmount,
+          dueDay: DateFormat('d').format(nextDate),
+          dueMonth: DateFormat('MMM').format(nextDate).toUpperCase(),
+          dueMonthSemantic: DateFormat('MMMM').format(nextDate),
+          capsLabel: 'COVE · ${_commitmentCapsCadence(d.cycle)}',
+          cadenceSuffix: _commitmentCadenceSuffix(d.cycle),
+          state: CoveVoucherState.due,
+          totalInstallments: d.isEmi ? d.totalInstallments : null,
+          paidInstallments: d.isEmi ? (d.paidInstallments ?? 0) : 0,
+          paidFrom: cleanPaidFrom,
+          whose: whoseLabel,
+          visibility: _currentVisibility(),
+          stamp: _isAdded ? 'ADDED' : null,
+          fieldTaps: fieldTaps,
+        ),
+        if (!_isAdded) ...[
+          const SizedBox(height: CoveSpace.md),
+          Text(
+            'Tap anything above to change it.',
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _commitmentCapsCadence(CommitmentCycleOption cycle) {
+    switch (cycle) {
+      case CommitmentCycleOption.everyMonth:
+      case CommitmentCycleOption.emi:
+        return 'EVERY MONTH';
+      case CommitmentCycleOption.everyQuarter:
+        return 'EVERY QUARTER';
+      case CommitmentCycleOption.everyYear:
+        return 'EVERY YEAR';
+    }
+  }
+
+  String _commitmentCadenceSuffix(CommitmentCycleOption cycle) {
+    switch (cycle) {
+      case CommitmentCycleOption.everyMonth:
+      case CommitmentCycleOption.emi:
+        return 'a month';
+      case CommitmentCycleOption.everyQuarter:
+        return 'a quarter';
+      case CommitmentCycleOption.everyYear:
+        return 'a year';
+    }
+  }
+
+  String _commitmentReviewWhoseLabel(CommitmentDraft d) {
+    if (d.isPrivate) return _viewerName();
+    switch (d.owner) {
+      case CommitmentOwner.you:
+        return _viewerName();
+      case CommitmentOwner.partner:
+        return _partnerName();
+      case CommitmentOwner.both:
+        return 'Both of you';
+    }
+  }
+
+  Widget _buildRoutineStepBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    RoutineDraft d,
+    AddStep step,
+  ) {
+    switch (step) {
+      case AddStep.routineTitle:
+        final suggestions = _recentRoutineEventTitles();
+        return _buildTextStepBody(
+          context: context,
+          ctx: ctx,
+          placeholder: 'Type a routine',
+          suggestions: suggestions,
+          optional: false,
+          onTextChanged: (text) {
+            setState(() {
+              _draft = d.copyWith(title: text);
+            });
+          },
+          onPickSuggestion: (suggestion) {
+            _textController.text = suggestion;
+            setState(() {
+              _draft = d.copyWith(title: suggestion);
+            });
+            _advanceStep(ctx);
+          },
+        );
+
+      case AddStep.routineWhen:
+        final start = (d.startMinutes ?? 540).clamp(0, 1439);
+        return AddClockFace(
+          hour: start ~/ 60,
+          minute: start % 60,
+          showAllDay: false,
+          onChanged: (h, m) {
+            setState(() {
+              _draft = d.copyWith(startMinutes: h * 60 + m);
+            });
+          },
+        );
+
+      case AddStep.routineDuration:
+        return AddChoiceList<int>(
+          selectedValue: d.durationMinutes,
+          onSelected: (mins) {
+            setState(() {
+              _draft = d.copyWith(durationMinutes: mins);
+            });
+            _advanceStep(ctx);
+          },
+          options: const <AddChoiceOption<int>>[
+            AddChoiceOption<int>(value: 15, label: '15 min'),
+            AddChoiceOption<int>(value: 30, label: '30 min'),
+            AddChoiceOption<int>(value: 45, label: '45 min'),
+            AddChoiceOption<int>(value: 60, label: '1 hour'),
+            AddChoiceOption<int>(value: 120, label: '2 hours'),
+          ],
+        );
+
+      case AddStep.routineDays:
+        return AddWeekToggles(
+          selectedDays: d.days,
+          onChanged: (days) {
+            setState(() {
+              _draft = d.copyWith(days: days);
+            });
+          },
+        );
+
+      case AddStep.review:
+        return _buildRoutineReviewBody(context, ctx, d);
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildRoutineReviewBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    RoutineDraft d,
+  ) {
+    final cv = context.cv;
+    final start = (d.startMinutes ?? 540).clamp(0, 1439);
+    final end = d.resolvedEndMinutes;
+
+    final fieldTaps = _isAdded
+        ? null
+        : <CoveSlipField, VoidCallback>{
+            CoveSlipField.title: () => _goToStepEnum(
+                  AddStep.routineTitle,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.duration: () => _goToStepEnum(
+                  AddStep.routineDuration,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.days: () => _goToStepEnum(
+                  AddStep.routineDays,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.time: () => _goToStepEnum(
+                  AddStep.routineWhen,
+                  ctx,
+                  fromReviewField: true,
+                ),
+          };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CoveBand(
+          variant: CoveSlipVariant.paper,
+          title: d.title.trim(),
+          startMinutes: start,
+          endMinutes: end,
+          days: d.days,
+          visibility: CoveSlipVisibility.bothCanSee,
+          stamp: _isAdded ? 'ADDED' : null,
+          fieldTaps: fieldTaps,
+        ),
+        if (!_isAdded) ...[
+          const SizedBox(height: CoveSpace.md),
+          Text(
+            'Tap anything above to change it.',
+            textAlign: TextAlign.center,
+            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildTextStepBody({
     required BuildContext context,
     required AddFlowContext ctx,
@@ -2184,6 +2931,54 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     for (final h in habits) {
       if (h.isArchived) continue;
       final t = h.name.trim();
+      if (t.isEmpty) continue;
+      if (seen.add(t.toLowerCase())) {
+        result.add(t);
+        if (result.length >= 5) break;
+      }
+    }
+    return result;
+  }
+
+  List<String> _recentCommitmentNames() {
+    final subs = ref.watch(activeHomeSubscriptionsProvider).value ?? const [];
+    final seen = <String>{};
+    final result = <String>[];
+    for (final s in subs) {
+      if (!s.isActive) continue;
+      final t = s.name.trim();
+      if (t.isEmpty) continue;
+      if (seen.add(t.toLowerCase())) {
+        result.add(t);
+        if (result.length >= 5) break;
+      }
+    }
+    return result;
+  }
+
+  List<String> _existingFinancedThroughValues() {
+    final subs = ref.watch(activeHomeSubscriptionsProvider).value ?? const [];
+    final counts = <String, int>{};
+    final canonical = <String, String>{};
+    for (final s in subs) {
+      final ft = s.financedThrough?.trim();
+      if (ft == null || ft.isEmpty) continue;
+      final key = ft.toLowerCase();
+      counts[key] = (counts[key] ?? 0) + 1;
+      canonical.putIfAbsent(key, () => ft);
+    }
+    final sortedKeys = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    return sortedKeys.take(5).map((k) => canonical[k]!).toList();
+  }
+
+  List<String> _recentRoutineEventTitles() {
+    final events =
+        ref.watch(activeHomeAllRoutineEventsProvider).value ?? const [];
+    final seen = <String>{};
+    final result = <String>[];
+    for (final e in events) {
+      final t = e.title.trim();
       if (t.isEmpty) continue;
       if (seen.add(t.toLowerCase())) {
         result.add(t);
