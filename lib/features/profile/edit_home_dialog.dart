@@ -2,7 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -27,6 +27,15 @@ class EditHomeDialog extends ConsumerStatefulWidget {
 }
 
 class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
+  static const double _kDateCardRadius =
+      12.0; // (literal) 12dp anniversary picker tap ripple radius
+  static const double _kCardPaddingH =
+      16.0; // (literal) 16dp anniversary card horizontal inset
+  static const double _kCalendarIconSize =
+      18.0; // (literal) 18dp calendar icon size
+  static const double _kSaveButtonTopGap =
+      28.0; // (literal) 28dp gap above save home details button
+
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
   DateTime? _selectedAnniversary;
@@ -37,7 +46,8 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
     final activeHome = ref.read(activeHomeProvider).value;
     final meta = ref.read(homeMetadataProvider);
     _nameController = TextEditingController(text: activeHome?.name ?? '');
-    _descController = TextEditingController(text: activeHome?.description ?? '');
+    _descController =
+        TextEditingController(text: activeHome?.description ?? '');
     _selectedAnniversary = meta.anniversaryDate;
   }
 
@@ -50,10 +60,10 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final activeHome = ref.watch(activeHomeProvider).value;
-    final formattedDuration = HomeMetadataState.formatDuration(_selectedAnniversary);
+    final formattedDuration =
+        HomeMetadataState.formatDuration(_selectedAnniversary);
 
     if (activeHome == null) {
       return const SizedBox.shrink();
@@ -61,14 +71,16 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
 
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        left: 20,
-        right: 20,
-        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + CoveSpace.lg,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.lg,
       ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -78,65 +90,91 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('About Us & Home', style: typography.headline.copyWith(fontSize: 20)),
+                Text(
+                  'About Us & Home',
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
                 IconButton(
-                  icon: Icon(Icons.close, color: colors.textMuted, size: 20),
+                  icon: Icon(
+                    Icons.close,
+                    color: cv.textSecondary,
+                    size: CoveSpace.gutter,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Home Icon preview
             Center(
               child: Column(
                 children: [
-                  DeterministicHomeIcon(homeId: activeHome.id, size: 52),
-                  const SizedBox(height: 8),
+                  DeterministicHomeIcon(
+                    homeId: activeHome.id,
+                    size: CoveSize.row,
+                  ),
+                  const SizedBox(height: CoveSpace.sm),
                   Text(
                     'Unique cryptographic mark derived from your Home key',
-                    style: typography.caption.copyWith(color: colors.textMuted, fontSize: 11),
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Home Name
-            Text('HOME NAME', style: typography.caption),
-            const SizedBox(height: 8),
+            Text(
+              'HOME NAME',
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(height: CoveSpace.sm),
             CovePillInput(
               controller: _nameController,
               hintText: 'e.g. Our Haven, Brooklyn Apt',
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Description
-            Text('DESCRIPTION', style: typography.caption),
-            const SizedBox(height: 8),
+            Text(
+              'DESCRIPTION',
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(height: CoveSpace.sm),
             CovePillInput(
               controller: _descController,
               hintText: 'A quiet place for both of us',
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Anniversary / Moved-in date
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('ANNIVERSARY OR MOVED-IN DATE', style: typography.caption),
+                Text(
+                  'ANNIVERSARY OR MOVED-IN DATE',
+                  style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+                ),
                 if (_selectedAnniversary != null)
                   GestureDetector(
                     onTap: () {
                       setState(() => _selectedAnniversary = null);
                     },
-                    child: Text('Clear', style: typography.caption.copyWith(color: colors.accentSecondary)),
+                    child: Text(
+                      'Clear',
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.statusAlertText,
+                      ),
+                    ),
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: CoveSpace.sm),
             InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: const BorderRadius.all(
+                Radius.circular(_kDateCardRadius),
+              ),
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
@@ -147,8 +185,8 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
                     return Theme(
                       data: Theme.of(context).copyWith(
                         colorScheme: ColorScheme.dark(
-                          primary: colors.accentPrimary,
-                          surface: colors.surfaceCard,
+                          primary: cv.accentFill,
+                          surface: cv.surfaceCard,
                         ),
                       ),
                       child: child!,
@@ -160,27 +198,37 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
                 }
               },
               child: CoveCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _kCardPaddingH,
+                  vertical: CoveSpace.md,
+                ),
                 child: Row(
                   children: [
-                    Icon(Icons.calendar_month_outlined, size: 18, color: colors.accentPrimary),
-                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      size: _kCalendarIconSize,
+                      color: cv.accentFill,
+                    ),
+                    const SizedBox(width: CoveSpace.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             _selectedAnniversary != null
-                                ? DateFormat('MMMM d, yyyy').format(_selectedAnniversary!)
+                                ? DateFormat('MMMM d, yyyy')
+                                    .format(_selectedAnniversary!)
                                 : 'Select date (optional)',
-                            style: typography.bodyMedium,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
+                            ),
                           ),
                           if (formattedDuration != null) ...[
-                            const SizedBox(height: 4),
+                            const SizedBox(height: CoveSpace.xs),
                             Text(
                               formattedDuration,
-                              style: typography.caption.copyWith(
-                                color: colors.accentPrimary,
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.accentText,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -188,18 +236,18 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
                         ],
                       ),
                     ),
-                    Icon(Icons.arrow_drop_down, color: colors.textMuted),
+                    Icon(Icons.arrow_drop_down, color: cv.textSecondary),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: CoveSpace.sm),
             Text(
               'Shared quietly between the two of you. Never external or public.',
-              style: typography.caption.copyWith(color: colors.textMuted, fontSize: 11),
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: _kSaveButtonTopGap),
 
             // Save Button
             CovePillButton(
@@ -207,11 +255,13 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
               onPressed: () async {
                 final newName = _nameController.text.trim();
                 if (newName.isNotEmpty) {
-                  await ref.read(homeMetadataProvider.notifier).updateHomeDetails(
-                    name: newName,
-                    description: _descController.text.trim(),
-                    anniversaryDate: _selectedAnniversary,
-                  );
+                  await ref
+                      .read(homeMetadataProvider.notifier)
+                      .updateHomeDetails(
+                        name: newName,
+                        description: _descController.text.trim(),
+                        anniversaryDate: _selectedAnniversary,
+                      );
                 }
                 if (context.mounted) {
                   Navigator.of(context).pop();

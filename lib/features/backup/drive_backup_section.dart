@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_toggle_switch.dart';
@@ -15,6 +15,13 @@ import 'drive_backup_sheets.dart';
 class DriveBackupSection extends ConsumerWidget {
   /// Optional fixed state for previews/screenshots.
   final DriveBackupState? initialState;
+
+  static const double _kChevronSize =
+      18.0; // (literal) 18dp row chevron icon size
+  static const double _kActionAreaPaddingH =
+      16.0; // (literal) 16dp action footer horizontal inset and button icon size
+  static const double _kSpinnerStroke =
+      2.0; // (literal) 2dp backup spinner stroke
 
   const DriveBackupSection({super.key, this.initialState});
 
@@ -40,7 +47,9 @@ class DriveBackupSection extends ConsumerWidget {
     final restored = await RestoreBackupSheet.show(context);
     if (restored && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup restored. Catching up with your partner…')),
+        const SnackBar(
+          content: Text('Backup restored. Catching up with your partner…'),
+        ),
       );
     }
   }
@@ -54,25 +63,34 @@ class DriveBackupSection extends ConsumerWidget {
     final when = DateFormat('MMM d, h:mm a').format(last);
     return switch (state.autoLastOutcome) {
       BackupRunOutcome.uploaded => 'On · last ran $when',
-      BackupRunOutcome.skippedUnchanged => 'On · $when, nothing new to back up',
-      BackupRunOutcome.skippedRecent => 'On · $when, already backed up today',
-      BackupRunOutcome.failed => 'On · $when didn\'t finish, will retry',
+      BackupRunOutcome.skippedUnchanged =>
+        'On · $when, nothing new to back up',
+      BackupRunOutcome.skippedRecent =>
+        'On · $when, already backed up today',
+      BackupRunOutcome.failed =>
+        'On · $when didn\'t finish, will retry',
       _ => 'On · last checked $when',
     };
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
-    final DriveBackupState state = initialState ?? ref.watch(driveBackupProvider);
+    final cv = context.cv;
+    final DriveBackupState state =
+        initialState ?? ref.watch(driveBackupProvider);
     final notifier = ref.read(driveBackupProvider.notifier);
 
     final header = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('BACKUP & RESTORE', style: typography.caption),
-        Text('End-to-end encrypted', style: typography.caption.copyWith(fontSize: 11)),
+        Text(
+          'BACKUP & RESTORE',
+          style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+        ),
+        Text(
+          'End-to-end encrypted',
+          style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+        ),
       ],
     );
 
@@ -81,13 +99,23 @@ class DriveBackupSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           header,
-          const SizedBox(height: 8),
+          const SizedBox(height: CoveSpace.sm),
           CoveGroupedCard(
             children: [
               CoveGroupedRow(
-                leading: Icon(Icons.cloud_outlined, size: 20, color: colors.textMuted),
-                title: Text('Google Drive Backup', style: typography.bodyMedium),
-                subtitle: Text('Available in the Cove Android app', style: typography.caption),
+                leading: Icon(
+                  Icons.cloud_outlined,
+                  size: CoveSpace.gutter,
+                  color: cv.textSecondary,
+                ),
+                title: Text(
+                  'Google Drive Backup',
+                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                ),
+                subtitle: Text(
+                  'Available in the Cove Android app',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                ),
               ),
             ],
           ),
@@ -99,7 +127,8 @@ class DriveBackupSection extends ConsumerWidget {
         ? 'No backups yet'
         : [
             DateFormat('MMM d, h:mm a').format(state.lastBackupAt!),
-            if (state.lastBackupSizeBytes != null) formatBackupSize(state.lastBackupSizeBytes!),
+            if (state.lastBackupSizeBytes != null)
+              formatBackupSize(state.lastBackupSizeBytes!),
           ].join(' · ');
 
     final backingUp = state.activity == DriveBackupActivity.backingUp;
@@ -109,103 +138,181 @@ class DriveBackupSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         header,
-        const SizedBox(height: 8),
+        const SizedBox(height: CoveSpace.sm),
         CoveGroupedCard(
           children: [
             CoveGroupedRow(
               leading: Icon(
-                state.isConnected ? Icons.cloud_done_outlined : Icons.cloud_outlined,
-                size: 20,
-                color: state.isConnected ? colors.accentPrimary : colors.textPrimary,
+                state.isConnected
+                    ? Icons.cloud_done_outlined
+                    : Icons.cloud_outlined,
+                size: CoveSpace.gutter,
+                color: state.isConnected ? cv.accentFill : cv.textPrimary,
               ),
-              title: Text('Google Drive', style: typography.bodyMedium),
+              title: Text(
+                'Google Drive',
+                style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+              ),
               subtitle: Text(
-                state.isConnected ? (state.accountEmail ?? 'Connected') : 'Not connected',
-                style: typography.caption,
+                state.isConnected
+                    ? (state.accountEmail ?? 'Connected')
+                    : 'Not connected',
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
               trailing: TextButton(
                 onPressed: state.isBusy
                     ? null
-                    : () => state.isConnected ? notifier.disconnect() : notifier.connect(),
+                    : () => state.isConnected
+                        ? notifier.disconnect()
+                        : notifier.connect(),
                 child: Text(
-                  connecting ? 'Connecting…' : (state.isConnected ? 'Disconnect' : 'Connect'),
-                  style: typography.caption.copyWith(
-                    color: state.isConnected ? colors.textMuted : colors.accentPrimary,
+                  connecting
+                      ? 'Connecting…'
+                      : (state.isConnected ? 'Disconnect' : 'Connect'),
+                  style: CoveType.rowSub.copyWith(
+                    color:
+                        state.isConnected ? cv.textSecondary : cv.accentText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
             CoveGroupedRow(
-              leading: Icon(Icons.key_outlined, size: 20, color: colors.textPrimary),
-              title: Text('Recovery Passphrase', style: typography.bodyMedium),
-              subtitle: Text(
-                state.hasPassphrase ? 'Set · needed to restore on a new phone' : 'Not set',
-                style: typography.caption,
+              leading: Icon(
+                Icons.key_outlined,
+                size: CoveSpace.gutter,
+                color: cv.textPrimary,
               ),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: state.isBusy ? null : () => BackupPassphraseSheet.show(context),
+              title: Text(
+                'Recovery Passphrase',
+                style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+              ),
+              subtitle: Text(
+                state.hasPassphrase
+                    ? 'Set · needed to restore on a new phone'
+                    : 'Not set',
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                size: _kChevronSize,
+                color: cv.textTertiary,
+              ),
+              onTap: state.isBusy
+                  ? null
+                  : () => BackupPassphraseSheet.show(context),
             ),
             CoveGroupedRow(
-              leading: Icon(Icons.history_outlined, size: 20, color: colors.textPrimary),
-              title: Text('Last Backup', style: typography.bodyMedium),
-              subtitle: Text(lastBackupText, style: typography.caption),
+              leading: Icon(
+                Icons.history_outlined,
+                size: CoveSpace.gutter,
+                color: cv.textPrimary,
+              ),
+              title: Text(
+                'Last Backup',
+                style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+              ),
+              subtitle: Text(
+                lastBackupText,
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+              ),
             ),
             CoveGroupedRow(
               key: const ValueKey('nightly_backup_row'),
-              leading: Icon(Icons.nightlight_outlined, size: 20, color: colors.textPrimary),
-              title: Text('Nightly Backup', style: typography.bodyMedium),
+              leading: Icon(
+                Icons.nightlight_outlined,
+                size: CoveSpace.gutter,
+                color: cv.textPrimary,
+              ),
+              title: Text(
+                'Nightly Backup',
+                style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+              ),
               subtitle: Text(
                 _nightlySubtitle(context, state),
-                style: typography.caption.copyWith(
-                  color: state.autoError != null && state.isAutoActive ? colors.accentSecondary : null,
+                style: CoveType.rowSub.copyWith(
+                  color: state.autoError != null && state.isAutoActive
+                      ? cv.statusAlertText
+                      : cv.textSecondary,
                 ),
               ),
               trailing: CoveToggleSwitch(
                 value: state.autoEnabled,
-                onChanged: state.isBusy ? null : (v) => notifier.setAutoEnabled(v),
+                onChanged: state.isBusy
+                    ? null
+                    : (v) => notifier.setAutoEnabled(v),
               ),
             ),
             if (state.autoEnabled) ...[
               CoveGroupedRow(
-                leading: Icon(Icons.schedule_outlined, size: 20, color: colors.textPrimary),
-                title: Text('Backup Time', style: typography.bodyMedium),
+                leading: Icon(
+                  Icons.schedule_outlined,
+                  size: CoveSpace.gutter,
+                  color: cv.textPrimary,
+                ),
+                title: Text(
+                  'Backup Time',
+                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                ),
                 subtitle: Text(
                   'Around ${state.autoTime.format(context)} · Android may shift it slightly',
-                  style: typography.caption,
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                 ),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  size: _kChevronSize,
+                  color: cv.textTertiary,
+                ),
                 onTap: state.isBusy
                     ? null
                     : () async {
-                        final picked = await showTimePicker(context: context, initialTime: state.autoTime);
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: state.autoTime,
+                        );
                         if (picked != null) await notifier.setAutoTime(picked);
                       },
               ),
               CoveGroupedRow(
-                leading: Icon(Icons.wifi_outlined, size: 20, color: colors.textPrimary),
-                title: Text('Wi-Fi Only', style: typography.bodyMedium),
+                leading: Icon(
+                  Icons.wifi_outlined,
+                  size: CoveSpace.gutter,
+                  color: cv.textPrimary,
+                ),
+                title: Text(
+                  'Wi-Fi Only',
+                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                ),
                 subtitle: Text(
-                  state.autoWifiOnly ? 'Waits for Wi-Fi' : 'Wi-Fi or mobile data',
-                  style: typography.caption,
+                  state.autoWifiOnly
+                      ? 'Waits for Wi-Fi'
+                      : 'Wi-Fi or mobile data',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                 ),
                 trailing: CoveToggleSwitch(
                   value: state.autoWifiOnly,
-                  onChanged: state.isBusy ? null : (v) => notifier.setAutoWifiOnly(v),
+                  onChanged: state.isBusy
+                      ? null
+                      : (v) => notifier.setAutoWifiOnly(v),
                 ),
               ),
             ],
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _kActionAreaPaddingH,
+                vertical: CoveSpace.md,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (state.errorMessage != null) ...[
                     Text(
                       state.errorMessage!,
-                      style: typography.caption.copyWith(color: colors.accentSecondary),
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.statusAlertText,
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: CoveSpace.sm),
                   ],
                   Row(
                     children: [
@@ -216,22 +323,35 @@ class DriveBackupSection extends ConsumerWidget {
                           variant: CoveButtonVariant.secondary,
                           icon: backingUp
                               ? SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: colors.accentPrimary),
+                                  width: CoveSpace.md,
+                                  height: CoveSpace.md,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: _kSpinnerStroke,
+                                    color: cv.accentFill,
+                                  ),
                                 )
-                              : const Icon(Icons.cloud_upload_outlined, size: 16),
-                          onPressed: state.isBusy ? null : () => runBackupFlow(context, ref),
+                              : const Icon(
+                                  Icons.cloud_upload_outlined,
+                                  size: _kActionAreaPaddingH,
+                                ),
+                          onPressed: state.isBusy
+                              ? null
+                              : () => runBackupFlow(context, ref),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: CoveSpace.sm),
                       Expanded(
                         child: CovePillButton(
                           label: 'Restore',
                           isCompact: true,
                           variant: CoveButtonVariant.ghost,
-                          icon: const Icon(Icons.settings_backup_restore_outlined, size: 16),
-                          onPressed: state.isBusy ? null : () => runRestoreFlow(context),
+                          icon: const Icon(
+                            Icons.settings_backup_restore_outlined,
+                            size: _kActionAreaPaddingH,
+                          ),
+                          onPressed: state.isBusy
+                              ? null
+                              : () => runRestoreFlow(context),
                         ),
                       ),
                     ],

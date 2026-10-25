@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -25,6 +25,9 @@ class DeleteDataDialog extends ConsumerStatefulWidget {
 }
 
 class _DeleteDataDialogState extends ConsumerState<DeleteDataDialog> {
+  static const double _kConfirmPromptTopGap =
+      16.0; // (literal) 16dp gap above confirmation prompt
+
   final TextEditingController _confirmController = TextEditingController();
   bool _isDeleting = false;
 
@@ -36,28 +39,33 @@ class _DeleteDataDialogState extends ConsumerState<DeleteDataDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final isConfirmed = _confirmController.text.trim() == 'DELETE';
 
     return AlertDialog(
-      backgroundColor: colors.surfaceCard,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: cv.surfaceCard,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
+      ),
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(CoveSpace.sm),
             decoration: BoxDecoration(
-              color: colors.accentSecondary.withValues(alpha: 0.15),
+              color: cv.statusAlert.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.warning_amber_rounded, color: colors.accentSecondary, size: 22),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              color: cv.statusAlert,
+              size: CoveSize.avatarInline,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: CoveSpace.md),
           Expanded(
             child: Text(
               'Delete Local Data',
-              style: typography.headline.copyWith(fontSize: 18),
+              style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
             ),
           ),
         ],
@@ -69,22 +77,25 @@ class _DeleteDataDialogState extends ConsumerState<DeleteDataDialog> {
           children: [
             Text(
               'This permanently wipes all local decrypted projections, cached event logs, and encryption keys from this device.',
-              style: typography.bodyRegular.copyWith(color: colors.textPrimary),
+              style: CoveType.body.copyWith(color: cv.textPrimary),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: CoveSpace.md),
             CoveCard(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(CoveSpace.md),
               child: Text(
                 'Note: If your partner is connected, their copy of the Home and history remains safe on their device.',
-                style: typography.caption.copyWith(color: colors.textMuted),
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _kConfirmPromptTopGap),
             Text(
               'Type "DELETE" below to confirm:',
-              style: typography.caption.copyWith(fontWeight: FontWeight.w600),
+              style: CoveType.rowSub.copyWith(
+                color: cv.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: CoveSpace.sm),
             CovePillInput(
               controller: _confirmController,
               hintText: 'DELETE',
@@ -94,11 +105,18 @@ class _DeleteDataDialogState extends ConsumerState<DeleteDataDialog> {
           ],
         ),
       ),
-      actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      actionsPadding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.gutter,
+        vertical: _kConfirmPromptTopGap,
+      ),
       actions: [
         TextButton(
-          onPressed: _isDeleting ? null : () => Navigator.of(context).pop(false),
-          child: Text('Cancel', style: TextStyle(color: colors.textMuted)),
+          onPressed:
+              _isDeleting ? null : () => Navigator.of(context).pop(false),
+          child: Text(
+            'Cancel',
+            style: CoveType.readout.copyWith(color: cv.textSecondary),
+          ),
         ),
         CovePillButton(
           label: _isDeleting ? 'Deleting...' : 'Delete Everything',

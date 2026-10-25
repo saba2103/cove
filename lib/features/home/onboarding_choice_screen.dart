@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../auth/auth_controller.dart';
@@ -15,111 +15,122 @@ import 'join_home_screen.dart';
 class OnboardingChoiceScreen extends ConsumerWidget {
   const OnboardingChoiceScreen({super.key});
 
+  static const double _kMaxCardWidth =
+      440.0; // (literal) 440dp onboarding card column max width
+  static const double _kHeaderBottomGap =
+      36.0; // (literal) 36dp gap between onboarding header and first option card
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp icon circle hairline border
+  static const double _kRestoreIconSize =
+      18.0; // (literal) 18dp restore backup icon glyph size
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final user = ref.watch(authProvider).value;
     final firstName = user?.displayName?.split(' ').first ?? 'there';
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
         actions: [
           IconButton(
             tooltip: 'Sign Out',
             icon: Icon(
               Icons.logout_outlined,
-              size: 20,
-              color: colors.textMuted,
+              size: CoveSpace.gutter,
+              color: cv.textSecondary,
             ),
             onPressed: () {
               ref.read(authProvider.notifier).signOut();
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: CoveSpace.sm),
         ],
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.lg,
+              vertical: CoveSpace.lg,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: _kMaxCardWidth),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Title Area
                   Text(
                     'Welcome, $firstName',
-                    style: typography.displayLarge.copyWith(fontSize: 32),
+                    style: CoveType.slipFigure.copyWith(color: cv.textPrimary),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: CoveSpace.sm),
                   Text(
                     'To begin, create a shared space for you and your partner, or join an existing Home.',
-                    style: typography.bodyRegular.copyWith(
-                      color: colors.textMuted,
-                      height: 1.45,
-                    ),
+                    style: CoveType.body.copyWith(color: cv.textSecondary),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: _kHeaderBottomGap),
 
                   // Option 1: Create a Home Card
                   CoveCard(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(CoveSpace.lg),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: CoveSize.buttonRound,
+                              height: CoveSize.buttonRound,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: colors.surfaceRow,
+                                color: cv.surfaceRow,
                                 border: Border.all(
-                                  color: colors.borderHairline,
-                                  width: 1,
+                                  color: cv.lineHairline,
+                                  width: _kBorderWidth,
                                 ),
                               ),
                               alignment: Alignment.center,
                               child: Icon(
                                 Icons.home_outlined,
-                                size: 20,
-                                color: colors.accentPrimary,
+                                size: CoveSpace.gutter,
+                                color: cv.accentFill,
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: CoveSpace.md),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Create a Home',
-                                    style: typography.title.copyWith(fontSize: 17),
+                                    style: CoveType.rowTitle.copyWith(
+                                      color: cv.textPrimary,
+                                    ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: CoveSpace.xs),
                                   Text(
                                     'Start your private household ledger',
-                                    style: typography.caption,
+                                    style: CoveType.rowSub.copyWith(
+                                      color: cv.textSecondary,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: CoveSpace.gutter),
                         Text(
                           'You\'ll generate a secure encryption key and receive a pairing QR code to share with your partner.',
-                          style: typography.bodyRegular.copyWith(
-                            color: colors.textMuted,
-                            fontSize: 13,
+                          style: CoveType.readout.copyWith(
+                            color: cv.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: CoveSpace.gutter),
                         CovePillButton(
                           label: 'Create a Home',
                           isFullWidth: true,
@@ -134,72 +145,79 @@ class OnboardingChoiceScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: CoveSpace.gutter),
 
                   // Option 2: Join a Home Card
                   CoveCard(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(CoveSpace.lg),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: CoveSize.buttonRound,
+                              height: CoveSize.buttonRound,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: colors.surfaceRow,
+                                color: cv.surfaceRow,
                                 border: Border.all(
-                                  color: colors.borderHairline,
-                                  width: 1,
+                                  color: cv.lineHairline,
+                                  width: _kBorderWidth,
                                 ),
                               ),
                               alignment: Alignment.center,
                               child: Icon(
                                 Icons.qr_code_scanner_outlined,
-                                size: 20,
-                                color: colors.accentPrimary,
+                                size: CoveSpace.gutter,
+                                color: cv.accentFill,
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: CoveSpace.md),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Join a Home',
-                                    style: typography.title.copyWith(fontSize: 17),
+                                    style: CoveType.rowTitle.copyWith(
+                                      color: cv.textPrimary,
+                                    ),
                                   ),
-                                  const SizedBox(height: 2),
+                                  const SizedBox(height: CoveSpace.xs),
                                   Text(
                                     'Connect to your partner\'s space',
-                                    style: typography.caption,
+                                    style: CoveType.rowSub.copyWith(
+                                      color: cv.textSecondary,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: CoveSpace.gutter),
                         Text(
                           kIsWeb
                               ? 'Enter the 6-digit pairing code displayed on your partner\'s device to securely join this Home.'
                               : 'Scan the pairing QR code displayed on your partner\'s device to import the Home encryption key.',
-                          style: typography.bodyRegular.copyWith(
-                            color: colors.textMuted,
-                            fontSize: 13,
+                          style: CoveType.readout.copyWith(
+                            color: cv.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: CoveSpace.gutter),
                         CovePillButton(
-                          label: kIsWeb ? 'Enter 6-Digit Code to Join' : 'Scan QR Code to Join',
+                          label: kIsWeb
+                              ? 'Enter 6-Digit Code to Join'
+                              : 'Scan QR Code to Join',
                           variant: CoveButtonVariant.secondary,
                           isFullWidth: true,
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const JoinHomeScreen(initialShowManualInput: kIsWeb),
+                                builder: (_) => const JoinHomeScreen(
+                                  initialShowManualInput: kIsWeb,
+                                ),
                               ),
                             );
                           },
@@ -210,17 +228,19 @@ class OnboardingChoiceScreen extends ConsumerWidget {
 
                   // Option 3: Restore an encrypted Google Drive backup (new phone / reinstall)
                   if (ref.watch(driveBackupProvider).isSupported) ...[
-                    const SizedBox(height: 18),
+                    const SizedBox(height: CoveSpace.gutter),
                     TextButton.icon(
                       key: const ValueKey('onboarding_restore_backup'),
                       icon: Icon(
                         Icons.settings_backup_restore_outlined,
-                        size: 18,
-                        color: colors.accentPrimary,
+                        size: _kRestoreIconSize,
+                        color: cv.accentText,
                       ),
                       label: Text(
                         'Restore from Google Drive backup',
-                        style: typography.bodyMedium.copyWith(color: colors.accentPrimary),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.accentText,
+                        ),
                       ),
                       onPressed: () => DriveBackupSection.runRestoreFlow(context),
                     ),

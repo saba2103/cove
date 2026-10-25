@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_brand_mark.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'auth_controller.dart';
@@ -9,57 +9,65 @@ import 'auth_controller.dart';
 class SignInScreen extends ConsumerWidget {
   const SignInScreen({super.key});
 
+  static const double _kHorizontalPadding =
+      28.0; // (literal) 28dp sign-in page horizontal inset
+  static const double _kMaxBrandWidth =
+      380.0; // (literal) 380dp sign-in column max width
+  static const double _kButtonIconSize =
+      18.0; // (literal) 18dp sign-in button icon size
+  static const double _kErrorTopGap =
+      16.0; // (literal) 16dp error message top gap
+  static const double _kLockIconSize =
+      13.0; // (literal) 13dp footer lock icon size
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final authState = ref.watch(authProvider);
     final isLoading = authState.isLoading;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _kHorizontalPadding,
+            vertical: CoveSpace.lg,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(height: 12),
+              const SizedBox(height: CoveSpace.md),
 
               // Central Brand Area
               Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
+                  constraints: const BoxConstraints(maxWidth: _kMaxBrandWidth),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Brand Mark: Two Overlapping Circles Motif
-                      const CoveBrandMark(size: 54),
-                      const SizedBox(height: 20),
+                      const CoveBrandMark(size: CoveSize.row),
+                      const SizedBox(height: CoveSpace.gutter),
 
                       // Wordmark: Bodoni Moda 500
                       Text(
                         'Cove',
-                        style: typography.displayLarge.copyWith(
-                          fontSize: 42,
-                          letterSpacing: -0.6,
+                        style: CoveType.heroFigure.copyWith(
+                          color: cv.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: CoveSpace.sm),
 
                       // Minimal Tagline
                       Text(
                         'A private, shared home operating system.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'GeneralSans',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                          color: colors.textMuted,
-                          height: 1.4,
+                        style: CoveType.body.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: CoveSpace.xl),
 
                       // Single Action: Sign in with Google
                       CovePillButton(
@@ -70,20 +78,18 @@ class SignInScreen extends ConsumerWidget {
                         },
                         icon: Icon(
                           Icons.login,
-                          size: 18,
-                          color: colors.surfaceCard,
+                          size: _kButtonIconSize,
+                          color: cv.textOnAccent,
                         ),
                         isFullWidth: true,
                       ),
 
                       if (authState.hasError) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: _kErrorTopGap),
                         Text(
                           'Sign in failed. Please check connection.',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            fontSize: 13,
-                            color: colors.accentSecondary,
+                          style: CoveType.readout.copyWith(
+                            color: cv.statusAlertText,
                           ),
                         ),
                       ],
@@ -94,24 +100,20 @@ class SignInScreen extends ConsumerWidget {
 
               // Footer: Encryption Reassurance Line
               Padding(
-                padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.only(bottom: CoveSpace.md),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.lock_outline,
-                      size: 13,
-                      color: colors.textSubtle,
+                      size: _kLockIconSize,
+                      color: cv.textTertiary,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: CoveSpace.sm),
                     Text(
                       'End-to-end encrypted on-device. Zero cloud knowledge.',
-                      style: TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: colors.textSubtle,
-                        letterSpacing: 0.2,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.textTertiary,
                       ),
                     ),
                   ],

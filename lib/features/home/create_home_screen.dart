@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -17,6 +17,17 @@ class CreateHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateHomeScreenState extends ConsumerState<CreateHomeScreen> {
+  static const double _kQrVerticalPadding =
+      16.0; // (literal) 16dp QR pairing view vertical inset
+  static const double _kMaxCardWidth =
+      440.0; // (literal) 440dp create home card column max width
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp home icon circle hairline border
+  static const double _kInputIconSize =
+      18.0; // (literal) 18dp input field prefix icon glyph size
+  static const double _kActionTopGap =
+      28.0; // (literal) 28dp gap above create home submit button
+
   final TextEditingController _nameController =
       TextEditingController(text: 'Our Home');
   final TextEditingController _descriptionController = TextEditingController();
@@ -77,19 +88,24 @@ class _CreateHomeScreenState extends ConsumerState<CreateHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     // If already created, display the pairing QR code directly
     if (_createdPayload != null) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         appBar: AppBar(
-          title: Text('Invite Partner', style: typography.headline.copyWith(fontSize: 20)),
+          title: Text(
+            'Invite Partner',
+            style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+          ),
         ),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.lg,
+              vertical: _kQrVerticalPadding,
+            ),
             child: PairingQrView(
               payload: _createdPayload!,
               onDone: () {
@@ -103,16 +119,22 @@ class _CreateHomeScreenState extends ConsumerState<CreateHomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text('Create a Home', style: typography.headline.copyWith(fontSize: 20)),
+        title: Text(
+          'Create a Home',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.lg,
+              vertical: CoveSpace.gutter,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: _kMaxCardWidth),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -121,85 +143,110 @@ class _CreateHomeScreenState extends ConsumerState<CreateHomeScreen> {
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(_kQrVerticalPadding),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: colors.surfaceCard,
+                            color: cv.surfaceCard,
                             border: Border.all(
-                              color: colors.borderHairline,
-                              width: 1,
+                              color: cv.lineHairline,
+                              width: _kBorderWidth,
                             ),
                           ),
                           child: DeterministicHomeIcon(
                             homeId: _homeNamePreview,
-                            size: 48,
+                            size: CoveSize.hit,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: CoveSpace.md),
                         Text(
                           _homeNamePreview,
-                          style: typography.title.copyWith(fontSize: 18),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: CoveSpace.xs),
                         Text(
                           'Mark generated automatically',
-                          style: typography.caption.copyWith(color: colors.textMuted),
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: CoveSpace.section),
 
                   // Home Details Card
                   CoveCard(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(CoveSpace.gutter),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('HOME DETAILS', style: typography.caption),
-                        const SizedBox(height: 14),
-                        Text('Name', style: typography.bodyMedium),
-                        const SizedBox(height: 6),
+                        Text(
+                          'HOME DETAILS',
+                          style: CoveType.capsCard.copyWith(
+                            color: cv.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.md),
+                        Text(
+                          'Name',
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.sm),
                         CovePillInput(
                           controller: _nameController,
                           hintText: 'e.g. Our Home, The Cabin',
                           prefixIcon: Icon(
                             Icons.home_outlined,
-                            size: 18,
-                            color: colors.textMuted,
+                            size: _kInputIconSize,
+                            color: cv.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        Text('Description (optional)', style: typography.bodyMedium),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: CoveSpace.gutter),
+                        Text(
+                          'Description (optional)',
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.sm),
                         CovePillInput(
                           controller: _descriptionController,
                           hintText: 'e.g. Apartment on Elm Street',
                           prefixIcon: Icon(
                             Icons.info_outline,
-                            size: 18,
-                            color: colors.textMuted,
+                            size: _kInputIconSize,
+                            color: cv.textSecondary,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: CoveSpace.lg),
 
                   // Encryption Info Banner
                   Row(
                     children: [
-                      Icon(Icons.shield_outlined, size: 16, color: colors.accentPrimary),
-                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.shield_outlined,
+                        size: _kQrVerticalPadding,
+                        color: cv.accentFill,
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
                       Expanded(
                         child: Text(
                           'A 256-bit symmetric key will be generated. You can pair your partner immediately after.',
-                          style: typography.caption.copyWith(color: colors.textMuted),
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textSecondary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: _kActionTopGap),
 
                   // Create Action
                   CovePillButton(

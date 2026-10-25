@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -28,6 +28,17 @@ class EditProfileDialog extends ConsumerStatefulWidget {
 }
 
 class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
+  static const double _kSpinnerStroke =
+      2.5; // (literal) 2.5dp avatar upload spinner stroke
+  static const double _kCameraBadgeBorderWidth =
+      2.0; // (literal) 2dp camera badge border width
+  static const double _kCameraBadgeIconSize =
+      15.0; // (literal) 15dp camera badge icon size
+  static const double _kChipIconSize =
+      16.0; // (literal) 16dp action chip icon size
+  static const double _kSaveButtonTopGap =
+      28.0; // (literal) 28dp gap above save profile button
+
   late final TextEditingController _nameController;
   late final TextEditingController _avatarUrlController;
   late bool _pendingUseInitials;
@@ -56,7 +67,8 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
       final mime = (ext == 'png')
           ? 'image/png'
           : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
-      final fileName = '$userId/avatar_${clock.now().millisecondsSinceEpoch}.$ext';
+      final fileName =
+          '$userId/avatar_${clock.now().millisecondsSinceEpoch}.$ext';
 
       final supabase = ref.read(supabaseClientProvider);
       if (supabase != null) {
@@ -65,7 +77,8 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
           bytes,
           fileOptions: FileOptions(contentType: mime, upsert: true),
         );
-        final publicUrl = supabase.storage.from('avatars').getPublicUrl(fileName);
+        final publicUrl =
+            supabase.storage.from('avatars').getPublicUrl(fileName);
         if (mounted) {
           setState(() {
             _pendingAvatarUrl = publicUrl;
@@ -94,8 +107,10 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
     final profile = ref.read(userProfileProvider);
     _nameController = TextEditingController(text: profile.displayName);
     _pendingAvatarUrl = profile.avatarUrl;
-    _pendingUseInitials = profile.avatarUrl == null || profile.avatarUrl!.isEmpty;
-    _avatarUrlController = TextEditingController(text: profile.avatarUrl ?? '');
+    _pendingUseInitials =
+        profile.avatarUrl == null || profile.avatarUrl!.isEmpty;
+    _avatarUrlController =
+        TextEditingController(text: profile.avatarUrl ?? '');
     _nameController.addListener(() => setState(() {}));
   }
 
@@ -108,26 +123,35 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final profile = ref.watch(userProfileProvider);
     final currentName = _nameController.text.trim();
     final initialLetter = currentName.isNotEmpty
         ? currentName[0].toUpperCase()
-        : (profile.displayName.isNotEmpty ? profile.displayName[0].toUpperCase() : 'U');
+        : (profile.displayName.isNotEmpty
+            ? profile.displayName[0].toUpperCase()
+            : 'U');
 
-    final hasPhoto = !_pendingUseInitials && _pendingAvatarUrl != null && _pendingAvatarUrl!.trim().isNotEmpty;
+    final hasPhoto = !_pendingUseInitials &&
+        _pendingAvatarUrl != null &&
+        _pendingAvatarUrl!.trim().isNotEmpty;
+
+    const chipShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
+    );
 
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        left: 20,
-        right: 20,
-        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + CoveSpace.lg,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.lg,
       ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -137,41 +161,52 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Edit Profile', style: typography.headline.copyWith(fontSize: 20)),
+                Text(
+                  'Edit Profile',
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
                 IconButton(
-                  icon: Icon(Icons.close, color: colors.textMuted, size: 20),
+                  icon: Icon(
+                    Icons.close,
+                    color: cv.textSecondary,
+                    size: CoveSpace.gutter,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Live Preview Avatar with Camera Tap & Upload Overlay
             Center(
               child: Stack(
                 children: [
                   GestureDetector(
-                    onTap: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                    onTap: _isUploading
+                        ? null
+                        : () => _pickAndUploadImage(ImageSource.gallery),
                     child: CircleAvatar(
-                      radius: 42,
-                      backgroundColor: hasPhoto ? colors.surfaceRow : colors.accentPrimary,
-                      backgroundImage: hasPhoto ? NetworkImage(_pendingAvatarUrl!.trim()) : null,
+                      radius: CoveSize.buttonRound,
+                      backgroundColor:
+                          hasPhoto ? cv.surfaceRow : cv.accentFill,
+                      backgroundImage: hasPhoto
+                          ? NetworkImage(_pendingAvatarUrl!.trim())
+                          : null,
                       child: _isUploading
                           ? SizedBox(
-                              width: 28,
-                              height: 28,
+                              width: CoveSize.avatarRow,
+                              height: CoveSize.avatarRow,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: colors.accentPrimary,
+                                strokeWidth: _kSpinnerStroke,
+                                color: cv.accentFill,
                               ),
                             )
                           : (!hasPhoto
                               ? Text(
                                   initialLetter,
-                                  style: typography.headline.copyWith(
-                                    fontSize: 32,
+                                  style: CoveType.slipFigure.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: colors.surfaceRow,
+                                    color: cv.textOnAccent,
                                   ),
                                 )
                               : null),
@@ -181,18 +216,23 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                     bottom: 0,
                     right: 0,
                     child: GestureDetector(
-                      onTap: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                      onTap: _isUploading
+                          ? null
+                          : () => _pickAndUploadImage(ImageSource.gallery),
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(CoveSpace.xs),
                         decoration: BoxDecoration(
-                          color: colors.accentPrimary,
+                          color: cv.accentFill,
                           shape: BoxShape.circle,
-                          border: Border.all(color: colors.surfaceCard, width: 2),
+                          border: Border.all(
+                            color: cv.surfaceSheet,
+                            width: _kCameraBadgeBorderWidth,
+                          ),
                         ),
                         child: Icon(
                           Icons.camera_alt,
-                          size: 15,
-                          color: colors.surfaceRow,
+                          size: _kCameraBadgeIconSize,
+                          color: cv.textOnAccent,
                         ),
                       ),
                     ),
@@ -200,37 +240,68 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: CoveSpace.md),
 
             // Image Source Options: Upload Photo | Camera | Use Initials
             Wrap(
               alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 4,
+              spacing: CoveSpace.sm,
+              runSpacing: CoveSpace.xs,
               children: [
                 ActionChip(
-                  avatar: Icon(Icons.photo_library_outlined, size: 16, color: colors.accentPrimary),
-                  label: Text('Upload Photo', style: typography.caption.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w500)),
-                  backgroundColor: colors.surfaceRow,
-                  side: BorderSide(color: colors.borderHairline),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  onPressed: _isUploading ? null : () => _pickAndUploadImage(ImageSource.gallery),
+                  avatar: Icon(
+                    Icons.photo_library_outlined,
+                    size: _kChipIconSize,
+                    color: cv.accentFill,
+                  ),
+                  label: Text(
+                    'Upload Photo',
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  backgroundColor: cv.surfaceRow,
+                  side: BorderSide(color: cv.lineHairline),
+                  shape: chipShape,
+                  onPressed: _isUploading
+                      ? null
+                      : () => _pickAndUploadImage(ImageSource.gallery),
                 ),
                 ActionChip(
-                  avatar: Icon(Icons.camera_alt_outlined, size: 16, color: colors.accentPrimary),
-                  label: Text('Camera', style: typography.caption.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w500)),
-                  backgroundColor: colors.surfaceRow,
-                  side: BorderSide(color: colors.borderHairline),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  onPressed: _isUploading ? null : () => _pickAndUploadImage(ImageSource.camera),
+                  avatar: Icon(
+                    Icons.camera_alt_outlined,
+                    size: _kChipIconSize,
+                    color: cv.accentFill,
+                  ),
+                  label: Text(
+                    'Camera',
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  backgroundColor: cv.surfaceRow,
+                  side: BorderSide(color: cv.lineHairline),
+                  shape: chipShape,
+                  onPressed: _isUploading
+                      ? null
+                      : () => _pickAndUploadImage(ImageSource.camera),
                 ),
                 if (hasPhoto)
                   ActionChip(
-                    avatar: Icon(Icons.account_circle_outlined, size: 16, color: colors.textMuted),
-                    label: Text('Use Initials', style: typography.caption.copyWith(color: colors.textMuted)),
-                    backgroundColor: colors.surfaceRow,
-                    side: BorderSide(color: colors.borderHairline),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    avatar: Icon(
+                      Icons.account_circle_outlined,
+                      size: _kChipIconSize,
+                      color: cv.textSecondary,
+                    ),
+                    label: Text(
+                      'Use Initials',
+                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    ),
+                    backgroundColor: cv.surfaceRow,
+                    side: BorderSide(color: cv.lineHairline),
+                    shape: chipShape,
                     onPressed: () {
                       setState(() {
                         _pendingUseInitials = true;
@@ -241,11 +312,18 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                     },
                   ),
                 ActionChip(
-                  avatar: Icon(Icons.link, size: 16, color: colors.textMuted),
-                  label: Text(_showAvatarInput ? 'Hide URL' : 'Link URL', style: typography.caption.copyWith(color: colors.textMuted)),
-                  backgroundColor: colors.surfaceRow,
-                  side: BorderSide(color: colors.borderHairline),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  avatar: Icon(
+                    Icons.link,
+                    size: _kChipIconSize,
+                    color: cv.textSecondary,
+                  ),
+                  label: Text(
+                    _showAvatarInput ? 'Hide URL' : 'Link URL',
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                  ),
+                  backgroundColor: cv.surfaceRow,
+                  side: BorderSide(color: cv.lineHairline),
+                  shape: chipShape,
                   onPressed: () {
                     setState(() {
                       _showAvatarInput = !_showAvatarInput;
@@ -254,11 +332,20 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                 ),
                 if (profile.hasCustomName || profile.hasCustomAvatar)
                   ActionChip(
-                    avatar: Icon(Icons.restore, size: 16, color: colors.accentSecondary),
-                    label: Text('Reset', style: typography.caption.copyWith(color: colors.accentSecondary)),
-                    backgroundColor: colors.surfaceRow,
-                    side: BorderSide(color: colors.borderHairline),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    avatar: Icon(
+                      Icons.restore,
+                      size: _kChipIconSize,
+                      color: cv.statusAlertText,
+                    ),
+                    label: Text(
+                      'Reset',
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.statusAlertText,
+                      ),
+                    ),
+                    backgroundColor: cv.surfaceRow,
+                    side: BorderSide(color: cv.lineHairline),
+                    shape: chipShape,
                     onPressed: () {
                       final user = ref.read(authProvider).value;
                       setState(() {
@@ -274,7 +361,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             ),
 
             if (_showAvatarInput) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _avatarUrlController,
                 hintText: 'Image URL (https://...)',
@@ -294,42 +381,59 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
               ),
             ],
 
-            const SizedBox(height: 18),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Display Name
-            Text('DISPLAY NAME', style: typography.caption),
-            const SizedBox(height: 8),
+            Text(
+              'DISPLAY NAME',
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(height: CoveSpace.sm),
             CovePillInput(
               controller: _nameController,
               hintText: 'Your name as seen by partner',
               textCapitalization: TextCapitalization.words,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CoveSpace.sm),
             Text(
               'This is what your partner sees in the app, saved directly to your cloud profile.',
-              style: typography.caption.copyWith(color: colors.textMuted, fontSize: 11),
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
             // Read-Only Google Email
-            Text('GOOGLE ACCOUNT EMAIL', style: typography.caption),
-            const SizedBox(height: 8),
+            Text(
+              'GOOGLE ACCOUNT EMAIL',
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(height: CoveSpace.sm),
             CoveCard(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _kChipIconSize,
+                vertical: CoveSpace.md,
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.lock_outline, size: 16, color: colors.textSubtle),
-                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.lock_outline,
+                    size: _kChipIconSize,
+                    color: cv.textTertiary,
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
                   Text(
-                    profile.email.isNotEmpty ? profile.email : 'No email associated',
-                    style: typography.bodyMedium.copyWith(color: colors.textMuted),
+                    profile.email.isNotEmpty
+                        ? profile.email
+                        : 'No email associated',
+                    style: CoveType.rowTitle.copyWith(
+                      color: cv.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: _kSaveButtonTopGap),
 
             // Save Button (Commits all changes atomically)
             CovePillButton(
@@ -340,7 +444,9 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                       final newName = _nameController.text.trim();
                       if (newName.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Display name cannot be empty')),
+                          const SnackBar(
+                            content: Text('Display name cannot be empty'),
+                          ),
                         );
                         return;
                       }
@@ -348,7 +454,9 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                       setState(() => _isSaving = true);
                       await ref.read(userProfileProvider.notifier).saveProfile(
                             displayName: newName,
-                            avatarUrl: _pendingUseInitials ? null : _pendingAvatarUrl,
+                            avatarUrl: _pendingUseInitials
+                                ? null
+                                : _pendingAvatarUrl,
                             useInitials: _pendingUseInitials,
                           );
 

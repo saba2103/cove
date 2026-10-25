@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import 'partner_profile_controller.dart';
@@ -18,10 +18,17 @@ class EditPartnerProfileDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<EditPartnerProfileDialog> createState() => _EditPartnerProfileDialogState();
+  ConsumerState<EditPartnerProfileDialog> createState() =>
+      _EditPartnerProfileDialogState();
 }
 
-class _EditPartnerProfileDialogState extends ConsumerState<EditPartnerProfileDialog> {
+class _EditPartnerProfileDialogState
+    extends ConsumerState<EditPartnerProfileDialog> {
+  static const double _kAvatarRadius =
+      36.0; // (literal) 36dp partner avatar circle radius
+  static const double _kInputIconSize =
+      18.0; // (literal) 18dp input field prefix icon glyph size
+
   late final TextEditingController _nameController;
 
   @override
@@ -39,20 +46,21 @@ class _EditPartnerProfileDialogState extends ConsumerState<EditPartnerProfileDia
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final partnerProfile = ref.watch(partnerProfileProvider);
 
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        left: 20,
-        right: 20,
-        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + CoveSpace.lg,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.lg,
       ),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -62,42 +70,55 @@ class _EditPartnerProfileDialogState extends ConsumerState<EditPartnerProfileDia
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Partner's Name", style: typography.headline.copyWith(fontSize: 20)),
+                Text(
+                  "Partner's Name",
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
                 IconButton(
-                  icon: Icon(Icons.close, color: colors.textMuted, size: 20),
+                  icon: Icon(
+                    Icons.close,
+                    color: cv.textSecondary,
+                    size: CoveSpace.gutter,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
             Center(
               child: CircleAvatar(
-                radius: 36,
-                backgroundColor: colors.accentPrimary,
+                radius: _kAvatarRadius,
+                backgroundColor: cv.accentFill,
                 child: Text(
                   partnerProfile.displayName.isNotEmpty
                       ? partnerProfile.displayName[0].toUpperCase()
                       : 'P',
-                  style: typography.headline.copyWith(
-                    fontSize: 28,
+                  style: CoveType.title.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: colors.surfaceRow,
+                    color: cv.textOnAccent,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CoveSpace.gutter),
 
-            Text("PARTNER'S DISPLAY NAME", style: typography.caption),
-            const SizedBox(height: 8),
+            Text(
+              "PARTNER'S DISPLAY NAME",
+              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+            ),
+            const SizedBox(height: CoveSpace.sm),
             CovePillInput(
               controller: _nameController,
               hintText: "Enter partner's name or nickname",
               textCapitalization: TextCapitalization.words,
-              prefixIcon: Icon(Icons.person_outline, size: 18, color: colors.textMuted),
+              prefixIcon: Icon(
+                Icons.person_outline,
+                size: _kInputIconSize,
+                color: cv.textSecondary,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: CoveSpace.lg),
 
             CovePillButton(
               label: 'Save',

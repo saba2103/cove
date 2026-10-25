@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'home_controller.dart';
@@ -21,6 +21,31 @@ class JoinHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
+  static const double _kBodyVerticalPadding =
+      16.0; // (literal) 16dp join home body vertical inset
+  static const double _kMaxCardWidth =
+      440.0; // (literal) 440dp join home card column max width
+  static const double _kHeaderBottomGap =
+      28.0; // (literal) 28dp gap below join home subtitle
+  static const double _kScannerSize =
+      260.0; // (literal) 260dp QR camera viewfinder square
+  static const double _kViewfinderSize =
+      220.0; // (literal) 220dp QR inner viewfinder frame
+  static const double _kViewfinderBorderWidth =
+      2.0; // (literal) 2dp QR viewfinder border width
+  static const double _kPinInputRadius =
+      12.0; // (literal) 12dp pairing code input corner radius
+  static const double _kPinBorderWidth =
+      1.5; // (literal) 1.5dp pairing code input border width
+  static const double _kPinLetterSpacing =
+      8.0; // (literal) 8dp 6-digit PIN tracking
+  static const double _kPinHintLetterSpacing =
+      6.0; // (literal) 6dp PIN dot hint tracking
+  static const double _kErrorRadius =
+      10.0; // (literal) 10dp error banner corner radius
+  static const double _kSmallIconSize =
+      16.0; // (literal) 16dp inline icon glyph size
+
   final TextEditingController _codeController = TextEditingController();
   MobileScannerController? _scannerController;
 
@@ -75,8 +100,12 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
       if (mounted) {
         setState(() {
           _isProcessing = false;
-          final err = e.toString().replaceAll('Exception: ', '').replaceAll('FormatException: ', '');
-          _errorMessage = err.isNotEmpty ? err : 'Invalid pairing code. Please try again.';
+          final err = e
+              .toString()
+              .replaceAll('Exception: ', '')
+              .replaceAll('FormatException: ', '');
+          _errorMessage =
+              err.isNotEmpty ? err : 'Invalid pairing code. Please try again.';
         });
       }
     }
@@ -84,20 +113,23 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text('Join a Home', style: typography.headline.copyWith(fontSize: 20)),
+        title: Text(
+          'Join a Home',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
         actions: [
           IconButton(
-            tooltip: _showManualInput ? 'Open Camera Scanner' : 'Enter 6-Digit Code',
+            tooltip:
+                _showManualInput ? 'Open Camera Scanner' : 'Enter 6-Digit Code',
             icon: Icon(
               _showManualInput ? Icons.qr_code_scanner : Icons.dialpad_outlined,
-              size: 20,
-              color: colors.textPrimary,
+              size: CoveSpace.gutter,
+              color: cv.textPrimary,
             ),
             onPressed: () {
               setState(() {
@@ -108,15 +140,18 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
               });
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: CoveSpace.sm),
         ],
       ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.lg,
+              vertical: _kBodyVerticalPadding,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: _kMaxCardWidth),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -124,28 +159,29 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                     _showManualInput
                         ? 'Enter 6-Digit Code'
                         : 'Scan Partner\'s QR Code',
-                    style: typography.title.copyWith(fontSize: 20),
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: CoveSpace.sm),
                   Text(
                     _showManualInput
                         ? 'Type the 6-digit code shown on your partner\'s device to securely join and unlock this Home.'
                         : 'Point your camera at the pairing code on your partner\'s device to import the Home encryption key.',
                     textAlign: TextAlign.center,
-                    style: typography.bodyRegular.copyWith(
-                      color: colors.textMuted,
-                      height: 1.4,
+                    style: CoveType.body.copyWith(
+                      color: cv.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: _kHeaderBottomGap),
 
                   if (!_showManualInput && _scannerController != null) ...[
                     // Camera Scanner Viewfinder (Mobile Default)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(CoveRadius.card),
+                      ),
                       child: Container(
-                        width: 260,
-                        height: 260,
+                        width: _kScannerSize,
+                        height: _kScannerSize,
                         color: Colors.black,
                         child: Stack(
                           alignment: Alignment.center,
@@ -165,27 +201,33 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                               errorBuilder: (context, error) {
                                 return Center(
                                   child: Padding(
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.all(
+                                      _kBodyVerticalPadding,
+                                    ),
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
                                           Icons.videocam_off_outlined,
-                                          size: 32,
-                                          color: colors.textMuted,
+                                          size: CoveSize.avatarHeader,
+                                          color: cv.textSecondary,
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: CoveSpace.sm),
                                         Text(
                                           'Camera unavailable',
-                                          style: typography.bodyMedium,
+                                          style: CoveType.rowTitle.copyWith(
+                                            color: cv.textPrimary,
+                                          ),
                                         ),
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: CoveSpace.md),
                                         CovePillButton(
                                           label: 'Enter 6-Digit Code Instead',
                                           isCompact: true,
                                           variant: CoveButtonVariant.secondary,
                                           onPressed: () {
-                                            setState(() => _showManualInput = true);
+                                            setState(
+                                              () => _showManualInput = true,
+                                            );
                                           },
                                         ),
                                       ],
@@ -196,13 +238,15 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                             ),
                             // Viewfinder Overlay border
                             Container(
-                              width: 220,
-                              height: 220,
+                              width: _kViewfinderSize,
+                              height: _kViewfinderSize,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(CoveRadius.inline),
+                                ),
                                 border: Border.all(
-                                  color: colors.accentPrimary.withValues(alpha: 0.6),
-                                  width: 2,
+                                  color: cv.accentFill.withValues(alpha: 0.6),
+                                  width: _kViewfinderBorderWidth,
                                 ),
                               ),
                             ),
@@ -213,29 +257,33 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                   ] else ...[
                     // 6-Digit Code Entry Card (Web Default)
                     CoveCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.lg,
+                        vertical: CoveSpace.lg,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Center(
                             child: Text(
                               'PAIRING CODE',
-                              style: typography.caption.copyWith(
-                                letterSpacing: 1.0,
-                                color: colors.textMuted,
+                              style: CoveType.capsCard.copyWith(
+                                color: cv.textSecondary,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: _kBodyVerticalPadding),
 
                           // Large Centered 6-Digit PIN Input Field
                           Container(
                             decoration: BoxDecoration(
-                              color: colors.surfaceRow,
-                              borderRadius: BorderRadius.circular(12),
+                              color: cv.surfaceRow,
+                              borderRadius: const BorderRadius.all(
+                                Radius.circular(_kPinInputRadius),
+                              ),
                               border: Border.all(
-                                color: colors.borderHairline,
-                                width: 1.5,
+                                color: cv.lineHairline,
+                                width: _kPinBorderWidth,
                               ),
                             ),
                             child: TextField(
@@ -246,39 +294,42 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                               textInputAction: TextInputAction.done,
                               onSubmitted: (val) => _processInput(val),
                               onChanged: (val) {
-                                final digits = val.replaceAll(RegExp(r'\s+'), '');
+                                final digits =
+                                    val.replaceAll(RegExp(r'\s+'), '');
                                 if (digits.length == 6) {
                                   _processInput(digits);
                                 }
                               },
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 28,
+                              style: CoveType.title.copyWith(
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: 8.0,
-                                color: colors.accentPrimary,
+                                letterSpacing: _kPinLetterSpacing,
+                                color: cv.accentText,
                               ),
-                              cursorColor: colors.accentPrimary,
+                              cursorColor: cv.accentFill,
                               decoration: InputDecoration(
                                 hintText: '• • • • • •',
-                                hintStyle: TextStyle(
-                                  fontFamily: 'GeneralSans',
-                                  fontSize: 24,
-                                  letterSpacing: 6.0,
-                                  color: colors.textSubtle,
+                                hintStyle: CoveType.slipTitle.copyWith(
+                                  letterSpacing: _kPinHintLetterSpacing,
+                                  color: cv.textTertiary,
                                 ),
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
+                                  horizontal: _kBodyVerticalPadding,
+                                  vertical: CoveSpace.md,
                                 ),
                                 suffixIcon: IconButton(
                                   tooltip: 'Paste from clipboard',
-                                  icon: const Icon(Icons.paste_rounded, size: 20),
+                                  icon: Icon(
+                                    Icons.paste_rounded,
+                                    size: CoveSpace.gutter,
+                                    color: cv.textSecondary,
+                                  ),
                                   onPressed: () async {
-                                    final data = await Clipboard.getData('text/plain');
+                                    final data =
+                                        await Clipboard.getData('text/plain');
                                     if (data?.text != null) {
-                                      _codeController.text = data!.text!.trim();
+                                      _codeController.text =
+                                          data!.text!.trim();
                                       _processInput(_codeController.text);
                                     }
                                   },
@@ -287,7 +338,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 20),
+                          const SizedBox(height: CoveSpace.gutter),
 
                           CovePillButton(
                             label: 'Join Home',
@@ -303,31 +354,34 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                   ],
 
                   if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: _kBodyVerticalPadding),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.md,
+                        vertical: CoveSpace.sm,
+                      ),
                       decoration: BoxDecoration(
-                        color: colors.accentSecondary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
+                        color: cv.statusAlert.withValues(alpha: 0.12),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(_kErrorRadius),
+                        ),
                         border: Border.all(
-                          color: colors.accentSecondary.withValues(alpha: 0.3),
+                          color: cv.statusAlert.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.info_outline,
-                            size: 16,
-                            color: colors.accentSecondary,
+                            size: _kSmallIconSize,
+                            color: cv.statusAlertText,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: CoveSpace.sm),
                           Expanded(
                             child: Text(
                               _errorMessage!,
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 13,
-                                color: colors.accentSecondary,
+                              style: CoveType.readout.copyWith(
+                                color: cv.statusAlertText,
                               ),
                             ),
                           ),
@@ -336,7 +390,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: CoveSpace.lg),
                   TextButton.icon(
                     onPressed: () {
                       setState(() {
@@ -347,19 +401,21 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                       });
                     },
                     icon: Icon(
-                      _showManualInput ? Icons.qr_code_scanner : Icons.dialpad_outlined,
-                      size: 16,
-                      color: colors.accentPrimary,
+                      _showManualInput
+                          ? Icons.qr_code_scanner
+                          : Icons.dialpad_outlined,
+                      size: _kSmallIconSize,
+                      color: cv.accentText,
                     ),
                     label: Text(
                       _showManualInput
-                          ? (kIsWeb ? 'Scan with webcam instead' : 'Scan QR code with camera')
+                          ? (kIsWeb
+                              ? 'Scan with webcam instead'
+                              : 'Scan QR code with camera')
                           : 'Enter 6-digit code manually',
-                      style: TextStyle(
-                        fontFamily: 'GeneralSans',
-                        fontSize: 14,
+                      style: CoveType.readout.copyWith(
                         fontWeight: FontWeight.w500,
-                        color: colors.accentPrimary,
+                        color: cv.accentText,
                       ),
                     ),
                   ),
@@ -372,4 +428,3 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
     );
   }
 }
-

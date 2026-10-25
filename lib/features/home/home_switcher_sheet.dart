@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../sync/crypto/deterministic_home_icon.dart';
@@ -15,6 +15,13 @@ import 'join_home_screen.dart';
 class HomeSwitcherSheet extends ConsumerWidget {
   const HomeSwitcherSheet({super.key});
 
+  static const double _kBorderWidth =
+      1.0; // (literal) 1dp hairline border
+  static const double _kItemPaddingH =
+      16.0; // (literal) 16dp home row horizontal inset
+  static const double _kHomeIconSize =
+      36.0; // (literal) 36dp home switcher icon size
+
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
@@ -26,20 +33,24 @@ class HomeSwitcherSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final homesAsync = ref.watch(userHomesProvider);
     final activeHomeId = ref.watch(activeHomeIdProvider);
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
         border: Border(
-          top: BorderSide(color: colors.borderHairline, width: 1),
+          top: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.gutter,
+        vertical: CoveSpace.lg,
+      ),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -51,15 +62,19 @@ class HomeSwitcherSheet extends ConsumerWidget {
               children: [
                 Text(
                   'Switch Home',
-                  style: typography.title.copyWith(fontSize: 18),
+                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: Icon(
+                    Icons.close,
+                    size: CoveSpace.gutter,
+                    color: cv.textSecondary,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: CoveSpace.md),
 
             // Homes List
             homesAsync.when(
@@ -69,7 +84,7 @@ class HomeSwitcherSheet extends ConsumerWidget {
                     final isActive = home.id == activeHomeId;
 
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: CoveSpace.sm),
                       child: InkWell(
                         onTap: () {
                           ref
@@ -77,33 +92,43 @@ class HomeSwitcherSheet extends ConsumerWidget {
                               .setActiveHome(home.id);
                           Navigator.of(context).pop();
                         },
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveRadius.inline),
+                        ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                            horizontal: _kItemPaddingH,
+                            vertical: CoveSpace.md,
                           ),
                           decoration: BoxDecoration(
-                            color: isActive ? colors.surfaceRow : Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
+                            color: isActive
+                                ? cv.surfaceRow
+                                : Colors.transparent,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(CoveRadius.inline),
+                            ),
                             border: Border.all(
                               color: isActive
-                                  ? colors.accentPrimary.withValues(alpha: 0.4)
-                                  : colors.borderHairline,
-                              width: 1,
+                                  ? cv.accentFill.withValues(alpha: 0.4)
+                                  : cv.lineHairline,
+                              width: _kBorderWidth,
                             ),
                           ),
                           child: Row(
                             children: [
-                              DeterministicHomeIcon(homeId: home.id, size: 36),
-                              const SizedBox(width: 14),
+                              DeterministicHomeIcon(
+                                homeId: home.id,
+                                size: _kHomeIconSize,
+                              ),
+                              const SizedBox(width: CoveSpace.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       home.name,
-                                      style: typography.bodyMedium.copyWith(
+                                      style: CoveType.rowTitle.copyWith(
+                                        color: cv.textPrimary,
                                         fontWeight: isActive
                                             ? FontWeight.w600
                                             : FontWeight.w400,
@@ -111,10 +136,12 @@ class HomeSwitcherSheet extends ConsumerWidget {
                                     ),
                                     if (home.description != null &&
                                         home.description!.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: CoveSpace.xs),
                                       Text(
                                         home.description!,
-                                        style: typography.caption,
+                                        style: CoveType.rowSub.copyWith(
+                                          color: cv.textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -123,8 +150,8 @@ class HomeSwitcherSheet extends ConsumerWidget {
                               if (isActive)
                                 Icon(
                                   Icons.check_circle_rounded,
-                                  size: 20,
-                                  color: colors.accentPrimary,
+                                  size: CoveSpace.gutter,
+                                  color: cv.accentFill,
                                 ),
                             ],
                           ),
@@ -136,16 +163,16 @@ class HomeSwitcherSheet extends ConsumerWidget {
               },
               loading: () => const Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CoveLoading(size: 20),
+                  padding: EdgeInsets.all(_kItemPaddingH),
+                  child: CoveLoading(size: CoveSpace.gutter),
                 ),
               ),
               error: (error, stackTrace) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 16),
-            Divider(color: colors.borderHairline, height: 1),
-            const SizedBox(height: 16),
+            const SizedBox(height: _kItemPaddingH),
+            Divider(color: cv.lineHairline, height: _kBorderWidth),
+            const SizedBox(height: _kItemPaddingH),
 
             // Add/Join another home actions
             Row(
@@ -165,7 +192,7 @@ class HomeSwitcherSheet extends ConsumerWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: CoveSpace.sm),
                 Expanded(
                   child: CovePillButton(
                     label: 'Join Home',
@@ -175,7 +202,9 @@ class HomeSwitcherSheet extends ConsumerWidget {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const JoinHomeScreen(initialShowManualInput: kIsWeb),
+                          builder: (_) => const JoinHomeScreen(
+                            initialShowManualInput: kIsWeb,
+                          ),
                         ),
                       );
                     },
@@ -195,6 +224,9 @@ class HomeSwitcherSheet extends ConsumerWidget {
 class HomeSwitcherAppBarTitle extends ConsumerWidget {
   final VoidCallback? onSettingsTap;
 
+  static const double _kChevronSize =
+      18.0; // (literal) 18dp appbar switcher chevron size
+
   const HomeSwitcherAppBarTitle({
     super.key,
     this.onSettingsTap,
@@ -202,8 +234,7 @@ class HomeSwitcherAppBarTitle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final homes = ref.watch(userHomesProvider).value ?? [];
     final activeHome = ref.watch(activeHomeProvider).value;
     final title = activeHome?.name ?? 'Cove';
@@ -213,29 +244,35 @@ class HomeSwitcherAppBarTitle extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => const AboutCoveScreen()),
         );
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.sm)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.sm,
+          vertical: CoveSpace.xs,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (activeHome != null && homes.length > 1) ...[
-              DeterministicHomeIcon(homeId: activeHome.id, size: 22),
-              const SizedBox(width: 8),
+              DeterministicHomeIcon(
+                homeId: activeHome.id,
+                size: CoveSize.avatarInline,
+              ),
+              const SizedBox(width: CoveSpace.sm),
             ],
             Text(
               title,
-              style: typography.headline.copyWith(fontSize: 20),
+              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
             ),
             if (homes.length > 1) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: CoveSpace.xs),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => HomeSwitcherSheet.show(context),
                 child: Icon(
                   Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: colors.accentPrimary,
+                  size: _kChevronSize,
+                  color: cv.accentFill,
                 ),
               ),
             ],
