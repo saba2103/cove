@@ -2,8 +2,10 @@
 // Cove Supabase Edge Function: notify-partner
 // Triggered on INSERT to public.home_events.
 // Looks up the OTHER home member(s), finds their registered device token(s),
-// and sends a generic push notification via Firebase Cloud Messaging (FCM v1).
-// Zero-Knowledge: Only unencrypted event_type is used; no encrypted content is decrypted.
+// and sends a data-only push message via Firebase Cloud Messaging (FCM v1).
+// Zero-Knowledge: Only unencrypted metadata (home_id, event_id, event_type,
+// module) is sent; the receiving phone decrypts the event, writes the Quiet
+// Ledger copy, batches list changes, and renders the local notification.
 // ==============================================================================
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -24,73 +26,140 @@ interface WebhookPayload {
   schema: "public";
 }
 
-// Module and enriched notification text mapping
-function resolveNotificationContent(
-  eventType: string,
-  actorName: string,
-  homeName?: string
-): { module: string; title: string; body: string } {
-  const homeContext = homeName ? ` in ${homeName}` : "";
+// Server-side silent filter matching design/specs/15-notifications.md §3
+// wherever event_type alone decides. Events whose notification eligibility
+// depends on decrypted content or open batch state (e.g. list_item_toggled
+// done vs not done, list_item_deleted riding along in an open batch,
+// habit_checkin_toggled kept vs unchecked, calendar_event_updated date/time
+// change) are forwarded to the phone, which decides after decrypting.
+const SILENT_SYNC_EVENTS = new Set([
+  // §3 Shared lists: item edited, list renamed/archived/deleted/reordered, completed cleared
+  "list_item_updated",
+  "list_item_edited",
+  "list_renamed",
+  "list_updated",
+  "list_archived",
+  "list_unarchived",
+  "list_deleted",
+  "list_reordered",
+  "lists_reordered",
+  "list_items_reordered",
+  "list_completed_cleared",
+
+  // §3 Expenses: expense changed or removed
+  "expense_updated",
+  "expense_deleted",
+
+  // §3 Habits: habit cheered, edited or removed
+  "habit_checkin_acknowledged",
+  "habit_cheered",
+  "habit_updated",
+  "habit_edited",
+  "habit_deleted",
+  "habit_archived",
+  "habits_reordered",
+
+  // §3 Commitments: commitment changed, restarted or deleted
+  "subscription_updated",
+  "subscription_restarted",
+  "subscription_reactivated",
+  "subscription_deleted",
+
+  // §3 Profile, name, avatar, currency, budget, anniversary or home setting changed
+  "member_profile_updated",
+  "profile_updated",
+  "user_profile_updated",
+  "avatar_updated",
+  "avatar_changed",
+  "name_updated",
+  "display_name_updated",
+  "home_currency_updated",
+  "monthly_budget_updated",
+  "monthly_budget_cleared",
+  "budget_updated",
+  "home_anniversary_updated",
+  "anniversary_updated",
+  "home_updated",
+  "home_settings_updated",
+  "home_created",
+  "preferences_updated",
+  "settings_updated",
+
+  // §3 Routines, roadmap items and check-in reminder edits, in any form
+  "routine_created",
+  "routine_updated",
+  "routine_deleted",
+  "routine_block_added",
+  "routine_block_updated",
+  "routine_block_deleted",
+  "routine_event_created",
+  "routine_event_updated",
+  "routine_event_deleted",
+  "roadmap_item_added",
+  "roadmap_item_updated",
+  "roadmap_items_reordered",
+  "roadmap_item_toggled",
+  "roadmap_item_deleted",
+  "checkin_reminder_added",
+  "checkin_reminder_updated",
+  "checkin_reminder_toggled",
+  "checkin_reminder_deleted",
+]);
+
+function isSilentEventType(eventType: string): boolean {
+  if (SILENT_SYNC_EVENTS.has(eventType)) {
+    return true;
+  }
+  if (
+    eventType.startsWith("routine_") ||
+    eventType.startsWith("roadmap_") ||
+    eventType.startsWith("checkin_reminder_") ||
+    eventType.startsWith("check_in_reminder_")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+// Maps event_type to its module identifier for the data-only FCM payload.
+function resolveModule(eventType: string): string {
   switch (eventType) {
     // Shared Lists
     case "list_item_added":
-      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} added an item to your shared lists${homeContext}` };
     case "list_item_toggled":
-      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} updated a list item${homeContext}` };
     case "list_item_deleted":
-      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} removed a list item${homeContext}` };
     case "list_created":
-      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} created a new shared list${homeContext}` };
-    case "list_completed_cleared":
-      return { module: "lists", title: `${actorName} • Shared Lists`, body: `${actorName} cleared completed list items${homeContext}` };
+      return "lists";
 
     // Expenses
     case "expense_logged":
-      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} logged a new expenditure${homeContext}` };
-    case "expense_updated":
-      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} updated an expense${homeContext}` };
-    case "expense_deleted":
-      return { module: "expenses", title: `${actorName} • Expenses`, body: `${actorName} removed an expense${homeContext}` };
+    case "expense_added":
+      return "expenses";
 
-    // Subscriptions
+    // Commitments / Subscriptions
     case "subscription_added":
-      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} added a new recurring commitment${homeContext}` };
-    case "subscription_updated":
-      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} updated a commitment${homeContext}` };
     case "subscription_cancelled":
-      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} paused or deactivated a commitment${homeContext}` };
-    case "subscription_reactivated":
-      return { module: "subscriptions", title: `${actorName} • Commitments`, body: `${actorName} reactivated a commitment${homeContext}` };
+      return "subscriptions";
 
     // Habits
     case "habit_created":
-      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} created a new daily rhythm${homeContext}` };
     case "habit_checkin_toggled":
-      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} completed a daily habit check-in! 🔥` };
-    case "habit_checkin_acknowledged":
-      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} cheered for your habit check-in! 🙌` };
-    case "habit_deleted":
-      return { module: "habits", title: `${actorName} • Habits`, body: `${actorName} removed a rhythm${homeContext}` };
+      return "habits";
 
     // Shared Calendar
     case "calendar_event_added":
-      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} scheduled a new event on your shared calendar${homeContext}` };
     case "calendar_event_updated":
-      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} updated an event on the shared calendar` };
     case "calendar_event_deleted":
-      return { module: "calendar", title: `${actorName} • Calendar`, body: `${actorName} removed an event from the calendar` };
+      return "calendar";
 
     // Home / Members
     case "member_joined":
-      return { module: "home", title: "Cove • Home", body: `${actorName} joined ${homeName || "your Home"}!` };
-    case "home_created":
-      return { module: "home", title: "Cove • Home", body: `${actorName} created ${homeName || "a new Home"}` };
+      return "home";
 
     default:
-      return { module: "activity", title: `${actorName} • Activity`, body: `${actorName} updated household activity${homeContext}` };
+      return "activity";
   }
 }
-
 
 // Generate Google Cloud OAuth2 Access Token for FCM v1 API using service account credentials
 async function getGoogleAccessToken(
@@ -162,26 +231,16 @@ serve(async (req: Request) => {
       });
     }
 
-    // Skip silent sync events like profile, display name, avatar, and settings updates (no notifications)
-    const SILENT_SYNC_EVENTS = new Set([
-      "member_profile_updated",
-      "profile_updated",
-      "user_profile_updated",
-      "avatar_updated",
-      "avatar_changed",
-      "name_updated",
-      "display_name_updated",
-      "home_currency_updated",
-      "home_updated",
-      "preferences_updated",
-      "settings_updated",
-    ]);
-
-    if (SILENT_SYNC_EVENTS.has(record.event_type)) {
-      return new Response(JSON.stringify({ message: `Silent sync event '${record.event_type}' ignored for push notifications` }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (isSilentEventType(record.event_type)) {
+      return new Response(
+        JSON.stringify({
+          message: `Silent sync event '${record.event_type}' ignored for push notifications`,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -217,32 +276,14 @@ serve(async (req: Request) => {
       });
     }
 
-    // Look up actor's display name
-    let actorName = "Partner";
-    try {
-      const { data: actorUser } = await supabase.auth.admin.getUserById(record.actor_id);
-      if (actorUser && actorUser.user) {
-        const meta = actorUser.user.user_metadata || {};
-        actorName = meta.display_name || meta.full_name || meta.name || actorUser.user.email?.split("@")[0] || "Partner";
-      }
-    } catch (_) {}
-
-    // Look up home name
-    let homeName: string | undefined;
-    try {
-      const { data: home } = await supabase
-        .from("homes")
-        .select("name")
-        .eq("id", record.home_id)
-        .single();
-      if (home && home.name) {
-        homeName = home.name;
-      }
-    } catch (_) {}
-
-    // 3. Resolve enriched notification message and collapse key
-    const content = resolveNotificationContent(record.event_type, actorName, homeName);
-    const collapseKey = `${record.home_id}_${content.module}`;
+    // 3. Build the data-only payload (no notification block, no title/body, no collapse key)
+    const module = resolveModule(record.event_type);
+    const dataPayload = {
+      home_id: record.home_id,
+      event_id: record.id,
+      event_type: record.event_type,
+      module,
+    };
 
     // 4. Send via Firebase Cloud Messaging v1
     const firebaseProjectId = Deno.env.get("FIREBASE_PROJECT_ID");
@@ -250,39 +291,22 @@ serve(async (req: Request) => {
     const firebasePrivateKey = Deno.env.get("FIREBASE_PRIVATE_KEY");
 
     if (!firebaseProjectId || !firebaseClientEmail || !firebasePrivateKey) {
-      // Credentials not configured; log payload for verification as documented
-      console.log("[notify-partner] Firebase credentials not configured. Notification payload:", {
+      console.log("[notify-partner] Firebase credentials not configured. Data-only payload:", {
         recipientCount: devices.length,
-        collapseKey,
-        actorName,
-        homeName,
-        title: content.title,
-        body: content.body,
-        data: {
-          home_id: record.home_id,
-          module: content.module,
-          event_type: record.event_type,
-          event_id: record.id,
-          actor_name: actorName,
-          title: content.title,
-          body: content.body,
-        },
+        data: dataPayload,
       });
 
       return new Response(
         JSON.stringify({
           status: "simulated",
-          message: "Firebase credentials not configured in Supabase secrets. Enriched payload logged.",
-          collapseKey,
+          message: "Firebase credentials not configured in Supabase secrets. Data-only payload logged.",
           recipientCount: devices.length,
-          title: content.title,
-          body: content.body,
+          data: dataPayload,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Obtain access token
     const accessToken = await getGoogleAccessToken(
       firebaseClientEmail,
       firebasePrivateKey.replace(/\\n/g, "\n")
@@ -295,40 +319,9 @@ serve(async (req: Request) => {
       const message = {
         message: {
           token: device.fcm_token,
-          notification: {
-            title: content.title,
-            body: content.body,
-          },
-          data: {
-            home_id: record.home_id,
-            module: content.module,
-            event_type: record.event_type,
-            event_id: record.id,
-            actor_name: actorName,
-            title: content.title,
-            body: content.body,
-            click_action: "FLUTTER_NOTIFICATION_CLICK",
-          },
+          data: dataPayload,
           android: {
-            collapse_key: collapseKey,
             priority: "HIGH",
-            notification: {
-              tag: collapseKey,
-              click_action: "FLUTTER_NOTIFICATION_CLICK",
-            },
-          },
-          apns: {
-            headers: {
-              "apns-collapse-id": collapseKey,
-              "apns-push-type": "alert",
-              "apns-priority": "10",
-            },
-            payload: {
-              aps: {
-                sound: "default",
-                badge: 1,
-              },
-            },
           },
         },
       };

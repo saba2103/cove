@@ -7,6 +7,13 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 3.14d — Data-Only Push in `notify-partner` (`Oct 25, 2026`)**:
+  - *Outcome*:
+    1. **Data-Only FCM v1 Payload (`notify-partner`)**: Updated [`supabase/functions/notify-partner/index.ts`](../supabase/functions/notify-partner/index.ts) so the FCM v1 message contains no `notification` block, no `title` or `body` anywhere in the message, and no `collapse_key`. It sends only `data: { home_id, event_id, event_type, module }` with `android: { priority: "HIGH" }`.
+    2. **Server-Side Silent Filter (§3)**: Updated `isSilentEventType` (`SILENT_SYNC_EVENTS` plus `routine_*`, `roadmap_*`, and `checkin_reminder_*` / `check_in_reminder_*` prefixes) in [`supabase/functions/notify-partner/index.ts`](../supabase/functions/notify-partner/index.ts) to match [`design/specs/15-notifications.md`](../design/specs/15-notifications.md) §3 wherever `event_type` alone decides (e.g., `expense_updated`, `expense_deleted`, `list_item_updated`, `list_renamed`, `list_archived`, `list_deleted`, `list_reordered`, `list_completed_cleared`, `habit_checkin_acknowledged`, `habit_updated`, `habit_deleted`, `subscription_updated`, `subscription_restarted`, `subscription_deleted`, profile/home setting updates, and all `routine_*` / `roadmap_*` / `checkin_reminder_*` events), while forwarding content-dependent events (`list_item_toggled`, `list_item_deleted`, `habit_checkin_toggled`, `calendar_event_updated`) to the phone.
+    3. **Deployment Runbook (`supabase/README.md`)**: Added the `"Deploying notify-partner"` section to [`supabase/README.md`](../supabase/README.md) covering the two-phone 3.14c prerequisite, the `supabase functions deploy notify-partner` command, rollback instructions naming commit `42c300a` (`42c300ae13d7919b285615837050d18416fff854`), and the two-phone verification check (1 expense + 3 grocery items → 1 `Expenses` card and 1 batched `Groceries` card).
+  - *Under the Hood*:
+    - Removed server-side `actorName` and `homeName` lookups from `notify-partner` since the phone now decrypts the event and composes all notification copy locally.
 - **Fix to 3.14c — Forwarding Receipt & Stale-Port Fallback (`Oct 25, 2026`)**:
   - *Outcome*:
     1. **Immediate `'received'` Receipt on Main Isolate**: In [`NotificationService.registerMainIsolatePort`](../lib/features/notifications/notification_service.dart), the main isolate now sends `'received'` on `reply_port` immediately before processing anything, and then runs `handleIncomingMessage`.
