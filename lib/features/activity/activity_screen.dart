@@ -196,7 +196,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       if (!feedAsync.hasValue && feedAsync.isLoading) {
         return Scaffold(
           backgroundColor: cv.surfaceCanvas,
-          body: SafeArea(
+          body: CovePageInsets(
+            bottom: true,
             child: CoveMaxWidth(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,7 +221,8 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
       if (!feedAsync.hasValue && feedAsync.hasError) {
         return Scaffold(
           backgroundColor: cv.surfaceCanvas,
-          body: SafeArea(
+          body: CovePageInsets(
+            bottom: true,
             child: CoveMaxWidth(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -263,12 +265,11 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     _lastLoadedCount = activities.length;
 
     final daySections = _groupActivitiesByDay(activities);
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: SingleChildScrollView(
           key: const PageStorageKey('activity_feed_scroll_key'),
           controller: _scrollController,

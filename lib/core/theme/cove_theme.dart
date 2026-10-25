@@ -7,6 +7,7 @@ import 'cove_typography.dart';
 export 'cove_colors.dart';
 export 'cove_tokens.dart';
 export 'cove_typography.dart';
+export '../widgets/cove_page_header.dart' show CovePageInsets;
 
 class CoveTheme {
   static ThemeData get darkTheme => _buildTheme(Brightness.dark);

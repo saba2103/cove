@@ -1,3 +1,6 @@
+import 'package:clock/clock.dart';
+import 'package:cove/core/theme/cove_tokens.dart';
+import 'package:cove/core/widgets/cove_floating_bar.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/activity/activity_detail_sheet.dart';
 import 'package:cove/features/activity/activity_models.dart';
@@ -921,5 +924,179 @@ void main() {
         allowedOverflows: _kKnownLegacyOverflows,
       );
     });
+  });
+
+  group('System Insets Goldens & Top-Inset Guard (top 32dp, bottom 24dp @ phone)', () {
+    const simulatedInsets = EdgeInsets.only(top: 32, bottom: 24);
+
+    Widget wrapWithFloatingBar(Widget page, CoveFloatingBarState barState) {
+      return Stack(
+        children: [
+          Positioned.fill(child: wrapInAppShellConstraint(page)),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CoveFloatingBar(
+              state: barState,
+              onSeatTap: (_) {},
+              onAddTap: () {},
+              onOverflowItemTap: (_) {},
+            ),
+          ),
+        ],
+      );
+    }
+
+    testWidgets('today_screen_insets', (tester) async {
+      await goldenMatrix(
+        tester,
+        'today_screen_insets',
+        wrapWithFloatingBar(
+          const TodayScreen(),
+          const CoveFloatingBarState.rest(selectedId: 'home'),
+        ),
+        widths: const [CoveWidth.phone],
+        insets: simulatedInsets,
+        overrides: _createGoldenOverrides(),
+      );
+    });
+
+    testWidgets('expenses_screen_insets', (tester) async {
+      await goldenMatrix(
+        tester,
+        'expenses_screen_insets',
+        wrapWithFloatingBar(
+          ExpensesScreen(initialExpenses: _kSeedExpenses),
+          const CoveFloatingBarState.money(selectedId: 'expenses'),
+        ),
+        widths: const [CoveWidth.phone],
+        insets: simulatedInsets,
+        overrides: _createGoldenOverrides(),
+      );
+    });
+
+    testWidgets('commitments_helicopter_screen_insets', (tester) async {
+      await goldenMatrix(
+        tester,
+        'commitments_helicopter_screen_insets',
+        CommitmentsHelicopterScreen(
+          subscriptions: _kSeedSubscriptions,
+          initialYear: 2026,
+        ),
+        widths: const [CoveWidth.phone],
+        insets: simulatedInsets,
+        overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+      );
+    });
+
+    testWidgets(
+      'no Text top is above the 32dp top inset (at rest and scrolled) and floating bar sits above 24dp bottom inset',
+      (tester) async {
+        await loadCoveFonts();
+        const size = CoveWidth.phone;
+        tester.view
+          ..physicalSize = size * 2
+          ..devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
+        final pages = <String, Widget>{
+          'TodayScreen': wrapWithFloatingBar(
+            const TodayScreen(),
+            const CoveFloatingBarState.rest(selectedId: 'home'),
+          ),
+          'ExpensesScreen': wrapWithFloatingBar(
+            ExpensesScreen(initialExpenses: _kSeedExpenses),
+            const CoveFloatingBarState.money(selectedId: 'expenses'),
+          ),
+          'CommitmentsHelicopterScreen': wrapInAppShellConstraint(
+            CommitmentsHelicopterScreen(
+              subscriptions: _kSeedSubscriptions,
+              initialYear: 2026,
+            ),
+          ),
+        };
+
+        await withClock(kDefaultGoldenClock, () async {
+          for (final entry in pages.entries) {
+            final pageName = entry.key;
+            final pageWidget = entry.value;
+
+            await tester.pumpWidget(
+              ProviderScope(
+                overrides: _createGoldenOverrides(),
+                child: MediaQuery(
+                  data: const MediaQueryData(
+                    size: size,
+                    textScaler: TextScaler.linear(1.0),
+                    padding: simulatedInsets,
+                    viewPadding: simulatedInsets,
+                  ),
+                  child: MaterialApp(
+                    debugShowCheckedModeBanner: false,
+                    theme: coveThemeFor(Brightness.dark),
+                    builder: (context, navChild) => MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        size: size,
+                        textScaler: const TextScaler.linear(1.0),
+                        padding: simulatedInsets,
+                        viewPadding: simulatedInsets,
+                      ),
+                      child: navChild ?? const SizedBox.shrink(),
+                    ),
+                    home: pageWidget,
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+
+            // Verify status-bar surface.canvas band is painted at [0, 32]
+            final bandFinder = find.byKey(const ValueKey('cove_status_bar_band'));
+            expect(bandFinder, findsOneWidget, reason: '$pageName status-bar band');
+            expect(tester.getTopLeft(bandFinder).dy, equals(0.0));
+            expect(tester.getSize(bandFinder).height, equals(32.0));
+
+            void verifyNoTextAboveTopInset(String phase) {
+              for (final element in find.byType(Text).evaluate()) {
+                final renderObj = element.renderObject;
+                if (renderObj is RenderBox && renderObj.hasSize) {
+                  final topDy = renderObj.localToGlobal(Offset.zero).dy;
+                  expect(
+                    topDy,
+                    greaterThanOrEqualTo(32.0 - 0.01),
+                    reason:
+                        '$pageName ($phase): Text "${(element.widget as Text).data}" top ($topDy) is above 32dp top inset',
+                  );
+                }
+              }
+            }
+
+            verifyNoTextAboveTopInset('at rest');
+
+            // Verify bar sits above the 24dp gesture handle on bar destinations
+            final addOrbFinder = find.byKey(const ValueKey('cove_bar_add_orb'));
+            if (addOrbFinder.evaluate().isNotEmpty) {
+              final orbBottom = tester.getBottomLeft(addOrbFinder).dy;
+              expect(
+                size.height - orbBottom,
+                closeTo(CoveSpace.md + simulatedInsets.bottom, 0.2),
+                reason: '$pageName: floating bar must sit CoveSpace.md + 24dp above bottom',
+              );
+            }
+
+            // Scroll down and verify scrolled content never shows in [0, 32]
+            final scrollableFinder = find.byType(Scrollable);
+            if (scrollableFinder.evaluate().isNotEmpty) {
+              await tester.drag(scrollableFinder.first, const Offset(0, -120));
+              await tester.pumpAndSettle();
+              expect(tester.getTopLeft(bandFinder).dy, equals(0.0));
+              expect(tester.getSize(bandFinder).height, equals(32.0));
+            }
+          }
+        });
+      },
+    );
   });
 }

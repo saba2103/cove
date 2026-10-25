@@ -230,12 +230,11 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             ? userProfile.displayName
             : 'Alex');
 
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: routinesAsync.when(
           loading: () => Center(
             child: CircularProgressIndicator(color: cv.accentFill),

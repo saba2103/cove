@@ -107,10 +107,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Strictly lock app to portrait orientation
+  // Strictly lock app to portrait orientation and enable edge-to-edge system chrome
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   try {
     await Firebase.initializeApp(

@@ -65,21 +65,23 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     if (habitsAsync.isLoading || checkinsAsync.isLoading) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       );
     }
 
     if (habitsAsync.hasError) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: Center(
-          child: CoveErrorState.generic(
-            title: 'Habits unavailable',
-            description: 'Could not load your habits and rhythms right now.',
-            onRetry: () {
-              ref.invalidate(activeHomeHabitsProvider);
-              ref.invalidate(activeHomeAllHabitCheckinsProvider);
-            },
+        body: CovePageInsets(
+          child: Center(
+            child: CoveErrorState.generic(
+              title: 'Habits unavailable',
+              description: 'Could not load your habits and rhythms right now.',
+              onRetry: () {
+                ref.invalidate(activeHomeHabitsProvider);
+                ref.invalidate(activeHomeAllHabitCheckinsProvider);
+              },
+            ),
           ),
         ),
       );
@@ -105,29 +107,28 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Habits & Rhythms',
-          style: typography.headline.copyWith(fontSize: 20),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CovePillButton(
-              label: '+ New',
-              variant: CoveButtonVariant.secondary,
-              isCompact: true,
-              onPressed: () => AddFlow.show(context, kind: AddKind.habit),
-            ),
+    return CovePageInsets(
+      child: Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(
+            'Habits & Rhythms',
+            style: typography.headline.copyWith(fontSize: 20),
           ),
-        ],
-      ),
-      body: SafeArea(
-        bottom: false,
-        child: Center(
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: CovePillButton(
+                label: '+ New',
+                variant: CoveButtonVariant.secondary,
+                isCompact: true,
+                onPressed: () => AddFlow.show(context, kind: AddKind.habit),
+              ),
+            ),
+          ],
+        ),
+        body: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: isDesktop ? 1200 : 540),
             child: habits.isEmpty
@@ -143,7 +144,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
   Widget _buildEmptyState(BuildContext context) {
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
     return ListView(
       padding: EdgeInsets.only(bottom: bottomPadding),
       children: [
@@ -189,7 +190,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 960;
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     if (isDesktop) {
       return ListView(

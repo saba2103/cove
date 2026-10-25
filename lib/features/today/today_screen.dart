@@ -9,6 +9,7 @@ import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_carousel.dart';
 import '../../core/widgets/cove_max_width.dart';
 import '../../core/widgets/cove_metric_card.dart';
+import '../../core/widgets/cove_page_header.dart' show CovePageInsets;
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_section_label.dart';
 import '../../core/widgets/slips/cove_habit_card.dart';
@@ -325,24 +326,25 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final letterSpans = composeDayLetter(letterInput);
 
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: RefreshIndicator(
-        color: cv.accentFill,
-        backgroundColor: cv.surfaceCard,
-        onRefresh: _handleRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(
-            top: CoveSpace.md,
-            bottom: bottomPadding,
-          ),
-          child: CoveMaxWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+      body: CovePageInsets(
+        child: RefreshIndicator(
+          color: cv.accentFill,
+          backgroundColor: cv.surfaceCard,
+          onRefresh: _handleRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.only(
+              top: CoveSpace.md,
+              bottom: bottomPadding,
+            ),
+            child: CoveMaxWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 // 1. Screen-local Header (_TodayHeader)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -564,7 +566,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   String _buildEventsMetricSubtitle(List<TodayEventItem> events) {
@@ -635,53 +638,78 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       _openDestination(context, 'day', () => const CalendarScreen());
     }
 
-    final tickets = events.isEmpty
-        ? <Widget>[
-            CoveTicket(
-              variant: slipVariant,
-              title: 'Nothing on the calendar',
-              date: DateFormat('EEEE, MMM d').format(now),
-              owner: hasPartner ? 'Both of you' : 'You',
-              hour: '—',
-              meridiem: 'OPEN',
-              onTap: openCalendar,
-            ),
-          ]
-        : events.map((ev) {
-            final datePart = DateFormat('EEEE, MMM d').format(ev.startTime);
-            final String? locationStr =
-                (ev.location != null && ev.location!.trim().isNotEmpty)
-                ? ev.location!.trim()
-                : (ev.subtitle != null && ev.subtitle!.contains('·')
-                      ? ev.subtitle!.split('·').last.trim()
-                      : null);
-            final subtitlePart =
-                (locationStr != null && locationStr.isNotEmpty)
-                ? '$datePart · $locationStr'
-                : datePart;
-            final hour12 = ev.startTime.hour % 12 == 0
-                ? 12
-                : ev.startTime.hour % 12;
-            final hourStr = ev.isAllDay
-                ? 'ALL'
-                : (ev.startTime.minute == 0
-                      ? '$hour12'
-                      : DateFormat('h:mm').format(ev.startTime));
-            final meridiemStr = ev.isAllDay
-                ? 'DAY'
-                : DateFormat('a').format(ev.startTime).toUpperCase();
+    final cv = context.cv;
 
-            return CoveTicket(
-              key: ValueKey('today_ticket_${ev.id}'),
-              variant: slipVariant,
-              title: ev.title,
-              date: subtitlePart,
-              owner: hasPartner ? 'Both of you' : 'You',
-              hour: hourStr,
-              meridiem: meridiemStr,
+    if (events.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader(
+            context: context,
+            label: 'On the calendar',
+            readout: readout,
+            addSemanticLabel: 'Add event',
+            onOpenSection: openCalendar,
+            onAdd: () => AddFlow.show(
+              context,
+              kind: AddKind.event,
+              anchor: now,
+            ),
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.sm,
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: openCalendar,
-            );
-          }).toList();
+              child: Text(
+                'Nothing on the calendar today.',
+                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final tickets = events.map((ev) {
+      final datePart = DateFormat('EEEE, MMM d').format(ev.startTime);
+      final String? locationStr =
+          (ev.location != null && ev.location!.trim().isNotEmpty)
+          ? ev.location!.trim()
+          : (ev.subtitle != null && ev.subtitle!.contains('·')
+                ? ev.subtitle!.split('·').last.trim()
+                : null);
+      final subtitlePart =
+          (locationStr != null && locationStr.isNotEmpty)
+          ? '$datePart · $locationStr'
+          : datePart;
+      final hour12 = ev.startTime.hour % 12 == 0
+          ? 12
+          : ev.startTime.hour % 12;
+      final hourStr = ev.isAllDay
+          ? 'ALL'
+          : (ev.startTime.minute == 0
+                ? '$hour12'
+                : DateFormat('h:mm').format(ev.startTime));
+      final meridiemStr = ev.isAllDay
+          ? 'DAY'
+          : DateFormat('a').format(ev.startTime).toUpperCase();
+
+      return CoveTicket(
+        key: ValueKey('today_ticket_${ev.id}'),
+        variant: slipVariant,
+        title: ev.title,
+        date: subtitlePart,
+        owner: hasPartner ? 'Both of you' : 'You',
+        hour: hourStr,
+        meridiem: meridiemStr,
+        onTap: openCalendar,
+      );
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -715,6 +743,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required DateTime now,
     required List<LocalHabitCheckin> allCheckins,
   }) {
+    final cv = context.cv;
     final readout = totalHabits == 0
         ? 'none'
         : '$completedHabits of $totalHabits';
@@ -723,50 +752,70 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
       _openDestination(context, 'habits', () => const HabitsScreen());
     }
 
-    final cards = habits.isEmpty
-        ? <Widget>[
-            CoveHabitCard(
-              variant: slipVariant,
-              title: 'Start a daily habit',
-              cadence: hasPartner ? 'every day · both of you' : 'every day · you',
-              isDoneToday: false,
-              daysRunning: 0,
-              onTap: openHabits,
+    if (habits.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader(
+            context: context,
+            label: 'Habits',
+            readout: readout,
+            addSemanticLabel: 'Add habit',
+            onOpenSection: openHabits,
+            onAdd: () => AddFlow.show(context, kind: AddKind.habit),
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.sm,
             ),
-          ]
-        : habits.map((h) {
-            final cadenceBase = h.habit.cadence == 'weekly'
-                ? '${h.habit.targetDaysPerWeek.abs()}x a week'
-                : 'every day';
-            final whoPart = (!h.isPrivate && hasPartner)
-                ? (h.partnerCheckedInToday
-                      ? 'both of you · $partnerName checked in'
-                      : 'both of you')
-                : 'you';
-            final history21 = _resolveHabitHistory21(
-              habitId: h.habitId,
-              now: now,
-              allCheckins: allCheckins,
-            );
-
-            return CoveHabitCard(
-              key: ValueKey('today_habit_${h.habitId}'),
-              variant: slipVariant,
-              title: h.habitName,
-              cadence: '$cadenceBase · $whoPart',
-              isDoneToday: h.userCheckedInToday,
-              daysRunning: h.streak,
-              history21: history21,
-              onToggle: (_) async {
-                final controller = ref.read(habitControllerProvider);
-                await controller.toggleCheckin(
-                  habit: h.habit,
-                  checked: !h.userCheckedInToday,
-                );
-              },
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: openHabits,
-            );
-          }).toList();
+              child: Text(
+                'No habits yet.',
+                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final cards = habits.map((h) {
+      final cadenceBase = h.habit.cadence == 'weekly'
+          ? '${h.habit.targetDaysPerWeek.abs()}x a week'
+          : 'every day';
+      final whoPart = (!h.isPrivate && hasPartner)
+          ? (h.partnerCheckedInToday
+                ? 'both of you · $partnerName checked in'
+                : 'both of you')
+          : 'you';
+      final history21 = _resolveHabitHistory21(
+        habitId: h.habitId,
+        now: now,
+        allCheckins: allCheckins,
+      );
+
+      return CoveHabitCard(
+        key: ValueKey('today_habit_${h.habitId}'),
+        variant: slipVariant,
+        title: h.habitName,
+        cadence: '$cadenceBase · $whoPart',
+        isDoneToday: h.userCheckedInToday,
+        daysRunning: h.streak,
+        history21: history21,
+        onToggle: (_) async {
+          final controller = ref.read(habitControllerProvider);
+          await controller.toggleCheckin(
+            habit: h.habit,
+            checked: !h.userCheckedInToday,
+          );
+        },
+        onTap: openHabits,
+      );
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -798,6 +847,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required CoveSlipVariant slipVariant,
     required DateTime now,
   }) {
+    final cv = context.cv;
     final count = expenses.length;
     final readout = count == 0
         ? 'none today'
@@ -805,6 +855,41 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     void openExpenses() {
       _openDestination(context, 'expenses', () => const ExpensesScreen());
+    }
+
+    if (expenses.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader(
+            context: context,
+            label: 'Spent today',
+            readout: readout,
+            addSemanticLabel: 'Add expense',
+            onOpenSection: openExpenses,
+            onAdd: () => AddFlow.show(
+              context,
+              kind: AddKind.expense,
+              anchor: now,
+            ),
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.sm,
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: openExpenses,
+              child: Text(
+                'Nothing spent today.',
+                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
     final viewerSpent = expenses
@@ -888,6 +973,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required CoveSlipVariant slipVariant,
     required DateTime now,
   }) {
+    final cv = context.cv;
     final openCount = tasks.where((t) => !t.isCompleted).length;
     final readout = openCount == 0 ? 'all clear' : '$openCount open';
 
@@ -906,36 +992,63 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         ? 'COVE · $upperListName'
         : 'COVE · $upperListName LIST';
 
-    final noteItems = tasks.isEmpty
-        ? <CoveNoteItem>[
-            CoveNoteItem(
-              title: 'Nothing open on $primaryListName',
-              addedBy: 'tap to open lists',
-              isDone: false,
-              onTap: openLists,
+    if (tasks.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionHeader(
+            context: context,
+            label: 'The list',
+            readout: readout,
+            addSemanticLabel: 'Add list item',
+            onOpenSection: openLists,
+            onAdd: () => AddFlow.show(
+              context,
+              kind: AddKind.task,
+              listId: primaryListId,
+              anchor: now,
             ),
-          ]
-        : tasks.map((task) {
-            final addedBy =
-                (currentUserId.isEmpty || task.item.createdBy == currentUserId)
-                ? 'added by you'
-                : 'added by $partnerName';
-            return CoveNoteItem(
-              title: task.title,
-              addedBy: addedBy,
-              isDone: task.isCompleted,
-              onChanged: (checked) async {
-                final controller = ref.read(listControllerProvider);
-                await controller.toggleItem(
-                  itemId: task.id,
-                  isCompleted: checked,
-                  itemTitle: task.title,
-                  listName: task.listName,
-                );
-              },
+          ),
+          const SizedBox(height: CoveSpace.xs),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: CoveSpace.sm,
+            ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: openLists,
-            );
-          }).toList();
+              child: Text(
+                'Nothing open on $primaryListName.',
+                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final noteItems = tasks.map((task) {
+      final addedBy =
+          (currentUserId.isEmpty || task.item.createdBy == currentUserId)
+          ? 'added by you'
+          : 'added by $partnerName';
+      return CoveNoteItem(
+        title: task.title,
+        addedBy: addedBy,
+        isDone: task.isCompleted,
+        onChanged: (checked) async {
+          final controller = ref.read(listControllerProvider);
+          await controller.toggleItem(
+            itemId: task.id,
+            isCompleted: checked,
+            itemTitle: task.title,
+            listName: task.listName,
+          );
+        },
+        onTap: openLists,
+      );
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -57,7 +57,7 @@ class CoveToast extends StatefulWidget {
   /// Device-anchored top offset (`inset + header height + CoveSpace.md`) per
   /// `design/specs/08-toast.md`.
   static double topOffsetFor(BuildContext context) {
-    return MediaQuery.paddingOf(context).top +
+    return CovePageInsets.topOf(context) +
         CovePageHeader.kMinHeight +
         CoveSpace.md;
   }

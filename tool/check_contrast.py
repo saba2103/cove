@@ -16,7 +16,7 @@ def val(g,n,m):
     v=d[g][n]['$value']; return v[m] if isinstance(v,dict) and m in v else v
 TEXT=[('text','primary'),('text','secondary'),('text','tertiary'),('accent','text'),
       ('status','alertText'),('money','more'),('money','less'),('status','good')]
-MARK=[('accent','fill'),('status','alert')]
+MARK=[('accent','fill'),('status','alert'),('text','tertiary')]
 fails=[]
 for mode in ('dark','light'):
     surfaces={k:rgb(val('surface',k,mode)) for k in ('canvas','card','row')}
@@ -35,7 +35,7 @@ for mode in ('dark','light'):
         if r<3.0: fails.append(f"{mode}: category.{k} = {r:.2f} (need 3.0)")
 paper_stops={k:rgb(val('paper',k,'light')) for k in ('from','via','to')}
 PAPER_TEXT=[('paper','ink'),('paper','ink2'),('paper','ink3'),('paper','accent')]
-PAPER_MARK=[('paper','accent'),('status','good'),('paper','ink3')]+[('category',k) for k in d['category']]
+PAPER_MARK=[('paper','accent'),('status','good'),('paper','ink3'),('text','tertiary')]+[('category',k) for k in d['category']]
 for g,n in PAPER_TEXT:
     for sn,sv in paper_stops.items():
         r=cr(rgb(val(g,n,'light')),sv)
@@ -47,7 +47,7 @@ for g,n in PAPER_MARK:
 ink_stops={k:rgb(val('slip',k,'dark')) for k in ('inkFrom','inkVia','inkTo')}
 INK_TEXT=[('text','primary'),('text','secondary'),('accent','text'),
           ('money','more'),('money','less'),('slip','inkText3'),('slip','inkAlertText')]
-INK_MARK=[('accent','fill'),('slip','inkMark')]
+INK_MARK=[('accent','fill'),('slip','inkMark'),('text','tertiary')]
 for g,n in INK_TEXT:
     for sn,sv in ink_stops.items():
         r=cr(rgb(val(g,n,'dark')),sv)

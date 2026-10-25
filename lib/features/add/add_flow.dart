@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
+import '../../core/widgets/cove_page_header.dart' show CovePageInsets;
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_sheet.dart';
 import '../../core/widgets/slips/cove_add_mark.dart';
@@ -1213,9 +1214,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final isReview = step == AddStep.review;
 
     final mediaSize = MediaQuery.sizeOf(context);
-    final mediaPadding = MediaQuery.paddingOf(context);
+    final verticalInset =
+        CovePageInsets.topOf(context) + CovePageInsets.bottomOf(context);
     final maxScrollableHeight = (mediaSize.height -
-            mediaPadding.vertical -
+            verticalInset -
             AddFlow._kViewportReserve)
         .clamp(200.0, double.infinity);
 

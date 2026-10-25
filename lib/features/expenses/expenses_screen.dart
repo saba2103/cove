@@ -190,15 +190,17 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ),
       loading: () => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       ),
       error: (e, st) => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: Center(
-          child: CoveErrorState.generic(
-            title: 'Expenses unavailable',
-            description: 'Could not load expenses right now.',
-            onRetry: () => ref.invalidate(activeHomeExpensesProvider),
+        body: CovePageInsets(
+          child: Center(
+            child: CoveErrorState.generic(
+              title: 'Expenses unavailable',
+              description: 'Could not load expenses right now.',
+              onRetry: () => ref.invalidate(activeHomeExpensesProvider),
+            ),
           ),
         ),
       ),
@@ -218,13 +220,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final partnerProfile = ref.watch(partnerProfileProvider);
     final home = ref.watch(activeHomeProvider).value;
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     if (allExpenses.isEmpty) {
       return Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: SafeArea(
-          bottom: false,
+        body: CovePageInsets(
           child: CoveMaxWidth(
             child: RefreshIndicator(
               color: cv.accentFill,
@@ -436,8 +437,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: RefreshIndicator(
             color: cv.accentFill,

@@ -282,6 +282,23 @@ void main() {
             );
             final showLabels = size.width >= CoveFloatingBar.kLabelThreshold;
 
+            if (barState.isHomeDetached && item.id == 'home') {
+              expect(
+                labelFinder,
+                findsNothing,
+                reason:
+                    '$vpName/$stateName/home is a detached 56dp icon-only circle',
+              );
+              expect(seatWidth, equals(CoveFloatingBar.kOrbSize));
+              continue;
+            }
+
+            if (stateName == 'rest' && vpName == 'cover_320') {
+              // At 320dp cover: 280dp bar footprint - 56dp orb - 8dp gap = 216dp pill
+              // (206dp inner / 4 seats = 51.5dp per seat), well above the 20dp icon.
+              expect(seatWidth, closeTo(51.5, 0.2));
+            }
+
             if (!showLabels) {
               expect(
                 labelFinder,
@@ -331,10 +348,21 @@ void main() {
           }
 
           if (barState.isMoreMenuOpen) {
+            final moreMenuWidth = tester
+                .getSize(find.byKey(const ValueKey('cove_bar_more_menu')))
+                .width;
+            final expectedBarWidth = (size.width - (CoveSpace.gutter * 2))
+                .clamp(0.0, CoveSize.maxContent);
+            expect(moreMenuWidth, closeTo(expectedBarWidth, 0.2));
+
             for (final item in CoveFloatingBarState.moneyOverflowItems) {
               final labelFinder = find.byKey(
                 ValueKey('cove_bar_overflow_label_${item.id}'),
               );
+              final chevronFinder = find.byKey(
+                ValueKey('cove_bar_overflow_chevron_${item.id}'),
+              );
+              expect(chevronFinder, findsOneWidget);
               final availableLabelWidth = tester.getSize(labelFinder).width;
               final unconstrainedWidth = _measureUnconstrainedTextWidth(
                 item.label,
@@ -370,4 +398,35 @@ void main() {
       );
     },
   );
+
+  testWidgets('CoveFloatingBar More menu closes when tapping outside', (
+    tester,
+  ) async {
+    await loadCoveFonts();
+    var dismissed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: coveThemeFor(Brightness.dark),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CoveFloatingBar(
+              state: const CoveFloatingBarState.more(selectedId: 'emis'),
+              onDismissMore: () => dismissed = true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('cove_bar_more_menu')), findsOneWidget);
+    final dismissBottomLeft = tester.getBottomLeft(
+      find.byKey(const ValueKey('cove_bar_more_dismiss_area')),
+    );
+    await tester.tapAt(dismissBottomLeft + const Offset(4, -20));
+    await tester.pump();
+    expect(dismissed, isTrue);
+  });
 }

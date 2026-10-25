@@ -1,6 +1,7 @@
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
-import 'package:cove/core/widgets/slips/cove_voucher.dart';
+import 'package:cove/core/widgets/widgets.dart';
+import 'package:cove/features/add/add_flow.dart';
 import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/app_shell.dart';
 import 'package:cove/features/auth/auth_controller.dart';
@@ -566,5 +567,32 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
     });
+
+    testWidgets(
+      'empty calendar, habits, spend, and list sections show quiet lines and never draw placeholder slips, while + on calendar opens Add for an event',
+      (tester) async {
+        await pumpTodayWithSubscriptions(tester, const []);
+
+        expect(find.text('Nothing on the calendar today.'), findsOneWidget);
+        expect(find.byType(CoveTicket), findsNothing);
+        expect(find.text('No habits yet.'), findsOneWidget);
+        expect(find.byType(CoveHabitCard), findsNothing);
+        expect(find.text('Nothing spent today.'), findsOneWidget);
+        expect(find.byType(CoveReceipt), findsNothing);
+        expect(find.text('Nothing open on Grocery.'), findsOneWidget);
+        expect(find.byType(CoveNote), findsNothing);
+
+        final addEventBtn = find.byWidgetPredicate(
+          (w) => w is CoveRoundButton && w.semanticLabel == 'Add event',
+        );
+        expect(addEventBtn, findsOneWidget);
+        await tester.tap(addEventBtn);
+        await tester.pumpAndSettle();
+        expect(find.byType(AddFlow), findsOneWidget);
+        expect(find.textContaining('EVENT'), findsWidgets);
+
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
   });
 }

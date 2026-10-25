@@ -32,7 +32,9 @@ class _SheetFrame extends StatelessWidget {
     final typography = context.typography;
     return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            CovePageInsets.bottomOf(context) +
+            24,
         left: 20,
         right: 20,
         top: 24,

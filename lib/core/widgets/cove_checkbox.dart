@@ -39,7 +39,7 @@ class CoveCheckbox extends StatelessWidget {
           border: value
               ? null
               : Border.all(
-                  color: cv.lineStrong,
+                  color: cv.textTertiary,
                   width: _kBorderWidth,
                 ),
         ),

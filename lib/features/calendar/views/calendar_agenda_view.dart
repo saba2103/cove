@@ -218,7 +218,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     final creatorId = home?.createdBy ?? currentUserId;
 
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return CoveMaxWidth(
       child: ListView(

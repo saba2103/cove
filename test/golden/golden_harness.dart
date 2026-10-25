@@ -129,6 +129,7 @@ Future<void> goldenMatrix(
   Widget Function(Widget)? wrap,
   Set<String> allowedOverflows = const {},
   Clock? clock,
+  EdgeInsets insets = EdgeInsets.zero,
 }) async {
   await loadCoveFonts();
   await withClock(clock ?? kDefaultGoldenClock, () async {
@@ -154,10 +155,24 @@ Future<void> goldenMatrix(
             overrides: overrides,
             child: MediaQuery(
               // Goldens pin textScaler. A separate 200% test covers WCAG 1.4.4.
-              data: MediaQueryData(size: size, textScaler: const TextScaler.linear(1.0)),
+              data: MediaQueryData(
+                size: size,
+                textScaler: const TextScaler.linear(1.0),
+                padding: insets,
+                viewPadding: insets,
+              ),
               child: MaterialApp(
                 debugShowCheckedModeBanner: false,
                 theme: coveThemeFor(mode),
+                builder: (context, navChild) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    size: size,
+                    textScaler: const TextScaler.linear(1.0),
+                    padding: insets,
+                    viewPadding: insets,
+                  ),
+                  child: navChild ?? const SizedBox.shrink(),
+                ),
                 home: wrap != null ? wrap(child) : child,
               ),
             ),

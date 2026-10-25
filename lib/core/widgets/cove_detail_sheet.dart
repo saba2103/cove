@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../theme/cove_tokens.dart';
+import 'cove_page_header.dart';
 import 'cove_round_button.dart';
 import 'cove_sheet.dart';
 import 'slips/cove_slip.dart';
@@ -166,9 +167,10 @@ class CoveDetailSheet extends StatelessWidget {
     ];
 
     final mediaSize = MediaQuery.sizeOf(context);
-    final mediaPadding = MediaQuery.paddingOf(context);
+    final verticalInset =
+        CovePageInsets.topOf(context) + CovePageInsets.bottomOf(context);
     final maxScrollableHeight = (mediaSize.height -
-            mediaPadding.vertical -
+            verticalInset -
             _kViewportReserve)
         .clamp(200.0, double.infinity);
 

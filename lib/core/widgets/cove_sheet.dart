@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_page_header.dart';
 import 'cove_round_button.dart';
 
 /// Every bottom sheet: add, detail, pickers (`design/specs/07-sheet.md`).
@@ -92,7 +93,7 @@ class CoveSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = CovePageInsets.bottomOf(context);
     final canDismiss = !isMidCommit && onDismiss != null;
 
     final Widget sheetBody = Container(

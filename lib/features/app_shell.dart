@@ -533,6 +533,14 @@ class _AppShellState extends ConsumerState<AppShell>
                       ),
                     ),
                   ),
+                  if (_barState.isMoreMenuOpen)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        key: const ValueKey('cove_bar_more_outside_scrim'),
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () => _handleSeatTap('more'),
+                      ),
+                    ),
                   Positioned(
                     left: 0,
                     right: 0,
@@ -542,6 +550,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       onSeatTap: _handleSeatTap,
                       onOverflowItemTap: _handleOverflowItemTap,
                       onAddTap: _handleAddTap,
+                      onDismissMore: () => _handleSeatTap('more'),
                     ),
                   ),
                 ],

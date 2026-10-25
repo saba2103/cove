@@ -231,7 +231,8 @@ class _CalendarEventFormSheetState
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom +
+        CovePageInsets.bottomOf(context);
     final isEditing = widget.existing != null;
 
     final dateFormat = DateFormat('MMM d, yyyy');

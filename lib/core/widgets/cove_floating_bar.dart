@@ -1,22 +1,23 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_page_header.dart';
 
 /// High-level navigation mode for [CoveFloatingBar] (`design/specs/09-floating-bar.md`).
 enum CoveFloatingBarMode {
-  /// `Home · Money · [+] · Tasks · Calendar`
+  /// `[Home · Money · Tasks · Calendar]  (+)`
   rest,
 
-  /// Home detached; `Expenses · Bills · More` + `[+]`
+  /// `(Home)  [Expenses · Bills · More]  (+)`
   money,
 
-  /// Home detached; `Todo · Habits` + `[+]`
+  /// `(Home)  [Todo · Habits]  (+)`
   tasks,
 
-  /// Home detached; `Day · Routines` + `[+]`
+  /// `(Home)  [Day · Routines]  (+)`
   calendar,
 
-  /// Money state with the third seat (`More`) open showing `EMIs`, `Year`, `Savings`.
+  /// Money state with the third seat (`More`) open showing `EMIs`, `The year`.
   more,
 }
 
@@ -50,31 +51,31 @@ class CoveFloatingBarState {
     this.commitmentsLabel = 'Bills',
   });
 
-  /// Rest state: `Home · Money · [+] · Tasks · Calendar`.
+  /// Rest state: `[Home · Money · Tasks · Calendar]  (+)`.
   const CoveFloatingBarState.rest({
     this.selectedId = 'home',
   }) : mode = CoveFloatingBarMode.rest,
        commitmentsLabel = 'Bills';
 
-  /// Money category detached state: `Home` detached; `Expenses · Bills · More`.
+  /// Money category detached state: `(Home)  [Expenses · Bills · More]  (+)`.
   const CoveFloatingBarState.money({
     this.selectedId = 'expenses',
     this.commitmentsLabel = 'Bills',
   }) : mode = CoveFloatingBarMode.money;
 
-  /// Tasks category detached state: `Home` detached; `Todo · Habits`.
+  /// Tasks category detached state: `(Home)  [Todo · Habits]  (+)`.
   const CoveFloatingBarState.tasks({
     this.selectedId = 'todo',
   }) : mode = CoveFloatingBarMode.tasks,
        commitmentsLabel = 'Bills';
 
-  /// Calendar category detached state: `Home` detached; `Day · Routines`.
+  /// Calendar category detached state: `(Home)  [Day · Routines]  (+)`.
   const CoveFloatingBarState.calendar({
     this.selectedId = 'day',
   }) : mode = CoveFloatingBarMode.calendar,
        commitmentsLabel = 'Bills';
 
-  /// Money overflow menu open from the third seat (`EMIs`, `Year`, `Savings`).
+  /// Money overflow menu open from the third seat (`EMIs`, `The year`).
   const CoveFloatingBarState.more({
     this.selectedId = 'more',
     this.commitmentsLabel = 'Bills',
@@ -110,6 +111,11 @@ class CoveFloatingBarState {
       label: 'Calendar',
       icon: Icons.calendar_today_outlined,
     ),
+  ];
+
+  static const List<CoveFloatingBarItem> restItems = [
+    ...restLeftItems,
+    ...restRightItems,
   ];
 
   static const List<CoveFloatingBarItem> tasksItems = [
@@ -154,10 +160,7 @@ class CoveFloatingBarState {
   List<CoveFloatingBarItem> get categoryItems {
     switch (mode) {
       case CoveFloatingBarMode.rest:
-        return const [
-          ...restLeftItems,
-          ...restRightItems,
-        ];
+        return restItems;
       case CoveFloatingBarMode.money:
       case CoveFloatingBarMode.more:
         return [
@@ -189,31 +192,41 @@ class CoveFloatingBarState {
 ///
 /// Built to the contract in `design/specs/09-floating-bar.md`:
 /// - Height: `56` `(literal)`
-/// - Radius: [CoveRadius.pill] (`999dp`)
+/// - Radius: [CoveRadius.pill] (`999dp`) for pill & detached Home circle,
+///   [CoveRadius.card] (`20dp`) for the More card
 /// - Fill: `surface.card` at `92%` + backdrop blur behind
+/// - Border: `accent.fill` at `14%`, `1dp` hairline
 /// - Shadow: `elevationBar`
+/// - Fade behind the bar: `136dp` `(literal)` gradient from transparent to `surface.canvas`
 /// - Side margin: [CoveSpace.gutter] (`20dp`)
-/// - Bottom margin: [CoveSpace.md] (`12dp`) + `MediaQuery.padding.bottom`
+/// - Bottom margin: [CoveSpace.md] (`12dp`) + bottom inset
 /// - Seat: pill, [CoveSpace.sm] (`8dp`) vertical / [CoveSpace.xs] (`4dp`)
 ///   horizontal padding, [CoveSpace.xs] (`4dp`) icon→label gap
 /// - Selected seat: `accent.wash` fill, `accent.text` icon and label
 /// - Icon: `20` `(literal)` · Label [CoveType.barLabel]
 /// - Below [CoveSize.compactThreshold] (`360dp`) viewport width: icons only, no seat labels
-/// - Centre orb: `56` `(literal)`, `accent.fill`, `text.onAccent`
+/// - Detached Home circle: `56` `(literal)` on the left in category modes, muted icon (`text.secondary`)
+/// - Right `+` orb: `56` `(literal)`, `accent.fill`, `text.onAccent`, separated by [CoveSpace.sm]
 class CoveFloatingBar extends StatelessWidget {
   final CoveFloatingBarState state;
   final ValueChanged<String>? onSeatTap;
   final VoidCallback? onAddTap;
   final ValueChanged<String>? onOverflowItemTap;
+  final VoidCallback? onDismissMore;
 
   static const double kHeight = 56.0; // (literal) per 09-floating-bar.md
   static const double kIconSize = 20.0; // (literal) per 09-floating-bar.md
   static const double kOrbSize = 56.0; // (literal) per 09-floating-bar.md
-  static const double kLabelThreshold = CoveSize.compactThreshold; // 360dp per 09-floating-bar.md
-  static const double _kSurfaceAlpha = 0.92; // (literal) 92% per 09-floating-bar.md
+  static const double kFadeHeight =
+      136.0; // (literal) 136dp bottom dissolve gradient per 09-floating-bar.md
+  static const double kLabelThreshold =
+      CoveSize.compactThreshold; // 360dp per 09-floating-bar.md
+  static const double _kSurfaceAlpha =
+      0.92; // (literal) 92% per 09-floating-bar.md
+  static const double _kAccentBorderAlpha =
+      0.14; // (literal) accent at 14% hairline per 09-floating-bar.md
   static const double _kBlurSigma = 16.0; // (literal) backdrop blur sigma
   static const double _kBorderWidth = 1.0; // (literal) 1dp hairline border
-  static const double _kOverflowWidth = 176.0; // (literal) overflow menu width
 
   const CoveFloatingBar({
     super.key,
@@ -221,7 +234,16 @@ class CoveFloatingBar extends StatelessWidget {
     this.onSeatTap,
     this.onAddTap,
     this.onOverflowItemTap,
+    this.onDismissMore,
   });
+
+  void _handleDismissMore() {
+    if (onDismissMore != null) {
+      onDismissMore!();
+    } else if (onSeatTap != null) {
+      onSeatTap!('more');
+    }
+  }
 
   Widget _buildGlassPill({
     required BuildContext context,
@@ -248,7 +270,7 @@ class CoveFloatingBar extends StatelessWidget {
               color: cv.surfaceCard.withValues(alpha: _kSurfaceAlpha),
               borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
               border: Border.all(
-                color: cv.lineHairline,
+                color: cv.accentFill.withValues(alpha: _kAccentBorderAlpha),
                 width: _kBorderWidth,
               ),
             ),
@@ -318,22 +340,30 @@ class CoveFloatingBar extends StatelessWidget {
   }
 
   Widget _buildDetachedHome({required BuildContext context}) {
-    final selected = state.selectedId == CoveFloatingBarState.homeItem.id;
+    final cv = context.cv;
+    final item = CoveFloatingBarState.homeItem;
 
-    return SizedBox(
-      width: kHeight,
-      height: kHeight,
-      child: _buildGlassPill(
-        context: context,
-        padding: EdgeInsets.zero,
-        child: Center(
-          child: SizedBox(
-            width: kHeight,
-            height: kHeight,
-            child: _buildSeat(
-              context: context,
-              item: CoveFloatingBarState.homeItem,
-              selected: selected,
+    return Semantics(
+      button: true,
+      selected: false,
+      label: item.label,
+      child: GestureDetector(
+        key: ValueKey('cove_bar_seat_${item.id}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onSeatTap == null ? null : () => onSeatTap!(item.id),
+        child: SizedBox(
+          key: ValueKey('cove_bar_seat_box_${item.id}'),
+          width: kOrbSize,
+          height: kOrbSize,
+          child: _buildGlassPill(
+            context: context,
+            padding: EdgeInsets.zero,
+            child: Center(
+              child: Icon(
+                item.icon,
+                size: kIconSize,
+                color: cv.textSecondary,
+              ),
             ),
           ),
         ),
@@ -374,43 +404,37 @@ class CoveFloatingBar extends StatelessWidget {
     final cv = context.cv;
     final items = CoveFloatingBarState.moneyOverflowItems;
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: const EdgeInsets.only(
-          right: kOrbSize + CoveSpace.sm,
-          bottom: CoveSpace.sm,
-        ),
-        child: SizedBox(
-          key: const ValueKey('cove_bar_more_menu'),
-          width: _kOverflowWidth,
-          child: _buildGlassPill(
-            context: context,
-            borderRadius: CoveRadius.card,
-            padding: const EdgeInsets.symmetric(vertical: CoveSpace.xs),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < items.length; i++) ...[
-                  if (i > 0)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CoveSpace.md,
-                      ),
-                      child: ColoredBox(
-                        color: cv.lineHairline,
-                        child: const SizedBox(height: _kBorderWidth),
-                      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CoveSpace.sm),
+      child: SizedBox(
+        key: const ValueKey('cove_bar_more_menu'),
+        width: double.infinity,
+        child: _buildGlassPill(
+          context: context,
+          borderRadius: CoveRadius.card,
+          padding: const EdgeInsets.symmetric(vertical: CoveSpace.xs),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.md,
                     ),
-                  _buildOverflowRow(
-                    context: context,
-                    item: items[i],
-                    selected: state.selectedId == items[i].id,
+                    child: ColoredBox(
+                      color: cv.lineHairline,
+                      child: const SizedBox(height: _kBorderWidth),
+                    ),
                   ),
-                ],
+                _buildOverflowRow(
+                  context: context,
+                  item: items[i],
+                  selected: state.selectedId == items[i].id,
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -462,6 +486,13 @@ class CoveFloatingBar extends StatelessWidget {
                     style: CoveType.rowTitle.copyWith(color: fg),
                   ),
                 ),
+                const SizedBox(width: CoveSpace.sm),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  key: ValueKey('cove_bar_overflow_chevron_${item.id}'),
+                  size: kIconSize,
+                  color: cv.textTertiary,
+                ),
               ],
             ),
           ),
@@ -471,33 +502,35 @@ class CoveFloatingBar extends StatelessWidget {
   }
 
   Widget _buildRestBar({required BuildContext context}) {
+    final items = state.categoryItems;
+
     return SizedBox(
       height: kHeight,
-      child: _buildGlassPill(
-        context: context,
-        child: Row(
-          children: [
-            for (final item in CoveFloatingBarState.restLeftItems)
-              Expanded(
-                child: _buildSeat(
-                  context: context,
-                  item: item,
-                  selected: state.selectedId == item.id,
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: kHeight,
+              child: _buildGlassPill(
+                context: context,
+                child: Row(
+                  children: [
+                    for (final item in items)
+                      Expanded(
+                        child: _buildSeat(
+                          context: context,
+                          item: item,
+                          selected: state.selectedId == item.id,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            const SizedBox(width: CoveSpace.xs),
-            _buildAddOrb(context: context),
-            const SizedBox(width: CoveSpace.xs),
-            for (final item in CoveFloatingBarState.restRightItems)
-              Expanded(
-                child: _buildSeat(
-                  context: context,
-                  item: item,
-                  selected: state.selectedId == item.id,
-                ),
-              ),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(width: CoveSpace.sm),
+          _buildAddOrb(context: context),
+        ],
       ),
     );
   }
@@ -541,36 +574,74 @@ class CoveFloatingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final cv = context.cv;
+    final bottomInset = CovePageInsets.bottomOf(context);
     final duration = CoveMotion.q(context);
+    final fadeTotalHeight = kFadeHeight + bottomInset;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: CoveSpace.gutter,
-        right: CoveSpace.gutter,
-        bottom: CoveSpace.md + bottomInset,
-      ),
-      child: Center(
-        heightFactor: 1.0,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (state.isMoreMenuOpen) _buildOverflowMenu(context: context),
-              AnimatedSwitcher(
-                duration: duration,
-                switchInCurve: CoveMotion.easing,
-                switchOutCurve: CoveMotion.easing,
-                child: state.isHomeDetached
-                    ? _buildDetachedBar(context: context)
-                    : _buildRestBar(context: context),
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: fadeTotalHeight,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              key: const ValueKey('cove_bar_bottom_fade'),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    cv.surfaceCanvas.withValues(alpha: 0.0),
+                    cv.surfaceCanvas,
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        if (state.isMoreMenuOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              key: const ValueKey('cove_bar_more_dismiss_area'),
+              behavior: HitTestBehavior.translucent,
+              onTap: _handleDismissMore,
+            ),
+          ),
+        Padding(
+          padding: EdgeInsets.only(
+            left: CoveSpace.gutter,
+            right: CoveSpace.gutter,
+            bottom: CoveSpace.md + bottomInset,
+          ),
+          child: Center(
+            heightFactor: 1.0,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (state.isMoreMenuOpen)
+                    _buildOverflowMenu(context: context),
+                  AnimatedSwitcher(
+                    duration: duration,
+                    switchInCurve: CoveMotion.easing,
+                    switchOutCurve: CoveMotion.easing,
+                    child: state.isHomeDetached
+                        ? _buildDetachedBar(context: context)
+                        : _buildRestBar(context: context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

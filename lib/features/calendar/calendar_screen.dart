@@ -5,6 +5,7 @@ import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_error_state.dart';
 import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_max_width.dart';
+import '../../core/widgets/cove_page_header.dart' show CovePageInsets;
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -86,21 +87,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     if (eventsAsync.isLoading || subsAsync.isLoading) {
       return Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       );
     }
 
     if (eventsAsync.hasError || subsAsync.hasError) {
       return Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: Center(
-          child: CoveErrorState.generic(
-            title: 'Calendar unavailable',
-            description: 'Could not load your shared events right now.',
-            onRetry: () {
-              ref.invalidate(activeHomeCalendarEventsProvider);
-              ref.invalidate(activeHomeSubscriptionsProvider);
-            },
+        body: CovePageInsets(
+          child: Center(
+            child: CoveErrorState.generic(
+              title: 'Calendar unavailable',
+              description: 'Could not load your shared events right now.',
+              onRetry: () {
+                ref.invalidate(activeHomeCalendarEventsProvider);
+                ref.invalidate(activeHomeSubscriptionsProvider);
+              },
+            ),
           ),
         ),
       );
@@ -129,8 +132,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: RefreshIndicator(
             color: cv.accentFill,

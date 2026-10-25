@@ -120,12 +120,11 @@ class ProfileScreen extends ConsumerWidget {
 
     const reminderSubtitle = 'Warm daily nudges to log & stay in sync';
 
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
             bottom: CoveSpace.barClearance + bottomInset,

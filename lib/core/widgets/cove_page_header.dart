@@ -1,6 +1,87 @@
 import 'package:flutter/material.dart';
-import '../theme/cove_tokens.dart';
+import 'package:flutter/services.dart';
+import '../theme/cove_theme.dart';
 import 'cove_round_button.dart';
+
+/// Pads a page below the status-bar top inset (`MediaQuery.viewPaddingOf(context).top`),
+/// paints the status-bar area with `surface.canvas` so scrolled content never
+/// shows under the clock and icons, and applies [CoveTheme.overlayStyleFor]
+/// for the active brightness.
+class CovePageInsets extends StatelessWidget {
+  final Widget child;
+  final bool bottom;
+
+  const CovePageInsets({
+    super.key,
+    required this.child,
+    this.bottom = false,
+  });
+
+  /// Effective top status-bar inset (`max(viewPadding.top, padding.top)`).
+  static double topOf(BuildContext context) {
+    final vp = MediaQuery.viewPaddingOf(context).top;
+    final p = MediaQuery.paddingOf(context).top;
+    return vp > p ? vp : p;
+  }
+
+  /// Effective bottom gesture-bar inset (`max(viewPadding.bottom, padding.bottom)`).
+  static double bottomOf(BuildContext context) {
+    final vp = MediaQuery.viewPaddingOf(context).bottom;
+    final p = MediaQuery.paddingOf(context).bottom;
+    return vp > p ? vp : p;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    final mq = MediaQuery.of(context);
+    final topInset = topOf(context);
+    final bottomInset = bottom ? bottomOf(context) : 0.0;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: CoveTheme.overlayStyleFor(Theme.of(context).brightness),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (topInset > 0)
+            ColoredBox(
+              key: const ValueKey('cove_status_bar_band'),
+              color: cv.surfaceCanvas,
+              child: SizedBox(
+                height: topInset,
+                width: double.infinity,
+              ),
+            ),
+          Expanded(
+            child: ClipRect(
+              child: MediaQuery(
+                data: mq.copyWith(
+                  padding: mq.padding.copyWith(
+                    top: 0.0,
+                    bottom: bottom ? 0.0 : mq.padding.bottom,
+                  ),
+                  viewPadding: mq.viewPadding.copyWith(
+                    top: 0.0,
+                    bottom: bottom ? 0.0 : mq.viewPadding.bottom,
+                  ),
+                ),
+                child: child,
+              ),
+            ),
+          ),
+          if (bottomInset > 0)
+            ColoredBox(
+              color: cv.surfaceCanvas,
+              child: SizedBox(
+                height: bottomInset,
+                width: double.infinity,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 /// Optional 28dp pill control for a header verb that has no glyph (the EMI
 /// "What if…" exception in `design/specs/01-page-header.md`).
@@ -143,16 +224,19 @@ class CovePageHeader extends StatelessWidget {
       ],
     );
 
+    final topInset = CovePageInsets.topOf(context);
+    final effectiveTopPadding = topInset + kTopPadding;
+
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: kMinHeight),
+      constraints: BoxConstraints(minHeight: topInset + kMinHeight),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Padding(
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               left: CoveSpace.gutter,
               right: CoveSpace.gutter,
-              top: kTopPadding,
+              top: effectiveTopPadding,
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: _kLineBoxHeight),
@@ -188,13 +272,13 @@ class CovePageHeader extends StatelessWidget {
           if (hasLeading)
             Positioned(
               left: CoveSpace.gutter - _kHitBleed,
-              top: kTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
+              top: effectiveTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
               child: leading!,
             ),
           if (hasActions)
             Positioned(
               right: CoveSpace.gutter - _kHitBleed,
-              top: kTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
+              top: effectiveTopPadding + (_kLineBoxHeight - CoveSize.hit) / 2,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -133,12 +133,11 @@ class _CommitmentsHelicopterScreenState
     }
 
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: SingleChildScrollView(
             padding: EdgeInsets.only(bottom: bottomPadding),

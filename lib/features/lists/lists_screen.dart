@@ -481,15 +481,17 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       data: (lists) => _buildWithLists(context, lists, hasPartner: hasPartner),
       loading: () => Scaffold(
         backgroundColor: colors.background,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       ),
       error: (e, st) => Scaffold(
         backgroundColor: colors.background,
-        body: Center(
-          child: CoveErrorState.generic(
-            title: 'Lists unavailable',
-            description: 'Could not load your lists right now.',
-            onRetry: () => ref.invalidate(activeHomeListsProvider),
+        body: CovePageInsets(
+          child: Center(
+            child: CoveErrorState.generic(
+              title: 'Lists unavailable',
+              description: 'Could not load your lists right now.',
+              onRetry: () => ref.invalidate(activeHomeListsProvider),
+            ),
           ),
         ),
       ),
@@ -506,20 +508,22 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     if (lists.isEmpty) {
       return Scaffold(
         backgroundColor: colors.background,
-        body: Center(
-          child: CoveEmptyState(
-            icon: Icons.checklist_outlined,
-            title: 'No shared lists yet',
-            description: 'Start tracking joint groceries, packing lists, and household essentials.',
-            action: TextButton.icon(
-              onPressed: _handleCreateNewList,
-              icon: Icon(Icons.add, size: 16, color: colors.accentPrimary),
-              label: Text(
-                'Create First List',
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontWeight: FontWeight.w600,
-                  color: colors.accentPrimary,
+        body: CovePageInsets(
+          child: Center(
+            child: CoveEmptyState(
+              icon: Icons.checklist_outlined,
+              title: 'No shared lists yet',
+              description: 'Start tracking joint groceries, packing lists, and household essentials.',
+              action: TextButton.icon(
+                onPressed: _handleCreateNewList,
+                icon: Icon(Icons.add, size: 16, color: colors.accentPrimary),
+                label: Text(
+                  'Create First List',
+                  style: TextStyle(
+                    fontFamily: 'GeneralSans',
+                    fontWeight: FontWeight.w600,
+                    color: colors.accentPrimary,
+                  ),
                 ),
               ),
             ),
@@ -762,8 +766,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: Column(
           children: [
           // Pinned Header: Tab Row & Underline
@@ -953,7 +956,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     }
 
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return RefreshIndicator(
       color: colors.accentPrimary,
@@ -1237,7 +1240,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 880;
     final bottomPadding = isWide
         ? 16.0
-        : CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        : CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return Container(
       decoration: BoxDecoration(

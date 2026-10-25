@@ -162,7 +162,8 @@ class HomeSettingsScreen extends ConsumerWidget {
     if (activeHome == null) {
       return Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: SafeArea(
+        body: CovePageInsets(
+          bottom: true,
           child: CoveMaxWidth(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -248,12 +249,11 @@ class HomeSettingsScreen extends ConsumerWidget {
     final untickedCount = listItems.where((i) => !i.isCompleted).length;
     final activeHabitsCount = habits.where((h) => !h.isArchived).length;
 
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
             bottom: CoveSpace.barClearance + bottomInset,

@@ -168,7 +168,9 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
         left: 20,
         right: 20,
         top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            CovePageInsets.bottomOf(context) +
+            24,
       ),
       child: Form(
         key: _formKey,

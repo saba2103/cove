@@ -239,14 +239,16 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
       data: (subscriptions) => _buildScaffold(context, subscriptions, currency),
       loading: () => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       ),
       error: (e, st) => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: Center(
-          child: Text(
-            'Could not load EMIs right now',
-            style: CoveType.body.copyWith(color: cv.textTertiary),
+        body: CovePageInsets(
+          child: Center(
+            child: Text(
+              'Could not load EMIs right now',
+              style: CoveType.body.copyWith(color: cv.textTertiary),
+            ),
           ),
         ),
       ),
@@ -350,12 +352,11 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     final steps = _computeStaircaseSteps(effectiveEmis, referenceDate);
 
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: allActiveEmis.isEmpty && completedEmis.isEmpty
               ? Column(

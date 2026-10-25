@@ -177,15 +177,17 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
       data: (subscriptions) => _buildContent(context, subscriptions),
       loading: () => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: const Center(child: CoveLoading()),
+        body: const CovePageInsets(child: Center(child: CoveLoading())),
       ),
       error: (e, st) => Scaffold(
         backgroundColor: cv.surfaceCanvas,
-        body: Center(
-          child: CoveErrorState.generic(
-            title: 'Subscriptions unavailable',
-            description: 'Could not load recurring services right now.',
-            onRetry: () => ref.invalidate(activeHomeSubscriptionsProvider),
+        body: CovePageInsets(
+          child: Center(
+            child: CoveErrorState.generic(
+              title: 'Subscriptions unavailable',
+              description: 'Could not load recurring services right now.',
+              onRetry: () => ref.invalidate(activeHomeSubscriptionsProvider),
+            ),
           ),
         ),
       ),
@@ -198,7 +200,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
   ) {
     final cv = context.cv;
     final bottomPadding =
-        CoveSpace.barClearance + MediaQuery.paddingOf(context).bottom;
+        CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     if (subscriptions.isEmpty) {
       return _buildEmptyState(context, bottomPadding: bottomPadding);
@@ -416,8 +418,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: RefreshIndicator(
             color: cv.accentFill,
@@ -1476,8 +1477,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
-      body: SafeArea(
-        bottom: false,
+      body: CovePageInsets(
         child: CoveMaxWidth(
           child: RefreshIndicator(
             color: cv.accentFill,
