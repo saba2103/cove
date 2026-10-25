@@ -62,7 +62,7 @@ class CoveBarcodeBar {
   });
 }
 
-/// A paper/ink receipt with torn zigzag top/bottom edges (`design/specs/10-paper-objects.md`).
+/// A paper/ink receipt with torn zigzag top/bottom edges (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built on [CoveSlip] to the contract in `design/specs/10-paper-objects.md`:
 /// - Torn edges top and bottom: zigzag teeth [kToothWidth] (`8dp`) wide ×
@@ -78,6 +78,7 @@ class CoveBarcodeBar {
 ///   names and amounts written beside it.
 /// - Barcode strip: [kBarcodeHeight] (`24dp`) tall, derived deterministically
 ///   from [recordId], followed by [footerDate] in caps.
+/// - Optional [stamp], [visibility] line, and [fieldTaps] (`design/specs/14-add-flow.md` §8).
 /// - Exposes its state as semantics: `"Receipt, Wednesday, total ₹5,631, 3 items"`.
 class CoveReceipt extends StatelessWidget implements CoveSlipObject {
   @override
@@ -91,6 +92,10 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
   final String totalAmount;
   final CoveReceiptSplit? split;
   final String footerDate;
+  final String? stamp;
+  final bool stampLanded;
+  final CoveSlipVisibility? visibility;
+  final CoveSlipFieldTaps? fieldTaps;
   final VoidCallback? onTap;
   final String? semanticLabel;
 
@@ -118,6 +123,10 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
     this.capsLabel = 'COVE · RECEIPT',
     this.totalLabel = 'TOTAL',
     this.split,
+    this.stamp,
+    this.stampLanded = true,
+    this.visibility,
+    this.fieldTaps,
     this.onTap,
     this.semanticLabel,
   });
@@ -225,6 +234,11 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
         CoveSpace.gutter + kToothHeight,
       ),
       onTap: onTap,
+      stamp: stamp,
+      stampLanded: stampLanded,
+      visibility: visibility,
+      showVisibilityTopRule: false,
+      fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -237,10 +251,15 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
             style: CoveType.capsSlip.copyWith(color: palette.tertiary),
           ),
           const SizedBox(height: CoveSpace.xs),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: CoveType.slipTitle.copyWith(color: palette.title),
+          CoveSlipFieldTapTarget(
+            field: CoveSlipField.title,
+            fieldTaps: fieldTaps,
+            alignment: Alignment.center,
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: CoveType.slipTitle.copyWith(color: palette.title),
+            ),
           ),
           if (subtitle.trim().isNotEmpty) ...[
             const SizedBox(height: CoveSpace.xs),
@@ -259,10 +278,33 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
           // 3. Line items as rows
           for (var i = 0; i < items.length; i++) ...[
             if (i > 0) const SizedBox(height: CoveSpace.xs),
-            _ReceiptItemRow(
-              item: items[i],
-              palette: palette,
-            ),
+            if (i == 0 &&
+                fieldTaps != null &&
+                fieldTaps!.containsKey(CoveSlipField.category))
+              CoveSlipFieldTapTarget(
+                field: CoveSlipField.category,
+                fieldTaps: fieldTaps,
+                child: _ReceiptItemRow(
+                  item: items[i],
+                  palette: palette,
+                ),
+              )
+            else if (i == 1 &&
+                fieldTaps != null &&
+                fieldTaps!.containsKey(CoveSlipField.paymentMethod))
+              CoveSlipFieldTapTarget(
+                field: CoveSlipField.paymentMethod,
+                fieldTaps: fieldTaps,
+                child: _ReceiptItemRow(
+                  item: items[i],
+                  palette: palette,
+                ),
+              )
+            else
+              _ReceiptItemRow(
+                item: items[i],
+                palette: palette,
+              ),
           ],
           const SizedBox(height: CoveSpace.sm),
 
@@ -282,11 +324,16 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
                 ),
               ),
               const SizedBox(width: CoveSpace.sm),
-              Text(
-                totalAmount,
-                maxLines: 1,
-                softWrap: false,
-                style: CoveType.slipFigure.copyWith(color: palette.title),
+              CoveSlipFieldTapTarget(
+                field: CoveSlipField.amount,
+                fieldTaps: fieldTaps,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  totalAmount,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: CoveType.slipFigure.copyWith(color: palette.title),
+                ),
               ),
             ],
           ),
@@ -294,9 +341,13 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
           // 5. Split bar + named amounts beside it (WCAG 1.4.1)
           if (split != null) ...[
             const SizedBox(height: CoveSpace.md),
-            _ReceiptSplitSection(
-              split: split!,
-              palette: palette,
+            CoveSlipFieldTapTarget(
+              field: CoveSlipField.paidBy,
+              fieldTaps: fieldTaps,
+              child: _ReceiptSplitSection(
+                split: split!,
+                palette: palette,
+              ),
             ),
           ],
 
@@ -312,10 +363,15 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
             ),
           ),
           const SizedBox(height: CoveSpace.sm),
-          Text(
-            footerDate.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+          CoveSlipFieldTapTarget(
+            field: CoveSlipField.date,
+            fieldTaps: fieldTaps,
+            alignment: Alignment.center,
+            child: Text(
+              footerDate.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+            ),
           ),
         ],
       ),

@@ -6,7 +6,7 @@ import '../../theme/cove_tokens.dart';
 import '../cove_checkbox.dart';
 import 'cove_slip.dart';
 
-/// A compact habit slip with a 21-day streak grid (`design/specs/10-paper-objects.md`).
+/// A compact habit slip with a 21-day streak grid (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built on [CoveSlip] to the contract in `design/specs/10-paper-objects.md`:
 /// - Caps line ([capsLabel], default `'COVE · HABIT'`), [title] in
@@ -23,6 +23,7 @@ import 'cove_slip.dart';
 /// - Right of the grid: [daysRunning] in [CoveType.slipFigure] with
 ///   `DAYS RUNNING` ([runLabel]) in caps beneath. The run count is always in
 ///   text; the grid is supplementary.
+/// - Optional [stamp], [visibility] line, and [fieldTaps] (`design/specs/14-add-flow.md` §8).
 /// - Exposes its state as semantics:
 ///   `"Habit, Morning walk, done today, 23 days running"`.
 class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
@@ -39,6 +40,10 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
   final List<bool>? history21;
   final String capsLabel;
   final String runLabel;
+  final String? stamp;
+  final bool stampLanded;
+  final CoveSlipVisibility? visibility;
+  final CoveSlipFieldTaps? fieldTaps;
   final ValueChanged<bool>? onToggle;
   final VoidCallback? onTap;
   final String? semanticLabel;
@@ -68,6 +73,10 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
     this.history21,
     this.capsLabel = 'COVE · HABIT',
     this.runLabel = 'DAYS RUNNING',
+    this.stamp,
+    this.stampLanded = true,
+    this.visibility,
+    this.fieldTaps,
     this.onToggle,
     this.onTap,
     this.semanticLabel,
@@ -112,6 +121,10 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
     return CoveSlip(
       variant: variant,
       onTap: onTap,
+      stamp: stamp,
+      stampLanded: stampLanded,
+      visibility: visibility,
+      fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -131,14 +144,22 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
                       style: CoveType.capsSlip.copyWith(color: palette.tertiary),
                     ),
                     const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      title,
-                      style: CoveType.slipTitle.copyWith(color: palette.title),
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.title,
+                      fieldTaps: fieldTaps,
+                      child: Text(
+                        title,
+                        style: CoveType.slipTitle.copyWith(color: palette.title),
+                      ),
                     ),
                     const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      cadence,
-                      style: CoveType.readout.copyWith(color: palette.tertiary),
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.cadence,
+                      fieldTaps: fieldTaps,
+                      child: Text(
+                        cadence,
+                        style: CoveType.readout.copyWith(color: palette.tertiary),
+                      ),
                     ),
                   ],
                 ),

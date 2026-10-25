@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import '../../theme/cove_tokens.dart';
 import 'cove_slip.dart';
 
-/// A paper/ink event ticket (`design/specs/10-paper-objects.md`).
+/// A paper/ink event ticket (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built on [CoveSlip] to the contract in `design/specs/10-paper-objects.md`:
 /// - Main body left: caps line ([capsLabel], default `'COVE · PLAN'`) in
-///   [CoveType.capsSlip], [title] in [CoveType.slipTitle], [date] in
-///   [CoveType.readout], and [owner] (e.g. `'Both of you'`) in
-///   [CoveType.readout].
+///   [CoveType.capsSlip], [title] in [CoveType.slipTitle], optional [location]
+///   in [CoveType.readout], [date] in [CoveType.readout], and [owner]
+///   (e.g. `'Both of you'`) in [CoveType.readout].
 /// - Stub on the right, [kStubWidth] (`112dp`) wide: caps `'STARTS'`
 ///   ([stubLabel]) in [CoveType.capsSlip], [hour] in [CoveType.slipFigure],
 ///   and [meridiem] in [CoveType.capsSlip].
@@ -20,11 +20,13 @@ import 'cove_slip.dart';
 ///   with a [kNotchDiameter] (`16dp`) semicircle notch bitten out at the top
 ///   and bottom edge.
 /// - A [kSpineWidth] (`2dp`) accent spine down the left edge.
+/// - Optional [stamp], [visibility] line, and [fieldTaps] (`design/specs/14-add-flow.md` §8).
 /// - Exposes its complete state as a single semantic label for assistive tech.
 class CoveTicket extends StatelessWidget implements CoveSlipObject {
   @override
   final CoveSlipVariant variant;
   final String title;
+  final String? location;
   final String date;
   final String owner;
   final String hour;
@@ -32,6 +34,10 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
   final String capsLabel;
   final String stubLabel;
   final String? alertText;
+  final String? stamp;
+  final bool stampLanded;
+  final CoveSlipVisibility? visibility;
+  final CoveSlipFieldTaps? fieldTaps;
   final VoidCallback? onTap;
   final String? semanticLabel;
 
@@ -49,6 +55,7 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
     super.key,
     required this.variant,
     required this.title,
+    this.location,
     required this.date,
     required this.owner,
     required this.hour,
@@ -56,6 +63,10 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
     this.capsLabel = 'COVE · PLAN',
     this.stubLabel = 'STARTS',
     this.alertText,
+    this.stamp,
+    this.stampLanded = true,
+    this.visibility,
+    this.fieldTaps,
     this.onTap,
     this.semanticLabel,
   });
@@ -64,7 +75,10 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
     final timePart = (meridiem != null && meridiem!.trim().isNotEmpty)
         ? '$hour ${meridiem!.trim()}'
         : hour;
-    final base = 'Ticket, $title, $date, starts $timePart, $owner';
+    final locPart = (location != null && location!.trim().isNotEmpty)
+        ? ', ${location!.trim()}'
+        : '';
+    final base = 'Ticket, $title$locPart, $date, starts $timePart, $owner';
     if (alertText != null && alertText!.trim().isNotEmpty) {
       return '$base, ${alertText!.trim()}';
     }
@@ -105,6 +119,7 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
     final palette = CoveSlipPalette.resolve(context, variant);
     final hasMeridiem = meridiem != null && meridiem!.trim().isNotEmpty;
     final hasAlert = alertText != null && alertText!.trim().isNotEmpty;
+    final hasLocation = location != null && location!.trim().isNotEmpty;
 
     return CoveSlip(
       variant: variant,
@@ -115,6 +130,11 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
         ruleColor: palette.rule,
       ),
       onTap: onTap,
+      stamp: stamp,
+      stampLanded: stampLanded,
+      visibility: visibility,
+      renderVisibilityInSlip: false,
+      fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
       child: IntrinsicHeight(
         child: Row(
@@ -128,23 +148,48 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CoveSlip.buildHeader(
-                      palette: palette,
-                      capsLabel: capsLabel,
-                      title: title,
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.title,
+                      fieldTaps: fieldTaps,
+                      child: CoveSlip.buildHeader(
+                        palette: palette,
+                        capsLabel: capsLabel,
+                        title: title,
+                      ),
                     ),
+                    if (hasLocation) ...[
+                      const SizedBox(height: CoveSpace.xs),
+                      CoveSlipFieldTapTarget(
+                        field: CoveSlipField.location,
+                        fieldTaps: fieldTaps,
+                        child: Text(
+                          location!,
+                          style: CoveType.readout.copyWith(
+                            color: palette.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      date,
-                      style: CoveType.readout.copyWith(
-                        color: palette.secondary,
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.date,
+                      fieldTaps: fieldTaps,
+                      child: Text(
+                        date,
+                        style: CoveType.readout.copyWith(
+                          color: palette.secondary,
+                        ),
                       ),
                     ),
                     const SizedBox(height: CoveSpace.sm),
-                    Text(
-                      owner,
-                      style: CoveType.readout.copyWith(
-                        color: palette.tertiary,
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.owner,
+                      fieldTaps: fieldTaps,
+                      child: Text(
+                        owner,
+                        style: CoveType.readout.copyWith(
+                          color: palette.tertiary,
+                        ),
                       ),
                     ),
                     if (hasAlert) ...[
@@ -156,6 +201,13 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
                         ),
                       ),
                     ],
+                    if (visibility != null)
+                      CoveSlipVisibilityLine(
+                        visibility: visibility!,
+                        palette: palette,
+                        showTopRule: true,
+                        fieldTaps: fieldTaps,
+                      ),
                   ],
                 ),
               ),
@@ -167,37 +219,42 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
                   horizontal: CoveSpace.md,
                   vertical: CoveSpace.gutter,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      stubLabel.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: CoveType.capsSlip.copyWith(
-                        color: palette.tertiary,
-                      ),
-                    ),
-                    const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      hour,
-                      textAlign: TextAlign.center,
-                      style: CoveType.slipFigure.copyWith(
-                        color: palette.title,
-                      ),
-                    ),
-                    if (hasMeridiem) ...[
-                      const SizedBox(height: CoveSpace.xs),
+                child: CoveSlipFieldTapTarget(
+                  field: CoveSlipField.time,
+                  fieldTaps: fieldTaps,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
                       Text(
-                        meridiem!.toUpperCase(),
+                        stubLabel.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: CoveType.capsSlip.copyWith(
                           color: palette.tertiary,
                         ),
                       ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Text(
+                        hour,
+                        textAlign: TextAlign.center,
+                        style: CoveType.slipFigure.copyWith(
+                          color: palette.title,
+                        ),
+                      ),
+                      if (hasMeridiem) ...[
+                        const SizedBox(height: CoveSpace.xs),
+                        Text(
+                          meridiem!.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: CoveType.capsSlip.copyWith(
+                            color: palette.tertiary,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/cove_theme.dart';
@@ -12,6 +14,257 @@ enum CoveSlipVariant {
 
   /// Deep green ink slip cut from the app green (`slip.inkFrom` → `slip.inkVia` → `slip.inkTo`).
   ink,
+}
+
+/// Optional footer visibility line on a slip (`design/specs/14-add-flow.md` §8).
+enum CoveSlipVisibility {
+  /// Shared with partner (`BOTH CAN SEE IT`).
+  bothCanSee,
+
+  /// Private to viewer (`ONLY YOU CAN SEE IT`).
+  onlyYouCanSee;
+
+  String get label => this == CoveSlipVisibility.bothCanSee
+      ? 'BOTH CAN SEE IT'
+      : 'ONLY YOU CAN SEE IT';
+
+  String get semanticLabel => this == CoveSlipVisibility.bothCanSee
+      ? 'both can see it'
+      : 'only you can see it';
+
+  IconData get icon => this == CoveSlipVisibility.bothCanSee
+      ? Icons.visibility_outlined
+      : Icons.lock_outline;
+}
+
+/// Tappable field identifiers across Cove slips on the Add review step (`design/specs/14-add-flow.md` §8).
+enum CoveSlipField {
+  title('title'),
+  amount('amount'),
+  date('date'),
+  time('time'),
+  category('category'),
+  paidBy('paid by'),
+  paymentMethod('payment method'),
+  location('location'),
+  owner('owner'),
+  list('list'),
+  cadence('cadence'),
+  visibility('visibility'),
+  dueDate('due date'),
+  paidFrom('paid from'),
+  installments('installments'),
+  duration('duration'),
+  days('days');
+
+  final String label;
+  const CoveSlipField(this.label);
+
+  String get semanticLabel => 'Change $label';
+}
+
+/// Map from a slip's fields to callbacks for review-step editing (`design/specs/14-add-flow.md` §8).
+typedef CoveSlipFieldTaps = Map<CoveSlipField, VoidCallback>;
+
+/// Wraps a slip field in a `48dp` minimum hit target with `'Change {field}'`
+/// semantics when [field] is present in [fieldTaps].
+///
+/// When [fieldTaps] is `null` or does not contain [field], returns [child]
+/// unchanged so existing non-interactive slips are byte-for-byte identical.
+class CoveSlipFieldTapTarget extends StatelessWidget {
+  final CoveSlipField field;
+  final CoveSlipFieldTaps? fieldTaps;
+  final Widget child;
+  final AlignmentGeometry alignment;
+
+  const CoveSlipFieldTapTarget({
+    super.key,
+    required this.field,
+    required this.fieldTaps,
+    required this.child,
+    this.alignment = Alignment.centerLeft,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final callback = fieldTaps?[field];
+    if (callback == null) {
+      return child;
+    }
+
+    return Semantics(
+      container: true,
+      button: true,
+      label: field.semanticLabel,
+      onTap: callback,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: callback,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: CoveSize.hit,
+              minHeight: CoveSize.hit,
+            ),
+            child: Align(
+              alignment: alignment,
+              widthFactor: 1.0,
+              heightFactor: 1.0,
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared stamp widget for `PAID` and `ADDED` (`design/specs/14-add-flow.md` §8).
+///
+/// Renders an outlined caps label rotated −8°.
+class CoveSlipStamp extends StatelessWidget {
+  final String text;
+  final Color color;
+  final Color? backgroundColor;
+
+  static const double kStampDegrees = -8.0; // (literal) rotated -8°
+  static const double kStampBorder = 1.5; // (literal) outlined stamp stroke
+  static const double kStampRadius = 4.0; // (literal) stamp corner radius
+
+  const CoveSlipStamp({
+    super.key,
+    required this.text,
+    required this.color,
+    this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: kStampDegrees * math.pi / 180.0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CoveSpace.sm,
+          vertical: CoveSpace.xs / 2,
+        ),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: const BorderRadius.all(
+            Radius.circular(kStampRadius),
+          ),
+          border: Border.all(
+            color: color,
+            width: kStampBorder,
+          ),
+        ),
+        child: Text(
+          text.toUpperCase(),
+          style: CoveType.capsSlip.copyWith(color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared footer visibility line (`BOTH CAN SEE IT` / `ONLY YOU CAN SEE IT`)
+/// rendered on slips when `visibility` is provided (`design/specs/14-add-flow.md` §8).
+class CoveSlipVisibilityLine extends StatelessWidget {
+  final CoveSlipVisibility visibility;
+  final CoveSlipPalette palette;
+  final bool showTopRule;
+  final CoveSlipFieldTaps? fieldTaps;
+
+  static const double kIconSize = 14.0; // (literal) 14dp visibility glyph
+  static const double kRuleHeight = 1.0; // (literal) 1dp dashed rule
+  static const double kDashLength = 4.0; // (literal) dash 4
+  static const double kDashGap = 4.0; // (literal) gap 4
+
+  const CoveSlipVisibilityLine({
+    super.key,
+    required this.visibility,
+    required this.palette,
+    this.showTopRule = true,
+    this.fieldTaps,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          visibility.icon,
+          size: kIconSize,
+          color: palette.tertiary,
+        ),
+        const SizedBox(width: CoveSpace.xs),
+        Flexible(
+          child: Text(
+            visibility.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+          ),
+        ),
+      ],
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: CoveSpace.md),
+        if (showTopRule) ...[
+          SizedBox(
+            height: kRuleHeight,
+            child: CustomPaint(
+              painter: _SlipHorizontalDashedPainter(color: palette.rule),
+            ),
+          ),
+          const SizedBox(height: CoveSpace.md),
+        ],
+        Center(
+          child: CoveSlipFieldTapTarget(
+            field: CoveSlipField.visibility,
+            fieldTaps: fieldTaps,
+            alignment: Alignment.center,
+            child: row,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SlipHorizontalDashedPainter extends CustomPainter {
+  final Color color;
+
+  const _SlipHorizontalDashedPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = CoveSlipVisibilityLine.kRuleHeight
+      ..style = PaintingStyle.stroke;
+
+    var x = 0.0;
+    final y = size.height / 2.0;
+    while (x < size.width) {
+      final dashEnd = math.min(
+        x + CoveSlipVisibilityLine.kDashLength,
+        size.width,
+      );
+      canvas.drawLine(Offset(x, y), Offset(dashEnd, y), paint);
+      x += CoveSlipVisibilityLine.kDashLength + CoveSlipVisibilityLine.kDashGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SlipHorizontalDashedPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Resolved colour palette for a [CoveSlip] (`design/specs/10-paper-objects.md`).
@@ -162,7 +415,7 @@ abstract interface class CoveSlipObject implements Widget {
   CoveSlipVariant get variant;
 }
 
-/// Shared frame for all five Cove paper objects (`design/specs/10-paper-objects.md`).
+/// Shared frame for all Cove paper objects (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built to the contract in `design/specs/10-paper-objects.md`:
 /// - [variant] ([CoveSlipVariant.paper] or [CoveSlipVariant.ink]) is chosen by
@@ -173,8 +426,10 @@ abstract interface class CoveSlipObject implements Widget {
 /// - Inner padding: defaults to [CoveSpace.gutter] (`20dp`).
 /// - Edge: `1dp` `paper.edge` hairline + `elevationPaper` in light mode on
 ///   paper only; none on ink.
+/// - Optional [stamp] (e.g. `'ADDED'` or `'PAID'`) + [stampLanded] state.
+/// - Optional [visibility] footer line (`BOTH CAN SEE IT` / `ONLY YOU CAN SEE IT`).
 /// - Semantics: wraps the slip in a single [Semantics] node when
-///   [semanticLabel] is provided so assistive tech reads the full state cleanly.
+///   [semanticLabel] is provided and no interactive [fieldTaps] are active.
 class CoveSlip extends StatelessWidget implements CoveSlipObject {
   @override
   final CoveSlipVariant variant;
@@ -186,6 +441,13 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
   final CustomPainter? foregroundPainter;
   final VoidCallback? onTap;
   final String? semanticLabel;
+  final String? stamp;
+  final bool stampLanded;
+  final Color? stampColor;
+  final CoveSlipVisibility? visibility;
+  final bool showVisibilityTopRule;
+  final bool renderVisibilityInSlip;
+  final CoveSlipFieldTaps? fieldTaps;
 
   static const double kEdgeStrokeWidth = 1.0; // (literal) 1dp paper.edge hairline
 
@@ -202,6 +464,13 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
     this.foregroundPainter,
     this.onTap,
     this.semanticLabel,
+    this.stamp,
+    this.stampLanded = true,
+    this.stampColor,
+    this.visibility,
+    this.showVisibilityTopRule = true,
+    this.renderVisibilityInSlip = true,
+    this.fieldTaps,
   });
 
   /// Builds the opening caps line (`CoveType.capsSlip`) and title
@@ -243,13 +512,52 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
       pathBuilder: pathBuilder,
     );
 
+    Widget innerChild = child;
+    if (visibility != null && renderVisibilityInSlip) {
+      innerChild = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          child,
+          CoveSlipVisibilityLine(
+            visibility: visibility!,
+            palette: palette,
+            showTopRule: showVisibilityTopRule,
+            fieldTaps: fieldTaps,
+          ),
+        ],
+      );
+    }
+
     Widget content = Theme(
       data: innerTheme,
       child: Padding(
         padding: padding,
-        child: child,
+        child: innerChild,
       ),
     );
+
+    if (stamp != null && stamp!.trim().isNotEmpty && stampLanded) {
+      final resolvedStampColor = stampColor ??
+          (stamp!.trim().toUpperCase() == 'PAID'
+              ? palette.statusGood
+              : palette.accent);
+      content = Stack(
+        children: [
+          content,
+          Positioned(
+            top: CoveSpace.gutter,
+            right: CoveSpace.gutter,
+            child: IgnorePointer(
+              child: CoveSlipStamp(
+                text: stamp!,
+                color: resolvedStampColor,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     if (backgroundPainter != null || foregroundPainter != null) {
       content = CustomPaint(
@@ -271,7 +579,9 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
       ),
     );
 
-    if (onTap != null) {
+    final hasFieldTaps = fieldTaps != null && fieldTaps!.isNotEmpty;
+
+    if (onTap != null && !hasFieldTaps) {
       slipBody = GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -280,12 +590,28 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
     }
 
     if (semanticLabel != null) {
-      slipBody = Semantics(
-        container: true,
-        button: onTap != null,
-        label: semanticLabel,
-        child: ExcludeSemantics(child: slipBody),
-      );
+      var resolvedSemantics = semanticLabel!;
+      if (visibility != null) {
+        resolvedSemantics = '$resolvedSemantics, ${visibility!.semanticLabel}';
+      }
+      if (stamp != null && stamp!.trim().isNotEmpty && stampLanded) {
+        resolvedSemantics =
+            '$resolvedSemantics, ${stamp!.trim().toLowerCase()}';
+      }
+      if (hasFieldTaps) {
+        slipBody = Semantics(
+          container: true,
+          label: resolvedSemantics,
+          child: slipBody,
+        );
+      } else {
+        slipBody = Semantics(
+          container: true,
+          button: onTap != null,
+          label: resolvedSemantics,
+          child: ExcludeSemantics(child: slipBody),
+        );
+      }
     }
 
     return CoveSlipScope(

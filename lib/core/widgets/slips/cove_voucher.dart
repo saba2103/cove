@@ -14,7 +14,7 @@ enum CoveVoucherState {
   paid,
 }
 
-/// A commitment / EMI voucher slip (`design/specs/10-paper-objects.md`).
+/// A commitment / EMI voucher slip (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built on [CoveSlip] to the contract in `design/specs/10-paper-objects.md`:
 /// - Perforated rail down the left: [kRailWidth] (`1dp`) dashed line
@@ -26,12 +26,14 @@ enum CoveVoucherState {
 ///   `accent.fill` ring holding [dueDay] in [CoveType.slipTitle] and
 ///   [dueMonth] in [CoveType.capsSlip] beneath (never puts `'DUE'` inside the
 ///   circle, which would fall below the 11sp floor).
-/// - Paid state ([CoveVoucherState.paid]): `PAID` stamp — caps, outlined,
-///   rotated −8° ([kPaidStampDegrees]), in `status.good`; the due circle fades
-///   to the rule colour.
+/// - Paid state ([CoveVoucherState.paid]): `PAID` stamp ([CoveSlipStamp]) —
+///   caps, outlined, rotated −8° ([kPaidStampDegrees]), in `status.good`; the
+///   due circle fades to the rule colour.
 /// - EMI punched variant ([totalInstallments] != null): a grid of `N` dots for
 ///   `N` instalments, with [paidInstallments] filled in `accent.fill` and the
 ///   remaining outlined.
+/// - Optional [paidFrom] and [whose] metadata rows, [stamp], [visibility]
+///   line, and [fieldTaps] (`design/specs/14-add-flow.md` §8).
 /// - Semantics (WCAG 4.1.2): reads out the state (`due` / `paid`) and, for an
 ///   EMI, `"12 of 48 paid"`.
 class CoveVoucher extends StatelessWidget implements CoveSlipObject {
@@ -49,6 +51,12 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
   final CoveVoucherState state;
   final int? totalInstallments;
   final int paidInstallments;
+  final String? paidFrom;
+  final String? whose;
+  final String? stamp;
+  final bool stampLanded;
+  final CoveSlipVisibility? visibility;
+  final CoveSlipFieldTaps? fieldTaps;
   final VoidCallback? onTap;
   final String? semanticLabel;
 
@@ -59,9 +67,12 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
   static const double kDueCircleStroke = 1.0; // (literal) 1dp dashed ring
   static const double kDashLength = 4.0; // (literal) dash 4
   static const double kDashGap = 4.0; // (literal) gap 4
-  static const double kPaidStampDegrees = -8.0; // (literal) rotated -8°
-  static const double kPaidStampBorder = 1.5; // (literal) outlined stamp stroke
-  static const double kPaidStampRadius = 4.0; // (literal) stamp corner radius
+  static const double kPaidStampDegrees =
+      CoveSlipStamp.kStampDegrees; // (literal) rotated -8°
+  static const double kPaidStampBorder =
+      CoveSlipStamp.kStampBorder; // (literal) outlined stamp stroke
+  static const double kPaidStampRadius =
+      CoveSlipStamp.kStampRadius; // (literal) stamp corner radius
   static const double kPunchDotSize = 8.0; // (literal) EMI punch dot diameter
   static const double kPunchOutlineWidth =
       1.0; // (literal) 1dp outline on remaining instalments
@@ -79,6 +90,12 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
     this.state = CoveVoucherState.due,
     this.totalInstallments,
     this.paidInstallments = 0,
+    this.paidFrom,
+    this.whose,
+    this.stamp,
+    this.stampLanded = true,
+    this.visibility,
+    this.fieldTaps,
     this.onTap,
     this.semanticLabel,
   }) : assert(
@@ -103,6 +120,12 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
   @override
   Widget build(BuildContext context) {
     final palette = CoveSlipPalette.resolve(context, variant);
+    final hasPaidFrom = paidFrom != null && paidFrom!.trim().isNotEmpty;
+    final hasWhose = whose != null && whose!.trim().isNotEmpty;
+    final dueField = (fieldTaps != null &&
+            fieldTaps!.containsKey(CoveSlipField.dueDate))
+        ? CoveSlipField.dueDate
+        : CoveSlipField.date;
 
     return CoveSlip(
       variant: variant,
@@ -116,6 +139,10 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
         ruleColor: palette.rule,
       ),
       onTap: onTap,
+      stamp: stamp,
+      stampLanded: stampLanded,
+      visibility: visibility,
+      fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -134,9 +161,13 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
                       style: CoveType.capsSlip.copyWith(color: palette.tertiary),
                     ),
                     const SizedBox(height: CoveSpace.xs),
-                    Text(
-                      title,
-                      style: CoveType.slipTitle.copyWith(color: palette.title),
+                    CoveSlipFieldTapTarget(
+                      field: CoveSlipField.title,
+                      fieldTaps: fieldTaps,
+                      child: Text(
+                        title,
+                        style: CoveType.slipTitle.copyWith(color: palette.title),
+                      ),
                     ),
                     const SizedBox(height: CoveSpace.sm),
                     Wrap(
@@ -144,10 +175,14 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
                       spacing: CoveSpace.xs,
                       runSpacing: CoveSpace.xs,
                       children: [
-                        Text(
-                          amount,
-                          style: CoveType.slipFigure.copyWith(
-                            color: palette.title,
+                        CoveSlipFieldTapTarget(
+                          field: CoveSlipField.amount,
+                          fieldTaps: fieldTaps,
+                          child: Text(
+                            amount,
+                            style: CoveType.slipFigure.copyWith(
+                              color: palette.title,
+                            ),
                           ),
                         ),
                         if (cadenceSuffix.trim().isNotEmpty)
@@ -155,10 +190,14 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
                             padding: const EdgeInsets.only(
                               bottom: CoveSpace.xs,
                             ),
-                            child: Text(
-                              cadenceSuffix,
-                              style: CoveType.readout.copyWith(
-                                color: palette.tertiary,
+                            child: CoveSlipFieldTapTarget(
+                              field: CoveSlipField.cadence,
+                              fieldTaps: fieldTaps,
+                              child: Text(
+                                cadenceSuffix,
+                                style: CoveType.readout.copyWith(
+                                  color: palette.tertiary,
+                                ),
                               ),
                             ),
                           ),
@@ -172,15 +211,23 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _DueCircle(
-                    day: dueDay,
-                    month: dueMonth,
-                    isPaid: isPaid,
-                    palette: palette,
+                  CoveSlipFieldTapTarget(
+                    field: dueField,
+                    fieldTaps: fieldTaps,
+                    alignment: Alignment.center,
+                    child: _DueCircle(
+                      day: dueDay,
+                      month: dueMonth,
+                      isPaid: isPaid,
+                      palette: palette,
+                    ),
                   ),
                   if (isPaid) ...[
                     const SizedBox(height: CoveSpace.sm),
-                    _PaidStamp(color: palette.statusGood),
+                    CoveSlipStamp(
+                      text: 'PAID',
+                      color: palette.statusGood,
+                    ),
                   ],
                 ],
               ),
@@ -195,14 +242,80 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
               ),
             ),
             const SizedBox(height: CoveSpace.md),
-            _EmiPunchGrid(
-              totalInstallments: totalInstallments!,
-              paidInstallments: paidInstallments,
-              palette: palette,
+            CoveSlipFieldTapTarget(
+              field: CoveSlipField.installments,
+              fieldTaps: fieldTaps,
+              child: _EmiPunchGrid(
+                totalInstallments: totalInstallments!,
+                paidInstallments: paidInstallments,
+                palette: palette,
+              ),
             ),
+          ],
+          if (hasPaidFrom || hasWhose) ...[
+            const SizedBox(height: CoveSpace.md),
+            SizedBox(
+              height: kRailWidth,
+              child: CustomPaint(
+                painter: _VoucherHorizontalDashedPainter(color: palette.rule),
+              ),
+            ),
+            const SizedBox(height: CoveSpace.sm),
+            if (hasPaidFrom)
+              CoveSlipFieldTapTarget(
+                field: CoveSlipField.paidFrom,
+                fieldTaps: fieldTaps,
+                child: _VoucherMetaRow(
+                  label: 'Paid from',
+                  value: paidFrom!,
+                  palette: palette,
+                ),
+              ),
+            if (hasPaidFrom && hasWhose) const SizedBox(height: CoveSpace.xs),
+            if (hasWhose)
+              CoveSlipFieldTapTarget(
+                field: CoveSlipField.owner,
+                fieldTaps: fieldTaps,
+                child: _VoucherMetaRow(
+                  label: 'Whose',
+                  value: whose!,
+                  palette: palette,
+                ),
+              ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _VoucherMetaRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final CoveSlipPalette palette;
+
+  const _VoucherMetaRow({
+    required this.label,
+    required this.value,
+    required this.palette,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: CoveType.readout.copyWith(color: palette.secondary),
+          ),
+        ),
+        const SizedBox(width: CoveSpace.sm),
+        Text(
+          value,
+          style: CoveType.readout.copyWith(color: palette.title),
+        ),
+      ],
     );
   }
 }
@@ -247,38 +360,6 @@ class _DueCircle extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PaidStamp extends StatelessWidget {
-  final Color color;
-
-  const _PaidStamp({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: CoveVoucher.kPaidStampDegrees * math.pi / 180.0,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: CoveSpace.sm,
-          vertical: CoveSpace.xs / 2,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveVoucher.kPaidStampRadius),
-          ),
-          border: Border.all(
-            color: color,
-            width: CoveVoucher.kPaidStampBorder,
-          ),
-        ),
-        child: Text(
-          'PAID',
-          style: CoveType.capsSlip.copyWith(color: color),
         ),
       ),
     );

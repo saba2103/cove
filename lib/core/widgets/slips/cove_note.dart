@@ -22,7 +22,7 @@ class CoveNoteItem {
   });
 }
 
-/// A ruled notepad list slip (`design/specs/10-paper-objects.md`).
+/// A ruled notepad list slip (`design/specs/10-paper-objects.md` & `14-add-flow.md` §8).
 ///
 /// Built on [CoveSlip] to the contract in `design/specs/10-paper-objects.md`:
 /// - Top corners [kTopCornerRadius] (`4dp`), bottom corners [CoveRadius.card]
@@ -32,12 +32,17 @@ class CoveNoteItem {
 /// - Items: [CoveCheckbox] + title in [CoveType.slipTitle], with `addedBy`
 ///   beneath in tertiary text. Done items strike through and drop to
 ///   secondary (`palette.secondary`).
+/// - Optional [stamp], [visibility] line, and [fieldTaps] (`design/specs/14-add-flow.md` §8).
 /// - Exposes its state as semantics (WCAG 4.1.2).
 class CoveNote extends StatelessWidget implements CoveSlipObject {
   @override
   final CoveSlipVariant variant;
   final String capsLabel;
   final List<CoveNoteItem> items;
+  final String? stamp;
+  final bool stampLanded;
+  final CoveSlipVisibility? visibility;
+  final CoveSlipFieldTaps? fieldTaps;
   final VoidCallback? onTap;
   final String? semanticLabel;
 
@@ -53,6 +58,10 @@ class CoveNote extends StatelessWidget implements CoveSlipObject {
     required this.variant,
     required this.items,
     this.capsLabel = 'COVE · GROCERY LIST',
+    this.stamp,
+    this.stampLanded = true,
+    this.visibility,
+    this.fieldTaps,
     this.onTap,
     this.semanticLabel,
   });
@@ -83,14 +92,22 @@ class CoveNote extends StatelessWidget implements CoveSlipObject {
         ruleColor: palette.rule,
       ),
       onTap: onTap,
+      stamp: stamp,
+      stampLanded: stampLanded,
+      visibility: visibility,
+      fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            capsLabel.toUpperCase(),
-            style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+          CoveSlipFieldTapTarget(
+            field: CoveSlipField.list,
+            fieldTaps: fieldTaps,
+            child: Text(
+              capsLabel.toUpperCase(),
+              style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+            ),
           ),
           const SizedBox(height: CoveSpace.md),
           for (var i = 0; i < items.length; i++) ...[
@@ -98,6 +115,7 @@ class CoveNote extends StatelessWidget implements CoveSlipObject {
             _CoveNoteItemView(
               item: items[i],
               palette: palette,
+              fieldTaps: i == 0 ? fieldTaps : null,
             ),
           ],
         ],
@@ -109,48 +127,64 @@ class CoveNote extends StatelessWidget implements CoveSlipObject {
 class _CoveNoteItemView extends StatelessWidget {
   final CoveNoteItem item;
   final CoveSlipPalette palette;
+  final CoveSlipFieldTaps? fieldTaps;
 
   const _CoveNoteItemView({
     required this.item,
     required this.palette,
+    this.fieldTaps,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasAddedBy = item.addedBy != null && item.addedBy!.trim().isNotEmpty;
     final titleColor = item.isDone ? palette.secondary : palette.title;
+    final dateField = (fieldTaps != null &&
+            fieldTaps!.containsKey(CoveSlipField.dueDate))
+        ? CoveSlipField.dueDate
+        : CoveSlipField.date;
+
+    final Widget titleRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        CoveCheckbox(
+          value: item.isDone,
+          onChanged: item.onChanged,
+        ),
+        const SizedBox(width: CoveSpace.md),
+        Expanded(
+          child: Text(
+            item.title,
+            style: CoveType.slipTitle.copyWith(
+              color: titleColor,
+              decoration: item.isDone
+                  ? TextDecoration.lineThrough
+                  : TextDecoration.none,
+              decorationColor: palette.secondary,
+            ),
+          ),
+        ),
+      ],
+    );
 
     final Widget rowContent = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            CoveCheckbox(
-              value: item.isDone,
-              onChanged: item.onChanged,
-            ),
-            const SizedBox(width: CoveSpace.md),
-            Expanded(
-              child: Text(
-                item.title,
-                style: CoveType.slipTitle.copyWith(
-                  color: titleColor,
-                  decoration: item.isDone
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                  decorationColor: palette.secondary,
-                ),
-              ),
-            ),
-          ],
+        CoveSlipFieldTapTarget(
+          field: CoveSlipField.title,
+          fieldTaps: fieldTaps,
+          child: titleRow,
         ),
         if (hasAddedBy) ...[
           const SizedBox(height: CoveSpace.xs),
-          Text(
-            item.addedBy!,
-            style: CoveType.readout.copyWith(color: palette.tertiary),
+          CoveSlipFieldTapTarget(
+            field: dateField,
+            fieldTaps: fieldTaps,
+            child: Text(
+              item.addedBy!,
+              style: CoveType.readout.copyWith(color: palette.tertiary),
+            ),
           ),
         ],
       ],
