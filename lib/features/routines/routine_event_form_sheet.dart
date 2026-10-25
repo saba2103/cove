@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_page_header.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
 
@@ -150,21 +151,35 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
   Future<void> _delete() async {
     final ev = widget.event;
     if (ev == null) return;
+    final cv = context.cv;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Event'),
-        content: Text('Delete "${ev.title}" from this routine?'),
+        backgroundColor: cv.surfaceCard,
+        title: Text(
+          'Delete Event',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
+        content: Text(
+          'Delete "${ev.title}" from this routine?',
+          style: CoveType.body.copyWith(color: cv.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+            ),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.colors.accentSecondary),
+            style: FilledButton.styleFrom(backgroundColor: cv.statusAlert),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+            ),
           ),
         ],
       ),
@@ -192,20 +207,22 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.event != null;
-    final theme = Theme.of(context);
+    final cv = context.cv;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.gutter,
         bottom: MediaQuery.of(context).viewInsets.bottom +
             CovePageInsets.bottomOf(context) +
-            24,
+            CoveSpace.lg,
       ),
       child: Form(
         key: _formKey,
@@ -217,20 +234,23 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Routine Event' : 'New Routine Event',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Text(
+                      isEditing ? 'Edit Routine Event' : 'New Routine Event',
+                      style: CoveType.slipTitle.copyWith(
+                        color: cv.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   if (isEditing)
                     IconButton(
-                      icon: Icon(Icons.delete_outline, color: context.colors.accentSecondary),
+                      icon: Icon(Icons.delete_outline, color: cv.statusAlertText),
                       onPressed: _isSubmitting ? null : _delete,
                     )
                   else
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, color: cv.textSecondary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                 ],
@@ -238,11 +258,14 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,
+                style: CoveType.body.copyWith(color: cv.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Event Title',
                   hintText: 'e.g. Morning Workout, Deep Work, Lunch',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(CoveRadius.inline),
+                    ),
                   ),
                 ),
                 validator: (val) {
@@ -259,52 +282,68 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                   Expanded(
                     child: InkWell(
                       onTap: _pickStartTime,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(CoveRadius.inline),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                         decoration: BoxDecoration(
-                          border: Border.all(color: theme.dividerColor),
-                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cv.lineHairline),
+                          borderRadius: BorderRadius.circular(CoveRadius.inline),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Start Time',
-                              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: CoveSpace.xs),
                             Text(
                               RoutineEvent.formatMinutes(_startMinutes),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: CoveSpace.md),
                   Expanded(
                     child: InkWell(
                       onTap: _pickEndTime,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(CoveRadius.inline),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: CoveSpace.md,
+                        ),
                         decoration: BoxDecoration(
-                          border: Border.all(color: theme.dividerColor),
-                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: cv.lineHairline),
+                          borderRadius: BorderRadius.circular(CoveRadius.inline),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'End Time',
-                              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textSecondary,
+                              ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: CoveSpace.xs),
                             Text(
                               RoutineEvent.formatMinutes(_endMinutes),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
@@ -316,23 +355,24 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               const SizedBox(height: 16),
               Text(
                 'Category',
-                style: theme.textTheme.labelLarge?.copyWith(
+                style: CoveType.readout.copyWith(
+                  color: cv.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CoveSpace.sm),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: CoveSpace.sm,
+                runSpacing: CoveSpace.sm,
                 children: _categories.map((cat) {
                   final isSelected = _selectedCategory.toLowerCase() == cat.toLowerCase();
                   return ChoiceChip(
                     label: Text(cat),
                     selected: isSelected,
-                    selectedColor: context.colors.accentPrimary.withValues(alpha: 0.2),
-                    labelStyle: TextStyle(
-                      color: isSelected ? context.colors.accentPrimary : theme.textTheme.bodyMedium?.color,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    selectedColor: cv.accentWash,
+                    labelStyle: CoveType.readout.copyWith(
+                      color: isSelected ? cv.accentText : cv.textPrimary,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                     ),
                     onSelected: (selected) {
                       if (selected) {
@@ -346,33 +386,43 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               TextFormField(
                 controller: _notesController,
                 maxLines: 2,
+                style: CoveType.body.copyWith(color: cv.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Notes (optional)',
                   hintText: 'e.g. Focus blocks, items to prepare',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(CoveRadius.inline),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: context.colors.accentPrimary,
+                  backgroundColor: cv.accentFill,
+                  foregroundColor: cv.textOnAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CoveRadius.inline),
                   ),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ? SizedBox(
+                        height: CoveSpace.gutter,
+                        width: CoveSpace.gutter,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cv.textOnAccent,
+                        ),
                       )
                     : Text(
                         isEditing ? 'Save Changes' : 'Add Event',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textOnAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
               ),
             ],

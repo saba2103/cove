@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_page_header.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
 
@@ -113,21 +114,35 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
   Future<void> _delete() async {
     final routine = widget.routine;
     if (routine == null) return;
+    final cv = context.cv;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Routine'),
-        content: Text('Are you sure you want to delete "${routine.name}" and all its scheduled events?'),
+        backgroundColor: cv.surfaceCard,
+        title: Text(
+          'Delete Routine',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${routine.name}" and all its scheduled events?',
+          style: CoveType.body.copyWith(color: cv.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+            ),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: context.colors.accentSecondary),
+            style: FilledButton.styleFrom(backgroundColor: cv.statusAlert),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+            ),
           ),
         ],
       ),
@@ -156,21 +171,22 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.routine != null;
-    final theme = Theme.of(context);
-    final colors = context.colors;
+    final cv = context.cv;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.gutter,
         bottom: MediaQuery.of(context).viewInsets.bottom +
             CovePageInsets.bottomOf(context) +
-            24,
+            CoveSpace.lg,
       ),
       child: Form(
         key: _formKey,
@@ -184,18 +200,19 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
                 children: [
                   Text(
                     isEditing ? 'Edit Routine' : 'New Routine',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: CoveType.slipTitle.copyWith(
+                      color: cv.textPrimary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   if (isEditing)
                     IconButton(
-                      icon: Icon(Icons.delete_outline, color: colors.accentSecondary),
+                      icon: Icon(Icons.delete_outline, color: cv.statusAlertText),
                       onPressed: _isSubmitting ? null : _delete,
                     )
                   else
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Icons.close, color: cv.textSecondary),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                 ],
@@ -203,11 +220,14 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,
+                style: CoveType.body.copyWith(color: cv.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Routine Name',
                   hintText: 'e.g. Weekday, Weekend, Saturday',
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(CoveRadius.inline),
+                    ),
                   ),
                 ),
                 validator: (val) {
@@ -220,14 +240,15 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               const SizedBox(height: 16),
               Text(
                 'Active Days',
-                style: theme.textTheme.labelLarge?.copyWith(
+                style: CoveType.readout.copyWith(
+                  color: cv.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CoveSpace.sm),
               // Preset chips
               Wrap(
-                spacing: 8,
+                spacing: CoveSpace.sm,
                 children: [
                   ActionChip(
                     label: const Text('Mon – Fri'),
@@ -263,48 +284,55 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
                   return GestureDetector(
                     onTap: () => _toggleDay(day),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 40,
-                      height: 40,
+                      duration: CoveMotion.q(context),
+                      width: CoveSize.buttonRound,
+                      height: CoveSize.buttonRound,
                       decoration: BoxDecoration(
-                        color: isSelected ? colors.accentPrimary : colors.surfaceRow,
+                        color: isSelected ? cv.accentFill : cv.surfaceRow,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isSelected ? colors.accentPrimary : colors.borderHairline,
+                          color: isSelected ? cv.accentFill : cv.lineHairline,
                           width: 1.5,
                         ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         label,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : theme.textTheme.bodyMedium?.color,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        style: CoveType.readout.copyWith(
+                          color: isSelected ? cv.textOnAccent : cv.textPrimary,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                         ),
                       ),
                     ),
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: colors.accentPrimary,
+                  backgroundColor: cv.accentFill,
+                  foregroundColor: cv.textOnAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CoveRadius.inline),
                   ),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ? SizedBox(
+                        height: CoveSpace.gutter,
+                        width: CoveSpace.gutter,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cv.textOnAccent,
+                        ),
                       )
                     : Text(
                         isEditing ? 'Save Changes' : 'Create Routine',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.textOnAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
               ),
             ],

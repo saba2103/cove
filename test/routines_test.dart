@@ -62,7 +62,7 @@ void main() {
       );
       expect(ev.durationMinutes, equals(60));
       expect(ev.formattedTimeRange, equals('7:00 AM – 8:00 AM'));
-      expect(ev.categoryColor, equals(const Color(0xFFE57373)));
+      expect(ev.categoryColor, equals(CoveTokens.dark.categoryHealth));
     });
   });
 

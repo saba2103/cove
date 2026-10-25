@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_error_state.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_loading.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_streak_badge.dart';
 import '../../core/widgets/cove_undo_toast.dart';
@@ -43,7 +44,7 @@ class HabitsScreen extends ConsumerStatefulWidget {
 class _HabitsScreenState extends ConsumerState<HabitsScreen> {
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
     final outboxEvents = ref.watch(activeHomeOutboxProvider).value ?? [];
     final currentUser = widget.currentUser ?? ref.watch(authProvider).value;
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
@@ -64,14 +65,14 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
     if (habitsAsync.isLoading || checkinsAsync.isLoading) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: const CovePageInsets(child: Center(child: CoveLoading())),
       );
     }
 
     if (habitsAsync.hasError) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: CovePageInsets(
           child: Center(
             child: CoveErrorState.generic(
@@ -101,20 +102,19 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     CoveUser? currentUser, {
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final userId = currentUser?.id ?? 'local_user';
 
     final isDesktop = kIsWeb && MediaQuery.sizeOf(context).width >= 840;
 
     return CovePageInsets(
       child: Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(
             'Habits & Rhythms',
-            style: typography.headline.copyWith(fontSize: 20),
+            style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
           ),
           actions: [
             Padding(
@@ -170,8 +170,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     String userId, {
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final partnerName = ref.watch(partnerProfileProvider).displayName;
 
     // Group habits into:
@@ -194,7 +193,12 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
     if (isDesktop) {
       return ListView(
-        padding: EdgeInsets.fromLTRB(32, 24, 32, bottomPadding),
+        padding: EdgeInsets.fromLTRB(
+          CoveSpace.section,
+          CoveSpace.lg,
+          CoveSpace.section,
+          bottomPadding,
+        ),
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,8 +209,13 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (yourShared.isNotEmpty) ...[
-                      Text('YOUR SHARED RHYTHMS', style: typography.caption),
-                      const SizedBox(height: 8),
+                      Text(
+                        'YOUR SHARED RHYTHMS',
+                        style: CoveType.capsPage.copyWith(
+                          color: cv.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.sm),
                       CoveGroupedCard(
                         children: yourShared.map((habit) {
                           final habitCheckins =
@@ -221,17 +230,26 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: CoveSpace.lg),
                     ],
                     if (yourPrivate.isNotEmpty) ...[
                       Row(
                         children: [
-                          Text('PRIVATE TO YOU', style: typography.caption),
+                          Text(
+                            'PRIVATE TO YOU',
+                            style: CoveType.capsPage.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
                           const SizedBox(width: 6),
-                          Icon(Icons.lock_outline, size: 12, color: colors.textMuted),
+                          Icon(
+                            Icons.lock_outline,
+                            size: 12,
+                            color: cv.textSecondary,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       CoveGroupedCard(
                         children: yourPrivate.map((habit) {
                           final habitCheckins =
@@ -250,7 +268,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 32),
+              const SizedBox(width: CoveSpace.section),
               Expanded(
                 flex: 5,
                 child: Column(
@@ -260,14 +278,21 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("${partnerName.toUpperCase()}'S RHYTHMS",
-                              style: typography.caption),
-                          Text('Read-only',
-                              style: typography.caption
-                                  .copyWith(fontSize: 11, color: colors.textSubtle)),
+                          Text(
+                            "${partnerName.toUpperCase()}'S RHYTHMS",
+                            style: CoveType.capsPage.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            'Read-only',
+                            style: CoveType.barLabel.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       CoveGroupedCard(
                         children: partnerShared.map((habit) {
                           final habitCheckins =
@@ -290,12 +315,20 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     }
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, bottomPadding),
+      padding: EdgeInsets.fromLTRB(
+        CoveSpace.gutter,
+        16,
+        CoveSpace.gutter,
+        bottomPadding,
+      ),
       children: [
         // 1. YOUR HABITS
         if (yourShared.isNotEmpty) ...[
-          Text('YOUR SHARED RHYTHMS', style: typography.caption),
-          const SizedBox(height: 8),
+          Text(
+            'YOUR SHARED RHYTHMS',
+            style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+          ),
+          const SizedBox(height: CoveSpace.sm),
           CoveGroupedCard(
             children: yourShared.map((habit) {
               final habitCheckins =
@@ -310,7 +343,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CoveSpace.lg),
         ],
 
         // 2. PARTNER'S SHARED HABITS (READ-ONLY VIEW)
@@ -318,13 +351,17 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("${partnerName.toUpperCase()}'S RHYTHMS", style: typography.caption),
-              Text('Read-only',
-                  style: typography.caption
-                      .copyWith(fontSize: 11, color: colors.textSubtle)),
+              Text(
+                "${partnerName.toUpperCase()}'S RHYTHMS",
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              Text(
+                'Read-only',
+                style: CoveType.barLabel.copyWith(color: cv.textTertiary),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CoveSpace.sm),
           CoveGroupedCard(
             children: partnerShared.map((habit) {
               final habitCheckins =
@@ -336,19 +373,22 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CoveSpace.lg),
         ],
 
         // 3. YOUR PRIVATE HABITS
         if (yourPrivate.isNotEmpty) ...[
           Row(
             children: [
-              Text('PRIVATE TO YOU', style: typography.caption),
+              Text(
+                'PRIVATE TO YOU',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
               const SizedBox(width: 6),
-              Icon(Icons.lock_outline, size: 12, color: colors.textMuted),
+              Icon(Icons.lock_outline, size: 12, color: cv.textSecondary),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CoveSpace.sm),
           CoveGroupedCard(
             children: yourPrivate.map((habit) {
               final habitCheckins =
@@ -363,7 +403,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CoveSpace.lg),
         ],
       ],
     );
@@ -378,8 +418,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     required bool isPrivate,
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final streak = HabitStreakCalculator.calculate(
       habit: habit,
       checkins: checkins,
@@ -401,9 +440,9 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: colors.accentSecondary.withValues(alpha: 0.15),
-        child: Icon(Icons.delete_outline, size: 20, color: colors.accentSecondary),
+        padding: const EdgeInsets.only(right: CoveSpace.gutter),
+        color: cv.statusAlert.withValues(alpha: 0.15),
+        child: Icon(Icons.delete_outline, size: 20, color: cv.statusAlertText),
       ),
       confirmDismiss: (_) => _showDeleteConfirmation(context, habit),
       onDismissed: (_) {
@@ -425,7 +464,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
       },
       child: InkWell(
         onTap: () => HabitDetailSheet.show(context, habit: habit, checkins: checkins),
-        splashColor: colors.accentPrimary.withValues(alpha: 0.05),
+        splashColor: cv.accentFill.withValues(alpha: 0.05),
         highlightColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -456,17 +495,14 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                             habit.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: 'GeneralSans',
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
+                            style: CoveType.rowTitle.copyWith(
                               color: streak.isCheckedToday
-                                  ? colors.textMuted
-                                  : colors.textPrimary,
+                                  ? cv.textSecondary
+                                  : cv.textPrimary,
                               decoration: streak.isCheckedToday
                                   ? TextDecoration.lineThrough
                                   : TextDecoration.none,
-                              decorationColor: colors.textMuted,
+                              decorationColor: cv.textSecondary,
                             ),
                           ),
                         ),
@@ -474,18 +510,17 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
-                              color: colors.accentPrimary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(999),
+                              color: cv.accentWash,
+                              borderRadius: BorderRadius.circular(CoveRadius.pill),
                             ),
                             child: Text(
                               'Acknowledged',
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: colors.accentPrimary,
+                              style: CoveType.barLabel.copyWith(
+                                color: cv.accentText,
                               ),
                             ),
                           ),
@@ -497,17 +532,15 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                       children: [
                         Text(
                           cadenceLabel,
-                          style: typography.caption.copyWith(
-                            fontSize: 12,
-                            color: colors.textSubtle,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
                           ),
                         ),
                         if (streak.bestStreak > 0) ...[
                           Text(
                             ' • Best: ${streak.bestStreak}',
-                            style: typography.caption.copyWith(
-                              fontSize: 12,
-                              color: colors.textSubtle,
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textTertiary,
                             ),
                           ),
                         ],
@@ -526,17 +559,17 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
               // Two-tick sync status
               CoveSyncTick(status: syncStatus),
-              const SizedBox(width: 4),
+              const SizedBox(width: CoveSpace.xs),
 
               // Edit / Delete Popup Menu
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, size: 16, color: colors.textSubtle),
+                icon: Icon(Icons.more_vert, size: 16, color: cv.textTertiary),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                color: colors.surfaceCard,
+                color: cv.surfaceCard,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: colors.borderHairline, width: 1),
+                  borderRadius: BorderRadius.circular(CoveRadius.inline),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 onSelected: (action) async {
                   if (action == 'edit') {
@@ -553,14 +586,12 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                     value: 'edit',
                     child: Row(
                       children: [
-                        Icon(Icons.edit_outlined, size: 15, color: colors.textPrimary),
-                        const SizedBox(width: 8),
+                        Icon(Icons.edit_outlined, size: 15, color: cv.textPrimary),
+                        const SizedBox(width: CoveSpace.sm),
                         Text(
                           'Edit Habit',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            color: colors.textPrimary,
-                            fontSize: 14,
+                          style: CoveType.readout.copyWith(
+                            color: cv.textPrimary,
                           ),
                         ),
                       ],
@@ -570,14 +601,16 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline, size: 15, color: colors.accentSecondary),
-                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.delete_outline,
+                          size: 15,
+                          color: cv.statusAlertText,
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
                         Text(
                           'Delete Habit',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            color: colors.accentSecondary,
-                            fontSize: 14,
+                          style: CoveType.readout.copyWith(
+                            color: cv.statusAlertText,
                           ),
                         ),
                       ],
@@ -598,8 +631,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     required LocalHabit habit,
     required List<LocalHabitCheckin> checkins,
   }) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final streak = HabitStreakCalculator.calculate(
       habit: habit,
       checkins: checkins,
@@ -618,134 +650,139 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
-        children: [
-          // Passive indicator: subtle circle showing completed vs resting (no red alarm!)
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: streak.isCheckedToday
-                  ? colors.accentPrimary.withValues(alpha: 0.25)
-                  : Colors.transparent,
-              border: Border.all(
+          children: [
+            // Passive indicator: subtle circle showing completed vs resting (no red alarm!)
+            Container(
+              width: CoveSpace.gutter,
+              height: CoveSpace.gutter,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
                 color: streak.isCheckedToday
-                    ? colors.accentPrimary
-                    : colors.textSubtle.withValues(alpha: 0.4),
-                width: 1.5,
+                    ? cv.accentFill.withValues(alpha: 0.25)
+                    : Colors.transparent,
+                border: Border.all(
+                  color: streak.isCheckedToday
+                      ? cv.accentFill
+                      : cv.textTertiary.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: streak.isCheckedToday
+                  ? Icon(
+                      Icons.check,
+                      size: 12,
+                      color: cv.accentText,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+
+            // Title & Progress Note (calm, zero guilt/alarms)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    habit.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.rowTitle.copyWith(
+                      color: cv.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    streak.isCheckedToday
+                        ? '$cadenceLabel • Completed today'
+                        : '$cadenceLabel • Resting today',
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.textTertiary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            alignment: Alignment.center,
-            child: streak.isCheckedToday
-                ? Icon(
-                    Icons.check,
-                    size: 12,
-                    color: colors.accentPrimary,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 14),
 
-          // Title & Progress Note (calm, zero guilt/alarms)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  habit.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: typography.bodyMedium.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  streak.isCheckedToday
-                      ? '$cadenceLabel • Completed today'
-                      : '$cadenceLabel • Resting today',
-                  style: typography.caption.copyWith(
-                    fontSize: 12,
-                    color: colors.textSubtle,
-                  ),
-                ),
-              ],
+            // Streak Counter
+            CoveStreakIndicator(
+              count: streak.currentStreak,
+              label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
             ),
-          ),
+            const SizedBox(width: CoveSpace.md),
 
-          // Streak Counter
-          CoveStreakIndicator(
-            count: streak.currentStreak,
-            label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
-          ),
-          const SizedBox(width: 12),
-
-          // Quiet Acknowledge Tap
-          if (streak.isCheckedToday)
-            GestureDetector(
-              onTap: () {
-                ref.read(habitControllerProvider).acknowledgeCheckin(
-                      habit: habit,
-                    );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: streak.hasAcknowledgmentToday
-                      ? colors.accentPrimary.withValues(alpha: 0.15)
-                      : colors.surfaceRow,
-                  shape: BoxShape.circle,
-                  border: Border.all(
+            // Quiet Acknowledge Tap
+            if (streak.isCheckedToday)
+              GestureDetector(
+                onTap: () {
+                  ref.read(habitControllerProvider).acknowledgeCheckin(
+                        habit: habit,
+                      );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: CoveMotion.q(context),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
                     color: streak.hasAcknowledgmentToday
-                        ? colors.accentPrimary
-                        : colors.borderHairline,
-                    width: 1,
+                        ? cv.accentWash
+                        : cv.surfaceRow,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: streak.hasAcknowledgmentToday
+                          ? cv.accentFill
+                          : cv.lineHairline,
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    streak.hasAcknowledgmentToday
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    size: 14,
+                    color: streak.hasAcknowledgmentToday
+                        ? cv.accentText
+                        : cv.textSecondary,
                   ),
                 ),
-                child: Icon(
-                  streak.hasAcknowledgmentToday
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  size: 14,
-                  color: streak.hasAcknowledgmentToday
-                      ? colors.accentPrimary
-                      : colors.textMuted,
-                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<bool?> _showDeleteConfirmation(
       BuildContext context, LocalHabit habit) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
 
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
-        title: Text('Delete Habit?', style: typography.title),
+        backgroundColor: cv.surfaceCard,
+        title: Text(
+          'Delete Habit?',
+          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+        ),
         content: Text(
           'Are you sure you want to delete "${habit.name}" and its check-in history?',
-          style: typography.bodyRegular.copyWith(color: colors.textMuted),
+          style: CoveType.body.copyWith(color: cv.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel',
-                style: TextStyle(color: colors.textMuted)),
+            child: Text(
+              'Cancel',
+              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Delete',
-                style: TextStyle(color: colors.accentSecondary)),
+            child: Text(
+              'Delete',
+              style: CoveType.rowTitle.copyWith(color: cv.statusAlertText),
+            ),
           ),
         ],
       ),

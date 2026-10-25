@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../sync/db/app_database.dart';
 
 class Routine {
@@ -122,41 +123,43 @@ class RoutineEvent {
     return '$displayHour:$displayMin $period';
   }
 
-  Color get categoryColor {
+  Color get categoryColor => categoryColorFor(CoveTokens.dark);
+
+  Color categoryColorFor([CoveTokens cv = CoveTokens.dark]) {
     final cat = (category ?? 'general').toLowerCase().trim();
     switch (cat) {
       case 'work':
       case 'focus':
-        return const Color(0xFF6B8AFD); // Blue
+        return cv.categoryFuel;
       case 'fitness':
       case 'workout':
       case 'exercise':
-        return const Color(0xFFE57373); // Coral Red
+        return cv.categoryHealth;
       case 'health':
       case 'wellness':
-        return const Color(0xFF4DB6AC); // Teal
+        return cv.categoryPets;
       case 'meals':
       case 'food':
       case 'breakfast':
       case 'lunch':
       case 'dinner':
-        return const Color(0xFFFFB74D); // Amber
+        return cv.accentFill;
       case 'sleep':
       case 'rest':
-        return const Color(0xFF9575CD); // Deep Purple
+        return cv.categoryGifts;
       case 'study':
       case 'reading':
       case 'learning':
-        return const Color(0xFF81C784); // Green
+        return cv.categoryHome;
       case 'household':
       case 'chores':
-        return const Color(0xFFFF8A65); // Warm Orange
+        return cv.categoryTravel;
       case 'leisure':
       case 'hobby':
       case 'relax':
-        return const Color(0xFFBA68C8); // Violet
+        return cv.categoryEatingOut;
       default:
-        return const Color(0xFF90A4AE); // Blue Grey
+        return cv.accentTint;
     }
   }
 }

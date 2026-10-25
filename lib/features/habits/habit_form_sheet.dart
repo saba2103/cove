@@ -1,7 +1,7 @@
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import '../../sync/db/app_database.dart';
@@ -149,25 +149,26 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final mediaQuery = MediaQuery.of(context);
     final isEditing = widget.existing != null;
     final partnerName = ref.watch(partnerProfileProvider).displayName;
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: cv.surfaceSheet,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CoveRadius.sheet),
+        ),
         border: Border(
-          top: BorderSide(color: colors.borderHairline, width: 1),
+          top: BorderSide(color: cv.lineHairline, width: 1),
         ),
       ),
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: mediaQuery.viewInsets.bottom + 24,
+        left: CoveSpace.gutter,
+        right: CoveSpace.gutter,
+        top: CoveSpace.gutter,
+        bottom: mediaQuery.viewInsets.bottom + CoveSpace.lg,
       ),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -181,10 +182,10 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 children: [
                   Text(
                     isEditing ? 'Edit Habit' : 'New Habit or Rhythm',
-                    style: typography.title.copyWith(fontSize: 18),
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: Icon(Icons.close, size: 20, color: cv.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -192,24 +193,33 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               const SizedBox(height: 16),
 
               // Name Input
-              Text('HABIT NAME', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'HABIT NAME',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               CovePillInput(
                 controller: _nameController,
                 hintText: 'e.g. Morning Walk, Water Plants, Reading',
-                prefixIcon: Icon(Icons.repeat_outlined,
-                    size: 18, color: colors.textMuted),
+                prefixIcon: Icon(
+                  Icons.repeat_outlined,
+                  size: 18,
+                  color: cv.textSecondary,
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
 
               // Cadence Selector
-              Text('FREQUENCY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'FREQUENCY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.pill),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -260,33 +270,41 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 const SizedBox(height: 16),
                 Text(
                   _cadence == 'weekly' ? 'REPEAT ON DAY' : 'REPEAT ON DAYS',
-                  style: typography.caption,
+                  style: CoveType.capsPage.copyWith(color: cv.textSecondary),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: CoveSpace.sm),
                 _buildDayOfWeekChips(),
               ],
 
               const SizedBox(height: 18),
 
               // Time of Day Picker
-              Text('TIME OF DAY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'TIME OF DAY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               InkWell(
                 onTap: _pickTime,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CoveRadius.inline),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: CoveSpace.md,
+                  ),
                   decoration: BoxDecoration(
-                    color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.borderHairline, width: 1),
+                    color: cv.surfaceRow,
+                    borderRadius: BorderRadius.circular(CoveRadius.inline),
+                    border: Border.all(color: cv.lineHairline, width: 1),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.access_time_rounded,
                         size: 18,
-                        color: _selectedTime != null ? colors.accentPrimary : colors.textMuted,
+                        color: _selectedTime != null
+                            ? cv.accentText
+                            : cv.textSecondary,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -294,11 +312,13 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                           _selectedTime != null
                               ? _formatTimeOfDay(_selectedTime!)
                               : 'Any time of day',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            fontSize: 14,
-                            fontWeight: _selectedTime != null ? FontWeight.w600 : FontWeight.w400,
-                            color: _selectedTime != null ? colors.textPrimary : colors.textMuted,
+                          style: CoveType.readout.copyWith(
+                            fontWeight: _selectedTime != null
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: _selectedTime != null
+                                ? cv.textPrimary
+                                : cv.textSecondary,
                           ),
                         ),
                       ),
@@ -307,18 +327,20 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                           onTap: () => setState(() => _selectedTime = null),
                           behavior: HitTestBehavior.opaque,
                           child: Padding(
-                            padding: const EdgeInsets.all(4),
-                            child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                            padding: const EdgeInsets.all(CoveSpace.xs),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: cv.textSecondary,
+                            ),
                           ),
                         )
                       else
                         Text(
                           'Set time',
-                          style: TextStyle(
-                            fontFamily: 'GeneralSans',
-                            fontSize: 12,
+                          style: CoveType.rowSub.copyWith(
                             fontWeight: FontWeight.w500,
-                            color: colors.accentPrimary,
+                            color: cv.accentText,
                           ),
                         ),
                     ],
@@ -328,15 +350,18 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               const SizedBox(height: 22),
 
               // Visibility Selector
-              Text('VISIBILITY & PRIVACY', style: typography.caption),
-              const SizedBox(height: 8),
+              Text(
+                'VISIBILITY & PRIVACY',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
               Container(
                 decoration: BoxDecoration(
-                  color: colors.surfaceRow,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: colors.borderHairline, width: 1),
+                  color: cv.surfaceRow,
+                  borderRadius: BorderRadius.circular(CoveRadius.inline),
+                  border: Border.all(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
                   children: [
                     Row(
@@ -351,7 +376,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                                 _visibility = HabitVisibility.shared),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: CoveSpace.xs),
                         Expanded(
                           child: _buildVisibilityPill(
                             icon: Icons.lock_outline,
@@ -365,14 +390,19 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                       ],
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                      padding: const EdgeInsets.fromLTRB(
+                        10,
+                        CoveSpace.sm,
+                        10,
+                        6,
+                      ),
                       child: Text(
                         _visibility == HabitVisibility.shared
                             ? '$partnerName sees a calm read-only view of your progress. Zero annoying push notifications or alarm bells.'
                             : 'Private habits stay strictly on this device. 0 bytes are emitted or transmitted to $partnerName.',
-                        style: typography.caption.copyWith(
-                          fontSize: 11,
-                          color: colors.textMuted,
+                        style: CoveType.barLabel.copyWith(
+                          color: cv.textSecondary,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
@@ -384,15 +414,13 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 const SizedBox(height: 14),
                 Text(
                   _errorMessage!,
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
-                    fontSize: 13,
-                    color: colors.accentSecondary,
+                  style: CoveType.readout.copyWith(
+                    color: cv.statusAlertText,
                   ),
                 ),
               ],
 
-              const SizedBox(height: 24),
+              const SizedBox(height: CoveSpace.lg),
 
               // Save Button
               CovePillButton(
@@ -409,8 +437,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
   }
 
   Widget _buildDayOfWeekChips() {
-    final colors = context.colors;
-    final isDark = context.isDark;
+    final cv = context.cv;
     const days = [
       (1, 'M', 'Mon'),
       (2, 'T', 'Tue'),
@@ -449,31 +476,29 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
           },
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            width: 40,
-            height: 40,
+            duration: CoveMotion.q(context),
+            width: CoveSize.buttonRound,
+            height: CoveSize.buttonRound,
             decoration: BoxDecoration(
               color: isSelected
-                  ? colors.accentPrimary
-                  : colors.surfaceRow,
+                  ? cv.accentFill
+                  : cv.surfaceRow,
               shape: BoxShape.circle,
               border: Border.all(
                 color: isSelected
-                    ? colors.accentPrimary
-                    : colors.borderHairline,
+                    ? cv.accentFill
+                    : cv.lineHairline,
                 width: 1,
               ),
             ),
             alignment: Alignment.center,
             child: Text(
               letter,
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                fontSize: 14,
+              style: CoveType.readout.copyWith(
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
-                    ? (isDark ? const Color(0xFF0B1F1E) : Colors.white)
-                    : colors.textPrimary,
+                    ? cv.textOnAccent
+                    : cv.textPrimary,
               ),
             ),
           ),
@@ -487,31 +512,29 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
-    final isDark = context.isDark;
+    final cv = context.cv;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: CoveMotion.q(context),
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? colors.accentPrimary : colors.surfaceCard)
+              ? (isDark ? cv.accentFill : cv.surfaceCard)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 13,
+          style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected
-                ? (isDark ? const Color(0xFF0B1F1E) : colors.textPrimary)
-                : colors.textMuted,
+                ? (isDark ? cv.textOnAccent : cv.textPrimary)
+                : cv.textSecondary,
           ),
         ),
       ),
@@ -524,22 +547,24 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final colors = context.colors;
-    final isDark = context.isDark;
+    final cv = context.cv;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        duration: CoveMotion.q(context),
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: CoveSpace.sm,
+        ),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? colors.surfaceCard : colors.surfaceCard)
+              ? cv.surfaceCard
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
           border: isSelected
-              ? Border.all(color: colors.accentPrimary.withValues(alpha: 0.3), width: 1)
+              ? Border.all(color: cv.accentFill.withValues(alpha: 0.3), width: 1)
               : null,
         ),
         child: Row(
@@ -548,7 +573,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
             Icon(
               icon,
               size: 15,
-              color: isSelected ? colors.textPrimary : colors.textMuted,
+              color: isSelected ? cv.textPrimary : cv.textSecondary,
             ),
             const SizedBox(width: 6),
             Flexible(
@@ -556,11 +581,9 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'GeneralSans',
-                  fontSize: 12,
+                style: CoveType.rowSub.copyWith(
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? colors.textPrimary : colors.textMuted,
+                  color: isSelected ? cv.textPrimary : cv.textSecondary,
                 ),
               ),
             ),
