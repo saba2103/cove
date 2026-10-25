@@ -83,11 +83,11 @@ void main() {
         const myId = 'user_saba';
         const partnerId = 'user_ancy';
 
-        // Explicit list of valid (paidBy, visibility) pairs for an expense:
-        // - paidBy is either viewer (myId) or partner (partnerId) — never 'split'.
-        // - visibility is shared (split on), partnerCanSee (split off), or
-        //   privateToMe (private on, which selects viewer, turns split off, and
-        //   disables the partner tile).
+        // Explicit list of valid (paidBy, visibility) pairs for Add's expense flow:
+        // - ExpenseFormSheet has independent payer and visibility pills, so Edit
+        //   can also produce (partnerId, privateToMe).
+        // - Add leaves (partnerId, privateToMe) out on purpose because the design
+        //   rule is that private selects you; paidBy is never 'split'.
         const expectedCombinations = <(String, ExpenseVisibility)>[
           (myId, ExpenseVisibility.shared),
           (partnerId, ExpenseVisibility.shared),
@@ -142,7 +142,8 @@ void main() {
           produced.contains((partnerId, ExpenseVisibility.privateToMe)),
           isFalse,
           reason:
-              'Private expenses belong to the viewer device only and disable partner selection.',
+              'ExpenseFormSheet can create (partner, privateToMe) because its payer and visibility pills are independent, '
+              'but Add leaves it out on purpose because private selects you; Edit can still produce it.',
         );
       }),
     );
