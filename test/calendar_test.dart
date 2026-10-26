@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
@@ -300,6 +301,7 @@ void main() {
   group('Shared Calendar Feature Tests', () {
     testWidgets('1. Empty state renders CovePageHeader, fixed section order, and quiet empty lines',
         (tester) async {
+      SharedPreferences.setMockInitialValues({'first_run_done.calendar': true});
       final fixedDate = DateTime(2026, 10, 15);
       await tester.pumpWidget(
         createWidgetUnderTest(

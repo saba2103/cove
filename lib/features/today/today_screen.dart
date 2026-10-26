@@ -12,6 +12,8 @@ import '../../core/widgets/cove_metric_card.dart';
 import '../../core/widgets/cove_page_header.dart' show CovePageInsets;
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
+import '../../core/widgets/cove_starter_row.dart';
 import '../../core/widgets/slips/cove_habit_card.dart';
 import '../../core/widgets/slips/cove_note.dart';
 import '../../core/widgets/slips/cove_receipt.dart';
@@ -21,6 +23,7 @@ import '../../core/widgets/slips/cove_voucher.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../activity/activity_read_status_controller.dart';
 import '../activity/activity_screen.dart';
 import '../add/add_draft.dart';
@@ -250,6 +253,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     // Calendar events (non-subscription events, or all today events)
     final calendarEvents = todayData.events;
+    final isFirstRunScreen = ref.watch(firstRunProvider(CoveScreen.today));
+    final firstRunPartner = resolveFirstRunPartnerName(ref);
 
     // Compose the Day Letter on every build over today's real data, home currency, and real commitment due dates.
     final isFirstRun =
@@ -420,13 +425,18 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     children: [
                       CoveMetricCard(
                         label: 'Spent today',
-                        value: formatCoveCurrency(
-                          todayData.todaySpendTotal,
-                          currency.symbol,
-                        ),
-                        subtitle:
-                            '${formatCoveCurrency(todayData.sharedMonthExpensesTotal, currency.symbol)} this month',
-                        valueTone: CoveMetricValueTone.accentTint,
+                        value: isFirstRunScreen
+                            ? '—'
+                            : formatCoveCurrency(
+                                todayData.todaySpendTotal,
+                                currency.symbol,
+                              ),
+                        subtitle: isFirstRunScreen
+                            ? 'nothing yet'
+                            : '${formatCoveCurrency(todayData.sharedMonthExpensesTotal, currency.symbol)} this month',
+                        valueTone: isFirstRunScreen
+                            ? CoveMetricValueTone.primary
+                            : CoveMetricValueTone.accentTint,
                         onTap: () => _openDestination(
                           context,
                           'expenses',
@@ -435,8 +445,10 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       ),
                       CoveMetricCard(
                         label: 'Events',
-                        value: '${calendarEvents.length}',
-                        subtitle: _buildEventsMetricSubtitle(calendarEvents),
+                        value: isFirstRunScreen ? '—' : '${calendarEvents.length}',
+                        subtitle: isFirstRunScreen
+                            ? 'nothing on'
+                            : _buildEventsMetricSubtitle(calendarEvents),
                         valueTone: CoveMetricValueTone.primary,
                         onTap: () => _openDestination(
                           context,
@@ -446,12 +458,16 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       ),
                       CoveMetricCard(
                         label: 'Habits',
-                        value: '$completedHabits/$totalHabits',
-                        subtitle: totalHabits == 0
-                            ? 'none scheduled'
-                            : (waitingHabits == 0
-                                  ? 'all done today'
-                                  : '${formatLetterNumber(waitingHabits)} still waiting'),
+                        value: isFirstRunScreen
+                            ? '—'
+                            : '$completedHabits/$totalHabits',
+                        subtitle: isFirstRunScreen
+                            ? 'none kept yet'
+                            : (totalHabits == 0
+                                  ? 'none scheduled'
+                                  : (waitingHabits == 0
+                                        ? 'all done today'
+                                        : '${formatLetterNumber(waitingHabits)} still waiting')),
                         valueTone: CoveMetricValueTone.primary,
                         onTap: () => _openDestination(
                           context,
@@ -461,10 +477,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                       ),
                       CoveMetricCard(
                         label: 'The list',
-                        value: '$tickedTodayCount/$totalListCount',
-                        subtitle: openTasksCount == 0
-                            ? 'all clear'
-                            : '$openTasksCount still open',
+                        value: isFirstRunScreen
+                            ? '—'
+                            : '$tickedTodayCount/$totalListCount',
+                        subtitle: isFirstRunScreen
+                            ? 'nothing on it'
+                            : (openTasksCount == 0
+                                  ? 'all clear'
+                                  : '$openTasksCount still open'),
                         valueTone: CoveMetricValueTone.primary,
                         onTap: () => _openDestination(
                           context,
@@ -477,81 +497,152 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                 ),
                 const SizedBox(height: CoveSpace.section),
 
-                // 5. On the calendar — CoveTicket, carousel when more than one
-                _buildCalendarSection(
-                  context,
-                  events: calendarEvents,
-                  slipVariant: slipVariant,
-                  hasPartner: todayData.hasPartner,
-                  now: now,
-                ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 6. Habits — CoveHabitCard in a CoveCarousel
-                _buildHabitsSection(
-                  context,
-                  habits: todayData.habits,
-                  completedHabits: completedHabits,
-                  totalHabits: totalHabits,
-                  hasPartner: todayData.hasPartner,
-                  partnerName: todayData.partnerName,
-                  slipVariant: slipVariant,
-                  now: now,
-                  allCheckins: allCheckins,
-                ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 7. Spent today — one CoveReceipt holding the day's purchases, with the split bar
-                _buildSpentTodaySection(
-                  context,
-                  expenses: todayData.todayExpenses,
-                  totalSpend: todayData.todaySpendTotal,
-                  currencySymbol: currency.symbol,
-                  viewerPerson: viewerPerson,
-                  partnerPerson: partnerPerson,
-                  viewerName: name,
-                  partnerName: todayData.partnerName,
-                  hasPartner: todayData.hasPartner,
-                  slipVariant: slipVariant,
-                  now: now,
-                ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 8. The list — one CoveNote with the open items
-                _buildListSection(
-                  context,
-                  tasks: todayData.focusTasks,
-                  listsSummary: todayData.listsSummary,
-                  currentUserId: currentUserId,
-                  partnerName: todayData.partnerName,
-                  slipVariant: slipVariant,
-                  now: now,
-                ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 9. Due today / tomorrow — CoveVouchers in a CoveCarousel
-                _buildDueTomorrowSection(
-                  context,
-                  dueTodayCommitments: dueTodayCommitments,
-                  dueTomorrowCommitments: dueTomorrowCommitments,
-                  nextUpcomingCommitment: nextUpcomingCommitment,
-                  currencySymbol: currency.symbol,
-                  slipVariant: slipVariant,
-                ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 10. The Letter — CoveLetter over composeDayLetter()
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CoveSpace.gutter,
+                if (isFirstRunScreen) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CoveSeedCard(
+                          art: CoveSeedArtKind.sprout,
+                          title: 'Your first day in Cove',
+                          body:
+                              'Nothing here is made up. The page fills as the '
+                              'two of you put things in it — one line is '
+                              'enough to start.',
+                          buttonLabel: 'Add the first thing',
+                          onPressed: () => AddFlow.show(context),
+                          altText: 'Or try one of these:',
+                        ),
+                        const SizedBox(height: CoveSpace.md),
+                        CoveStarterRow(
+                          icon: Icons.credit_card_outlined,
+                          title: 'Log what you spent today',
+                          subtitle: 'a coffee, the auto, the groceries',
+                          onTap: () => AddFlow.show(
+                            context,
+                            kind: AddKind.expense,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.sm),
+                        CoveStarterRow(
+                          icon: Icons.checklist_rounded,
+                          title: 'Start the grocery list',
+                          subtitle: '$firstRunPartner can add to it too',
+                          onTap: () => AddFlow.show(
+                            context,
+                            kind: AddKind.task,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.sm),
+                        CoveStarterRow(
+                          icon: Icons.calendar_today_outlined,
+                          title: 'Put something on the calendar',
+                          subtitle: 'the thing you keep forgetting',
+                          onTap: () => AddFlow.show(
+                            context,
+                            kind: AddKind.event,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.section),
+                        const CoveSectionLabel.page(label: 'The letter'),
+                        const SizedBox(height: CoveSpace.sm),
+                        Text(
+                          'The letter writes itself once there is a day to read.',
+                          style: CoveType.readout.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        const SizedBox(height: CoveSpace.xs),
+                        Text(
+                          'Come back tomorrow morning.',
+                          style: CoveType.readout.copyWith(
+                            color: cv.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: CoveLetter(
-                    key: const ValueKey('today_day_letter'),
-                    spans: letterSpans,
-                    onTapTarget: (target) =>
-                        _handleLetterTargetTap(context, target),
+                ] else ...[
+                  // 5. On the calendar — CoveTicket, carousel when more than one
+                  _buildCalendarSection(
+                    context,
+                    events: calendarEvents,
+                    slipVariant: slipVariant,
+                    hasPartner: todayData.hasPartner,
+                    now: now,
                   ),
-                ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 6. Habits — CoveHabitCard in a CoveCarousel
+                  _buildHabitsSection(
+                    context,
+                    habits: todayData.habits,
+                    completedHabits: completedHabits,
+                    totalHabits: totalHabits,
+                    hasPartner: todayData.hasPartner,
+                    partnerName: todayData.partnerName,
+                    slipVariant: slipVariant,
+                    now: now,
+                    allCheckins: allCheckins,
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 7. Spent today — one CoveReceipt holding the day's purchases, with the split bar
+                  _buildSpentTodaySection(
+                    context,
+                    expenses: todayData.todayExpenses,
+                    totalSpend: todayData.todaySpendTotal,
+                    currencySymbol: currency.symbol,
+                    viewerPerson: viewerPerson,
+                    partnerPerson: partnerPerson,
+                    viewerName: name,
+                    partnerName: todayData.partnerName,
+                    hasPartner: todayData.hasPartner,
+                    slipVariant: slipVariant,
+                    now: now,
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 8. The list — one CoveNote with the open items
+                  _buildListSection(
+                    context,
+                    tasks: todayData.focusTasks,
+                    listsSummary: todayData.listsSummary,
+                    currentUserId: currentUserId,
+                    partnerName: todayData.partnerName,
+                    slipVariant: slipVariant,
+                    now: now,
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 9. Due today / tomorrow — CoveVouchers in a CoveCarousel
+                  _buildDueTomorrowSection(
+                    context,
+                    dueTodayCommitments: dueTodayCommitments,
+                    dueTomorrowCommitments: dueTomorrowCommitments,
+                    nextUpcomingCommitment: nextUpcomingCommitment,
+                    currencySymbol: currency.symbol,
+                    slipVariant: slipVariant,
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 10. The Letter — CoveLetter over composeDayLetter()
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: CoveLetter(
+                      key: const ValueKey('today_day_letter'),
+                      spans: letterSpans,
+                      onTapTarget: (target) =>
+                          _handleLetterTargetTap(context, target),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: CoveSpace.xl),
 
                 // 11. Footer — "Two lives. One calm home." italic, then the encryption line

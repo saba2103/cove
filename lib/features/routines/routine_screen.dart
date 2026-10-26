@@ -7,7 +7,10 @@ import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_max_width.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_round_button.dart';
+import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
 import '../../sync/providers/active_home_provider.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../add/add_draft.dart';
 import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
@@ -231,6 +234,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             : 'Alex');
 
     final bottomInset = CovePageInsets.bottomOf(context);
+    final isFirstRun = ref.watch(firstRunProvider(CoveScreen.routines));
+    final firstRunPartner = resolveFirstRunPartnerName(ref);
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
@@ -249,6 +254,103 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             ),
           ),
           data: (routines) {
+            final currentRoutine = routines.isEmpty
+                ? null
+                : routines.firstWhere(
+                    (r) => r.id == selectedRoutineId,
+                    orElse: () => routines.first,
+                  );
+
+            if (isFirstRun) {
+              return SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: CoveSpace.barClearance + bottomInset,
+                ),
+                child: CoveMaxWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CovePageHeader(
+                        title: 'Routines',
+                        actions: [
+                          CoveRoundButton(
+                            icon: Icons.add_rounded,
+                            variant: CoveRoundButtonVariant.gold,
+                            semanticLabel: 'Add Event',
+                            onPressed: () => AddFlow.show(
+                              context,
+                              kind: AddKind.routine,
+                              routineId: currentRoutine?.id,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: CoveSpace.lg),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.gutter,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            CoveSeedCard(
+                              art: CoveSeedArtKind.bands,
+                              title: 'Two days, not yet drawn',
+                              body:
+                                  'A routine is the shape a day repeats — the '
+                                  'walk, the standing call, lights out. Add a '
+                                  'few and the sky fills in behind them.',
+                              buttonLabel: 'Add a routine',
+                              onPressed: () => AddFlow.show(
+                                context,
+                                kind: AddKind.routine,
+                                routineId: currentRoutine?.id,
+                              ),
+                              altText:
+                                  "Yours on the left, $firstRunPartner's on the right.",
+                            ),
+                            const SizedBox(height: CoveSpace.section),
+                            const CoveSectionLabel.page(
+                              label: 'EVERYDAY',
+                              readout: '0',
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: CoveSpace.lg,
+                              ),
+                              child: Text(
+                                'Nothing repeats yet.',
+                                textAlign: TextAlign.center,
+                                style: CoveType.readout.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ),
+                            const CoveSectionLabel.page(
+                              label: 'WEEKDAYS',
+                              readout: '0',
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: CoveSpace.lg,
+                              ),
+                              child: Text(
+                                'Nothing repeats yet.',
+                                textAlign: TextAlign.center,
+                                style: CoveType.readout.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
             if (routines.isEmpty) {
               return SingleChildScrollView(
                 padding: EdgeInsets.only(
@@ -276,11 +378,6 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               );
             }
 
-            final currentRoutine = routines.firstWhere(
-              (r) => r.id == selectedRoutineId,
-              orElse: () => routines.first,
-            );
-
             return SingleChildScrollView(
               controller: _timelineScrollController,
               padding: EdgeInsets.only(
@@ -301,7 +398,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           onPressed: () => AddFlow.show(
                             context,
                             kind: AddKind.routine,
-                            routineId: currentRoutine.id,
+                            routineId: currentRoutine!.id,
                           ),
                         ),
                       ],
@@ -312,7 +409,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     // 2. Filter chips
                     _buildRoutineTabs(
                       routines,
-                      currentRoutine,
+                      currentRoutine!,
                       allEvents,
                       cv,
                     ),

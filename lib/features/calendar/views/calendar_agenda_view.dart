@@ -12,9 +12,11 @@ import '../../../core/widgets/cove_page_header.dart';
 import '../../../core/widgets/cove_round_button.dart';
 import '../../../core/widgets/cove_row.dart';
 import '../../../core/widgets/cove_section_label.dart';
+import '../../../core/widgets/cove_seed_card.dart';
 import '../../../core/widgets/cove_sync_tick.dart';
 import '../../../sync/db/app_database.dart';
 import '../../../sync/providers/active_home_provider.dart';
+import '../../../sync/providers/first_run_provider.dart';
 import '../../activity/activity_formatter.dart';
 import '../../auth/auth_controller.dart';
 import '../../expenses/expense_detail_sheet.dart';
@@ -216,6 +218,14 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         ? partnerProfile.displayName
         : 'Partner';
     final creatorId = home?.createdBy ?? currentUserId;
+    final isFirstRun = ref.watch(firstRunProvider(CoveScreen.calendar)) &&
+        widget.events.isEmpty &&
+        widget.subscriptions.isEmpty;
+    final isTodaySelected = CalendarDateUtils.isSameDay(
+      selectedDateOnly,
+      CalendarDateUtils.dateOnly(now),
+    );
+    final weekdayName = DateFormat('EEEE').format(selectedDateOnly);
 
     final bottomPadding =
         CoveSpace.barClearance + CovePageInsets.bottomOf(context);
@@ -294,27 +304,31 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                   children: [
                     CoveMetricCard(
                       label: 'SPENT',
-                      value:
-                          '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
+                      value: isFirstRun
+                          ? '—'
+                          : '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
                       subtitle: expenses.isEmpty
                           ? 'no spends'
                           : '${expenses.length} ${expenses.length == 1 ? 'spend' : 'spends'}',
                     ),
                     CoveMetricCard(
                       label: 'EVENTS',
-                      value: '${events.length}',
+                      value: isFirstRun ? '—' : '${events.length}',
                       subtitle: events.isEmpty
                           ? 'nothing scheduled'
                           : 'on the calendar',
                     ),
                     CoveMetricCard(
                       label: 'HABITS',
-                      value: '$completedHabits/${habits.length}',
+                      value: isFirstRun
+                          ? '—'
+                          : '$completedHabits/${habits.length}',
                       subtitle: habits.isEmpty ? 'none due' : 'kept today',
                     ),
                     CoveMetricCard(
                       label: 'THE LIST',
-                      value: '$completedTasks/${tasks.length}',
+                      value:
+                          isFirstRun ? '—' : '$completedTasks/${tasks.length}',
                       subtitle:
                           tasks.isEmpty ? 'nothing on the list' : 'struck off',
                     ),
@@ -322,110 +336,124 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                 ),
                 const SizedBox(height: CoveSpace.section),
 
-                // 5. Fixed Section 1: EVENTS
-                CoveSectionLabel.page(
-                  label: 'EVENTS',
-                  readout: '${events.length}',
-                ),
-                const SizedBox(height: CoveSpace.xs),
-                if (events.isEmpty)
-                  _buildQuietEmptyLine(
-                    context,
-                    'Nothing on the calendar for this day.',
+                if (isFirstRun)
+                  CoveSeedCard(
+                    art: CoveSeedArtKind.calendar,
+                    title: 'An empty $weekdayName',
+                    body:
+                        'Events, spending, habits and list lines all land on a '
+                        'date. Put one here and the day starts holding things.',
+                    buttonLabel:
+                        isTodaySelected ? 'Add to today' : 'Add to $weekdayName',
+                    onPressed: widget.onAddEvent,
+                    altText: 'Nothing is due this month either.',
                   )
-                else
-                  for (var i = 0; i < events.length; i++)
-                    _buildEventRow(
+                else ...[
+                  // 5. Fixed Section 1: EVENTS
+                  CoveSectionLabel.page(
+                    label: 'EVENTS',
+                    readout: '${events.length}',
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  if (events.isEmpty)
+                    _buildQuietEmptyLine(
                       context,
-                      entry: events[i],
-                      isLast: i == events.length - 1,
-                      creatorId: creatorId,
-                      currentUserId: currentUserId,
-                      myName: myName,
-                      partnerName: partnerName,
-                    ),
-                const SizedBox(height: CoveSpace.section),
+                      'Nothing on the calendar for this day.',
+                    )
+                  else
+                    for (var i = 0; i < events.length; i++)
+                      _buildEventRow(
+                        context,
+                        entry: events[i],
+                        isLast: i == events.length - 1,
+                        creatorId: creatorId,
+                        currentUserId: currentUserId,
+                        myName: myName,
+                        partnerName: partnerName,
+                      ),
+                  const SizedBox(height: CoveSpace.section),
 
-                // 5. Fixed Section 2: HABITS
-                CoveSectionLabel.page(
-                  label: 'HABITS',
-                  readout: habits.isEmpty
-                      ? '0'
-                      : '$completedHabits of ${habits.length}',
-                ),
-                const SizedBox(height: CoveSpace.xs),
-                if (habits.isEmpty)
-                  _buildQuietEmptyLine(
+                  // 5. Fixed Section 2: HABITS
+                  CoveSectionLabel.page(
+                    label: 'HABITS',
+                    readout: habits.isEmpty
+                        ? '0'
+                        : '$completedHabits of ${habits.length}',
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  if (habits.isEmpty)
+                    _buildQuietEmptyLine(
+                      context,
+                      'No habits due on this day.',
+                    )
+                  else
+                    for (var i = 0; i < habits.length; i++)
+                      _buildHabitRow(
+                        context,
+                        entry: habits[i],
+                        isLast: i == habits.length - 1,
+                      ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 5. Fixed Section 3: SPENT
+                  CoveSectionLabel.page(
+                    label: 'SPENT',
+                    readout:
+                        '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  if (expenses.isEmpty)
+                    _buildQuietEmptyLine(
+                      context,
+                      'No expenses logged on this day.',
+                    )
+                  else
+                    for (var i = 0; i < expenses.length; i++)
+                      _buildExpenseRow(
+                        context,
+                        entry: expenses[i],
+                        isLast: i == expenses.length - 1,
+                        defaultSymbol: currencyPref.symbol,
+                        creatorId: creatorId,
+                        currentUserId: currentUserId,
+                        myName: myName,
+                        partnerName: partnerName,
+                      ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 5. Fixed Section 4: THE LIST
+                  CoveSectionLabel.page(
+                    label: 'THE LIST',
+                    readout: tasks.isEmpty ? null : '${tasks.length}',
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  if (tasks.isEmpty)
+                    _buildQuietEmptyLine(
+                      context,
+                      'Nothing added or struck on this day.',
+                    )
+                  else
+                    for (var i = 0; i < tasks.length; i++)
+                      _buildTaskRow(
+                        context,
+                        entry: tasks[i],
+                        isLast: i == tasks.length - 1,
+                        currentUserId: currentUserId,
+                        myName: myName,
+                        partnerName: partnerName,
+                      ),
+                  const SizedBox(height: CoveSpace.section),
+
+                  // 6. Commitments due, given prominence — this is where renewals are noticed
+                  _buildCommitmentsDueCard(
                     context,
-                    'No habits due on this day.',
-                  )
-                else
-                  for (var i = 0; i < habits.length; i++)
-                    _buildHabitRow(
-                      context,
-                      entry: habits[i],
-                      isLast: i == habits.length - 1,
-                    ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 5. Fixed Section 3: SPENT
-                CoveSectionLabel.page(
-                  label: 'SPENT',
-                  readout:
-                      '${currencyPref.symbol}${formatCoveAmount(totalSpent)}',
-                ),
-                const SizedBox(height: CoveSpace.xs),
-                if (expenses.isEmpty)
-                  _buildQuietEmptyLine(
-                    context,
-                    'No expenses logged on this day.',
-                  )
-                else
-                  for (var i = 0; i < expenses.length; i++)
-                    _buildExpenseRow(
-                      context,
-                      entry: expenses[i],
-                      isLast: i == expenses.length - 1,
-                      defaultSymbol: currencyPref.symbol,
-                      creatorId: creatorId,
-                      currentUserId: currentUserId,
-                      myName: myName,
-                      partnerName: partnerName,
-                    ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 5. Fixed Section 4: THE LIST
-                CoveSectionLabel.page(
-                  label: 'THE LIST',
-                  readout: tasks.isEmpty ? null : '${tasks.length}',
-                ),
-                const SizedBox(height: CoveSpace.xs),
-                if (tasks.isEmpty)
-                  _buildQuietEmptyLine(
-                    context,
-                    'Nothing added or struck on this day.',
-                  )
-                else
-                  for (var i = 0; i < tasks.length; i++)
-                    _buildTaskRow(
-                      context,
-                      entry: tasks[i],
-                      isLast: i == tasks.length - 1,
-                      currentUserId: currentUserId,
-                      myName: myName,
-                      partnerName: partnerName,
-                    ),
-                const SizedBox(height: CoveSpace.section),
-
-                // 6. Commitments due, given prominence — this is where renewals are noticed
-                _buildCommitmentsDueCard(
-                  context,
-                  commitmentsDue: commitmentsDue,
-                  entriesMap: entriesMap,
-                  selectedDateOnly: selectedDateOnly,
-                  windowEnd: windowEnd,
-                  defaultSymbol: currencyPref.symbol,
-                ),
+                    commitmentsDue: commitmentsDue,
+                    entriesMap: entriesMap,
+                    selectedDateOnly: selectedDateOnly,
+                    windowEnd: windowEnd,
+                    defaultSymbol: currencyPref.symbol,
+                  ),
+                ],
               ],
             ),
           ),

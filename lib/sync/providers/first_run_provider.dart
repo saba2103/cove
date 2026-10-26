@@ -6,9 +6,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../features/profile/partner_profile_controller.dart';
 import '../../features/routines/routine_controller.dart';
+import '../../features/today/today_controller.dart';
 import '../db/app_database.dart';
 import 'active_home_provider.dart';
 import 'cove_sync_providers.dart';
+
+const Set<String> _kDefaultSeededRoutineNames = <String>{
+  'Weekday (Mon – Fri)',
+  'Saturday',
+  'Sunday',
+};
 
 /// The seven first-run screens (`design/specs/16-first-run.md` §3).
 enum CoveScreen {
@@ -140,8 +147,13 @@ final firstRunCountsProvider = Provider<FirstRunCounts>((ref) {
   final listItemsStream = ref.watch(activeHomeAllListItemsProvider).value;
   final habitsStream = ref.watch(activeHomeHabitsProvider).value;
   final checkinsStream = ref.watch(activeHomeAllHabitCheckinsProvider).value;
+  final routinesStream = ref.watch(activeHomeRoutinesProvider).value;
   final routineEventsStream =
       ref.watch(activeHomeAllRoutineEventsProvider).value;
+  final nonDefaultRoutinesCount = routinesStream
+          ?.where((r) => !_kDefaultSeededRoutineNames.contains(r.name.trim()))
+          .length ??
+      0;
 
   return FirstRunCounts(
     expenses: math.max(dbCounts.expenses, expensesStream?.length ?? 0),
@@ -158,12 +170,25 @@ final firstRunCountsProvider = Provider<FirstRunCounts>((ref) {
     commitments: math.max(dbCounts.commitments, subsStream?.length ?? 0),
     routineEvents: math.max(
       dbCounts.routineEvents,
-      routineEventsStream?.length ?? 0,
+      (routineEventsStream?.length ?? 0) + nonDefaultRoutinesCount,
     ),
     activity: dbCounts.activity,
     hasPartnerInDb: dbCounts.hasPartnerInDb,
   );
 });
+
+/// Resolves `{partner}` for first-run copy (`design/specs/16-first-run.md` §4):
+/// returns the partner's display name once known/joined, or `"your partner"`
+/// before they join.
+String resolveFirstRunPartnerName(WidgetRef ref) {
+  final partnerProfile = ref.watch(partnerProfileProvider);
+  final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+  final name = partnerProfile.displayName.trim();
+  if (name.isNotEmpty && name != 'Partner' && (hasPartner || partnerProfile.hasCustomName)) {
+    return name;
+  }
+  return 'your partner';
+}
 
 /// First-run rule (`design/specs/16-first-run.md` §3):
 /// `firstRunProvider(CoveScreen)` → `bool`.
@@ -176,6 +201,20 @@ final firstRunProvider = Provider.family<bool, CoveScreen>((ref, screen) {
   final counts = ref.watch(firstRunCountsProvider);
   final prefs = ref.watch(firstRunSharedPrefsProvider).value;
   final doneStore = ref.watch(firstRunDoneStoreProvider);
+
+  // Also observe `todayDataProvider` when evaluating Today so tests that
+  // override `todayDataProvider` directly see their seeded items.
+  bool todayProviderHasData = false;
+  if (screen == CoveScreen.today) {
+    final todayData = ref.watch(todayDataProvider);
+    todayProviderHasData = todayData.events.isNotEmpty ||
+        todayData.habits.isNotEmpty ||
+        todayData.todayExpenses.isNotEmpty ||
+        todayData.focusTasks.isNotEmpty ||
+        todayData.todaySpendTotal > 0 ||
+        todayData.sharedMonthExpensesTotal > 0 ||
+        todayData.listsSummary.any((l) => l.openCount > 0);
+  }
 
   // Partner joined detection for `CoveScreen.ourHome`:
   final partnerValue = ref.watch(activeHomeHasPartnerProvider);
@@ -191,13 +230,14 @@ final firstRunProvider = Provider.family<bool, CoveScreen>((ref, screen) {
       (ActiveHomePartnerNotifier.isExplicit(partnerNotifier) && partnerValue);
 
   final bool hasData = switch (screen) {
-    CoveScreen.today => (counts.expenses +
-            counts.events +
-            counts.habits +
-            counts.listItems +
-            counts.commitments +
-            counts.routineEvents) >
-        0,
+    CoveScreen.today => todayProviderHasData ||
+        (counts.expenses +
+                counts.events +
+                counts.habits +
+                counts.listItems +
+                counts.commitments +
+                counts.routineEvents) >
+            0,
     CoveScreen.calendar => (counts.events +
             counts.expenses +
             counts.listItems +

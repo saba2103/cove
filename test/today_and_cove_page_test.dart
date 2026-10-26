@@ -19,6 +19,7 @@ import 'package:cove/features/weather/weather_model.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -117,6 +118,7 @@ void main() {
     List<LocalSubscription>? subscriptions,
   }) {
     return [
+      firstRunProvider(CoveScreen.today).overrideWithValue(false),
       notificationServiceProvider.overrideWithValue(FakeNotificationService()),
       authProvider.overrideWith(() => FakeAuthNotifier(AsyncValue.data(testUser))),
       activeHomeIdProvider.overrideWith(() => FakeActiveHomeNotifier('home_123')),
