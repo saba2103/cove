@@ -108,7 +108,7 @@ class RemindersScreen extends ConsumerWidget {
                 icon: Icons.notifications_none_outlined,
                 title: 'No reminders set yet',
                 description:
-                    'Add daily check-ins to build a quiet, intentional rhythm for your shared home.',
+                    'Add daily check-ins to build a quiet, intentional habit for your shared home.',
                 action: CovePillButton(
                   label: '+ Add Check-in Reminder',
                   onPressed: () => _showAddReminderSheet(context, ref),

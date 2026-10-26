@@ -77,7 +77,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
           child: Center(
             child: CoveErrorState.generic(
               title: 'Habits unavailable',
-              description: 'Could not load your habits and rhythms right now.',
+              description: 'Could not load your habits right now.',
               onRetry: () {
                 ref.invalidate(activeHomeHabitsProvider);
                 ref.invalidate(activeHomeAllHabitCheckinsProvider);
@@ -113,7 +113,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: Text(
-            'Habits & Rhythms',
+            'Habits',
             style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
           ),
           actions: [
@@ -152,7 +152,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
           icon: Icons.repeat_outlined,
           title: 'No Habits Logged',
           description:
-              'Track personal rhythms together or privately without gamified noise or guilt.',
+              'Track personal habits together or privately without gamified noise or guilt.',
           action: CovePillButton(
             label: 'Create First Habit',
             onPressed: () => AddFlow.show(context, kind: AddKind.habit),
@@ -210,7 +210,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   children: [
                     if (yourShared.isNotEmpty) ...[
                       Text(
-                        'YOUR SHARED RHYTHMS',
+                        'YOUR SHARED HABITS',
                         style: CoveType.capsPage.copyWith(
                           color: cv.textSecondary,
                         ),
@@ -279,7 +279,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "${partnerName.toUpperCase()}'S RHYTHMS",
+                            "${partnerName.toUpperCase()}'S HABITS",
                             style: CoveType.capsPage.copyWith(
                               color: cv.textSecondary,
                             ),
@@ -325,7 +325,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         // 1. YOUR HABITS
         if (yourShared.isNotEmpty) ...[
           Text(
-            'YOUR SHARED RHYTHMS',
+            'YOUR SHARED HABITS',
             style: CoveType.capsPage.copyWith(color: cv.textSecondary),
           ),
           const SizedBox(height: CoveSpace.sm),
@@ -352,7 +352,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "${partnerName.toUpperCase()}'S RHYTHMS",
+                "${partnerName.toUpperCase()}'S HABITS",
                 style: CoveType.capsPage.copyWith(color: cv.textSecondary),
               ),
               Text(

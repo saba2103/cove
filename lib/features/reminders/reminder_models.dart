@@ -103,7 +103,7 @@ const List<String> kDefaultWarmPresets = [
   'A quiet moment for us • Check in on our sanctuary',
   'Take a breath together • Reflect on today’s little joys',
   'How was your day? Let’s stay close & in sync.',
-  'A gentle pause to share our calm rhythm.',
+  'A gentle pause to share our calm habit.',
   'Thinking of you & our home. Open Cove to stay connected.',
   'Evening unwind • A loving moment to reflect together.',
   'Morning light • Beginning our day in quiet harmony.',

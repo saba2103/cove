@@ -181,7 +181,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isEditing ? 'Edit Habit' : 'New Habit or Rhythm',
+                    isEditing ? 'Edit Habit' : 'New Habit',
                     style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
                   IconButton(

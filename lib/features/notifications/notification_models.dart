@@ -20,7 +20,7 @@ enum NotificationModule {
       case NotificationModule.expenses:
         return 'Expenses';
       case NotificationModule.habits:
-        return 'Habits & Rhythms';
+        return 'Habits';
       case NotificationModule.calendar:
         return 'Shared Calendar';
       case NotificationModule.activity:
@@ -39,7 +39,7 @@ enum NotificationModule {
       case NotificationModule.expenses:
         return 'New expenses logged by partner';
       case NotificationModule.habits:
-        return 'Partner check-in momentum & rhythms';
+        return 'Partner check-in momentum & habits';
       case NotificationModule.calendar:
         return 'Events added or changed by partner';
       case NotificationModule.activity:
@@ -204,7 +204,7 @@ class CoveNotificationPayload {
         return name != null ? '$name reactivated a commitment' : 'A subscription was reactivated';
 
       case 'habit_created':
-        return name != null ? '$name created a new rhythm' : 'A new habit was created';
+        return name != null ? '$name created a new habit' : 'A new habit was created';
       case 'habit_checkin_toggled':
         return name != null ? '$name checked in on a habit' : 'Partner checked in on a habit';
       case 'habit_checkin_acknowledged':

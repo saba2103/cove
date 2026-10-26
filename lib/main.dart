@@ -425,7 +425,7 @@ class _ComponentShowcaseScreenState
                           const SizedBox(height: 8),
                           const CoveStreakIndicator(count: 14, label: 'days'),
                           const SizedBox(height: 6),
-                          Text('Active joint rhythm', style: typography.caption),
+                          Text('Active joint habit', style: typography.caption),
                         ],
                       ),
                     ),

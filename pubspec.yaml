@@ -83,16 +83,6 @@ flutter:
   uses-material-design: true
 
   fonts:
-    - family: GeneralSans
-      fonts:
-        - asset: assets/fonts/GeneralSans-Regular.ttf
-          weight: 400
-        - asset: assets/fonts/GeneralSans-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/GeneralSans-Semibold.ttf
-          weight: 600
-        - asset: assets/fonts/GeneralSans-Bold.ttf
-          weight: 700
     - family: LibreBodoni
       fonts:
         - asset: assets/fonts/LibreBodoni-Regular.ttf

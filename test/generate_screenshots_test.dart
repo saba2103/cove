@@ -28,10 +28,10 @@ void main() {
       }
     }
 
-    await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Regular.ttf');
-    await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Medium.ttf');
-    await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Semibold.ttf');
-    await loadFontFromFile('GeneralSans', 'assets/fonts/GeneralSans-Bold.ttf');
+    await loadFontFromFile('PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Regular.ttf');
+    await loadFontFromFile('PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Medium.ttf');
+    await loadFontFromFile('PlusJakartaSans', 'assets/fonts/PlusJakartaSans-SemiBold.ttf');
+    await loadFontFromFile('PlusJakartaSans', 'assets/fonts/PlusJakartaSans-Bold.ttf');
     await loadFontFromFile('LibreBodoni', 'assets/fonts/LibreBodoni-Regular.ttf');
     await loadFontFromFile('LibreBodoni', 'assets/fonts/LibreBodoni-Medium.ttf');
 

@@ -489,7 +489,7 @@ class AboutCoveScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: CoveSpace.sm),
                 Text(
-                  'Cove was born out of a desire for intimacy and calm. In a world of public feeds and noisy social networks, Cove exists as a quiet, encrypted sanctuary where two partners align their days, cherish shared rhythms, manage household finances, and grow together in complete digital peace.',
+                  'Cove was born out of a desire for intimacy and calm. In a world of public feeds and noisy social networks, Cove exists as a quiet, encrypted sanctuary where two partners align their days, cherish shared habits, manage household finances, and grow together in complete digital peace.',
                   style: CoveType.readout.copyWith(
                     color: cv.textSecondary,
                     height: 1.5,
@@ -507,7 +507,7 @@ class AboutCoveScreen extends ConsumerWidget {
                 _buildPillarRow(
                   context,
                   icon: Icons.spa_outlined,
-                  title: 'Calm Household Rhythms',
+                  title: 'Calm Household Habits',
                   desc:
                       'No addictive gamification or spam. Designed to help you live together with ease.',
                 ),

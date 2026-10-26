@@ -13,7 +13,7 @@ enum CalendarLayer {
   events('Events', 'EVENT'),
   commitments('Commitments', 'RENEWAL'),
   money('Money', 'EXPENSE'),
-  rhythms('Rhythms', 'RHYTHM'),
+  rhythms('Habits', 'HABIT'),
   tasks('Tasks', 'TASK');
 
   final String label;

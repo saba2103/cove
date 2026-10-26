@@ -197,7 +197,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
 
   // --- 6. Serene Morning Quote ---
   final quotes = const [
-    'Two lives. One calm rhythm.',
+    'Two lives. One calm habit.',
     'A quiet start, a steady step together.',
     'Clear minds, light hearts, one day at a time.',
     'Today is an open canvas for the two of you.',

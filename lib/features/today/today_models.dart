@@ -149,7 +149,7 @@ class TodayData {
       userName: '',
       partnerName: 'Partner',
       hasPartner: false,
-      morningQuote: 'Two lives. One calm rhythm.',
+      morningQuote: 'Two lives. One calm habit.',
     );
   }
 }

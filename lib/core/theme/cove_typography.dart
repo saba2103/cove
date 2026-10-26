@@ -21,7 +21,7 @@ class CoveTypography extends ThemeExtension<CoveTypography> {
     required this.largeNumber,
   });
 
-  static const String generalSansFamily = 'GeneralSans';
+  static const String generalSansFamily = 'PlusJakartaSans';
   static const String bodoniModaFamily = 'LibreBodoni';
 
   factory CoveTypography.fromColors(CoveColors colors) {

@@ -71,12 +71,6 @@ Future<void> loadCoveFonts() async {
       'assets/fonts/PlusJakartaSans-SemiBold.ttf',
       'assets/fonts/PlusJakartaSans-Bold.ttf',
     ],
-    'GeneralSans': [
-      'assets/fonts/GeneralSans-Regular.ttf',
-      'assets/fonts/GeneralSans-Medium.ttf',
-      'assets/fonts/GeneralSans-Semibold.ttf',
-      'assets/fonts/GeneralSans-Bold.ttf',
-    ],
     'LibreBodoni': [
       'assets/fonts/LibreBodoni-Regular.ttf',
       'assets/fonts/LibreBodoni-Italic.ttf',

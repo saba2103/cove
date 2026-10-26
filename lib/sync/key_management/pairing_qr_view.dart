@@ -163,7 +163,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                         Text(
                           formattedCode,
                           style: TextStyle(
-                            fontFamily: 'GeneralSans',
+                            fontFamily: 'PlusJakartaSans',
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 4.0,
@@ -174,7 +174,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                         Text(
                           'Valid for 10 minutes',
                           style: TextStyle(
-                            fontFamily: 'GeneralSans',
+                            fontFamily: 'PlusJakartaSans',
                             fontSize: 11,
                             color: colors.textSubtle,
                           ),
@@ -197,7 +197,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                                 Text(
                                   _copied ? 'Copied to clipboard' : 'Copy 6-digit code',
                                   style: TextStyle(
-                                    fontFamily: 'GeneralSans',
+                                    fontFamily: 'PlusJakartaSans',
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: _copied ? colors.accentPrimary : colors.textMuted,

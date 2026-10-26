@@ -638,7 +638,7 @@ class ActivityFormatter {
           rawPayload: payload,
           entityId: payload['id'] as String? ?? payload['habit_id'] as String?,
           targetTitle: name.toString(),
-          detailSubtitle: 'New shared rhythm',
+          detailSubtitle: 'New shared habit',
         );
 
       case 'habit_checkin_toggled':

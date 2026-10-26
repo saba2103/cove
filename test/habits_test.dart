@@ -297,7 +297,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Habits & Rhythms'), findsOneWidget);
+      expect(find.text('Habits'), findsOneWidget);
       expect(find.text('No Habits Logged'), findsOneWidget);
       expect(find.text('Create First Habit'), findsOneWidget);
 
@@ -352,7 +352,7 @@ void main() {
       expect(payload['cadence'], equals('daily'));
 
       // 2. Verify UI update
-      expect(find.text('YOUR SHARED RHYTHMS'), findsOneWidget);
+      expect(find.text('YOUR SHARED HABITS'), findsOneWidget);
       expect(find.text('Morning Walk'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
@@ -449,8 +449,8 @@ void main() {
       expect(find.text('Private Journaling'), findsNothing);
       expect(find.text('PRIVATE TO YOU'), findsNothing);
 
-      // 2. Shared habit appears in PARTNER'S RHYTHMS as Read-only
-      expect(find.text("PARTNER'S RHYTHMS"), findsOneWidget);
+      // 2. Shared habit appears in PARTNER'S HABITS as Read-only
+      expect(find.text("PARTNER'S HABITS"), findsOneWidget);
       expect(find.text('Read-only'), findsOneWidget);
       expect(find.text('Drink 2L Water'), findsOneWidget);
 

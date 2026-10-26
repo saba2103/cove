@@ -2,11 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../core/theme/cove_theme.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_error_state.dart';
 import '../../core/widgets/cove_loading.dart';
+import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_sync_tick.dart';
@@ -37,6 +38,9 @@ class ListsScreen extends ConsumerStatefulWidget {
 }
 
 class _ListsScreenState extends ConsumerState<ListsScreen> {
+  static const double _kNavItemRadius =
+      10.0; // (literal) 10dp desktop list navigator item corner radius
+
   FlutterSecureStorage get _storage => ref.read(homeKeyStoreProvider).storage;
 
   int _selectedTabIndex = 0;
@@ -142,30 +146,26 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   Future<void> _handleClearCompleted(String activeListId, int completedCount) async {
     if (completedCount == 0) return;
 
-    final colors = context.colors;
+    final cv = context.cv;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
+          side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
           'Clear completed items?',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
+          style: CoveType.rowTitle.copyWith(
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: cv.textPrimary,
           ),
         ),
         content: Text(
           'This will remove $completedCount completed item${completedCount > 1 ? "s" : ""} from this list.',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 14,
-            color: colors.textMuted,
+          style: CoveType.readout.copyWith(
+            color: cv.textSecondary,
           ),
         ),
         actions: [
@@ -173,9 +173,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Cancel',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
-                color: colors.textMuted,
+              style: CoveType.readout.copyWith(
+                color: cv.textSecondary,
               ),
             ),
           ),
@@ -183,10 +182,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Clear',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
+              style: CoveType.readout.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.accentSecondary,
+                color: cv.statusAlertText,
               ),
             ),
           ),
@@ -201,43 +199,39 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   }
 
   Future<void> _handleRenameList(LocalList list) async {
-    final colors = context.colors;
+    final cv = context.cv;
     final controller = TextEditingController(text: list.name);
 
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
+          side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
           'Rename list',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
+          style: CoveType.rowTitle.copyWith(
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: cv.textPrimary,
           ),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 15,
-            color: colors.textPrimary,
+          style: CoveType.body.copyWith(
+            color: cv.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: 'List name',
-            hintStyle: TextStyle(color: colors.textMuted),
+            hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: colors.borderHairline),
+              borderSide: BorderSide(color: cv.lineHairline),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: colors.accentPrimary),
+              borderSide: BorderSide(color: cv.accentFill),
             ),
           ),
         ),
@@ -246,7 +240,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+              style: CoveType.readout.copyWith(color: cv.textSecondary),
             ),
           ),
           TextButton(
@@ -258,10 +252,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             },
             child: Text(
               'Rename',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
+              style: CoveType.readout.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.accentPrimary,
+                color: cv.accentText,
               ),
             ),
           ),
@@ -278,31 +271,27 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   }
 
   Future<void> _handleDeleteList(LocalList list, int totalCount) async {
-    final colors = context.colors;
+    final cv = context.cv;
     final partnerName = ref.read(partnerProfileProvider).displayName;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
+          side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
           'Delete "${list.name}"?',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
+          style: CoveType.rowTitle.copyWith(
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: cv.textPrimary,
           ),
         ),
         content: Text(
           'This will permanently delete this list and all its items for you and $partnerName.',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 14,
-            color: colors.textMuted,
+          style: CoveType.readout.copyWith(
+            color: cv.textSecondary,
           ),
         ),
         actions: [
@@ -310,17 +299,16 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Cancel',
-              style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+              style: CoveType.readout.copyWith(color: cv.textSecondary),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Delete',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
+              style: CoveType.readout.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.accentSecondary,
+                color: cv.statusAlertText,
               ),
             ),
           ),
@@ -352,43 +340,39 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   }
 
   Future<void> _handleEditItem(LocalListItem item) async {
-    final colors = context.colors;
+    final cv = context.cv;
     final controller = TextEditingController(text: item.title);
 
     final newTitle = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surfaceCard,
+        backgroundColor: cv.surfaceCard,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: colors.borderHairline, width: 1),
+          borderRadius: BorderRadius.circular(CoveRadius.inline),
+          side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
           'Edit item',
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 17,
+          style: CoveType.rowTitle.copyWith(
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: cv.textPrimary,
           ),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
-          style: TextStyle(
-            fontFamily: 'GeneralSans',
-            fontSize: 15,
-            color: colors.textPrimary,
+          style: CoveType.body.copyWith(
+            color: cv.textPrimary,
           ),
           decoration: InputDecoration(
             hintText: 'Item name',
-            hintStyle: TextStyle(color: colors.textMuted),
+            hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: colors.borderHairline),
+              borderSide: BorderSide(color: cv.lineHairline),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: colors.accentPrimary),
+              borderSide: BorderSide(color: cv.accentFill),
             ),
           ),
         ),
@@ -397,7 +381,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Cancel',
-              style: TextStyle(fontFamily: 'GeneralSans', color: colors.textMuted),
+              style: CoveType.readout.copyWith(color: cv.textSecondary),
             ),
           ),
           TextButton(
@@ -409,10 +393,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             },
             child: Text(
               'Save',
-              style: TextStyle(
-                fontFamily: 'GeneralSans',
+              style: CoveType.readout.copyWith(
                 fontWeight: FontWeight.w600,
-                color: colors.accentPrimary,
+                color: cv.accentText,
               ),
             ),
           ),
@@ -447,7 +430,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final cv = context.cv;
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
 
     ref.listen<String?>(selectedListIdProvider, (prev, next) {
@@ -480,11 +463,11 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     return listsAsync.when(
       data: (lists) => _buildWithLists(context, lists, hasPartner: hasPartner),
       loading: () => Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: const CovePageInsets(child: Center(child: CoveLoading())),
       ),
       error: (e, st) => Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: CovePageInsets(
           child: Center(
             child: CoveErrorState.generic(
@@ -503,11 +486,11 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     List<LocalList> lists, {
     bool hasPartner = true,
   }) {
-    final colors = context.colors;
+    final cv = context.cv;
 
     if (lists.isEmpty) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: CovePageInsets(
           child: Center(
             child: CoveEmptyState(
@@ -516,13 +499,12 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               description: 'Start tracking joint groceries, packing lists, and household essentials.',
               action: TextButton.icon(
                 onPressed: _handleCreateNewList,
-                icon: Icon(Icons.add, size: 16, color: colors.accentPrimary),
+                icon: Icon(Icons.add, size: 16, color: cv.accentText),
                 label: Text(
                   'Create First List',
-                  style: TextStyle(
-                    fontFamily: 'GeneralSans',
+                  style: CoveType.readout.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: colors.accentPrimary,
+                    color: cv.accentText,
                   ),
                 ),
               ),
@@ -553,12 +535,11 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       });
     }
 
-    final typography = context.typography;
     final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 880;
 
     if (isWide) {
       return Scaffold(
-        backgroundColor: colors.background,
+        backgroundColor: cv.surfaceCanvas,
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -566,29 +547,32 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             Container(
               width: 280,
               decoration: BoxDecoration(
-                color: colors.surfaceCard.withValues(alpha: 0.5),
+                color: cv.surfaceCard.withValues(alpha: 0.5),
                 border: Border(
-                  right: BorderSide(color: colors.borderHairline, width: 1),
+                  right: BorderSide(color: cv.lineHairline, width: 1),
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 12, top: 20, bottom: 12),
+                    padding: const EdgeInsets.only(
+                      left: CoveSpace.gutter,
+                      right: CoveSpace.md,
+                      top: CoveSpace.gutter,
+                      bottom: CoveSpace.md,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'SHARED LISTS',
-                          style: typography.caption.copyWith(
-                            letterSpacing: 1.1,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textMuted,
+                          style: CoveType.capsPage.copyWith(
+                            color: cv.textSecondary,
                           ),
                         ),
                         IconButton(
-                          icon: Icon(Icons.add_rounded, size: 20, color: colors.accentPrimary),
+                          icon: Icon(Icons.add_rounded, size: 20, color: cv.accentText),
                           tooltip: 'Add new list',
                           onPressed: _handleCreateNewList,
                         ),
@@ -598,7 +582,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   const Divider(height: 1, thickness: 1),
                   Expanded(
                     child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.md,
+                        vertical: CoveSpace.sm,
+                      ),
                       itemCount: orderedLists.length,
                       itemBuilder: (ctx, idx) {
                         final list = orderedLists[idx];
@@ -606,7 +593,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: Material(
-                            color: Colors.transparent,
+                            color: cv.surfaceCard.withValues(alpha: 0),
                             child: InkWell(
                               onTap: () {
                                 setState(() {
@@ -614,17 +601,20 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                   _selectedListId = list.id;
                                 });
                               },
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(_kNavItemRadius),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CoveSpace.md,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? colors.accentPrimary.withValues(alpha: 0.12)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10),
+                                      ? cv.accentWash
+                                      : cv.surfaceCard.withValues(alpha: 0),
+                                  borderRadius: BorderRadius.circular(_kNavItemRadius),
                                   border: isSelected
                                       ? Border.all(
-                                          color: colors.accentPrimary.withValues(alpha: 0.3),
+                                          color: cv.accentFill.withValues(alpha: 0.3),
                                           width: 1,
                                         )
                                       : null,
@@ -636,27 +626,29 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                           ? Icons.checklist_rounded
                                           : Icons.checklist_rtl_rounded,
                                       size: 18,
-                                      color: isSelected ? colors.accentPrimary : colors.textMuted,
+                                      color: isSelected ? cv.accentText : cv.textSecondary,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
                                         list.name,
-                                        style: typography.bodyRegular.copyWith(
+                                        style: CoveType.readout.copyWith(
                                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                          color: isSelected ? colors.textPrimary : colors.textMuted,
-                                          fontSize: 14,
+                                          color: isSelected ? cv.textPrimary : cv.textSecondary,
                                         ),
                                       ),
                                     ),
                                     PopupMenuButton<String>(
-                                      icon: Icon(Icons.more_horiz_rounded, size: 16, color: colors.textSubtle),
+                                      icon: Icon(Icons.more_horiz_rounded, size: 16, color: cv.textTertiary),
                                       padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                      color: colors.surfaceCard,
+                                      constraints: const BoxConstraints(
+                                        minWidth: CoveSize.avatarInline,
+                                        minHeight: CoveSize.avatarInline,
+                                      ),
+                                      color: cv.surfaceCard,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        side: BorderSide(color: colors.borderHairline, width: 1),
+                                        borderRadius: BorderRadius.circular(CoveSpace.md),
+                                        side: BorderSide(color: cv.lineHairline, width: 1),
                                       ),
                                       onSelected: (action) {
                                         if (action == 'rename') {
@@ -670,9 +662,12 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                           value: 'rename',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.edit_outlined, size: 16, color: colors.textPrimary),
-                                              const SizedBox(width: 8),
-                                              Text('Rename', style: TextStyle(color: colors.textPrimary, fontSize: 14)),
+                                              Icon(Icons.edit_outlined, size: 16, color: cv.textPrimary),
+                                              const SizedBox(width: CoveSpace.sm),
+                                              Text(
+                                                'Rename',
+                                                style: CoveType.readout.copyWith(color: cv.textPrimary),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -680,9 +675,12 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                           value: 'delete',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.delete_outline, size: 16, color: colors.accentSecondary),
-                                              const SizedBox(width: 8),
-                                              Text('Delete', style: TextStyle(color: colors.accentSecondary, fontSize: 14)),
+                                              Icon(Icons.delete_outline, size: 16, color: cv.statusAlertText),
+                                              const SizedBox(width: CoveSpace.sm),
+                                              Text(
+                                                'Delete',
+                                                style: CoveType.readout.copyWith(color: cv.statusAlertText),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -709,9 +707,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
                     decoration: BoxDecoration(
-                      color: colors.background,
+                      color: cv.surfaceCanvas,
                       border: Border(
-                        bottom: BorderSide(color: colors.borderHairline, width: 1),
+                        bottom: BorderSide(color: cv.lineHairline, width: 1),
                       ),
                     ),
                     child: Row(
@@ -722,11 +720,11 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                           children: [
                             Text(
                               activeList.name,
-                              style: typography.headline.copyWith(fontSize: 22),
+                              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                             ),
                             Text(
                               'Shared with partner · Instant sync',
-                              style: typography.caption.copyWith(color: colors.textMuted),
+                              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                             ),
                           ],
                         ),
@@ -734,12 +732,12 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.edit_outlined, size: 18, color: colors.textMuted),
+                              icon: Icon(Icons.edit_outlined, size: 18, color: cv.textSecondary),
                               tooltip: 'Rename list',
                               onPressed: () => _handleRenameList(activeList),
                             ),
                             IconButton(
-                              icon: Icon(Icons.delete_outline, size: 18, color: colors.accentSecondary),
+                              icon: Icon(Icons.delete_outline, size: 18, color: cv.statusAlertText),
                               tooltip: 'Delete list',
                               onPressed: () => _handleDeleteList(activeList, lists.length),
                             ),
@@ -765,139 +763,146 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: cv.surfaceCanvas,
       body: CovePageInsets(
         child: Column(
           children: [
-          // Pinned Header: Tab Row & Underline
-          Container(
-            color: colors.background,
-            padding: const EdgeInsets.only(left: 20, right: 12, top: 16, bottom: 8),
-            alignment: Alignment.centerLeft,
-            child: CoveTabRow(
-              tabs: orderedLists.map((l) => l.name).toList(),
-              tabKeys: orderedLists.map((l) => ValueKey('tab_${l.id}')).toList(),
-              selectedIndex: safeIndex,
-              onTabSelected: (index) {
-                setState(() {
-                  _selectedTabIndex = index;
-                  _selectedListId = orderedLists[index].id;
-                });
-              },
-              onReorder: (oldIndex, newIndex) async {
-                if (oldIndex == newIndex) return;
+            // Pinned Header: Tab Row & Underline
+            Container(
+              color: cv.surfaceCanvas,
+              padding: const EdgeInsets.only(
+                left: CoveSpace.gutter,
+                right: CoveSpace.md,
+                top: 16,
+                bottom: CoveSpace.sm,
+              ),
+              alignment: Alignment.centerLeft,
+              child: CoveTabRow(
+                tabs: orderedLists.map((l) => l.name).toList(),
+                tabKeys: orderedLists.map((l) => ValueKey('tab_${l.id}')).toList(),
+                selectedIndex: safeIndex,
+                onTabSelected: (index) {
+                  setState(() {
+                    _selectedTabIndex = index;
+                    _selectedListId = orderedLists[index].id;
+                  });
+                },
+                onReorder: (oldIndex, newIndex) async {
+                  if (oldIndex == newIndex) return;
 
-                final reordered = List<LocalList>.from(orderedLists);
-                final moved = reordered.removeAt(oldIndex);
-                reordered.insert(newIndex, moved);
+                  final reordered = List<LocalList>.from(orderedLists);
+                  final moved = reordered.removeAt(oldIndex);
+                  reordered.insert(newIndex, moved);
 
-                final newOrderIds = reordered.map((l) => l.id).toList();
+                  final newOrderIds = reordered.map((l) => l.id).toList();
 
-                setState(() {
-                  _customListOrder = newOrderIds;
-                  _selectedListId = activeList.id;
-                  _selectedTabIndex = reordered.indexWhere((l) => l.id == activeList.id);
-                });
+                  setState(() {
+                    _customListOrder = newOrderIds;
+                    _selectedListId = activeList.id;
+                    _selectedTabIndex = reordered.indexWhere((l) => l.id == activeList.id);
+                  });
 
-                final homeId = ref.read(activeHomeIdProvider);
-                if (homeId != null) {
-                  try {
-                    await _storage.write(
-                      key: 'cove_lists_tab_order_$homeId',
-                      value: newOrderIds.join(','),
-                    );
-                  } catch (_) {}
+                  final homeId = ref.read(activeHomeIdProvider);
+                  if (homeId != null) {
+                    try {
+                      await _storage.write(
+                        key: 'cove_lists_tab_order_$homeId',
+                        value: newOrderIds.join(','),
+                      );
+                    } catch (_) {}
 
-                  try {
-                    final emitAction = ref.read(coveEmitActionProvider);
-                    await emitAction(
-                      eventType: 'lists_reordered',
-                      payload: {
-                        'home_id': homeId,
-                        'order': newOrderIds,
-                      },
-                      targetHomeId: homeId,
-                    );
-                  } catch (_) {}
-                }
-              },
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.add, size: 18, color: colors.textMuted),
-                    tooltip: 'Add new list',
-                    splashRadius: 18,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: _handleCreateNewList,
-                  ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 18, color: colors.textMuted),
-                    tooltip: 'List options',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    color: colors.surfaceCard,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: colors.borderHairline, width: 1),
+                    try {
+                      final emitAction = ref.read(coveEmitActionProvider);
+                      await emitAction(
+                        eventType: 'lists_reordered',
+                        payload: {
+                          'home_id': homeId,
+                          'order': newOrderIds,
+                        },
+                        targetHomeId: homeId,
+                      );
+                    } catch (_) {}
+                  }
+                },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.add, size: 18, color: cv.textSecondary),
+                      tooltip: 'Add new list',
+                      splashRadius: 18,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: CoveSize.avatarRow,
+                        minHeight: CoveSize.avatarRow,
+                      ),
+                      onPressed: _handleCreateNewList,
                     ),
-                    onSelected: (action) {
-                      if (action == 'rename') {
-                        _handleRenameList(activeList);
-                      } else if (action == 'delete') {
-                        _handleDeleteList(activeList, lists.length);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: 'rename',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 16, color: colors.textPrimary),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Rename "${activeList.name}"',
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                color: colors.textPrimary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, size: 18, color: cv.textSecondary),
+                      tooltip: 'List options',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: CoveSize.avatarRow,
+                        minHeight: CoveSize.avatarRow,
                       ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline, size: 16, color: colors.accentSecondary),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Delete "${activeList.name}"',
-                              style: TextStyle(
-                                fontFamily: 'GeneralSans',
-                                color: colors.accentSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                      color: cv.surfaceCard,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(CoveSpace.md),
+                        side: BorderSide(color: cv.lineHairline, width: 1),
                       ),
-                    ],
-                  ),
-                ],
+                      onSelected: (action) {
+                        if (action == 'rename') {
+                          _handleRenameList(activeList);
+                        } else if (action == 'delete') {
+                          _handleDeleteList(activeList, lists.length);
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                          value: 'rename',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 16, color: cv.textPrimary),
+                              const SizedBox(width: CoveSpace.sm),
+                              Text(
+                                'Rename "${activeList.name}"',
+                                style: CoveType.readout.copyWith(
+                                  color: cv.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline, size: 16, color: cv.statusAlertText),
+                              const SizedBox(width: CoveSpace.sm),
+                              Text(
+                                'Delete "${activeList.name}"',
+                                style: CoveType.readout.copyWith(
+                                  color: cv.statusAlertText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Body: Reactive Items Feed
-          Expanded(
-            child: _buildItemsArea(context, activeList),
-          ),
+            // Body: Reactive Items Feed
+            Expanded(
+              child: _buildItemsArea(context, activeList),
+            ),
 
-          // Pinned Bottom Capsule Input
-          _buildPinnedInputBar(context, activeList),
+            // Pinned Bottom Capsule Input
+            _buildPinnedInputBar(context, activeList),
           ],
         ),
       ),
@@ -932,8 +937,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     LocalList activeList,
     List<LocalListItem> items,
   ) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final currentUser = ref.watch(authProvider).value;
     final outbox = ref.watch(activeHomeOutboxProvider).value ?? [];
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
@@ -959,12 +963,17 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
         CoveSpace.barClearance + CovePageInsets.bottomOf(context);
 
     return RefreshIndicator(
-      color: colors.accentPrimary,
-      backgroundColor: colors.surfaceCard,
+      color: cv.accentFill,
+      backgroundColor: cv.surfaceCard,
       onRefresh: _handleRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
+        padding: EdgeInsets.fromLTRB(
+          CoveSpace.gutter,
+          CoveSpace.md,
+          CoveSpace.gutter,
+          bottomPadding,
+        ),
         children: [
           // Actions row: remaining count & "Clear completed"
           Row(
@@ -972,18 +981,21 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             children: [
               Text(
                 '${activeItems.length} remaining${completedItems.isNotEmpty ? " • ${completedItems.length} completed" : ""}',
-                style: typography.caption.copyWith(color: colors.textMuted),
+                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
               if (completedItems.isNotEmpty)
                 GestureDetector(
                   onTap: () => _handleClearCompleted(activeList.id, completedItems.length),
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: CoveSpace.xs,
+                      horizontal: CoveSpace.xs,
+                    ),
                     child: Text(
                       'Clear completed',
-                      style: typography.caption.copyWith(
-                        color: colors.accentPrimary,
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.accentText,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -991,11 +1003,11 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: CoveSpace.md),
 
           if (items.isEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 48),
+              padding: const EdgeInsets.only(top: CoveSpace.xl),
               child: CoveEmptyState(
                 icon: Icons.checklist_outlined,
                 title: 'No items in ${activeList.name}',
@@ -1007,9 +1019,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             if (activeItems.isNotEmpty)
               CoveCard(
                 padding: EdgeInsets.zero,
-                borderRadius: 18,
+                borderRadius: CoveRadius.card,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(CoveRadius.card),
                   child: ReorderableListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -1028,7 +1040,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                         key: ValueKey('active_${item.id}'),
                         decoration: BoxDecoration(
                           border: index < activeItems.length - 1
-                              ? Border(bottom: BorderSide(color: colors.borderHairline, width: 1))
+                              ? Border(bottom: BorderSide(color: cv.lineHairline, width: 1))
                               : null,
                         ),
                         child: _buildListItemRow(
@@ -1047,19 +1059,17 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
             // Completed items section
             if (completedItems.isNotEmpty) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: CoveSpace.gutter),
               Text(
                 'COMPLETED (${completedItems.length})',
-                style: typography.caption.copyWith(
-                  letterSpacing: 0.8,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                style: CoveType.capsCard.copyWith(
+                  color: cv.textSecondary,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CoveSpace.sm),
               CoveCard(
                 padding: EdgeInsets.zero,
-                borderRadius: 18,
+                borderRadius: CoveRadius.card,
                 child: Column(
                   children: completedItems.asMap().entries.map((entry) {
                     final index = entry.key;
@@ -1067,7 +1077,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     return Container(
                       decoration: BoxDecoration(
                         border: index < completedItems.length - 1
-                            ? Border(bottom: BorderSide(color: colors.borderHairline, width: 1))
+                            ? Border(bottom: BorderSide(color: cv.lineHairline, width: 1))
                             : null,
                       ),
                       child: _buildListItemRow(
@@ -1096,7 +1106,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
     bool hasPartner = true,
     int? dragIndex,
   }) {
-    final colors = context.colors;
+    final cv = context.cv;
     final isCompleted = item.isCompleted;
 
     // Build neutral attribution tag
@@ -1122,9 +1132,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: colors.accentSecondary.withValues(alpha: 0.15),
-        child: Icon(Icons.delete_outline, color: colors.accentSecondary, size: 20),
+        padding: const EdgeInsets.only(right: CoveSpace.gutter),
+        color: cv.statusAlert.withValues(alpha: 0.15),
+        child: Icon(Icons.delete_outline, color: cv.statusAlertText, size: 20),
       ),
       onDismissed: (_) {
         ref.read(listControllerProvider).deleteItem(itemId: item.id);
@@ -1159,15 +1169,18 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             CoveSyncTick(status: tickStatus, size: 13),
-            const SizedBox(width: 4),
+            const SizedBox(width: CoveSpace.xs),
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, size: 16, color: colors.textSubtle),
+              icon: Icon(Icons.more_vert, size: 16, color: cv.textTertiary),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-              color: colors.surfaceCard,
+              constraints: const BoxConstraints(
+                minWidth: CoveSize.avatarInline,
+                minHeight: CoveSize.avatarInline,
+              ),
+              color: cv.surfaceCard,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: colors.borderHairline, width: 1),
+                borderRadius: BorderRadius.circular(CoveSpace.md),
+                side: BorderSide(color: cv.lineHairline, width: 1),
               ),
               onSelected: (action) {
                 if (action == 'details') {
@@ -1187,9 +1200,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   value: 'details',
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, size: 15, color: colors.textPrimary),
-                      const SizedBox(width: 8),
-                      Text('Details', style: TextStyle(color: colors.textPrimary, fontSize: 14)),
+                      Icon(Icons.info_outline, size: 15, color: cv.textPrimary),
+                      const SizedBox(width: CoveSpace.sm),
+                      Text('Details', style: CoveType.readout.copyWith(color: cv.textPrimary)),
                     ],
                   ),
                 ),
@@ -1197,9 +1210,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   value: 'edit',
                   child: Row(
                     children: [
-                      Icon(Icons.edit_outlined, size: 15, color: colors.textPrimary),
-                      const SizedBox(width: 8),
-                      Text('Edit', style: TextStyle(color: colors.textPrimary, fontSize: 14)),
+                      Icon(Icons.edit_outlined, size: 15, color: cv.textPrimary),
+                      const SizedBox(width: CoveSpace.sm),
+                      Text('Edit', style: CoveType.readout.copyWith(color: cv.textPrimary)),
                     ],
                   ),
                 ),
@@ -1207,9 +1220,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   value: 'delete',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_outline, size: 15, color: colors.accentSecondary),
-                      const SizedBox(width: 8),
-                      Text('Delete', style: TextStyle(color: colors.accentSecondary, fontSize: 14)),
+                      Icon(Icons.delete_outline, size: 15, color: cv.statusAlertText),
+                      const SizedBox(width: CoveSpace.sm),
+                      Text('Delete', style: CoveType.readout.copyWith(color: cv.statusAlertText)),
                     ],
                   ),
                 ),
@@ -1220,11 +1233,14 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               ReorderableDragStartListener(
                 index: dragIndex,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.xs,
+                    vertical: CoveSpace.sm,
+                  ),
                   child: Icon(
                     Icons.drag_indicator_rounded,
                     size: 18,
-                    color: colors.textSubtle,
+                    color: cv.textTertiary,
                   ),
                 ),
               ),
@@ -1236,7 +1252,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   }
 
   Widget _buildPinnedInputBar(BuildContext context, LocalList activeList) {
-    final colors = context.colors;
+    final cv = context.cv;
     final isWide = kIsWeb && MediaQuery.sizeOf(context).width >= 880;
     final bottomPadding = isWide
         ? 16.0
@@ -1244,12 +1260,17 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.background,
+        color: cv.surfaceCanvas,
         border: Border(
-          top: BorderSide(color: colors.borderHairline, width: 1),
+          top: BorderSide(color: cv.lineHairline, width: 1),
         ),
       ),
-      padding: EdgeInsets.fromLTRB(20, 10, 20, bottomPadding),
+      padding: EdgeInsets.fromLTRB(
+        CoveSpace.gutter,
+        10,
+        CoveSpace.gutter,
+        bottomPadding,
+      ),
       child: SafeArea(
         top: false,
         bottom: isWide,
@@ -1258,22 +1279,22 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           focusNode: _inputFocusNode,
           hintText: 'Add an item to ${activeList.name}…',
           textInputAction: TextInputAction.send,
-          prefixIcon: Icon(Icons.add, size: 18, color: colors.textMuted),
+          prefixIcon: Icon(Icons.add, size: 18, color: cv.textSecondary),
           suffix: InkWell(
             onTap: () => _handleAddItem(activeList.id),
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(CoveRadius.pill),
             child: Container(
-              width: 28,
-              height: 28,
+              width: CoveSize.avatarRow,
+              height: CoveSize.avatarRow,
               decoration: BoxDecoration(
-                color: colors.accentPrimary.withValues(alpha: 0.15),
+                color: cv.accentWash,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: Icon(
                 Icons.arrow_upward_rounded,
                 size: 16,
-                color: colors.accentPrimary,
+                color: cv.accentText,
               ),
             ),
           ),

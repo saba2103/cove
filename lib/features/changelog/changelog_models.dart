@@ -117,7 +117,7 @@ const List<ChangelogItem> kChangelogItems = [
     title: 'Calendar-First Sanctuary & Today Home',
     tagline: 'The calendar now opens first and carries everything dated.',
     outcome:
-        'Cove launches directly into your day on the calendar, carrying five quiet layers: events, commitments, money, rhythms, and tasks. Today is now your home tab, gathering monthly spend totals, shared list pills, and recent activity into one calm flow.',
+        'Cove launches directly into your day on the calendar, carrying five quiet layers: events, commitments, money, habits, and tasks. Today is now your home tab, gathering monthly spend totals, shared list pills, and recent activity into one calm flow.',
     underTheHood:
         'Unified 5-layer calendar provider, additive due-date database schema, Day view layer filters, Bodoni time gutters, and retired Dashboard architecture.',
     category: 'Architecture',
@@ -257,16 +257,16 @@ const List<ChangelogItem> kChangelogItems = [
     previewType: ChangelogPreviewType.twoTickSync,
   ),
 
-  // 10. Daily Rhythms & Mutual Cheers
+  // 10. Daily Habits & Mutual Cheers
   ChangelogItem(
     id: 'daily_rhythms',
-    title: 'Daily Rhythms & Mutual Cheers',
+    title: 'Daily Habits & Mutual Cheers',
     tagline: 'Celebrate the small everyday wins together.',
     outcome:
         'Track shared morning routines, reading goals, and hydration, and send gentle cheering animations when your partner completes their habit.',
     underTheHood:
         'Flexible recurrence schedules (daily, weekly, custom) with Drift local streak calculation and optimistic check-ins.',
-    category: 'Rhythms',
+    category: 'Habits',
     version: 'v0.2-alpha',
     date: 'Sep 8, 2026',
     icon: Icons.favorite_outline_rounded,
