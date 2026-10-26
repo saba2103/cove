@@ -810,6 +810,57 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     });
 
+    testWidgets(
+      'Budget status label never truncates at 411dp with a 6-digit overshoot and stacks on two lines',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(411, 914));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        fakeEngine.dispatchedEvents.clear();
+
+        final now = DateTime.now();
+        await db.into(db.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp_big_overshoot',
+                homeId: 'home_1',
+                title: 'Renovation',
+                amount: 228864.0,
+                paidBy: 'user_alex',
+                expenseDate: now,
+                createdAt: now,
+              ),
+            );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...createOverrides(),
+              monthlyBudgetProvider.overrideWith(
+                () => _TestMonthlyBudgetNotifier(85000.0),
+              ),
+            ],
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const ExpensesScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final labelFinder = find.text('SHOT UP · OVER BUDGET');
+        final valueFinder = find.text('Shot up by \$1,43,864');
+        expect(labelFinder, findsOneWidget);
+        expect(valueFinder, findsOneWidget);
+
+        final labelRect = tester.getRect(labelFinder);
+        final valueRect = tester.getRect(valueFinder);
+        // Stacked on two lines: value sits below the caps label
+        expect(valueRect.top, greaterThanOrEqualTo(labelRect.bottom - 0.5));
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 50));
+      },
+    );
+
     test('Monthly budget syncs across devices via monthly_budget_updated event', () async {
       fakeEngine.dispatchedEvents.clear();
       await fakeEngine.localStateStore.applyEvent(

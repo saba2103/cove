@@ -579,7 +579,7 @@ class _StubListController extends ListController {
   Future<void> ensureDefaultLists() async {}
 }
 
-List<Override> _createGoldenOverrides() {
+List<Override> _createGoldenOverrides({List<LocalExpense>? expenses}) {
   final fakeStorage = _FakeSecureStorage();
   final keyStore = HomeKeyStore(storage: fakeStorage);
   final stubDb = _StubAppDatabase();
@@ -604,7 +604,9 @@ List<Override> _createGoldenOverrides() {
     activityReadStatusProvider.overrideWith(_FakeActivityReadStatusNotifier.new),
     unreadActivityCountProvider.overrideWith((ref) => 0),
     checkinRemindersProvider.overrideWith(_FakeReminderNotifier.new),
-    activeHomeExpensesProvider.overrideWith((ref) => Stream.value(_kSeedExpenses)),
+    activeHomeExpensesProvider.overrideWith(
+      (ref) => Stream.value(expenses ?? _kSeedExpenses),
+    ),
     activeHomeSubscriptionsProvider.overrideWith((ref) => Stream.value(_kSeedSubscriptions)),
     activeHomeCalendarEventsProvider.overrideWith((ref) => Stream.value(_kSeedCalendarEvents)),
     activeHomeListsProvider.overrideWith((ref) => Stream.value(_kSeedLists)),
@@ -676,6 +678,49 @@ void main() {
         'expenses_screen',
         ExpensesScreen(initialExpenses: _kSeedExpenses),
         overrides: _createGoldenOverrides(),
+        wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
+      );
+    });
+
+    testWidgets('expenses_screen_over_budget_6digit', (tester) async {
+      final overBudgetExpenses = <LocalExpense>[
+        LocalExpense(
+          id: 'exp_over_1',
+          homeId: 'home_1',
+          title: 'Kitchen Remodel & Appliances',
+          amount: 225664.0,
+          currency: 'INR',
+          paidBy: 'user_alex',
+          splitRatio: 0.5,
+          expenseDate: _kFixedDate,
+          category: 'Home & Utilities',
+          paymentMethod: 'card',
+          isTransfer: false,
+          createdAt: _kFixedDate,
+        ),
+        LocalExpense(
+          id: 'exp_over_2',
+          homeId: 'home_1',
+          title: 'Electricity & Fiber Internet',
+          amount: 3200.0,
+          currency: 'INR',
+          paidBy: 'user_sarah',
+          splitRatio: 0.5,
+          expenseDate: DateTime(2026, 10, 12, 18, 0),
+          category: 'Home & Utilities',
+          paymentMethod: 'card',
+          isTransfer: false,
+          createdAt: DateTime(2026, 10, 12, 18, 0),
+        ),
+      ];
+
+      await goldenMatrix(
+        tester,
+        'expenses_screen_over_budget_6digit',
+        ExpensesScreen(initialExpenses: overBudgetExpenses),
+        widths: const [CoveWidth.phone],
+        overrides: _createGoldenOverrides(expenses: overBudgetExpenses),
         wrap: wrapInAppShellConstraint,
         allowedOverflows: _kKnownLegacyOverflows,
       );

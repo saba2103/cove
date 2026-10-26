@@ -1036,6 +1036,19 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final todayFraction =
         (standingDay / daysInStandingMonth).clamp(0.05, 0.95);
 
+    final statusLabel =
+        isOverBudget ? 'SHOT UP · OVER BUDGET' : 'MONTHLY BUDGET';
+    final statusLabelStyle = CoveType.capsCard.copyWith(
+      color: isOverBudget ? cv.statusAlertText : cv.textTertiary,
+    );
+    final statusValue = isOverBudget
+        ? 'Shot up by ${currency.symbol}${formatCoveAmount(overshoot)}'
+        : '${currency.symbol}${formatCoveAmount(remaining)} remaining';
+    final statusValueStyle = CoveType.rowSub.copyWith(
+      color: isOverBudget ? cv.moneyMore : cv.textPrimary,
+      fontWeight: FontWeight.w600,
+    );
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => MonthlyBudgetSheet.show(context),
@@ -1051,137 +1064,161 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             width: _kBorderWidth,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    isOverBudget ? 'SHOT UP · OVER BUDGET' : 'MONTHLY BUDGET',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.capsCard.copyWith(
-                      color: isOverBudget ? cv.statusAlertText : cv.textTertiary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: CoveSpace.sm),
-                Flexible(
-                  child: Text(
-                    isOverBudget
-                        ? 'Shot up by ${currency.symbol}${formatCoveAmount(overshoot)}'
-                        : '${currency.symbol}${formatCoveAmount(remaining)} remaining',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(
-                      color: isOverBudget ? cv.moneyMore : cv.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: CoveSpace.sm),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final textDirection = Directionality.of(context);
+            final textScaler = MediaQuery.textScalerOf(context);
+            final defaultTextStyle = DefaultTextStyle.of(context).style;
+            final labelPainter = TextPainter(
+              text: TextSpan(
+                text: statusLabel,
+                style: defaultTextStyle.merge(statusLabelStyle),
+              ),
+              maxLines: 1,
+              textDirection: textDirection,
+              textScaler: textScaler,
+            )..layout();
+            final valuePainter = TextPainter(
+              text: TextSpan(
+                text: statusValue,
+                style: defaultTextStyle.merge(statusValueStyle),
+              ),
+              maxLines: 1,
+              textDirection: textDirection,
+              textScaler: textScaler,
+            )..layout();
+            final fitsSideBySide =
+                labelPainter.width + CoveSpace.lg + valuePainter.width <=
+                    constraints.maxWidth;
+            labelPainter.dispose();
+            valuePainter.dispose();
 
-            // Progress bar with TODAY marker
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final markerX = constraints.maxWidth * todayFraction;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      height: _kTodayMarkerHeight,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.centerLeft,
-                        children: [
-                          ClipRRect(
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveRadius.pill),
-                            ),
-                            child: SizedBox(
-                              height: _kBarHeight,
-                              width: double.infinity,
-                              child: ColoredBox(
-                                color: cv.lineStrong,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FractionallySizedBox(
-                                    widthFactor:
-                                        isOverBudget ? 1.0 : percentUsed,
-                                    child: ColoredBox(
-                                      color: isOverBudget
-                                          ? cv.statusAlert
-                                          : cv.accentFill,
-                                      child: const SizedBox.expand(),
-                                    ),
-                                  ),
+            final markerX = constraints.maxWidth * todayFraction;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (fitsSideBySide)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          statusLabel,
+                          style: statusLabelStyle,
+                        ),
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Text(
+                        statusValue,
+                        style: statusValueStyle,
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLabel,
+                        style: statusLabelStyle,
+                      ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Text(
+                        statusValue,
+                        style: statusValueStyle,
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: CoveSpace.sm),
+
+                // Progress bar with TODAY marker
+                SizedBox(
+                  height: _kTodayMarkerHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(CoveRadius.pill),
+                        ),
+                        child: SizedBox(
+                          height: _kBarHeight,
+                          width: double.infinity,
+                          child: ColoredBox(
+                            color: cv.lineStrong,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: FractionallySizedBox(
+                                widthFactor: isOverBudget ? 1.0 : percentUsed,
+                                child: ColoredBox(
+                                  color: isOverBudget
+                                      ? cv.statusAlert
+                                      : cv.accentFill,
+                                  child: const SizedBox.expand(),
                                 ),
                               ),
                             ),
                           ),
-                          Positioned(
-                            left: (markerX - _kTodayMarkerWidth / 2).clamp(
-                              0.0,
-                              constraints.maxWidth - _kTodayMarkerWidth,
-                            ),
-                            top: 0,
-                            bottom: 0,
-                            child: ColoredBox(
-                              color: cv.textPrimary,
-                              child: const SizedBox(width: _kTodayMarkerWidth),
-                            ),
-                          ),
-                        ],
+                        ),
+                      ),
+                      Positioned(
+                        left: (markerX - _kTodayMarkerWidth / 2).clamp(
+                          0.0,
+                          constraints.maxWidth - _kTodayMarkerWidth,
+                        ),
+                        top: 0,
+                        bottom: 0,
+                        child: ColoredBox(
+                          color: cv.textPrimary,
+                          child: const SizedBox(width: _kTodayMarkerWidth),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: CoveSpace.xs),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'TODAY',
+                      style: CoveType.capsCard.copyWith(
+                        color: cv.textTertiary,
                       ),
                     ),
-                    const SizedBox(height: CoveSpace.xs),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'TODAY',
-                          style: CoveType.capsCard.copyWith(
-                            color: cv.textTertiary,
-                          ),
-                        ),
-                        Text(
-                          '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
-                          style: CoveType.rowSub.copyWith(
-                            color: cv.textTertiary,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
+                      style: CoveType.rowSub.copyWith(
+                        color: cv.textTertiary,
+                      ),
                     ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: CoveSpace.xs),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                  ),
                 ),
-                const SizedBox(width: CoveSpace.sm),
-                Flexible(
-                  child: Text(
-                    'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                  ),
+                const SizedBox(height: CoveSpace.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Flexible(
+                      child: Text(
+                        'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

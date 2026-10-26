@@ -38,6 +38,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests for `firstRunProvider(CoveScreen)` in [`test/first_run_provider_test.dart`](../test/first_run_provider_test.dart) and 18 golden baselines across 3 widths × 2 modes with the zero-overflow guard in [`test/golden/first_run_42a_golden_test.dart`](../test/golden/first_run_42a_golden_test.dart).
 
 ### Changed
+- **Expenses Budget Status Label Never Truncates (`Oct 27, 2026`)**:
+  - *Outcome*:
+    1. **Two-Line Stack When Budget Status Label & Value Don't Fit Side by Side**: Updated `_buildBudgetBlock` in [`lib/features/expenses/expenses_screen.dart`](../lib/features/expenses/expenses_screen.dart) so the caps status label (`SHOT UP · OVER BUDGET` / `MONTHLY BUDGET`) and status value (`Shot up by ₹43,864` / `₹80,349.50 remaining`) never ellipsize (`maxLines` and `TextOverflow.ellipsis` removed) and stack cleanly on two lines when they do not fit side by side with `CoveSpace.lg` breathing room.
+  - *Under the Hood*:
+    - Added a 411dp phone golden with a 6-digit overshoot (`expenses_screen_over_budget_6digit`) in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) and a widget test in [`test/expenses_test.dart`](../test/expenses_test.dart).
 - **Notification Icon Retention in Release Builds & Legacy Fallback (`Oct 26, 2026`)**:
   - *Outcome*:
     1. **Keep `@drawable/ic_stat_cove` Across Release Resource Shrinking**: Added [`android/app/src/main/res/raw/keep.xml`](../android/app/src/main/res/raw/keep.xml) with `tools:keep="@drawable/ic_stat_cove,@drawable/splash_emblem,@drawable/launch_background"` so R8's resource shrinker never strips `@drawable/ic_stat_cove` in release builds.
