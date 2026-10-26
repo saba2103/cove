@@ -624,6 +624,149 @@ void main() {
       expect(result.bestStreak, 3);
       expect(result.isCheckedToday, true);
     });
+
+    testWidgets(
+        '8. Every tappable control on HabitsScreen is at least 48x48 at 320, 411 and 840',
+        (tester) async {
+      final now = DateTime.now().toUtc();
+      final todayStr = HabitStreakCalculator.formatDate(now);
+
+      final seededHabits = <LocalHabit>[
+        LocalHabit(
+          id: 'habit_shared',
+          homeId: homeId,
+          name: 'Morning Walk Together',
+          cadence: 'daily',
+          targetDaysPerWeek: 7,
+          isArchived: false,
+          createdAt: now.subtract(const Duration(days: 10)),
+          createdBy: userIdAlex,
+        ),
+        LocalHabit(
+          id: 'habit_private',
+          homeId: homeId,
+          name: 'Meditation & Breathwork',
+          cadence: 'weekly_custom:1,3,5@07:30',
+          targetDaysPerWeek: -3,
+          isArchived: false,
+          createdAt: now.subtract(const Duration(days: 10)),
+          createdBy: userIdAlex,
+        ),
+        LocalHabit(
+          id: 'habit_partner',
+          homeId: homeId,
+          name: 'Evening Reading (30m)',
+          cadence: 'daily',
+          targetDaysPerWeek: 7,
+          isArchived: false,
+          createdAt: now.subtract(const Duration(days: 10)),
+          createdBy: userIdSarah,
+        ),
+      ];
+
+      final seededCheckins = <LocalHabitCheckin>[
+        LocalHabitCheckin(
+          id: 'chk_1',
+          homeId: homeId,
+          habitId: 'habit_shared',
+          checkinDate: todayStr,
+          memberId: userIdAlex,
+          createdAt: now,
+        ),
+        LocalHabitCheckin(
+          id: 'chk_2',
+          homeId: homeId,
+          habitId: 'habit_shared',
+          checkinDate: todayStr,
+          memberId: userIdSarah,
+          createdAt: now,
+        ),
+        LocalHabitCheckin(
+          id: 'chk_3',
+          homeId: homeId,
+          habitId: 'habit_partner',
+          checkinDate: todayStr,
+          memberId: userIdSarah,
+          createdAt: now,
+        ),
+      ];
+
+      addTearDown(tester.view.reset);
+
+      for (final width in const <double>[320, 411, 840]) {
+        tester.view
+          ..physicalSize = Size(width * 2, 900 * 2)
+          ..devicePixelRatio = 2.0;
+
+        await tester.pumpWidget(
+          createWidgetUnderTest(
+            child: HabitsScreen(
+              initialHabits: seededHabits,
+              initialCheckins: seededCheckins,
+              currentUser: alexUser,
+            ),
+            user: alexUser,
+            habitsNotifier: ValueNotifier(seededHabits),
+            checkinsNotifier: ValueNotifier(seededCheckins),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final screenFinder = find.byType(HabitsScreen);
+
+        // Verify all explicit controls (pill button, checkboxes, popup menus, heart acknowledge)
+        for (final finder in <Finder>[
+          find.descendant(
+            of: screenFinder,
+            matching: find.byType(CovePillButton),
+          ),
+          find.descendant(
+            of: screenFinder,
+            matching: find.byType(CoveCheckbox),
+          ),
+          find.descendant(
+            of: screenFinder,
+            matching: find.byType(PopupMenuButton<String>),
+          ),
+          find.descendant(
+            of: screenFinder,
+            matching: find.byType(IconButton),
+          ),
+          find.descendant(
+            of: screenFinder,
+            matching: find.byWidgetPredicate(
+              (w) => w is InkWell && w.onTap != null,
+            ),
+          ),
+          find.descendant(
+            of: screenFinder,
+            matching: find.byWidgetPredicate(
+              (w) => w is GestureDetector && w.onTap != null,
+            ),
+          ),
+        ]) {
+          expect(finder, findsWidgets, reason: 'Expected controls at width $width');
+          for (final element in finder.evaluate()) {
+            final size = tester.getSize(find.byWidget(element.widget));
+            expect(
+              size.width,
+              greaterThanOrEqualTo(48.0),
+              reason:
+                  '${element.widget.runtimeType} width at $width was ${size.width} (< 48)',
+            );
+            expect(
+              size.height,
+              greaterThanOrEqualTo(48.0),
+              reason:
+                  '${element.widget.runtimeType} height at $width was ${size.height} (< 48)',
+            );
+          }
+        }
+      }
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 50));
+    });
   });
 }
 

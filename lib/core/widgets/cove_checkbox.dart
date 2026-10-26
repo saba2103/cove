@@ -5,6 +5,7 @@ class CoveCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final double size;
+  final double? hitSize;
 
   static const double _kDefaultBoxSize =
       20.0; // (literal) 20dp checkbox square between 16 and 24 avatar tokens
@@ -16,6 +17,7 @@ class CoveCheckbox extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.size = _kDefaultBoxSize,
+    this.hitSize,
   });
 
   @override
@@ -23,36 +25,44 @@ class CoveCheckbox extends StatelessWidget {
     final cv = context.cv;
     final duration = CoveMotion.q(context);
 
+    final box = AnimatedContainer(
+      duration: duration,
+      curve: CoveMotion.easing,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: value ? cv.accentFill : Colors.transparent,
+        borderRadius: const BorderRadius.all(
+          Radius.circular(CoveSpace.xs),
+        ),
+        border: value
+            ? null
+            : Border.all(
+                color: cv.textTertiary,
+                width: _kBorderWidth,
+              ),
+      ),
+      alignment: Alignment.center,
+      child: value
+          ? Icon(
+              Icons.check,
+              size: size * 0.72,
+              color: cv.textOnAccent,
+              weight: 600,
+            )
+          : null,
+    );
+
     return GestureDetector(
       onTap: onChanged != null ? () => onChanged!(!value) : null,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: duration,
-        curve: CoveMotion.easing,
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: value ? cv.accentFill : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveSpace.xs),
-          ),
-          border: value
-              ? null
-              : Border.all(
-                  color: cv.textTertiary,
-                  width: _kBorderWidth,
-                ),
-        ),
-        alignment: Alignment.center,
-        child: value
-            ? Icon(
-                Icons.check,
-                size: size * 0.72,
-                color: cv.textOnAccent,
-                weight: 600,
-              )
-            : null,
-      ),
+      child: hitSize != null
+          ? SizedBox(
+              width: hitSize,
+              height: hitSize,
+              child: Center(child: box),
+            )
+          : box,
     );
   }
 }

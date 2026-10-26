@@ -123,6 +123,7 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                 label: '+ New',
                 variant: CoveButtonVariant.secondary,
                 isCompact: true,
+                minTapTargetSize: CoveSize.hit,
                 onPressed: () => AddFlow.show(context, kind: AddKind.habit),
               ),
             ),
@@ -467,12 +468,18 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         splashColor: cv.accentFill.withValues(alpha: 0.05),
         highlightColor: Colors.transparent,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.only(
+            left: 2,
+            right: CoveSpace.xs,
+            top: 9,
+            bottom: 9,
+          ),
           child: Row(
             children: [
               // Checkbox for today's checkin
               CoveCheckbox(
                 value: streak.isCheckedToday,
+                hitSize: CoveSize.hit,
                 onChanged: (checked) {
                   ref.read(habitControllerProvider).toggleCheckin(
                         habit: habit,
@@ -480,73 +487,75 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                       );
                 },
               ),
-              const SizedBox(width: 14),
 
               // Title & Cadence
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: CoveSpace.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          habit.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CoveType.rowTitle.copyWith(
-                            color: streak.isCheckedToday
-                                ? cv.textSecondary
-                                : cv.textPrimary,
-                            decoration: streak.isCheckedToday
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
-                            decorationColor: cv.textSecondary,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: CoveSpace.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            habit.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: streak.isCheckedToday
+                                  ? cv.textSecondary
+                                  : cv.textPrimary,
+                              decoration: streak.isCheckedToday
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                              decorationColor: cv.textSecondary,
+                            ),
                           ),
-                        ),
-                        if (streak.hasAcknowledgmentToday)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: cv.accentWash,
-                              borderRadius: BorderRadius.circular(CoveRadius.pill),
-                            ),
-                            child: Text(
-                              'Acknowledged',
-                              style: CoveType.barLabel.copyWith(
-                                color: cv.accentText,
+                          if (streak.hasAcknowledgmentToday)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cv.accentWash,
+                                borderRadius: BorderRadius.circular(CoveRadius.pill),
+                              ),
+                              child: Text(
+                                'Acknowledged',
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.accentText,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          cadenceLabel,
-                          style: CoveType.rowSub.copyWith(
-                            color: cv.textTertiary,
-                          ),
-                        ),
-                        if (streak.bestStreak > 0) ...[
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
                           Text(
-                            ' • Best: ${streak.bestStreak}',
+                            cadenceLabel,
                             style: CoveType.rowSub.copyWith(
                               color: cv.textTertiary,
                             ),
                           ),
+                          if (streak.bestStreak > 0) ...[
+                            Text(
+                              ' • Best: ${streak.bestStreak}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textTertiary,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -559,17 +568,22 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
               // Two-tick sync status
               CoveSyncTick(status: syncStatus),
-              const SizedBox(width: CoveSpace.xs),
 
               // Edit / Delete Popup Menu
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert, size: 16, color: cv.textTertiary),
                 padding: EdgeInsets.zero,
                 style: const ButtonStyle(
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: WidgetStatePropertyAll(
+                    Size(CoveSize.hit, CoveSize.hit),
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.padded,
                   padding: WidgetStatePropertyAll(EdgeInsets.zero),
                 ),
-                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                constraints: const BoxConstraints(
+                  minWidth: CoveSize.hit,
+                  minHeight: CoveSize.hit,
+                ),
                 color: cv.surfaceCard,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(CoveRadius.inline),
@@ -725,29 +739,35 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                       );
                 },
                 behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: CoveMotion.q(context),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: streak.hasAcknowledgmentToday
-                        ? cv.accentWash
-                        : cv.surfaceRow,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: streak.hasAcknowledgmentToday
-                          ? cv.accentFill
-                          : cv.lineHairline,
-                      width: 1,
+                child: SizedBox(
+                  width: CoveSize.hit,
+                  height: CoveSize.hit,
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: CoveMotion.q(context),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: streak.hasAcknowledgmentToday
+                            ? cv.accentWash
+                            : cv.surfaceRow,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: streak.hasAcknowledgmentToday
+                              ? cv.accentFill
+                              : cv.lineHairline,
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        streak.hasAcknowledgmentToday
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 14,
+                        color: streak.hasAcknowledgmentToday
+                            ? cv.accentText
+                            : cv.textSecondary,
+                      ),
                     ),
-                  ),
-                  child: Icon(
-                    streak.hasAcknowledgmentToday
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    size: 14,
-                    color: streak.hasAcknowledgmentToday
-                        ? cv.accentText
-                        : cv.textSecondary,
                   ),
                 ),
               ),

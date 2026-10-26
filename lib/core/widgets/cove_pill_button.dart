@@ -15,6 +15,7 @@ class CovePillButton extends StatelessWidget {
   final bool isLoading;
   final bool isCompact;
   final bool isFullWidth;
+  final double? minTapTargetSize;
 
   static const double _kCompactHorizontalPadding =
       16.0; // (literal) 16dp compact pill horizontal padding
@@ -36,6 +37,7 @@ class CovePillButton extends StatelessWidget {
     this.isLoading = false,
     this.isCompact = false,
     this.isFullWidth = false,
+    this.minTapTargetSize,
   });
 
   @override
@@ -150,6 +152,23 @@ class CovePillButton extends StatelessWidget {
       child: content,
     );
 
+    Widget interactiveChild = isFullWidth
+        ? SizedBox(width: double.infinity, child: buttonContainer)
+        : buttonContainer;
+    if (minTapTargetSize != null) {
+      interactiveChild = ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: minTapTargetSize!,
+          minHeight: minTapTargetSize!,
+        ),
+        child: Center(
+          widthFactor: 1.0,
+          heightFactor: 1.0,
+          child: interactiveChild,
+        ),
+      );
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -157,9 +176,7 @@ class CovePillButton extends StatelessWidget {
         borderRadius: const BorderRadius.all(
           Radius.circular(CoveRadius.pill),
         ),
-        child: isFullWidth
-            ? SizedBox(width: double.infinity, child: buttonContainer)
-            : buttonContainer,
+        child: interactiveChild,
       ),
     );
   }

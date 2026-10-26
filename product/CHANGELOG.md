@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Changed
+- **Task 4.2-pre — Habit Menu Tap Target Back to 48dp (`Oct 26, 2026`)**:
+  - *Outcome*:
+    1. **48×48 (`CoveSize.hit`) Tap Targets Across `HabitsScreen`**: Restored the `48×48` (`CoveSize.hit`) tap target on the `⋯` `PopupMenuButton` in [`lib/features/habits/habits_screen.dart`](../lib/features/habits/habits_screen.dart) while keeping its `16dp` icon at its visual size and preventing any `320dp` cover-width overflow by adjusting the row's horizontal padding (`left: 2, right: CoveSpace.xs`). Added `hitSize` support to [`CoveCheckbox`](../lib/core/widgets/cove_checkbox.dart) and `minTapTargetSize` support to [`CovePillButton`](../lib/core/widgets/cove_pill_button.dart) so every tappable control on `HabitsScreen` (`+ New`, row `CoveCheckbox`, `⋯` `PopupMenuButton`, partner check-in acknowledge button, and row `InkWell`) is at least `48×48` at `320dp`, `411dp`, and `840dp`.
+  - *Under the Hood*:
+    - Added widget test `8. Every tappable control on HabitsScreen is at least 48x48 at 320, 411 and 840` in [`test/habits_test.dart`](../test/habits_test.dart) and regenerated the `habits_screen` goldens.
 - **Batch 4.1g — Lists, Then the Wording (`Oct 26, 2026`)**:
   - *Outcome*:
     1. **`ListsScreen` Converted to `CoveTokens` / `CoveType` / `CoveSpace` / `CoveRadius` / `CoveSize`**: Converted [`lib/features/lists/lists_screen.dart`](../lib/features/lists/lists_screen.dart) to use `context.cv` (`CoveTokens`), `CoveType`, `CoveSpace`, `CoveRadius`, and `CoveSize` while preserving its exact widget structure and layout, eliminating all 29 raw style literals and removing `lib/features/lists/lists_screen.dart` from [`tool/style_allowlist.txt`](../tool/style_allowlist.txt) (`51 → 22` raw literals remaining; only `lib/core/widgets/cove_web_sidebar.dart` remains on the allow-list, down from `406` raw literals across `34` files at the start of Phase 4.1).
