@@ -1,11 +1,20 @@
 -- ==============================================================================
 -- Cove Approved-Code Invites Migration (17-invite-and-keys.md §1, §4)
 --
--- Creates keyless `public.pairing_codes` and `public.pairing_requests` with RLS.
--- The home key never reaches the server readable: `pairing_codes` has no payload
--- column, and `pairing_requests.sealed_payload` holds only an anonymous sealed box
--- (`crypto_box_seal`) encrypted to the joiner's ephemeral public key after the
--- inviter verifies the two SAS words and taps "Let them in".
+-- Creates keyless `public.pairing_codes` and `public.pairing_requests` with
+-- strict RLS, rate limiting, and immutability triggers:
+-- - `pairing_codes` has no payload column and is readable/deletable ONLY by its
+--   inviter (`inviter_id = auth.uid()`).
+-- - Joiners check a code exclusively via `lookup_pairing_code(code)`
+--   (`SECURITY DEFINER`), which returns only `(home_name, inviter_name, status)`
+--   for an open, unexpired code, and counts failed lookups per user (max 5/hour).
+-- - One user may make at most 5 pairing requests per hour (checked in
+--   `can_insert_pairing_request`), and a code accepts at most 3 requests.
+-- - A `BEFORE UPDATE` trigger on `pairing_requests` makes `code`, `joiner_id`,
+--   and `joiner_public_key` immutable after insert; the joiner may only set
+--   `status = 'done'`, and only the inviter may set `sealed_payload`,
+--   `status = 'approved'`, or `status = 'declined'`.
+-- - Delete policy on `pairing_requests`: only the joiner or the code's inviter.
 -- ==============================================================================
 
 -- 1. Safety cleanup: clear any legacy `pairing:` tags in `homes.description`.
@@ -45,14 +54,14 @@ CREATE POLICY "Inviters can insert their own pairing codes"
     )
   );
 
--- Authenticated users can read pairing codes to look up a code or manage their own codes.
-CREATE POLICY "Authenticated users can read pairing codes"
+-- Only the inviter can read their own pairing codes.
+CREATE POLICY "Inviters can read their own pairing codes"
   ON public.pairing_codes
   FOR SELECT
   TO authenticated
-  USING (true);
+  USING (inviter_id = auth.uid());
 
--- Inviters can update status on their own pairing codes (e.g. marking 'approved').
+-- Only the inviter can update status on their own pairing codes.
 CREATE POLICY "Inviters can update their own pairing codes"
   ON public.pairing_codes
   FOR UPDATE
@@ -60,14 +69,91 @@ CREATE POLICY "Inviters can update their own pairing codes"
   USING (inviter_id = auth.uid())
   WITH CHECK (inviter_id = auth.uid());
 
--- Inviters can delete their own pairing codes, and anyone can clean up expired codes.
-CREATE POLICY "Users can delete own or expired pairing codes"
+-- Only the inviter can delete their own pairing codes.
+CREATE POLICY "Only inviter can delete own pairing codes"
   ON public.pairing_codes
   FOR DELETE
   TO authenticated
-  USING (inviter_id = auth.uid() OR expires_at < now());
+  USING (inviter_id = auth.uid());
 
--- 3. `pairing_requests` table (holds joiner's public key and sealed box).
+-- 3. Rate-limit ledger (RLS enabled, no direct client access; used by SECURITY DEFINER functions).
+CREATE TABLE IF NOT EXISTS public.pairing_rate_limit_events (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('failed_lookup', 'pairing_request')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pairing_rate_limit_events_user_kind_time
+  ON public.pairing_rate_limit_events(user_id, kind, created_at);
+
+ALTER TABLE public.pairing_rate_limit_events ENABLE ROW LEVEL SECURITY;
+
+-- 4. Joiner code lookup function: returns ONLY (home_name, inviter_name, status)
+-- for an open, unexpired code, and nothing otherwise. Counts failed lookups per
+-- user (at most 5 failed lookups per hour).
+CREATE OR REPLACE FUNCTION public.lookup_pairing_code(target_code TEXT)
+RETURNS TABLE (
+  home_name TEXT,
+  inviter_name TEXT,
+  status TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_failed_count INTEGER;
+  v_home_name TEXT;
+  v_inviter_name TEXT;
+  v_status TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT count(*)
+    INTO v_failed_count
+    FROM public.pairing_rate_limit_events e
+   WHERE e.user_id = v_uid
+     AND e.kind = 'failed_lookup'
+     AND e.created_at > now() - interval '1 hour';
+
+  IF v_failed_count >= 5 THEN
+    RAISE EXCEPTION 'Rate limit exceeded: at most 5 failed code lookups per hour'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  SELECT h.name,
+         COALESCE(NULLIF(btrim(hm.display_name), ''), 'Partner'),
+         pc.status
+    INTO v_home_name, v_inviter_name, v_status
+    FROM public.pairing_codes pc
+    JOIN public.homes h
+      ON h.id = pc.home_id
+    LEFT JOIN public.home_members hm
+      ON hm.home_id = pc.home_id
+     AND hm.user_id = pc.inviter_id
+   WHERE pc.code = target_code
+     AND pc.status = 'open'
+     AND pc.expires_at > now()
+   LIMIT 1;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.pairing_rate_limit_events (user_id, kind, created_at)
+    VALUES (v_uid, 'failed_lookup', now());
+    RETURN;
+  END IF;
+
+  RETURN QUERY SELECT v_home_name, v_inviter_name, v_status;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.lookup_pairing_code(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.lookup_pairing_code(TEXT) TO authenticated;
+
+-- 5. `pairing_requests` table (holds joiner's public key and sealed box).
 CREATE TABLE IF NOT EXISTS public.pairing_requests (
   id TEXT PRIMARY KEY,
   code TEXT NOT NULL REFERENCES public.pairing_codes(code) ON DELETE CASCADE,
@@ -86,14 +172,18 @@ CREATE INDEX IF NOT EXISTS idx_pairing_requests_joiner_id
 
 ALTER TABLE public.pairing_requests ENABLE ROW LEVEL SECURITY;
 
--- Helper function to enforce at most 3 requests per code and an open, unexpired code.
+-- Helper function enforcing:
+-- 1) open, unexpired code
+-- 2) at most 3 requests per code
+-- 3) at most 5 pairing requests per user per hour
 CREATE OR REPLACE FUNCTION public.can_insert_pairing_request(target_code TEXT)
 RETURNS BOOLEAN
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT EXISTS (
+  SELECT auth.uid() IS NOT NULL
+  AND EXISTS (
     SELECT 1
     FROM public.pairing_codes pc
     WHERE pc.code = target_code
@@ -104,10 +194,116 @@ AS $$
     SELECT count(*)
     FROM public.pairing_requests pr
     WHERE pr.code = target_code
-  ) < 3;
+  ) < 3
+  AND (
+    SELECT count(*)
+    FROM public.pairing_requests pr
+    WHERE pr.joiner_id = auth.uid()
+      AND pr.created_at > now() - interval '1 hour'
+  ) < 5
+  AND (
+    SELECT count(*)
+    FROM public.pairing_rate_limit_events e
+    WHERE e.user_id = auth.uid()
+      AND e.kind = 'pairing_request'
+      AND e.created_at > now() - interval '1 hour'
+  ) < 5;
 $$;
 
--- Joiner (B) inserts its own pending request for an open, unexpired code (< 3 requests).
+REVOKE ALL ON FUNCTION public.can_insert_pairing_request(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.can_insert_pairing_request(TEXT) TO authenticated;
+
+-- Record every pairing request insert in the rate-limit ledger so deleting a
+-- request cannot reset the 5-requests-per-hour limit.
+CREATE OR REPLACE FUNCTION public.record_pairing_request_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.pairing_rate_limit_events (user_id, kind, created_at)
+  VALUES (NEW.joiner_id, 'pairing_request', COALESCE(NEW.created_at, now()));
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_pairing_requests_record_insert ON public.pairing_requests;
+CREATE TRIGGER trg_pairing_requests_record_insert
+  AFTER INSERT ON public.pairing_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.record_pairing_request_insert();
+
+-- Trigger making `code`, `joiner_id`, and `joiner_public_key` immutable after insert,
+-- restricting the joiner to setting `status = 'done'`, and allowing only the inviter
+-- to set `sealed_payload`, `'approved'`, or `'declined'`.
+CREATE OR REPLACE FUNCTION public.enforce_pairing_request_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_inviter_id UUID;
+BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id
+     OR NEW.code IS DISTINCT FROM OLD.code
+     OR NEW.joiner_id IS DISTINCT FROM OLD.joiner_id
+     OR NEW.joiner_public_key IS DISTINCT FROM OLD.joiner_public_key
+     OR NEW.joiner_name IS DISTINCT FROM OLD.joiner_name
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'code, joiner_id, and joiner_public_key are immutable after insert'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT pc.inviter_id
+    INTO v_inviter_id
+    FROM public.pairing_codes pc
+   WHERE pc.code = OLD.code;
+
+  -- Joiner may only change status to 'done' and may never modify sealed_payload.
+  IF v_uid = OLD.joiner_id AND (v_inviter_id IS NULL OR v_uid <> v_inviter_id) THEN
+    IF NEW.sealed_payload IS DISTINCT FROM OLD.sealed_payload THEN
+      RAISE EXCEPTION 'Only the inviter may set sealed_payload'
+        USING ERRCODE = '42501';
+    END IF;
+    IF NEW.status <> 'done' THEN
+      RAISE EXCEPTION 'Joiner may only change status to done'
+        USING ERRCODE = '42501';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  -- Only the inviter may set sealed_payload, 'approved', or 'declined'.
+  IF v_inviter_id IS NOT NULL AND v_uid = v_inviter_id THEN
+    IF NEW.status NOT IN ('approved', 'declined') THEN
+      RAISE EXCEPTION 'Inviter may only set status to approved or declined'
+        USING ERRCODE = '42501';
+    END IF;
+    IF NEW.status = 'approved' AND (NEW.sealed_payload IS NULL OR btrim(NEW.sealed_payload) = '') THEN
+      RAISE EXCEPTION 'Approved request must include sealed_payload'
+        USING ERRCODE = '23514';
+    END IF;
+    IF NEW.status = 'declined' AND NEW.sealed_payload IS NOT NULL THEN
+      RAISE EXCEPTION 'Declined request must not include sealed_payload'
+        USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Not authorized to update pairing_requests row'
+    USING ERRCODE = '42501';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_pairing_requests_enforce_update ON public.pairing_requests;
+CREATE TRIGGER trg_pairing_requests_enforce_update
+  BEFORE UPDATE ON public.pairing_requests
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_pairing_request_update();
+
+-- Joiner (B) inserts its own pending request for an open, unexpired code.
 CREATE POLICY "Joiners can insert their own pairing request"
   ON public.pairing_requests
   FOR INSERT
@@ -134,8 +330,8 @@ CREATE POLICY "Inviter and joiner can read pairing requests"
     )
   );
 
--- Inviter (A) updates requests for its own codes (approving with sealed_payload or declining);
--- Joiner (B) updates its own request (marking 'done').
+-- Inviter (A) updates requests for its own codes; Joiner (B) updates its own request.
+-- Column immutability and status transitions are enforced by `trg_pairing_requests_enforce_update`.
 CREATE POLICY "Inviter and joiner can update pairing requests"
   ON public.pairing_requests
   FOR UPDATE
@@ -159,14 +355,13 @@ CREATE POLICY "Inviter and joiner can update pairing requests"
     )
   );
 
--- Inviter or joiner can delete done/declined requests for cleanup.
-CREATE POLICY "Inviter and joiner can delete finished pairing requests"
+-- Delete policy: ONLY the joiner or the code's inviter, never anyone else.
+CREATE POLICY "Only joiner or code inviter can delete pairing requests"
   ON public.pairing_requests
   FOR DELETE
   TO authenticated
   USING (
     joiner_id = auth.uid()
-    OR status IN ('done', 'declined')
     OR EXISTS (
       SELECT 1
       FROM public.pairing_codes pc

@@ -38,6 +38,8 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
   bool _copied = false;
   bool _isSubmittingDecision = false;
   PairingRequestRecord? _activePendingRequest;
+  Uint8List? _shownPublicKey;
+  String? _statusMessage;
   StreamSubscription<List<PairingRequestRecord>>? _requestsSub;
 
   @override
@@ -82,30 +84,55 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
       (pending) {
         if (!mounted) return;
         setState(() {
-          _activePendingRequest = pending.isNotEmpty ? pending.first : null;
+          final next = pending.isNotEmpty ? pending.first : null;
+          if (next == null) {
+            _activePendingRequest = null;
+            _shownPublicKey = null;
+          } else if (_activePendingRequest == null ||
+              _activePendingRequest!.id != next.id) {
+            _activePendingRequest = next;
+            // Pin the public key in memory at the moment we show the two words.
+            _shownPublicKey = Uint8List.fromList(next.joinerPublicKeyBytes);
+            _statusMessage = null;
+          } else {
+            _activePendingRequest = next;
+          }
         });
       },
       onError: (_) {},
     );
   }
 
-  Future<void> _handleApprove(PairingRequestRecord request) async {
+  Future<void> _handleApprove(
+    PairingRequestRecord request,
+    Uint8List shownPublicKey,
+  ) async {
     if (_isSubmittingDecision) return;
     setState(() => _isSubmittingDecision = true);
     try {
       await ref.read(homeControllerProvider).approvePairingRequest(
             request: request,
+            shownPublicKey: shownPublicKey,
             payloadOverride: widget.payload,
           );
       if (mounted) {
         setState(() {
           _isSubmittingDecision = false;
           _activePendingRequest = null;
+          _shownPublicKey = null;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _isSubmittingDecision = false);
+        final msg = e.toString().replaceAll('Bad state: ', '').trim();
+        setState(() {
+          _isSubmittingDecision = false;
+          _activePendingRequest = null;
+          _shownPublicKey = null;
+          _statusMessage = msg.isNotEmpty
+              ? msg
+              : 'This request changed. Ask them to try again.';
+        });
       }
     }
   }
@@ -119,6 +146,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
         setState(() {
           _isSubmittingDecision = false;
           _activePendingRequest = null;
+          _shownPublicKey = null;
         });
       }
     } catch (_) {
@@ -144,16 +172,18 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
     final qrData = widget.payload.toQrString();
 
     final pendingRequest = _activePendingRequest;
-    if (pendingRequest != null) {
+    final shownPublicKey = _shownPublicKey;
+    if (pendingRequest != null && shownPublicKey != null) {
       return Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: PairingApprovalSheet(
               request: pendingRequest,
+              shownPublicKey: shownPublicKey,
               homeName: widget.payload.homeName,
               isSubmitting: _isSubmittingDecision,
-              onApprove: () => _handleApprove(pendingRequest),
+              onApprove: () => _handleApprove(pendingRequest, shownPublicKey),
               onDecline: () => _handleDecline(pendingRequest),
             ),
           ),
@@ -317,6 +347,18 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                     ],
                   ),
                 ),
+
+                if (_statusMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _statusMessage!,
+                    key: const ValueKey('pairing_qr_status_message'),
+                    textAlign: TextAlign.center,
+                    style: typography.caption.copyWith(
+                      color: colors.accentPrimary,
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 14),
 

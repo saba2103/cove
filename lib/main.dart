@@ -35,6 +35,7 @@ import 'features/profile/user_profile_controller.dart';
 import 'features/subscriptions/subscriptions_screen.dart';
 import 'firebase_options.dart';
 import 'sync/db/app_database.dart';
+import 'sync/key_management/pairing_crypto.dart';
 import 'sync/providers/active_home_provider.dart';
 import 'sync/providers/cove_sync_providers.dart';
 
@@ -83,6 +84,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         );
       } catch (_) {}
       await _ensureSupabaseInitialized();
+
+  try {
+    await PairingCrypto.ensureInitialized();
+  } catch (e) {
+    debugPrint('Sodium initialization failed: $e');
+  }
     }
 
     // If no main isolate port is registered, initialize Firebase and Supabase
@@ -123,6 +130,12 @@ Future<void> main() async {
   }
 
   await _ensureSupabaseInitialized();
+
+  try {
+    await PairingCrypto.ensureInitialized();
+  } catch (e) {
+    debugPrint('Sodium initialization failed: $e');
+  }
 
   try {
     final prefs = await SharedPreferences.getInstance();

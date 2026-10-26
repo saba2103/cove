@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:clock/clock.dart';
@@ -26,6 +25,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ignore: deprecated_member_use
+import 'package:sodium_libs/sodium_libs.dart';
 
 import 'golden/golden_harness.dart';
 
@@ -214,6 +215,7 @@ void main() {
 
   setUpAll(() async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    await PairingCrypto.ensureInitialized();
     await loadCoveFonts();
   });
 
@@ -223,7 +225,7 @@ void main() {
     PartnerProfileNotifier.resetCache();
   });
 
-  group('4.3c SAS word list & sealed-box crypto primitives', () {
+  group('4.3c SAS word list & libsodium sealed-box interoperability', () {
     test(
       'kPairingWordList contains 2,048 distinct uppercase words and 22-bit SHA-256 derivation is deterministic',
       () {
@@ -232,10 +234,12 @@ void main() {
         expect(kPairingWordList, contains('AMBER'));
         expect(kPairingWordList, contains('HARBOUR'));
 
-        final kp = PairingCrypto.generateKeyPair(random: Random(42));
+        final kp = PairingCrypto.generateKeyPair(
+          seed: Uint8List.fromList(List<int>.generate(32, (i) => i + 1)),
+        );
+        addTearDown(kp.dispose);
         const code = '482910';
 
-        // Compute expected indices directly from SHA-256(pk || utf8(code))
         final preimage = Uint8List.fromList([
           ...kp.publicKey,
           ...utf8.encode(code),
@@ -257,9 +261,61 @@ void main() {
         );
       },
     );
+
+    test(
+      'a box sealed by our code opens with libsodium sealOpen directly, and the reverse',
+      () {
+        final Sodium sodium = PairingCrypto.sodium;
+        final plaintext = Uint8List.fromList(
+          utf8.encode('{"homeId":"home_1","key":"secret_32_byte_material"}'),
+        );
+
+        // 1. Sealed by PairingCrypto.cryptoBoxSeal -> opened directly by sodium.crypto.box.sealOpen
+        final KeyPair rawLibKeyPair = sodium.crypto.box.keyPair();
+        addTearDown(rawLibKeyPair.dispose);
+
+        final sealedByOurCode = PairingCrypto.cryptoBoxSeal(
+          plaintext: plaintext,
+          recipientPublicKey: rawLibKeyPair.publicKey,
+        );
+        expect(
+          sealedByOurCode.length,
+          plaintext.length + sodium.crypto.box.sealBytes,
+        );
+
+        final openedByDirectLibsodium = sodium.crypto.box.sealOpen(
+          cipherText: sealedByOurCode,
+          publicKey: rawLibKeyPair.publicKey,
+          secretKey: rawLibKeyPair.secretKey,
+        );
+        expect(openedByDirectLibsodium, equals(plaintext));
+
+        // 2. Sealed directly by sodium.crypto.box.seal -> opened by PairingCrypto.cryptoBoxSealOpen
+        final ourKeyPair = PairingCrypto.generateKeyPair();
+        addTearDown(ourKeyPair.dispose);
+
+        final sealedByDirectLibsodium = sodium.crypto.box.seal(
+          message: plaintext,
+          publicKey: ourKeyPair.publicKey,
+        );
+        final openedByOurCode = PairingCrypto.cryptoBoxSealOpen(
+          sealedBox: sealedByDirectLibsodium,
+          recipientKeyPair: ourKeyPair,
+        );
+        expect(openedByOurCode, equals(plaintext));
+
+        // 3. 6-digit code comes from libsodium randombytes and is always 6 digits (100000..999999)
+        for (var i = 0; i < 20; i++) {
+          final code = PairingCrypto.generateSixDigitCode();
+          expect(code.length, 6);
+          final parsed = int.parse(code);
+          expect(parsed, inInclusiveRange(100000, 999999));
+        }
+      },
+    );
   });
 
-  group('4.3c Approved-code invite flow (two fake clients + fake server)', () {
+  group('4.3c Approved-code invite flow & tighter server rules', () {
     late InMemoryPairingRelay fakeServer;
     late _TestClientRig clientA;
     late _TestClientRig clientB;
@@ -293,7 +349,6 @@ void main() {
       '1. end to end with two fake clients and a fake server: A creates, B requests, the words match, A approves, B opens the sealed key',
       () async {
         await withClock(Clock.fixed(_kFixedNow), () async {
-          // A creates the home and generates a keyless 6-digit pairing code
           final payloadA = await clientA.homeController.createHome(
             name: 'The Nest',
             description: 'Bengaluru',
@@ -306,6 +361,7 @@ void main() {
           // B submits a join request with the 6-digit code
           final sessionB =
               await clientB.homeController.submitPairingJoinRequest(code);
+          addTearDown(sessionB.keyPair.dispose);
 
           // A sees B's pending request on the server
           final pendingForA = await fakeServer.listPendingRequestsForCode(code);
@@ -313,14 +369,21 @@ void main() {
           final requestOnA = pendingForA.single;
 
           // The two verification words match on both phones
-          final wordsOnA = requestOnA.verificationWords;
+          final shownPublicKeyOnA = Uint8List.fromList(
+            requestOnA.joinerPublicKeyBytes,
+          );
+          final wordsOnA = PairingCrypto.deriveVerificationWords(
+            joinerPublicKey: shownPublicKeyOnA,
+            code: requestOnA.code,
+          );
           final wordsOnB = sessionB.verificationWords;
           expect(wordsOnA.formatted, equals(wordsOnB.formatted));
           expect(wordsOnA.formatted, contains(' · '));
 
-          // A approves ("Let them in") -> seals the payload to B's public key
+          // A approves ("Let them in"), sealing to the exact in-memory key it showed words for
           await clientA.homeController.approvePairingRequest(
             request: requestOnA,
+            shownPublicKey: shownPublicKeyOnA,
           );
 
           // Code is single-use once approved: another join request is rejected
@@ -353,7 +416,7 @@ void main() {
     );
 
     test(
-      '2. a swapped public key -> the words differ (and B cannot open a payload sealed to the swapped key)',
+      '2. a swapped public key -> the words differ, and if the row changes after showing words, A declines automatically with "This request changed. Ask them to try again."',
       () async {
         await withClock(Clock.fixed(_kFixedNow), () async {
           final payloadA = await clientA.homeController.createHome(
@@ -363,13 +426,14 @@ void main() {
             homeId: payloadA.homeId,
           );
 
-          // Choose a deterministic joiner keypair and a distinct MITM keypair
           final joinerKeyPair = PairingCrypto.generateKeyPair(
-            random: Random(101),
+            seed: Uint8List.fromList(List<int>.filled(32, 11)),
           );
           final mitmKeyPair = PairingCrypto.generateKeyPair(
-            random: Random(202),
+            seed: Uint8List.fromList(List<int>.filled(32, 22)),
           );
+          addTearDown(joinerKeyPair.dispose);
+          addTearDown(mitmKeyPair.dispose);
 
           final sessionB =
               await clientB.homeController.submitPairingJoinRequest(
@@ -377,29 +441,45 @@ void main() {
             keyPairOverride: joinerKeyPair,
           );
 
-          // Hostile server swaps B's public key on the pending request row
-          fakeServer.swapJoinerPublicKeyForTest(
+          // Case A: Server swaps the public key BEFORE A views the request -> the words differ!
+          fakeServer.swapJoinerPublicKeyOnServerForTest(
             requestId: sessionB.request.id,
             replacementPublicKeyBase64: mitmKeyPair.publicKeyBase64,
           );
 
-          final pendingForA = await fakeServer.listPendingRequestsForCode(code);
-          final mitmRequestOnA = pendingForA.single;
-
-          // The words on A's phone do NOT match the words on B's phone
+          final swappedRequestOnA =
+              (await fakeServer.listPendingRequestsForCode(code)).single;
           expect(
-            mitmRequestOnA.verificationWords.formatted,
+            swappedRequestOnA.verificationWords.formatted,
             isNot(equals(sessionB.verificationWords.formatted)),
           );
 
-          // Even if A mistakenly approved the swapped key, B's secret key cannot open it
-          await clientA.homeController.approvePairingRequest(
-            request: mitmRequestOnA,
+          // Case B: Server swaps the public key AFTER A has already shown the words for B's key
+          // -> when A taps "Let them in", approvePairingRequest re-reads the row just before
+          // sealing, detects the key changed from `shownPublicKey`, declines automatically,
+          // and says "This request changed. Ask them to try again."
+          final shownPublicKeyInMemory = Uint8List.fromList(
+            joinerKeyPair.publicKey,
           );
           await expectLater(
-            () => clientB.homeController.completeApprovedPairingJoin(sessionB),
-            throwsA(anything),
+            () => clientA.homeController.approvePairingRequest(
+              request: sessionB.request,
+              shownPublicKey: shownPublicKeyInMemory,
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                equals('This request changed. Ask them to try again.'),
+              ),
+            ),
           );
+
+          final declinedRow = await fakeServer.getRequestById(
+            sessionB.request.id,
+          );
+          expect(declinedRow?.status, equals('declined'));
+          expect(declinedRow?.sealedPayload, isNull);
           expect(await clientB.keyStore.getKey(payloadA.homeId), isNull);
         });
       },
@@ -418,6 +498,7 @@ void main() {
 
           final sessionB =
               await clientB.homeController.submitPairingJoinRequest(code);
+          addTearDown(sessionB.keyPair.dispose);
           final pendingForA = await fakeServer.listPendingRequestsForCode(code);
           expect(pendingForA, hasLength(1));
 
@@ -426,7 +507,6 @@ void main() {
             pendingForA.single.id,
           );
 
-          // Request has no sealed_payload and B is rejected when trying to complete
           final declinedRow = await fakeServer.getRequestById(
             sessionB.request.id,
           );
@@ -466,7 +546,6 @@ void main() {
           );
         });
 
-        // Advance clock past the 10-minute expiry window
         await withClock(
           Clock.fixed(_kFixedNow.add(const Duration(minutes: 10, seconds: 1))),
           () async {
@@ -498,16 +577,17 @@ void main() {
             homeId: payloadA.homeId,
           );
 
-          // First 3 requests on the code succeed
           final r1 =
               await clientB.homeController.submitPairingJoinRequest(code);
           final r2 =
               await clientB.homeController.submitPairingJoinRequest(code);
           final r3 =
               await clientB.homeController.submitPairingJoinRequest(code);
+          addTearDown(r1.keyPair.dispose);
+          addTearDown(r2.keyPair.dispose);
+          addTearDown(r3.keyPair.dispose);
           expect({r1.request.id, r2.request.id, r3.request.id}, hasLength(3));
 
-          // 4th request on the same code is rejected
           await expectLater(
             () => clientB.homeController.submitPairingJoinRequest(code),
             throwsA(
@@ -545,10 +625,12 @@ void main() {
           );
           final sessionB =
               await clientB.homeController.submitPairingJoinRequest(code);
+          addTearDown(sessionB.keyPair.dispose);
           final pendingOnA =
               (await fakeServer.listPendingRequestsForCode(code)).single;
           await clientA.homeController.approvePairingRequest(
             request: pendingOnA,
+            shownPublicKey: pendingOnA.joinerPublicKeyBytes,
           );
           await clientB.homeController.completeApprovedPairingJoin(sessionB);
 
@@ -557,12 +639,10 @@ void main() {
           for (final entry in fakeServer.writeLog) {
             final serialized = entry.toJsonString();
 
-            // `pairing_codes` writes must never have a `payload` column
             if (entry.table == 'pairing_codes') {
               expect(entry.payload.containsKey('payload'), isFalse);
             }
 
-            // No write may contain the home key in Base64, Base64Url, unpadded Base64, Hex, or QR JSON
             expect(serialized.contains(keyBase64), isFalse);
             expect(serialized.contains(keyBase64Url), isFalse);
             expect(serialized.contains(keyBase64NoPad), isFalse);
@@ -572,8 +652,6 @@ void main() {
             );
             expect(serialized.contains(qrJson), isFalse);
 
-            // Also scan any base64-decoded `sealed_payload` bytes to ensure the raw 32-byte key
-            // does not appear as a contiguous byte subsequence inside the ciphertext.
             final sealedStr = entry.payload['sealed_payload'] as String?;
             if (sealedStr != null && sealedStr.isNotEmpty) {
               final rawSealed = base64Decode(sealedStr);
@@ -584,8 +662,211 @@ void main() {
       },
     );
 
+    test(
+      '7. tighter server rules: inviter-only code read, lookup_pairing_code, immutable request fields, role transitions, delete policy, and 5/hour rate limits',
+      () async {
+        await withClock(Clock.fixed(_kFixedNow), () async {
+          final payloadA = await clientA.homeController.createHome(
+            name: 'The Nest',
+          );
+          final code1 = await clientA.homeController.createPairingCode(
+            homeId: payloadA.homeId,
+          );
+          final code2 = await clientA.homeController.createPairingCode(
+            homeId: payloadA.homeId,
+          );
+
+          // Rule A: Only the inviter can read their own pairing_codes row directly.
+          expect(
+            await fakeServer.getOwnPairingCode(
+              code: code1,
+              inviterId: 'user_a_saba',
+            ),
+            isNotNull,
+          );
+          expect(
+            await fakeServer.getOwnPairingCode(
+              code: code1,
+              inviterId: 'user_b_ancy',
+            ),
+            isNull,
+          );
+
+          // Joiner checks a code only via lookupPairingCode, which returns home_name, inviter_name, status
+          final lookup = await fakeServer.lookupPairingCode(
+            code: code1,
+            callerUserId: 'user_b_ancy',
+          );
+          expect(lookup, isNotNull);
+          expect(lookup!.homeName, equals('The Nest'));
+          expect(lookup.inviterName, equals('Saba'));
+          expect(lookup.status, equals('open'));
+
+          // Rule B: Immutability trigger on pairing_requests & role transition rules
+          final s1 =
+              await clientB.homeController.submitPairingJoinRequest(code1);
+          addTearDown(s1.keyPair.dispose);
+
+          // code, joiner_id, and joiner_public_key are immutable after insert
+          await expectLater(
+            () => fakeServer.updateRequestWithTriggerChecks(
+              requestId: s1.request.id,
+              actorUserId: 'user_b_ancy',
+              newCode: code2,
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('code is immutable'),
+              ),
+            ),
+          );
+          await expectLater(
+            () => fakeServer.updateRequestWithTriggerChecks(
+              requestId: s1.request.id,
+              actorUserId: 'user_b_ancy',
+              newJoinerId: 'user_c_outsider',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('joiner_id is immutable'),
+              ),
+            ),
+          );
+          await expectLater(
+            () => fakeServer.updateRequestWithTriggerChecks(
+              requestId: s1.request.id,
+              actorUserId: 'user_b_ancy',
+              newJoinerPublicKey: 'swapped_pk',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('joiner_public_key is immutable'),
+              ),
+            ),
+          );
+
+          // Joiner may only change status to 'done', never 'approved' or 'sealed_payload'
+          await expectLater(
+            () => fakeServer.updateRequestWithTriggerChecks(
+              requestId: s1.request.id,
+              actorUserId: 'user_b_ancy',
+              newStatus: 'approved',
+              newSealedPayload: 'forged_blob',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('joiner may only change status to done'),
+              ),
+            ),
+          );
+
+          // Inviter may not change status to 'done'
+          await expectLater(
+            () => fakeServer.updateRequestWithTriggerChecks(
+              requestId: s1.request.id,
+              actorUserId: 'user_a_saba',
+              newStatus: 'done',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('inviter may only set status to approved or declined'),
+              ),
+            ),
+          );
+
+          // Rule C: Delete policy: only the joiner or the code's inviter, never anyone else
+          await expectLater(
+            () => fakeServer.deleteRequest(
+              requestId: s1.request.id,
+              actorUserId: 'user_c_outsider',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('only the joiner or the code\'s inviter'),
+              ),
+            ),
+          );
+          await expectLater(
+            () => fakeServer.deletePairingCode(
+              code: code1,
+              actorUserId: 'user_b_ancy',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('only the code\'s inviter'),
+              ),
+            ),
+          );
+
+          // Rule D: Rate limit — at most 5 pairing requests per user per hour
+          // (Joiner B already made 1 request on code1; make 2 more on code1 and 2 on code2 = 5 total)
+          final s2 =
+              await clientB.homeController.submitPairingJoinRequest(code1);
+          final s3 =
+              await clientB.homeController.submitPairingJoinRequest(code1);
+          final s4 =
+              await clientB.homeController.submitPairingJoinRequest(code2);
+          final s5 =
+              await clientB.homeController.submitPairingJoinRequest(code2);
+          addTearDown(s2.keyPair.dispose);
+          addTearDown(s3.keyPair.dispose);
+          addTearDown(s4.keyPair.dispose);
+          addTearDown(s5.keyPair.dispose);
+
+          // 6th pairing request within the hour is rejected even though code2 only has 2 requests
+          await expectLater(
+            () => clientB.homeController.submitPairingJoinRequest(code2),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('at most 5 requests per hour'),
+              ),
+            ),
+          );
+
+          // Rule E: Failed lookup rate limit — at most 5 failed lookups per user per hour
+          for (var i = 0; i < 5; i++) {
+            final miss = await fakeServer.lookupPairingCode(
+              code: '00000$i',
+              callerUserId: 'user_c_outsider',
+            );
+            expect(miss, isNull);
+          }
+          // 6th lookup within the hour is rate-limited
+          await expectLater(
+            () => fakeServer.lookupPairingCode(
+              code: code2,
+              callerUserId: 'user_c_outsider',
+            ),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('Too many failed code lookups'),
+              ),
+            ),
+          );
+        });
+      },
+    );
+
     testWidgets(
-      'PairingQrView surfaces PairingApprovalSheet when B requests to join and approves on Let them in',
+      'PairingQrView surfaces PairingApprovalSheet, seals to the in-memory key on Let them in, and shows "This request changed. Ask them to try again." if the row key changed before sealing',
       (tester) async {
         tester.view.physicalSize = const Size(430, 932);
         tester.view.devicePixelRatio = 1.0;
@@ -615,30 +896,55 @@ void main() {
           );
           expect(code, isNotNull);
 
-          // B submits a join request with the code
-          final sessionB =
+          // 1. B submits a request, then a hostile server swaps the row's key while A is viewing the sheet
+          final sSwapped =
               await clientB.homeController.submitPairingJoinRequest(code!);
+          addTearDown(sSwapped.keyPair.dispose);
           await tester.pumpAndSettle();
 
-          // A's PairingQrView automatically transitions to PairingApprovalSheet
           expect(find.byType(PairingApprovalSheet), findsOneWidget);
-          expect(find.text('Ancy wants to join The Nest.'), findsOneWidget);
           expect(
-            find.text('Do these words match on their phone?'),
+            find.text(sSwapped.verificationWords.formatted),
             findsOneWidget,
           );
+
+          final mitmKp = PairingCrypto.generateKeyPair(
+            seed: Uint8List.fromList(List<int>.filled(32, 99)),
+          );
+          addTearDown(mitmKp.dispose);
+          fakeServer.swapJoinerPublicKeyOnServerForTest(
+            requestId: sSwapped.request.id,
+            replacementPublicKeyBase64: mitmKp.publicKeyBase64,
+          );
+
+          // A taps "Let them in" -> re-read detects the key changed, declines automatically,
+          // and shows "This request changed. Ask them to try again."
+          await tester.tap(find.text('Let them in'));
+          await tester.pumpAndSettle();
+
+          expect(
+            find.text('This request changed. Ask them to try again.'),
+            findsOneWidget,
+          );
+          final declined = await fakeServer.getRequestById(sSwapped.request.id);
+          expect(declined?.status, equals('declined'));
+          expect(declined?.sealedPayload, isNull);
+
+          // 2. B submits a fresh request without tampering -> A taps "Let them in" and B joins
+          final sessionB =
+              await clientB.homeController.submitPairingJoinRequest(code);
+          addTearDown(sessionB.keyPair.dispose);
+          await tester.pumpAndSettle();
+
+          expect(find.byType(PairingApprovalSheet), findsOneWidget);
           expect(
             find.text(sessionB.verificationWords.formatted),
             findsOneWidget,
           );
-          expect(find.text('Let them in'), findsOneWidget);
-          expect(find.text('Not them'), findsOneWidget);
 
-          // A taps "Let them in"
           await tester.tap(find.text('Let them in'));
           await tester.pumpAndSettle();
 
-          // B opens the sealed key and joins
           await clientB.homeController.completeApprovedPairingJoin(sessionB);
           expect(
             await clientB.keyStore.getKey(payloadA.homeId),

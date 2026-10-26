@@ -12,6 +12,7 @@ import 'pairing_crypto.dart';
 
 /// Keyless server record in `public.pairing_codes`.
 /// Never contains the pairing payload or home key.
+/// Readable only by the inviter (`inviter_id = auth.uid()`).
 class PairingCodeRecord {
   final String code;
   final String homeId;
@@ -19,6 +20,8 @@ class PairingCodeRecord {
   final DateTime expiresAt;
   final String status;
   final DateTime createdAt;
+  final String? homeName;
+  final String? inviterName;
 
   const PairingCodeRecord({
     required this.code,
@@ -27,6 +30,8 @@ class PairingCodeRecord {
     required this.expiresAt,
     required this.status,
     required this.createdAt,
+    this.homeName,
+    this.inviterName,
   });
 
   bool isExpiredAt(DateTime nowUtc) => !nowUtc.isBefore(expiresAt);
@@ -64,6 +69,30 @@ class PairingCodeRecord {
       expiresAt: expiresAt ?? this.expiresAt,
       status: status ?? this.status,
       createdAt: createdAt,
+      homeName: homeName,
+      inviterName: inviterName,
+    );
+  }
+}
+
+/// Result returned by the `SECURITY DEFINER` function `lookup_pairing_code(code)`
+/// for an open, unexpired code. Never exposes `home_id`, `inviter_id`, or keys.
+class PairingCodeLookupResult {
+  final String homeName;
+  final String inviterName;
+  final String status;
+
+  const PairingCodeLookupResult({
+    required this.homeName,
+    required this.inviterName,
+    required this.status,
+  });
+
+  factory PairingCodeLookupResult.fromRow(Map<String, dynamic> row) {
+    return PairingCodeLookupResult(
+      homeName: (row['home_name'] as String?) ?? 'Home',
+      inviterName: (row['inviter_name'] as String?) ?? 'Partner',
+      status: (row['status'] as String?) ?? 'open',
     );
   }
 }
@@ -128,6 +157,8 @@ class PairingRequestRecord {
   }
 
   PairingRequestRecord copyWith({
+    String? code,
+    String? joinerId,
     String? joinerPublicKey,
     String? sealedPayload,
     bool clearSealedPayload = false,
@@ -135,8 +166,8 @@ class PairingRequestRecord {
   }) {
     return PairingRequestRecord(
       id: id,
-      code: code,
-      joinerId: joinerId,
+      code: code ?? this.code,
+      joinerId: joinerId ?? this.joinerId,
       joinerName: joinerName,
       joinerPublicKey: joinerPublicKey ?? this.joinerPublicKey,
       sealedPayload:
@@ -150,10 +181,26 @@ class PairingRequestRecord {
 /// Transport abstraction for `public.pairing_codes` and `public.pairing_requests`.
 abstract class PairingRelay {
   static const int maxRequestsPerCode = 3;
+  static const int maxRequestsPerUserPerHour = 5;
+  static const int maxFailedLookupsPerUserPerHour = 5;
 
   Future<void> insertPairingCode(PairingCodeRecord record);
 
-  Future<PairingCodeRecord?> getPairingCode(String code);
+  /// Reads a `pairing_codes` row owned by [inviterId].
+  /// Under RLS, only the inviter can read their own `pairing_codes` rows.
+  Future<PairingCodeRecord?> getOwnPairingCode({
+    required String code,
+    required String inviterId,
+  });
+
+  /// Calls the `SECURITY DEFINER` function `lookup_pairing_code(code)`, which
+  /// returns only `home_name`, `inviter_name`, and `status` for an open,
+  /// unexpired code, and `null` otherwise (counting failed lookups per user,
+  /// max 5 per hour).
+  Future<PairingCodeLookupResult?> lookupPairingCode({
+    required String code,
+    required String callerUserId,
+  });
 
   Future<PairingRequestRecord> submitJoinRequest({
     required String code,
@@ -174,13 +221,23 @@ abstract class PairingRelay {
     required String requestId,
     required String code,
     required String sealedPayload,
+    String? actorUserId,
   });
 
-  Future<void> declineRequest({required String requestId});
+  Future<void> declineRequest({
+    required String requestId,
+    String? actorUserId,
+  });
 
-  Future<void> markRequestDone({required String requestId});
+  Future<void> markRequestDone({
+    required String requestId,
+    String? actorUserId,
+  });
 
-  Future<void> cleanupDoneAndExpired({required DateTime nowUtc});
+  Future<void> cleanupDoneAndExpired({
+    required DateTime nowUtc,
+    String? actorUserId,
+  });
 }
 
 /// Supabase-backed implementation of [PairingRelay].
@@ -195,14 +252,40 @@ class SupabasePairingRelay implements PairingRelay {
   }
 
   @override
-  Future<PairingCodeRecord?> getPairingCode(String code) async {
+  Future<PairingCodeRecord?> getOwnPairingCode({
+    required String code,
+    required String inviterId,
+  }) async {
     final row = await _supabase
         .from('pairing_codes')
         .select('code, home_id, inviter_id, expires_at, status, created_at')
         .eq('code', code)
+        .eq('inviter_id', inviterId)
         .maybeSingle();
     if (row == null) return null;
     return PairingCodeRecord.fromRow(row);
+  }
+
+  @override
+  Future<PairingCodeLookupResult?> lookupPairingCode({
+    required String code,
+    required String callerUserId,
+  }) async {
+    final res = await _supabase.rpc(
+      'lookup_pairing_code',
+      params: <String, dynamic>{'target_code': code},
+    );
+    if (res == null) return null;
+    if (res is List) {
+      if (res.isEmpty) return null;
+      return PairingCodeLookupResult.fromRow(
+        Map<String, dynamic>.from(res.first as Map),
+      );
+    }
+    if (res is Map) {
+      return PairingCodeLookupResult.fromRow(Map<String, dynamic>.from(res));
+    }
+    return null;
   }
 
   @override
@@ -213,30 +296,13 @@ class SupabasePairingRelay implements PairingRelay {
     required String joinerPublicKey,
   }) async {
     final now = clock.now().toUtc();
-    final codeRow = await getPairingCode(code);
-    if (codeRow == null) {
+    final lookup = await lookupPairingCode(
+      code: code,
+      callerUserId: joinerId,
+    );
+    if (lookup == null || lookup.status != 'open') {
       throw StateError(
         'Invalid or expired 6-digit code. Please check your partner\'s screen.',
-      );
-    }
-    if (codeRow.isExpiredAt(now)) {
-      throw StateError(
-        'Pairing code has expired. Please request a new code.',
-      );
-    }
-    if (codeRow.status != 'open') {
-      throw StateError(
-        'This pairing code has already been used. Ask for a new code.',
-      );
-    }
-
-    final existingRows = await _supabase
-        .from('pairing_requests')
-        .select('id')
-        .eq('code', code);
-    if ((existingRows as List).length >= PairingRelay.maxRequestsPerCode) {
-      throw StateError(
-        'Too many join requests for this code. Please ask for a new code.',
       );
     }
 
@@ -316,6 +382,7 @@ class SupabasePairingRelay implements PairingRelay {
     required String requestId,
     required String code,
     required String sealedPayload,
+    String? actorUserId,
   }) async {
     await _supabase.from('pairing_requests').update({
       'sealed_payload': sealedPayload,
@@ -328,7 +395,10 @@ class SupabasePairingRelay implements PairingRelay {
   }
 
   @override
-  Future<void> declineRequest({required String requestId}) async {
+  Future<void> declineRequest({
+    required String requestId,
+    String? actorUserId,
+  }) async {
     await _supabase.from('pairing_requests').update({
       'sealed_payload': null,
       'status': 'declined',
@@ -336,14 +406,20 @@ class SupabasePairingRelay implements PairingRelay {
   }
 
   @override
-  Future<void> markRequestDone({required String requestId}) async {
+  Future<void> markRequestDone({
+    required String requestId,
+    String? actorUserId,
+  }) async {
     await _supabase.from('pairing_requests').update({
       'status': 'done',
     }).eq('id', requestId);
   }
 
   @override
-  Future<void> cleanupDoneAndExpired({required DateTime nowUtc}) async {
+  Future<void> cleanupDoneAndExpired({
+    required DateTime nowUtc,
+    String? actorUserId,
+  }) async {
     try {
       await _supabase
           .from('pairing_requests')
@@ -374,12 +450,24 @@ class PairingRelayWriteLog {
 }
 
 /// In-memory implementation of [PairingRelay] enforcing the exact server
-/// constraints (expiry, single-use once approved, max 3 requests per code)
-/// and recording every write for security inspection.
+/// constraints:
+/// - Inviter reads only their own `pairing_codes`; joiners use `lookupPairingCode`.
+/// - Rate limits: max 5 failed code lookups per user per hour, and max 5
+///   pairing requests per user per hour (plus max 3 requests per code).
+/// - Immutability trigger on `pairing_requests`: `code`, `joiner_id`, and
+///   `joiner_public_key` cannot be changed after insert; joiner may only set
+///   `status = 'done'`; only inviter may set `sealed_payload`, `'approved'`,
+///   or `'declined'`.
+/// - Delete policy: only the joiner or the code's inviter may delete a request,
+///   and only the code's inviter may delete a pairing code.
 class InMemoryPairingRelay implements PairingRelay {
   final Map<String, PairingCodeRecord> _codes = <String, PairingCodeRecord>{};
   final Map<String, PairingRequestRecord> _requests =
       <String, PairingRequestRecord>{};
+  final Map<String, List<DateTime>> _failedLookupTimestampsByUser =
+      <String, List<DateTime>>{};
+  final Map<String, List<DateTime>> _requestTimestampsByUser =
+      <String, List<DateTime>>{};
   final List<PairingRelayWriteLog> writeLog = <PairingRelayWriteLog>[];
   final StreamController<void> _changes = StreamController<void>.broadcast();
 
@@ -403,9 +491,9 @@ class InMemoryPairingRelay implements PairingRelay {
     }
   }
 
-  /// Simulates a hostile server swapping a joiner's public key on a pending
-  /// request (MITM test helper).
-  void swapJoinerPublicKeyForTest({
+  /// Simulates a hostile server (bypassing normal client triggers) swapping a
+  /// joiner's public key on a pending request row in storage.
+  void swapJoinerPublicKeyOnServerForTest({
     required String requestId,
     required String replacementPublicKeyBase64,
   }) {
@@ -417,7 +505,7 @@ class InMemoryPairingRelay implements PairingRelay {
       joinerPublicKey: replacementPublicKeyBase64,
     );
     _requests[requestId] = updated;
-    _recordWrite('pairing_requests', 'mitm_swap', updated.toRow());
+    _recordWrite('pairing_requests', 'server_mitm_swap', updated.toRow());
   }
 
   @override
@@ -426,9 +514,51 @@ class InMemoryPairingRelay implements PairingRelay {
     _recordWrite('pairing_codes', 'insert', record.toRow());
   }
 
+  /// Attempts to read `pairing_codes` as [callerUserId].
+  /// Under RLS, only the inviter (`record.inviterId == callerUserId`) can see
+  /// the row; any other authenticated user sees `null`.
   @override
-  Future<PairingCodeRecord?> getPairingCode(String code) async {
-    return _codes[code];
+  Future<PairingCodeRecord?> getOwnPairingCode({
+    required String code,
+    required String inviterId,
+  }) async {
+    final record = _codes[code];
+    if (record == null) return null;
+    if (record.inviterId != inviterId) return null;
+    return record;
+  }
+
+  @override
+  Future<PairingCodeLookupResult?> lookupPairingCode({
+    required String code,
+    required String callerUserId,
+  }) async {
+    final now = clock.now().toUtc();
+    final cutoff = now.subtract(const Duration(hours: 1));
+    final failures =
+        (_failedLookupTimestampsByUser[callerUserId] ?? <DateTime>[])
+          ..removeWhere((t) => !t.isAfter(cutoff));
+    _failedLookupTimestampsByUser[callerUserId] = failures;
+
+    if (failures.length >= PairingRelay.maxFailedLookupsPerUserPerHour) {
+      throw StateError(
+        'Too many failed code lookups. Please try again later.',
+      );
+    }
+
+    final record = _codes[code];
+    if (record == null ||
+        record.status != 'open' ||
+        record.isExpiredAt(now)) {
+      failures.add(now);
+      return null;
+    }
+
+    return PairingCodeLookupResult(
+      homeName: record.homeName ?? 'The Nest',
+      inviterName: record.inviterName ?? 'Partner',
+      status: record.status,
+    );
   }
 
   @override
@@ -439,23 +569,62 @@ class InMemoryPairingRelay implements PairingRelay {
     required String joinerPublicKey,
   }) async {
     final now = clock.now().toUtc();
-    final codeRow = _codes[code];
-    if (codeRow == null) {
+    final cutoff = now.subtract(const Duration(hours: 1));
+
+    // 1. Check per-user hourly request rate limit (max 5 requests per hour)
+    final userHistory = (_requestTimestampsByUser[joinerId] ?? <DateTime>[])
+      ..removeWhere((t) => !t.isAfter(cutoff));
+    _requestTimestampsByUser[joinerId] = userHistory;
+    if (userHistory.length >= PairingRelay.maxRequestsPerUserPerHour) {
       throw StateError(
-        'Invalid or expired 6-digit code. Please check your partner\'s screen.',
+        'Too many pairing requests. You can make at most 5 requests per hour.',
       );
     }
-    if (codeRow.isExpiredAt(now)) {
+
+    // 2. Check code via lookupPairingCode (also enforces failed lookup rate limit)
+    final codeRow = _codes[code];
+    if (codeRow != null && codeRow.isExpiredAt(now)) {
+      final failures =
+          (_failedLookupTimestampsByUser[joinerId] ?? <DateTime>[])
+            ..removeWhere((t) => !t.isAfter(cutoff));
+      if (failures.length >= PairingRelay.maxFailedLookupsPerUserPerHour) {
+        throw StateError(
+          'Too many failed code lookups. Please try again later.',
+        );
+      }
+      failures.add(now);
+      _failedLookupTimestampsByUser[joinerId] = failures;
       throw StateError(
         'Pairing code has expired. Please request a new code.',
       );
     }
-    if (codeRow.status != 'open') {
+    if (codeRow != null && codeRow.status != 'open') {
+      final failures =
+          (_failedLookupTimestampsByUser[joinerId] ?? <DateTime>[])
+            ..removeWhere((t) => !t.isAfter(cutoff));
+      if (failures.length >= PairingRelay.maxFailedLookupsPerUserPerHour) {
+        throw StateError(
+          'Too many failed code lookups. Please try again later.',
+        );
+      }
+      failures.add(now);
+      _failedLookupTimestampsByUser[joinerId] = failures;
       throw StateError(
         'This pairing code has already been used. Ask for a new code.',
       );
     }
 
+    final lookup = await lookupPairingCode(
+      code: code,
+      callerUserId: joinerId,
+    );
+    if (lookup == null) {
+      throw StateError(
+        'Invalid or expired 6-digit code. Please check your partner\'s screen.',
+      );
+    }
+
+    // 3. Check per-code max 3 requests
     final existingForCode =
         _requests.values.where((r) => r.code == code).length;
     if (existingForCode >= PairingRelay.maxRequestsPerCode) {
@@ -463,6 +632,8 @@ class InMemoryPairingRelay implements PairingRelay {
         'Too many join requests for this code. Please ask for a new code.',
       );
     }
+
+    userHistory.add(now);
 
     final request = PairingRequestRecord(
       id: generateCoveUuid(),
@@ -476,6 +647,131 @@ class InMemoryPairingRelay implements PairingRelay {
     _requests[request.id] = request;
     _recordWrite('pairing_requests', 'insert', request.toRow());
     return request;
+  }
+
+  /// Simulates the SQL `BEFORE UPDATE ON public.pairing_requests` trigger
+  /// and RLS update policy.
+  Future<void> updateRequestWithTriggerChecks({
+    required String requestId,
+    required String actorUserId,
+    String? newCode,
+    String? newJoinerId,
+    String? newJoinerPublicKey,
+    String? newSealedPayload,
+    bool clearSealedPayload = false,
+    String? newStatus,
+  }) async {
+    final existing = _requests[requestId];
+    if (existing == null) {
+      throw StateError('Pairing request not found: $requestId');
+    }
+    final codeRow = _codes[existing.code];
+    final inviterId = codeRow?.inviterId;
+
+    final isJoiner = actorUserId == existing.joinerId;
+    final isInviter = inviterId != null && actorUserId == inviterId;
+    if (!isJoiner && !isInviter) {
+      throw StateError('RLS violation: user cannot update this request.');
+    }
+
+    // Trigger check 1: code, joiner_id, and joiner_public_key are immutable
+    if (newCode != null && newCode != existing.code) {
+      throw StateError('Trigger violation: code is immutable after insert.');
+    }
+    if (newJoinerId != null && newJoinerId != existing.joinerId) {
+      throw StateError(
+        'Trigger violation: joiner_id is immutable after insert.',
+      );
+    }
+    if (newJoinerPublicKey != null &&
+        newJoinerPublicKey != existing.joinerPublicKey) {
+      throw StateError(
+        'Trigger violation: joiner_public_key is immutable after insert.',
+      );
+    }
+
+    final targetStatus = newStatus ?? existing.status;
+    final targetSealed = clearSealedPayload
+        ? null
+        : (newSealedPayload ?? existing.sealedPayload);
+
+    // Trigger check 2: role-restricted transitions
+    if (isJoiner && !isInviter) {
+      if (targetStatus != 'done') {
+        throw StateError(
+          'Trigger violation: joiner may only change status to done.',
+        );
+      }
+      if (targetSealed != existing.sealedPayload) {
+        throw StateError(
+          'Trigger violation: only the inviter may set sealed_payload.',
+        );
+      }
+    } else if (isInviter) {
+      if (targetStatus != 'approved' && targetStatus != 'declined') {
+        throw StateError(
+          'Trigger violation: inviter may only set status to approved or declined.',
+        );
+      }
+      if (targetStatus == 'approved' &&
+          (targetSealed == null || targetSealed.isEmpty)) {
+        throw StateError(
+          'Trigger violation: approved request requires sealed_payload.',
+        );
+      }
+      if (targetStatus == 'declined' && targetSealed != null) {
+        throw StateError(
+          'Trigger violation: declined request cannot carry sealed_payload.',
+        );
+      }
+    }
+
+    final updated = existing.copyWith(
+      sealedPayload: targetSealed,
+      clearSealedPayload: targetSealed == null,
+      status: targetStatus,
+    );
+    _requests[requestId] = updated;
+    _recordWrite('pairing_requests', 'update', {
+      'id': requestId,
+      'sealed_payload': updated.sealedPayload,
+      'status': updated.status,
+    });
+  }
+
+  /// Enforces the `DELETE` RLS policy on `pairing_requests`:
+  /// only the joiner or the code's inviter may delete a request, never anyone else.
+  Future<void> deleteRequest({
+    required String requestId,
+    required String actorUserId,
+  }) async {
+    final existing = _requests[requestId];
+    if (existing == null) return;
+    final inviterId = _codes[existing.code]?.inviterId;
+    if (actorUserId != existing.joinerId && actorUserId != inviterId) {
+      throw StateError(
+        'RLS violation: only the joiner or the code\'s inviter may delete a pairing request.',
+      );
+    }
+    _requests.remove(requestId);
+    _recordWrite('pairing_requests', 'delete', {'id': requestId});
+  }
+
+  /// Enforces the `DELETE` RLS policy on `pairing_codes`:
+  /// only the code's inviter may delete their pairing code.
+  Future<void> deletePairingCode({
+    required String code,
+    required String actorUserId,
+  }) async {
+    final existing = _codes[code];
+    if (existing == null) return;
+    if (actorUserId != existing.inviterId) {
+      throw StateError(
+        'RLS violation: only the code\'s inviter may delete a pairing code.',
+      );
+    }
+    _codes.remove(code);
+    _recordWrite('pairing_codes', 'delete', {'code': code});
   }
 
   @override
@@ -515,26 +811,19 @@ class InMemoryPairingRelay implements PairingRelay {
     required String requestId,
     required String code,
     required String sealedPayload,
+    String? actorUserId,
   }) async {
-    final req = _requests[requestId];
-    if (req == null) {
-      throw StateError('Unknown pairing request: $requestId');
-    }
     final codeRow = _codes[code];
     if (codeRow == null || codeRow.status != 'open') {
       throw StateError('Pairing code $code is no longer open.');
     }
-
-    final updatedReq = req.copyWith(
-      sealedPayload: sealedPayload,
-      status: 'approved',
+    final effectiveActor = actorUserId ?? codeRow.inviterId;
+    await updateRequestWithTriggerChecks(
+      requestId: requestId,
+      actorUserId: effectiveActor,
+      newSealedPayload: sealedPayload,
+      newStatus: 'approved',
     );
-    _requests[requestId] = updatedReq;
-    _recordWrite('pairing_requests', 'approve', {
-      'id': requestId,
-      'sealed_payload': sealedPayload,
-      'status': 'approved',
-    });
 
     final updatedCode = codeRow.copyWith(status: 'approved');
     _codes[code] = updatedCode;
@@ -545,55 +834,68 @@ class InMemoryPairingRelay implements PairingRelay {
   }
 
   @override
-  Future<void> declineRequest({required String requestId}) async {
+  Future<void> declineRequest({
+    required String requestId,
+    String? actorUserId,
+  }) async {
     final req = _requests[requestId];
     if (req == null) return;
-    final updatedReq = req.copyWith(
+    final inviterId = _codes[req.code]?.inviterId;
+    final effectiveActor = actorUserId ?? inviterId ?? '';
+    await updateRequestWithTriggerChecks(
+      requestId: requestId,
+      actorUserId: effectiveActor,
       clearSealedPayload: true,
-      status: 'declined',
+      newStatus: 'declined',
     );
-    _requests[requestId] = updatedReq;
-    _recordWrite('pairing_requests', 'decline', {
-      'id': requestId,
-      'sealed_payload': null,
-      'status': 'declined',
-    });
   }
 
   @override
-  Future<void> markRequestDone({required String requestId}) async {
+  Future<void> markRequestDone({
+    required String requestId,
+    String? actorUserId,
+  }) async {
     final req = _requests[requestId];
     if (req == null) return;
-    final updatedReq = req.copyWith(status: 'done');
-    _requests[requestId] = updatedReq;
-    _recordWrite('pairing_requests', 'done', {
-      'id': requestId,
-      'status': 'done',
-    });
+    final effectiveActor = actorUserId ?? req.joinerId;
+    await updateRequestWithTriggerChecks(
+      requestId: requestId,
+      actorUserId: effectiveActor,
+      newStatus: 'done',
+    );
   }
 
   @override
-  Future<void> cleanupDoneAndExpired({required DateTime nowUtc}) async {
-    final doneRequestIds = _requests.values
+  Future<void> cleanupDoneAndExpired({
+    required DateTime nowUtc,
+    String? actorUserId,
+  }) async {
+    final doneRequests = _requests.values
         .where((r) => r.status == 'done' || r.status == 'declined')
-        .map((r) => r.id)
         .toList();
-    for (final id in doneRequestIds) {
-      _requests.remove(id);
+    for (final req in doneRequests) {
+      final inviterId = _codes[req.code]?.inviterId;
+      if (actorUserId == null ||
+          actorUserId == req.joinerId ||
+          actorUserId == inviterId) {
+        _requests.remove(req.id);
+      }
     }
 
     final expiredCodes = _codes.values
         .where((c) => c.isExpiredAt(nowUtc) || c.status == 'approved')
-        .map((c) => c.code)
         .toList();
-    for (final code in expiredCodes) {
+    for (final codeRow in expiredCodes) {
+      if (actorUserId != null && actorUserId != codeRow.inviterId) {
+        continue;
+      }
       final hasPendingOrApproved = _requests.values.any(
         (r) =>
-            r.code == code &&
+            r.code == codeRow.code &&
             (r.status == 'pending' || r.status == 'approved'),
       );
       if (!hasPendingOrApproved) {
-        _codes.remove(code);
+        _codes.remove(codeRow.code);
       }
     }
   }

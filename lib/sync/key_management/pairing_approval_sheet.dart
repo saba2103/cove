@@ -1,15 +1,22 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
+import 'pairing_crypto.dart';
 import 'pairing_relay.dart';
 
 /// Inviter approval sheet (`17-invite-and-keys.md` §1 step 4):
 /// `"{B} wants to join {home}. Do these words match on their phone? AMBER · HARBOUR"`
 /// with **Let them in** / **Not them**.
+///
+/// Always derives the two verification words from [shownPublicKey] held in
+/// memory, and the inviter seals to that exact same in-memory key.
 class PairingApprovalSheet extends StatelessWidget {
   final PairingRequestRecord request;
+  final Uint8List shownPublicKey;
   final String homeName;
   final VoidCallback onApprove;
   final VoidCallback onDecline;
@@ -18,6 +25,7 @@ class PairingApprovalSheet extends StatelessWidget {
   const PairingApprovalSheet({
     super.key,
     required this.request,
+    required this.shownPublicKey,
     required this.homeName,
     required this.onApprove,
     required this.onDecline,
@@ -30,7 +38,10 @@ class PairingApprovalSheet extends StatelessWidget {
     final joiner = request.joinerName.trim().isNotEmpty
         ? request.joinerName.trim()
         : 'Someone';
-    final words = request.verificationWords.formatted;
+    final words = PairingCrypto.deriveVerificationWords(
+      joinerPublicKey: shownPublicKey,
+      code: request.code,
+    ).formatted;
 
     return Padding(
       padding: const EdgeInsets.all(CoveSpace.lg),

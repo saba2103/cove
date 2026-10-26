@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' as drift;
@@ -58,6 +57,12 @@ class HomeController {
   SodiumCryptoService get _crypto => ref.read(sodiumCryptoServiceProvider);
   PairingRelay? get _pairingRelay => ref.read(pairingRelayProvider);
 
+  String _currentUserId({String fallback = 'local_user'}) {
+    final supabase = ref.read(supabaseClientProvider);
+    final user = ref.read(authProvider).value;
+    return supabase?.auth.currentUser?.id ?? user?.id ?? fallback;
+  }
+
   /// Returns the pairing code created in this session for [homeId] only until
   /// its `expires_at` timestamp; otherwise returns `null`.
   String? cachedPairingCodeFor(String homeId) {
@@ -97,8 +102,7 @@ class HomeController {
     String? currency,
   }) async {
     final supabase = ref.read(supabaseClientProvider);
-    final user = ref.read(authProvider).value;
-    final userId = supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
+    final userId = _currentUserId();
     final now = clock.now().toUtc();
     final homeId = _generateUuid();
 
@@ -172,8 +176,7 @@ class HomeController {
   Future<void> joinHomeFromQr(String qrString) async {
     final payload = PairingPayload.fromQrString(qrString);
     final supabase = ref.read(supabaseClientProvider);
-    final user = ref.read(authProvider).value;
-    final userId = supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
+    final userId = _currentUserId();
     final now = clock.now().toUtc();
 
     // 1. Save imported symmetric key securely on-device
@@ -352,26 +355,30 @@ class HomeController {
     }
   }
 
-  /// Generates a CSPRNG 6-digit pairing code and stores a keyless row in
-  /// `pairing_codes` (`code`, `home_id`, `inviter_id`, `expires_at` = now + 10 min,
-  /// `status = 'open'`). Never writes a payload or home key to the server, and
-  /// never touches `homes.description`.
+  /// Generates a 6-digit pairing code using `libsodium`'s `randombytes` and
+  /// stores a keyless row in `pairing_codes` (`code`, `home_id`, `inviter_id`,
+  /// `expires_at` = now + 10 min, `status = 'open'`). Never writes a payload or
+  /// home key to the server, and never touches `homes.description`.
   Future<String> createPairingCode({
     required String homeId,
   }) async {
-    final rng = Random.secure();
-    final code = (100000 + rng.nextInt(900000)).toString();
+    final code = PairingCrypto.generateSixDigitCode();
     final now = clock.now().toUtc();
     final expiresAt = now.add(const Duration(minutes: 10));
-
-    final supabase = ref.read(supabaseClientProvider);
-    final user = ref.read(authProvider).value;
-    final inviterId =
-        supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
+    final inviterId = _currentUserId();
+    final userProfile = ref.read(userProfileProvider);
+    final home = await (_db.select(_db.localHomes)
+          ..where((t) => t.id.equals(homeId)))
+        .getSingleOrNull();
 
     final relay = _pairingRelay;
     if (relay != null) {
-      unawaited(relay.cleanupDoneAndExpired(nowUtc: now));
+      unawaited(
+        relay.cleanupDoneAndExpired(
+          nowUtc: now,
+          actorUserId: inviterId,
+        ),
+      );
       try {
         await relay.insertPairingCode(
           PairingCodeRecord(
@@ -381,6 +388,8 @@ class HomeController {
             expiresAt: expiresAt,
             status: 'open',
             createdAt: now,
+            homeName: home?.name,
+            inviterName: userProfile.displayName,
           ),
         );
       } catch (e) {
@@ -404,11 +413,17 @@ class HomeController {
   }
 
   /// Approves [request] on the inviter's phone (**Let them in**):
-  /// seals the pairing payload (home id, name, symmetric key, inviter) to the
-  /// joiner's public key using `crypto_box_seal` and writes only the sealed blob
-  /// to `pairing_requests` (`status = 'approved'`), marking the code single-use.
+  /// 1. Uses [shownPublicKey] (the exact in-memory public key for which the two
+  ///    SAS words were derived and shown on screen).
+  /// 2. Re-reads the `pairing_requests` row just before sealing. If the row's
+  ///    public key (or `code` / `joiner_id`) changed, declines automatically
+  ///    and throws `"This request changed. Ask them to try again."`.
+  /// 3. Seals the pairing payload to that same in-memory [shownPublicKey]
+  ///    using `sodium.crypto.box.seal` (`crypto_box_seal`) and writes only the
+  ///    sealed blob (`status = 'approved'`), marking the code single-use.
   Future<void> approvePairingRequest({
     required PairingRequestRecord request,
+    Uint8List? shownPublicKey,
     PairingPayload? payloadOverride,
   }) async {
     final relay = _pairingRelay;
@@ -416,9 +431,32 @@ class HomeController {
       throw StateError('Pairing service is not connected.');
     }
 
+    final inviterId = _currentUserId();
+    // Hold the exact public key that was used to derive the two words on screen.
+    final pinnedPublicKey = Uint8List.fromList(
+      shownPublicKey ?? request.joinerPublicKeyBytes,
+    );
+
+    // Re-read the row just before sealing to verify nothing changed since the words were shown.
+    final freshRow = await relay.getRequestById(request.id);
+    if (freshRow == null ||
+        freshRow.status != 'pending' ||
+        freshRow.code != request.code ||
+        freshRow.joinerId != request.joinerId ||
+        !_bytesEqual(freshRow.joinerPublicKeyBytes, pinnedPublicKey)) {
+      await relay.declineRequest(
+        requestId: request.id,
+        actorUserId: inviterId,
+      );
+      throw StateError('This request changed. Ask them to try again.');
+    }
+
     PairingPayload? payload = payloadOverride;
     if (payload == null) {
-      final codeRow = await relay.getPairingCode(request.code);
+      final codeRow = await relay.getOwnPairingCode(
+        code: request.code,
+        inviterId: inviterId,
+      );
       if (codeRow == null) {
         throw StateError('Pairing code ${request.code} was not found.');
       }
@@ -429,9 +467,10 @@ class HomeController {
     }
 
     final plaintextBytes = Uint8List.fromList(utf8.encode(payload.toQrString()));
+    // Seal strictly to the in-memory key for which the words were shown.
     final sealedBytes = PairingCrypto.cryptoBoxSeal(
       plaintext: plaintextBytes,
-      recipientPublicKey: request.joinerPublicKeyBytes,
+      recipientPublicKey: pinnedPublicKey,
     );
     final sealedPayloadBase64 = base64Encode(sealedBytes);
 
@@ -439,6 +478,7 @@ class HomeController {
       requestId: request.id,
       code: request.code,
       sealedPayload: sealedPayloadBase64,
+      actorUserId: inviterId,
     );
   }
 
@@ -450,12 +490,16 @@ class HomeController {
     if (relay == null) {
       throw StateError('Pairing service is not connected.');
     }
-    await relay.declineRequest(requestId: requestId);
+    await relay.declineRequest(
+      requestId: requestId,
+      actorUserId: _currentUserId(),
+    );
   }
 
   /// Joiner step 1 (`17-invite-and-keys.md` §1 step 2–3):
-  /// Generates a fresh X25519 keypair, submits a `pairing_requests` row for
-  /// [rawCode], and derives the two verification words (`AMBER · HARBOUR`).
+  /// Generates a fresh X25519 keypair via `sodium.crypto.box.keyPair()`,
+  /// submits a `pairing_requests` row for [rawCode], and derives the two
+  /// verification words (`AMBER · HARBOUR`).
   Future<PendingPairingJoinSession> submitPairingJoinRequest(
     String rawCode, {
     PairingBoxKeyPair? keyPairOverride,
@@ -470,10 +514,8 @@ class HomeController {
       throw StateError('Authentication service is not connected.');
     }
 
-    final supabase = ref.read(supabaseClientProvider);
+    final joinerId = _currentUserId(fallback: 'local_joiner');
     final user = ref.read(authProvider).value;
-    final joinerId =
-        supabase?.auth.currentUser?.id ?? user?.id ?? 'local_joiner';
     final userProfile = ref.read(userProfileProvider);
     final joinerName = userProfile.displayName.trim().isNotEmpty
         ? userProfile.displayName.trim()
@@ -500,9 +542,9 @@ class HomeController {
   }
 
   /// Joiner step 2 (`17-invite-and-keys.md` §1 step 6):
-  /// Opens the approved `sealed_payload` with [session.keyPair], imports the
-  /// home key via [joinHomeFromQr], marks the request `'done'`, and cleans up
-  /// done/expired rows.
+  /// Opens the approved `sealed_payload` with [session.keyPair] using
+  /// `sodium.crypto.box.sealOpen`, imports the home key via [joinHomeFromQr],
+  /// marks the request `'done'`, and cleans up done/expired rows.
   Future<void> completeApprovedPairingJoin(
     PendingPairingJoinSession session,
   ) async {
@@ -532,8 +574,15 @@ class HomeController {
     final qrString = utf8.decode(openedBytes);
 
     await joinHomeFromQr(qrString);
-    await relay.markRequestDone(requestId: session.request.id);
-    await relay.cleanupDoneAndExpired(nowUtc: clock.now().toUtc());
+    final joinerId = _currentUserId(fallback: session.request.joinerId);
+    await relay.markRequestDone(
+      requestId: session.request.id,
+      actorUserId: joinerId,
+    );
+    await relay.cleanupDoneAndExpired(
+      nowUtc: clock.now().toUtc(),
+      actorUserId: joinerId,
+    );
   }
 
   /// Waits for [session] to be approved or declined on the inviter's phone,
@@ -557,7 +606,7 @@ class HomeController {
       }
       if (record.status == 'approved' &&
           record.sealedPayload != null &&
-          record.sealedPayload!.isNotEmpty) {
+          record.sealedPayload!.isEmpty == false) {
         await completeApprovedPairingJoin(session);
         return;
       }
@@ -576,6 +625,15 @@ class HomeController {
     final session = await submitPairingJoinRequest(rawCode);
     onSessionCreated?.call(session);
     await waitForApprovedPairingJoin(session, timeout: timeout);
+  }
+
+  static bool _bytesEqual(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a[i] ^ b[i];
+    }
+    return diff == 0;
   }
 
   String _generateUuid() => generateCoveUuid();
