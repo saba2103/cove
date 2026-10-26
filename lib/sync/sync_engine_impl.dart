@@ -9,6 +9,7 @@ import '../features/profile/user_profile_controller.dart';
 import 'crypto/sodium_crypto_service.dart';
 import 'encryption_service.dart';
 import 'event_store.dart';
+import 'event_store_impl.dart';
 import 'key_management/home_key_store.dart';
 import 'local_state_store.dart';
 import 'sync_engine.dart';
@@ -359,33 +360,23 @@ class SyncEngineImpl implements SyncEngine {
       );
     }
 
+    final resolvedHomeId = targetHomeId;
     final now = DateTime.now().toUtc();
     final eventId = _generateUuid();
     final actorId = currentUserId;
 
     _processedEventIds.add(eventId);
 
-    // 1. Zero-latency local update: Apply to Drift projections immediately
-    await localStateStore.applyEvent(
-      eventId: eventId,
-      homeId: targetHomeId,
-      eventType: eventType,
-      payload: payload,
-      timestamp: now,
-      authorId: actorId,
-    );
-
-    // 2. Client-side authenticated encryption (AEAD SecretBox)
+    // 1. Client-side authenticated encryption (AEAD SecretBox)
     final plaintextJson = jsonEncode(payload);
     final encrypted = await encryptionService.encrypt(
       plaintextJson: plaintextJson,
       homeKey: homeKey,
     );
 
-    // 3. Append to local outbox (initial status: savedLocally / 1 tick)
     final event = CoveEncryptedEvent(
       id: eventId,
-      homeId: targetHomeId,
+      homeId: resolvedHomeId,
       eventType: eventType,
       authorId: actorId,
       createdAt: now,
@@ -394,12 +385,31 @@ class SyncEngineImpl implements SyncEngine {
       syncStatus: EventSyncStatus.savedLocally,
     );
 
-    await eventStore.appendEvent(
-      event,
-      payloadJson: plaintextJson,
-    );
+    // 2. One atomic transaction for the local record projection and its outbox
+    //    event (`design/specs/18-widgets.md` § Ticking rule 3).
+    Future<void> writeRecordAndOutbox() async {
+      await localStateStore.applyEvent(
+        eventId: eventId,
+        homeId: resolvedHomeId,
+        eventType: eventType,
+        payload: payload,
+        timestamp: now,
+        authorId: actorId,
+      );
+      await eventStore.appendEvent(
+        event,
+        payloadJson: plaintextJson,
+      );
+    }
 
-    // 4. Attempt immediate push to Supabase relay
+    final store = eventStore;
+    if (store is EventStoreImpl) {
+      await store.db.transaction(writeRecordAndOutbox);
+    } else {
+      await writeRecordAndOutbox();
+    }
+
+    // 3. Attempt immediate push to Supabase relay
     unawaited(flushOutbox());
   }
 

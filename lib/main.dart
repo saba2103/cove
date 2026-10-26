@@ -34,6 +34,8 @@ import 'features/profile/preferences_controller.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/user_profile_controller.dart';
 import 'features/subscriptions/subscriptions_screen.dart';
+import 'features/widgets/cove_slip_widget.dart';
+import 'features/widgets/cove_widget_tick_service.dart';
 import 'firebase_options.dart';
 import 'sync/db/app_database.dart';
 import 'sync/key_management/pairing_crypto.dart';
@@ -169,6 +171,10 @@ Future<void> main() async {
         id: prefAgainId,
       );
     }
+    final prefSlipListId = prefs.getString(SlipSelectedListIdNotifier.prefKey);
+    if (prefSlipListId != null && prefSlipListId.isNotEmpty) {
+      SlipSelectedListIdNotifier.cachedInitialListId = prefSlipListId;
+    }
   } catch (e) {
     debugPrint('Failed to preload preferences: $e');
   }
@@ -177,6 +183,9 @@ Future<void> main() async {
   final notifService = container.read(notificationServiceProvider);
   notifService.registerMainIsolatePort();
   unawaited(notifService.initializeLocalNotifications());
+  final widgetTickService = container.read(coveWidgetTickServiceProvider);
+  widgetTickService.registerMainIsolatePort();
+  unawaited(widgetTickService.replayUnappliedIntentsOnAppStart());
 
   runApp(
     UncontrolledProviderScope(

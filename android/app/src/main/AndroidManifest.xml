@@ -82,6 +82,15 @@
                 android:resource="@xml/cove_slip_widget_info" />
         </receiver>
 
+        <activity
+            android:name=".widgets.CoveSlipConfigActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <receiver
             android:name=".widgets.CoveLedgerWidgetProvider"
             android:label="@string/widget_ledger_title"

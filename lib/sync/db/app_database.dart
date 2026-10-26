@@ -411,8 +411,62 @@ class AppDatabase extends _$AppDatabase {
     return AppDatabase(ReadOnlyQueryExecutor(base));
   }
 
+  /// Current Drift schema version (`PRAGMA user_version`).
+  static const int currentSchemaVersion = 11;
+
+  /// Opens an unshared, writable SQLite connection (`OpenMode.readWrite` +
+  /// `PRAGMA busy_timeout = 5000`, `enableMigrations: false`) for a background
+  /// widget tick (`design/specs/18-widgets.md` § Ticking).
+  ///
+  /// Refuses to run (closes the handle and returns `null`) if the database file
+  /// does not exist or its `PRAGMA user_version` does not match
+  /// [currentSchemaVersion]. Never creates tables or runs migrations from the
+  /// background.
+  static Future<AppDatabase?> openBackgroundWritableIfSchemaMatches({
+    File? file,
+    Future<File> Function()? resolveFile,
+  }) async {
+    final targetFile = file ??
+        (resolveFile != null
+            ? await resolveFile()
+            : File(
+                '${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}cove_db.sqlite',
+              ));
+    if (!targetFile.existsSync()) {
+      return null;
+    }
+
+    final rawDb = sqlite3.open(
+      targetFile.path,
+      mode: OpenMode.readWrite,
+    );
+    try {
+      rawDb.execute('PRAGMA busy_timeout = 5000;');
+      final rows = rawDb.select('PRAGMA user_version;');
+      final userVersion =
+          rows.isNotEmpty ? (rows.first['user_version'] as int? ?? 0) : 0;
+      if (userVersion != currentSchemaVersion) {
+        rawDb.close();
+        return null;
+      }
+    } catch (_) {
+      rawDb.close();
+      return null;
+    }
+
+    final executor = NativeDatabase.opened(
+      rawDb,
+      enableMigrations: false,
+      closeUnderlyingOnClose: true,
+      setup: (db) {
+        db.execute('PRAGMA busy_timeout = 5000;');
+      },
+    );
+    return AppDatabase(executor);
+  }
+
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => currentSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

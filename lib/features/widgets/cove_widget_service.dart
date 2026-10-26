@@ -20,6 +20,8 @@ import '../subscriptions/subscription_controller.dart';
 import '../weather/weather_controller.dart';
 import 'cove_day_arc_widget.dart';
 import 'cove_ledger_widget.dart';
+import 'cove_slip_widget.dart';
+import 'cove_widget_tick_service.dart';
 
 /// Metadata for each of the four Android home-screen widgets (`design/specs/18-widgets.md`).
 @immutable
@@ -229,6 +231,20 @@ class CoveWidgetService {
       'cove_widget_arc_snapshot_v1';
   static const Size arcLogicalSize = Size(176, 176);
 
+  static const String slipDarkKey = 'cove_widget_slip_dark';
+  static const String slipLightKey = 'cove_widget_slip_light';
+  static const String slipCompactDarkKey = 'cove_widget_slip_compact_dark';
+  static const String slipCompactLightKey = 'cove_widget_slip_compact_light';
+  static const String slipListIdKey = 'cove_widget_slip_list_id';
+  static const String slipRow0IdKey = 'cove_widget_slip_row_0_id';
+  static const String slipRow1IdKey = 'cove_widget_slip_row_1_id';
+  static const String slipRow2IdKey = 'cove_widget_slip_row_2_id';
+  static const String slipListsJsonKey = 'cove_widget_slip_lists_json';
+  static const String cachedSlipSnapshotPrefKey =
+      'cove_widget_slip_snapshot_v1';
+  static const Size slipFullLogicalSize = Size(379, 176);
+  static const Size slipCompactLogicalSize = Size(200, 176);
+
   static const String ledgerDarkKey = 'cove_widget_ledger_dark';
   static const String ledgerLightKey = 'cove_widget_ledger_light';
   static const String ledgerCompactDarkKey = 'cove_widget_ledger_compact_dark';
@@ -249,11 +265,161 @@ class CoveWidgetService {
   int _renderGeneration = 0;
   String? _lastRenderedArcSignature;
   int _arcRenderGeneration = 0;
+  String? _lastRenderedSlipSignature;
+  int _slipRenderGeneration = 0;
 
   CoveWidgetService({
     this.bridge = const HomeWidgetPlatformBridge(),
     WidgetRefreshScheduler? scheduler,
   }) : scheduler = scheduler ?? WorkmanagerWidgetRefreshScheduler();
+
+  /// Registers the background interactivity callback with `HomeWidget` on
+  /// Android so home-screen widget row taps invoke [coveWidgetBackgroundCallback].
+  Future<bool?> registerInteractivityCallback() async {
+    if (!bridge.isSupported) return false;
+    try {
+      return await HomeWidget.registerInteractivityCallback(
+        coveWidgetBackgroundCallback,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Renders The Slip widget (dark + light, 4×2 + 3×2 compact) into PNG
+  /// bitmaps via [bridge], saves interactive row hit metadata, and triggers an
+  /// `AppWidgetManager` update (`design/specs/18-widgets.md` §2).
+  Future<void> renderAndPushSlip({
+    required SlipSummary summary,
+    bool force = false,
+  }) async {
+    final signature = [
+      summary.listId ?? '',
+      summary.listName,
+      summary.openCount,
+      summary.openItems
+          .map(
+            (r) =>
+                '${r.id}:${r.title}:${r.person.name}:${r.actorInitial}:${r.isTicked ? 1 : 0}',
+          )
+          .join(','),
+      summary.availableLists
+          .map(
+            (o) =>
+                '${o.id}:${o.name}:${o.openCount}:${o.totalCount}:${o.isMostUsed ? 1 : 0}',
+          )
+          .join(','),
+    ].join('|');
+
+    if (!force && _lastRenderedSlipSignature == signature) {
+      return;
+    }
+    _lastRenderedSlipSignature = signature;
+    final generation = ++_slipRenderGeneration;
+
+    await _saveSlipSnapshotToPrefs(summary);
+    if (generation != _slipRenderGeneration) return;
+
+    if (!bridge.isSupported) return;
+
+    try {
+      final rowsFull = summary.visibleRowsFor(isCompact3Cell: false);
+      await bridge.saveWidgetData<String>(slipListIdKey, summary.listId);
+      await bridge.saveWidgetData<String>(
+        slipRow0IdKey,
+        rowsFull.isNotEmpty ? rowsFull[0].id : null,
+      );
+      await bridge.saveWidgetData<String>(
+        slipRow1IdKey,
+        rowsFull.length > 1 ? rowsFull[1].id : null,
+      );
+      await bridge.saveWidgetData<String>(
+        slipRow2IdKey,
+        rowsFull.length > 2 ? rowsFull[2].id : null,
+      );
+      await bridge.saveWidgetData<String>(
+        slipListsJsonKey,
+        jsonEncode(summary.availableLists.map((o) => o.toJson()).toList()),
+      );
+      if (generation != _slipRenderGeneration) return;
+
+      final darkFull = _wrapForOffscreenRender(
+        theme: CoveTheme.darkTheme,
+        size: slipFullLogicalSize,
+        child: CoveSlipCard(summary: summary),
+      );
+      final lightFull = _wrapForOffscreenRender(
+        theme: CoveTheme.lightTheme,
+        size: slipFullLogicalSize,
+        child: CoveSlipCard(summary: summary),
+      );
+      final darkCompact = _wrapForOffscreenRender(
+        theme: CoveTheme.darkTheme,
+        size: slipCompactLogicalSize,
+        child: CoveSlipCard(summary: summary),
+      );
+      final lightCompact = _wrapForOffscreenRender(
+        theme: CoveTheme.lightTheme,
+        size: slipCompactLogicalSize,
+        child: CoveSlipCard(summary: summary),
+      );
+
+      await bridge.renderFlutterWidget(
+        darkFull,
+        key: slipDarkKey,
+        logicalSize: slipFullLogicalSize,
+      );
+      if (generation != _slipRenderGeneration) return;
+      await bridge.renderFlutterWidget(
+        lightFull,
+        key: slipLightKey,
+        logicalSize: slipFullLogicalSize,
+      );
+      if (generation != _slipRenderGeneration) return;
+      await bridge.renderFlutterWidget(
+        darkCompact,
+        key: slipCompactDarkKey,
+        logicalSize: slipCompactLogicalSize,
+      );
+      if (generation != _slipRenderGeneration) return;
+      await bridge.renderFlutterWidget(
+        lightCompact,
+        key: slipCompactLightKey,
+        logicalSize: slipCompactLogicalSize,
+      );
+      if (generation != _slipRenderGeneration) return;
+
+      await bridge.updateWidget(
+        androidName: CoveWidgetProviderInfo.slip.androidName,
+        qualifiedAndroidName: CoveWidgetProviderInfo.slip.qualifiedAndroidName,
+      );
+    } catch (e) {
+      debugPrint('[CoveWidgetService] Failed to render Slip widget: $e');
+    }
+  }
+
+  /// Immediately re-renders the cached Slip snapshot with [recordId] ticked
+  /// (`design/specs/18-widgets.md` § Ticking rule 1: "The widget re-renders
+  /// straight away with the tick shown.").
+  Future<SlipSummary?> renderOptimisticSlipTick(
+    String recordId, {
+    bool toDone = true,
+    SharedPreferences? prefsOverride,
+  }) async {
+    try {
+      final prefs = prefsOverride ?? await SharedPreferences.getInstance();
+      final raw = prefs.getString(cachedSlipSnapshotPrefKey);
+      if (raw == null || raw.isEmpty) return null;
+      final current = SlipSummary.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      final updated = current.withOptimisticTick(recordId, toDone: toDone);
+      await renderAndPushSlip(summary: updated, force: true);
+      return updated;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Renders the Day Arc widget (2×2, dark + light) into PNG bitmaps via
   /// [bridge] and triggers an `AppWidgetManager` update.
@@ -461,6 +627,19 @@ class CoveWidgetService {
             force: true,
           );
         }
+      }
+
+      final rawSlipSnapshot = prefs.getString(cachedSlipSnapshotPrefKey);
+      if (rawSlipSnapshot != null && rawSlipSnapshot.isNotEmpty) {
+        try {
+          final restoredSlip = SlipSummary.fromJson(
+            jsonDecode(rawSlipSnapshot) as Map<String, dynamic>,
+          );
+          await renderAndPushSlip(
+            summary: restoredSlip,
+            force: true,
+          );
+        } catch (_) {}
       }
 
       final rawSnapshot = prefs.getString(cachedLedgerSnapshotPrefKey);
@@ -707,6 +886,64 @@ class CoveWidgetService {
       return null;
     }
   }
+
+  Future<void> _saveSlipSnapshotToPrefs(SlipSummary summary) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        cachedSlipSnapshotPrefKey,
+        jsonEncode(summary.toJson()),
+      );
+    } catch (_) {}
+  }
+}
+
+/// Top-level background callback registered with `HomeWidget.registerInteractivityCallback`
+/// for home-screen widget ticks and list selection (`design/specs/18-widgets.md` § Ticking).
+@pragma('vm:entry-point')
+Future<void> coveWidgetBackgroundCallback(Uri? uri) async {
+  if (uri == null || uri.scheme != 'cove' || uri.host != 'widget') return;
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final segments = uri.pathSegments;
+  if (segments.isEmpty) return;
+
+  if (segments.first == 'tick') {
+    final kind = WidgetTickKind.fromWire(uri.queryParameters['kind']) ??
+        WidgetTickKind.listItem;
+    final recordId = uri.queryParameters['recordId'];
+    if (recordId == null || recordId.isEmpty) return;
+    final toDone = (uri.queryParameters['toDone'] ?? 'true') != 'false';
+    final checkinDate = uri.queryParameters['checkinDate'];
+
+    final widgetService = CoveWidgetService();
+    await CoveWidgetTickService.handleWidgetTick(
+      kind: kind,
+      recordId: recordId,
+      toDone: toDone,
+      checkinDate: checkinDate,
+      onOptimisticRender: (intent) async {
+        if (intent.kind == WidgetTickKind.listItem) {
+          await widgetService.renderOptimisticSlipTick(
+            intent.recordId,
+            toDone: intent.toDone,
+          );
+        }
+      },
+    );
+    return;
+  }
+
+  if (segments.first == 'slip' &&
+      segments.length > 1 &&
+      segments[1] == 'select') {
+    final listId = uri.queryParameters['listId'];
+    if (listId != null && listId.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(SlipSelectedListIdNotifier.prefKey, listId);
+      SlipSelectedListIdNotifier.cachedInitialListId = listId;
+    }
+  }
 }
 
 final widgetRefreshSchedulerProvider = Provider<WidgetRefreshScheduler>((ref) {
@@ -724,6 +961,7 @@ final coveWidgetServiceProvider = Provider<CoveWidgetService>((ref) {
 final coveWidgetAutoSyncProvider = Provider<void>((ref) {
   final service = ref.watch(coveWidgetServiceProvider);
   final dayArc = ref.watch(dayArcSummaryProvider);
+  final slip = ref.watch(slipSummaryProvider);
   final expenses = ref.watch(expensesStandingSummaryProvider);
   final commitments = ref.watch(commitmentsSummaryProvider);
 
@@ -735,6 +973,9 @@ final coveWidgetAutoSyncProvider = Provider<void>((ref) {
 
   unawaited(
     service.renderAndPushDayArc(summary: dayArc),
+  );
+  unawaited(
+    service.renderAndPushSlip(summary: slip),
   );
   unawaited(
     service.renderAndPushLedger(

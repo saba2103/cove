@@ -17,6 +17,7 @@ import 'changelog/whats_fresh_modal.dart';
 import 'expenses/expenses_screen.dart';
 import 'habits/habits_screen.dart';
 import 'home/home_controller.dart';
+import 'lists/list_controller.dart';
 import 'lists/lists_screen.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/notification_detail_dispatcher.dart';
@@ -29,7 +30,9 @@ import 'subscriptions/emi_tracker_screen.dart';
 import 'subscriptions/subscriptions_screen.dart';
 import 'today/today_screen.dart';
 import 'weather/weather_controller.dart';
+import 'widgets/cove_slip_widget.dart';
 import 'widgets/cove_widget_service.dart';
+import 'widgets/cove_widget_tick_service.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -133,9 +136,14 @@ class _AppShellState extends ConsumerState<AppShell>
       ref.read(driveBackupProvider);
 
       // Schedule the 30-minute periodic WorkManager refresh for home-screen
-      // widgets and wire widget tap deep links (18-widgets.md).
+      // widgets, register the widget tick port & replay any unapplied intents
+      // on app start, and wire widget tap deep links (18-widgets.md).
       final widgetService = ref.read(coveWidgetServiceProvider);
+      final widgetTickService = ref.read(coveWidgetTickServiceProvider);
+      widgetTickService.registerMainIsolatePort();
+      unawaited(widgetTickService.replayUnappliedIntentsOnAppStart());
       unawaited(widgetService.scheduler.schedulePeriodicRefresh());
+      unawaited(widgetService.registerInteractivityCallback());
       unawaited(
         widgetService.bridge.initiallyLaunchedFromHomeWidget().then((uri) {
           if (!mounted || uri == null) return;
@@ -162,7 +170,24 @@ class _AppShellState extends ConsumerState<AppShell>
         _handleSeatTap('day');
         break;
       case 'slip':
+        final listId = uri.queryParameters['listId'];
+        if (listId != null && listId.isNotEmpty) {
+          ref.read(selectedListIdProvider.notifier).selectList(listId);
+        } else {
+          final currentSlipListId = ref.read(slipSummaryProvider).listId;
+          if (currentSlipListId != null && currentSlipListId.isNotEmpty) {
+            ref
+                .read(selectedListIdProvider.notifier)
+                .selectList(currentSlipListId);
+          }
+        }
         _handleSeatTap('todo');
+        if (segments.length > 1 && segments[1] == 'configure') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            SlipListPickerSheet.show(context);
+          });
+        }
         break;
       case 'sheet':
         _handleSeatTap('home');
@@ -195,6 +220,11 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(
+        ref
+            .read(coveWidgetTickServiceProvider)
+            .replayUnappliedIntentsOnAppStart(),
+      );
       // Pick up results of a nightly backup that ran while the app was closed.
       ref.read(driveBackupProvider.notifier).refresh();
       // Silently refresh weather when returning to app / when location may have been toggled
