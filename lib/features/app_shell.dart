@@ -96,19 +96,26 @@ class _AppShellState extends ConsumerState<AppShell>
       }
 
       // Start the sync engine, self-heal home synchronization, and pull unread events
+      // only if the active home has its encryption key on this device.
       final activeHomeId = ref.read(activeHomeIdProvider);
       final syncEngine = ref.read(syncEngineProvider);
       final homeController = ref.read(homeControllerProvider);
 
       if (activeHomeId != null && activeHomeId.isNotEmpty) {
-        homeController.ensureHomeSyncedToSupabase(activeHomeId).then((_) {
-          syncEngine.start(activeHomeId: activeHomeId).then((_) {
-            syncEngine.pullLatestEvents(homeId: activeHomeId);
-            ref.read(userProfileProvider.notifier).announceProfile();
+        ref.read(homeKeyStoreProvider).hasKey(activeHomeId).then((hasKey) {
+          if (!mounted || !hasKey) return;
+          homeController.ensureHomeSyncedToSupabase(activeHomeId).then((_) {
+            if (!mounted) return;
+            syncEngine.start(activeHomeId: activeHomeId).then((_) {
+              if (!mounted) return;
+              syncEngine.pullLatestEvents(homeId: activeHomeId);
+              ref.read(userProfileProvider.notifier).announceProfile();
+            });
           });
         });
       } else {
         syncEngine.start().then((_) {
+          if (!mounted) return;
           ref.read(userProfileProvider.notifier).announceProfile();
         });
       }

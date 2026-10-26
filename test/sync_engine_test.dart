@@ -9,6 +9,7 @@ import 'package:cove/sync/event_store.dart';
 import 'package:cove/sync/event_store_impl.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/key_management/pairing_payload.dart';
+import 'package:cove/sync/sync_engine.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -588,7 +589,7 @@ void main() {
       expect(unconfirmedAfter.any((e) => e.id == 'evt_upload_1'), isFalse);
     });
 
-    test('dispatchLocalEvent auto-heals missing symmetric key and succeeds without throwing',
+    test('missing symmetric key never generates a new key on start or dispatchLocalEvent; restore enables start (4.3b)',
         () async {
       // Create an engine scoped to a home that has NO key in storage
       final keylessEngine = SyncEngineImpl(
@@ -600,28 +601,32 @@ void main() {
         getActiveHomeId: () => 'home_without_key_123',
       );
 
-      // Verify home has no key before dispatch
+      // Verify home has no key before start or dispatch
       expect(await keyStore.hasKey('home_without_key_123'), isFalse);
 
-      // Dispatching local event should self-heal and NOT throw StateError
-      await keylessEngine.dispatchLocalEvent(
-        eventType: 'list_created',
-        payload: {
-          'id': 'test_list_healed',
-          'home_id': 'home_without_key_123',
-          'name': 'Groceries Healed',
-        },
+      // 1. Calling start() with a missing key must not generate a key or start sync
+      await keylessEngine.start(activeHomeId: 'home_without_key_123');
+      expect(await keyStore.hasKey('home_without_key_123'), isFalse);
+      expect(keylessEngine.currentState, equals(SyncConnectionState.disconnected));
+
+      // 2. Calling dispatchLocalEvent() with a missing key must throw StateError and never generate a key
+      await expectLater(
+        keylessEngine.dispatchLocalEvent(
+          eventType: 'list_created',
+          payload: {
+            'id': 'test_list_blocked',
+            'home_id': 'home_without_key_123',
+            'name': 'Groceries Blocked',
+          },
+        ),
+        throwsA(isA<StateError>()),
       );
+      expect(await keyStore.hasKey('home_without_key_123'), isFalse);
 
-      // Key should now be generated and persisted
-      expect(await keyStore.hasKey('home_without_key_123'), isTrue);
-
-      // The list should be created locally in Drift
-      final lists = await (db.select(db.localLists)
-            ..where((t) => t.id.equals('test_list_healed')))
-          .get();
-      expect(lists.length, equals(1));
-      expect(lists.first.name, equals('Groceries Healed'));
+      // 3. Restoring the key allows sync to start
+      await keyStore.saveKey('home_without_key_123', crypto.generateHomeKey());
+      await keylessEngine.start(activeHomeId: 'home_without_key_123');
+      expect(keylessEngine.currentState, equals(SyncConnectionState.connected));
 
       await keylessEngine.stop();
     });

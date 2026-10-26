@@ -49,3 +49,21 @@ final activeHomeHasPartnerProvider =
     NotifierProvider<ActiveHomePartnerNotifier, bool>(
         ActiveHomePartnerNotifier.new);
 
+/// Tracks whether the active home's symmetric encryption key is present on
+/// this device (`design/specs/17-invite-and-keys.md` §3).
+final activeHomeHasKeyProvider = FutureProvider<bool>((ref) async {
+  final activeId = ref.watch(activeHomeIdProvider);
+  if (activeId == null || activeId.isEmpty) return true;
+  final keyStore = ref.watch(homeKeyStoreProvider);
+  try {
+    final rev = keyStore.revision;
+    void listener() => ref.invalidateSelf();
+    rev.addListener(listener);
+    ref.onDispose(() => rev.removeListener(listener));
+  } catch (_) {
+    // Test fakes implementing HomeKeyStore may not expose `revision`.
+  }
+  return keyStore.hasKey(activeId);
+});
+
+

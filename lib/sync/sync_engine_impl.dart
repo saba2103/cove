@@ -74,12 +74,10 @@ class SyncEngineImpl implements SyncEngine {
       if (activeHomeKey != null) {
         await keyStore.saveKey(resolvedHomeId, Uint8List.fromList(activeHomeKey));
       } else {
-        // Auto-heal missing key if home has no symmetric key
         final existingKey = await keyStore.getKey(resolvedHomeId);
         if (existingKey == null) {
-          debugPrint('[SyncEngine] Auto-generating missing key for home $resolvedHomeId on start.');
-          final freshKey = encryptionService.generateHomeKey();
-          await keyStore.saveKey(resolvedHomeId, freshKey);
+          _updateConnectionState(SyncConnectionState.disconnected);
+          return;
         }
       }
     }
@@ -354,11 +352,11 @@ class SyncEngineImpl implements SyncEngine {
       throw StateError('Cannot dispatch event: No active home selected.');
     }
 
-    var homeKey = await keyStore.getKey(targetHomeId);
+    final homeKey = await keyStore.getKey(targetHomeId);
     if (homeKey == null) {
-      debugPrint('[SyncEngine] No symmetric key found for home $targetHomeId. Auto-generating fresh key to heal state.');
-      homeKey = encryptionService.generateHomeKey();
-      await keyStore.saveKey(targetHomeId, homeKey);
+      throw StateError(
+        'Cannot dispatch event: No symmetric key found for home $targetHomeId.',
+      );
     }
 
     final now = DateTime.now().toUtc();

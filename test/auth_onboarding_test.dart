@@ -1,13 +1,19 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_pill_button.dart';
 import 'package:cove/features/app_shell.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/auth/auth_gate.dart';
 import 'package:cove/features/auth/sign_in_screen.dart';
+import 'package:cove/features/backup/backup_snapshot_service.dart';
 import 'package:cove/features/home/create_home_screen.dart';
+import 'package:cove/features/home/home_controller.dart';
 import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/home/home_switcher_sheet.dart';
 import 'package:cove/features/home/join_home_screen.dart';
+import 'package:cove/features/home/missing_home_key_screen.dart';
 import 'package:cove/features/home/onboarding_choice_screen.dart';
 import 'package:cove/features/profile/partner_profile_controller.dart';
 import 'package:cove/sync/crypto/deterministic_home_icon.dart';
@@ -97,7 +103,7 @@ void main() {
   late AppDatabase db;
   late FakeSecureStorage fakeStorage;
   late HomeKeyStore keyStore;
-  late SodiumCryptoService crypto;
+  late SpySodiumCryptoService crypto;
   late FakeSyncEngineImpl fakeEngine;
 
   setUp(() {
@@ -107,7 +113,7 @@ void main() {
     PartnerProfileNotifier.storage = fakeStorage;
     PartnerProfileNotifier.resetCache();
     keyStore = HomeKeyStore(storage: fakeStorage);
-    crypto = SodiumCryptoService();
+    crypto = SpySodiumCryptoService();
     final localStore = LocalStateStoreImpl(db, storage: fakeStorage);
     final eventStore = EventStoreImpl(db: db, cryptoService: crypto);
     fakeEngine = FakeSyncEngineImpl(
@@ -258,6 +264,7 @@ void main() {
         createdAt: DateTime.now(),
         createdBy: 'user_1',
       );
+      await keyStore.saveKey('home_1', crypto.generateHomeKey());
 
       await tester.pumpWidget(
         ProviderScope(
@@ -281,6 +288,146 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
     });
+
+    testWidgets(
+      '4.3b: a missing key -> no key generated, no sync started, the state shown',
+      (tester) async {
+        final home = LocalHome(
+          id: 'home_1',
+          name: 'Our Cozy Cove',
+          currency: 'INR',
+          createdAt: DateTime(2026, 10, 26),
+          createdBy: 'user_1',
+        );
+        crypto.generateHomeKeyCalls = 0;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: createOverrides(
+              user: const CoveUser(
+                id: 'user_1',
+                email: 'user@cove.test',
+                displayName: 'Saba',
+              ),
+              homes: [home],
+              activeHomeId: 'home_1',
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const AuthGate(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(await keyStore.hasKey('home_1'), isFalse);
+        expect(crypto.generateHomeKeyCalls, 0);
+        expect(fakeEngine.startCalls, 0);
+        expect(find.byType(AppShell), findsNothing);
+        expect(find.byType(MissingHomeKeyScreen), findsOneWidget);
+        expect(
+          find.text("This phone doesn't have your home's key"),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Restore it from your Drive backup, or ask your partner to send a key again.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Restore from backup'), findsOneWidget);
+        expect(find.text('Join again with a code'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      '4.3b: a restore puts the key back -> sync starts',
+      (tester) async {
+        final home = LocalHome(
+          id: 'home_1',
+          name: 'Our Cozy Cove',
+          currency: 'INR',
+          createdAt: DateTime(2026, 10, 26),
+          createdBy: 'user_1',
+        );
+        final restoredKey = Uint8List.fromList(List<int>.filled(32, 9));
+        crypto.generateHomeKeyCalls = 0;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: createOverrides(
+              user: const CoveUser(
+                id: 'user_1',
+                email: 'user@cove.test',
+                displayName: 'Saba',
+              ),
+              homes: [home],
+              activeHomeId: 'home_1',
+            ),
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const AuthGate(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MissingHomeKeyScreen), findsOneWidget);
+        expect(fakeEngine.startCalls, 0);
+
+        // Restore puts the key back via BackupSnapshotService.restore
+        final snapshotService = BackupSnapshotService(
+          db: db,
+          keyStore: keyStore,
+        );
+        await snapshotService.restore({
+          'homeKeys': <String, String>{
+            'home_1': base64Encode(restoredKey),
+          },
+          'prefs': <String, Object?>{},
+          'tables': <String, List<Map<String, Object?>>>{},
+        });
+        await tester.pumpAndSettle();
+
+        expect(await keyStore.hasKey('home_1'), isTrue);
+        expect(crypto.generateHomeKeyCalls, 0);
+        expect(find.byType(MissingHomeKeyScreen), findsNothing);
+        expect(find.byType(AppShell), findsOneWidget);
+        expect(fakeEngine.startCalls, 1);
+        expect(fakeEngine.lastStartedHomeId, 'home_1');
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 50));
+      },
+    );
+
+    test(
+      '4.3b: creating a new home still generates its key',
+      () async {
+        final container = ProviderContainer(
+          overrides: createOverrides(
+            user: const CoveUser(
+              id: 'user_1',
+              email: 'user@cove.test',
+              displayName: 'Saba',
+            ),
+          ),
+        );
+        addTearDown(container.dispose);
+
+        crypto.generateHomeKeyCalls = 0;
+        final payload = await container
+            .read(homeControllerProvider)
+            .createHome(name: 'The Nest');
+
+        expect(crypto.generateHomeKeyCalls, 1);
+        expect(await keyStore.hasKey(payload.homeId), isTrue);
+        final savedKey = await keyStore.getKey(payload.homeId);
+        expect(savedKey, equals(payload.symmetricKey));
+        expect(fakeEngine.startCalls, 1);
+        expect(fakeEngine.lastStartedHomeId, payload.homeId);
+      },
+    );
   });
 
   group('Onboarding Flow Tests', () {
@@ -602,7 +749,20 @@ class FakeActiveHomeNotifier extends Notifier<String?>
   }
 }
 
+class SpySodiumCryptoService extends SodiumCryptoService {
+  int generateHomeKeyCalls = 0;
+
+  @override
+  Uint8List generateHomeKey() {
+    generateHomeKeyCalls++;
+    return super.generateHomeKey();
+  }
+}
+
 class FakeSyncEngineImpl extends SyncEngineImpl {
+  int startCalls = 0;
+  String? lastStartedHomeId;
+
   FakeSyncEngineImpl({
     required super.eventStore,
     required super.localStateStore,
@@ -612,7 +772,8 @@ class FakeSyncEngineImpl extends SyncEngineImpl {
 
   @override
   Future<void> start({String? activeHomeId, List<int>? activeHomeKey}) async {
-    // No-op in test: avoid starting background periodic flush timer
+    startCalls++;
+    lastStartedHomeId = activeHomeId;
   }
 
   @override

@@ -11,6 +11,7 @@ class HomeKeyStore {
   final FlutterSecureStorage _primaryStorage;
   final FlutterSecureStorage _fallbackStorage;
   final Map<String, Uint8List> _memoryCache = {};
+  final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
   static const String _keyPrefix = 'cove_home_key_';
   static const String _homeIdsListKey = 'cove_registered_home_ids';
@@ -67,6 +68,7 @@ class HomeKeyStore {
     } catch (e) {
       debugPrint('[HomeKeyStore] Error tracking home IDs: $e');
     }
+    revision.value++;
   }
 
   /// Retrieves the symmetric key for a specific home, or null if not found.
@@ -158,6 +160,7 @@ class HomeKeyStore {
         value: encodedIds,
       );
     } catch (_) {}
+    revision.value++;
   }
 
   /// Clears all keys across all homes (e.g. on full app reset).
@@ -173,5 +176,6 @@ class HomeKeyStore {
     try {
       await _fallbackStorage.delete(key: _homeIdsListKey);
     } catch (_) {}
+    revision.value++;
   }
 }

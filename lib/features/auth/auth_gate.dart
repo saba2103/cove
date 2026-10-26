@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/widgets/cove_splash_screen.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../app_shell.dart';
+import '../home/missing_home_key_screen.dart';
 import '../home/onboarding_choice_screen.dart';
 import 'auth_controller.dart';
 import 'sign_in_screen.dart';
@@ -11,7 +12,8 @@ import 'sign_in_screen.dart';
 /// Coordinates transitions across:
 /// 1. Unauthenticated -> SignInScreen
 /// 2. Authenticated but has no Home -> OnboardingChoiceScreen
-/// 3. Authenticated with Home(s) -> AppShell
+/// 3. Authenticated with Home(s) but missing active home key -> MissingHomeKeyScreen
+/// 4. Authenticated with Home(s) and key present -> AppShell
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
@@ -43,7 +45,25 @@ class AuthGate extends ConsumerWidget {
               });
             }
 
-            return const AppShell(key: ValueKey('app_shell'));
+            final hasKeyAsync = ref.watch(activeHomeHasKeyProvider);
+            return hasKeyAsync.when(
+              data: (hasKey) {
+                if (!hasKey) {
+                  return const MissingHomeKeyScreen(
+                    key: ValueKey('missing_home_key'),
+                  );
+                }
+                return const AppShell(key: ValueKey('app_shell'));
+              },
+              loading: () => const CoveSplashScreen(
+                key: ValueKey('splash_home_key'),
+                message: 'Opening your home...',
+                showProgress: true,
+              ),
+              error: (_, _) => const MissingHomeKeyScreen(
+                key: ValueKey('missing_home_key_error'),
+              ),
+            );
           },
           loading: () => const CoveSplashScreen(
             key: ValueKey('splash_homes'),

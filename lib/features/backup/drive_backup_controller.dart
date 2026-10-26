@@ -362,10 +362,14 @@ class DriveBackupController extends Notifier<DriveBackupState> {
       final homeIds = BackupSnapshotService.homeIdsIn(opened.payload);
       if (homeIds.isNotEmpty) {
         final current = ref.read(activeHomeIdProvider);
-        if (current == null || !homeIds.contains(current)) {
-          ref.read(activeHomeIdProvider.notifier).setActiveHome(homeIds.first);
+        final activeId = (current == null || !homeIds.contains(current))
+            ? homeIds.first
+            : current;
+        if (current != activeId) {
+          ref.read(activeHomeIdProvider.notifier).setActiveHome(activeId);
         }
         final engine = ref.read(syncEngineProvider);
+        await engine.start(activeHomeId: activeId);
         for (final id in homeIds) {
           engine.resyncAfterRestore(id).ignore();
         }
