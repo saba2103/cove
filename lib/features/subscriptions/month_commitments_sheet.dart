@@ -139,7 +139,10 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                         ),
                       ),
                       const SizedBox(height: CoveSpace.xs),
-                      Row(
+                      Wrap(
+                        spacing: CoveSpace.sm,
+                        runSpacing: CoveSpace.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             '${currency.symbol}${formatCoveAmount(totalMonthAmount)}',
@@ -148,7 +151,6 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                               color: cv.accentTint,
                             ),
                           ),
-                          const SizedBox(width: CoveSpace.sm),
                           Text(
                             '(${widget.summary.subsCount} subs · ${widget.summary.emisCount} EMIs)',
                             style: CoveType.rowSub.copyWith(
@@ -409,7 +411,8 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                     ],
                   ),
                   const SizedBox(height: CoveSpace.xs),
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'Due $dayFormatted',

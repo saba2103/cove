@@ -218,6 +218,8 @@ class _EditHomeDialogHost extends ConsumerWidget {
   }
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -233,6 +235,7 @@ void main() {
       const OnboardingChoiceScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -243,6 +246,7 @@ void main() {
       const JoinHomeScreen(initialShowManualInput: true),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -253,6 +257,7 @@ void main() {
       const CreateHomeScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -263,6 +268,7 @@ void main() {
       _sheetHost(const HomeSwitcherSheet()),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -273,7 +279,7 @@ void main() {
       const SignInScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
-      allowedOverflows: const {'home_41b_sign_in_screen.cover'},
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -284,6 +290,7 @@ void main() {
       _sheetHost(const EditProfileDialog()),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -294,6 +301,7 @@ void main() {
       const _EditHomeDialogHost(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -305,6 +313,7 @@ void main() {
       _sheetHost(const EditPartnerProfileDialog()),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -319,6 +328,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -330,6 +340,7 @@ void main() {
       _sheetHost(const CurrencySelectorSheet()),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -340,6 +351,7 @@ void main() {
       _sheetHost(const BackupPassphraseSheet()),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -355,6 +367,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 }

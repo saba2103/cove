@@ -303,6 +303,8 @@ List<Override> _createOverrides() {
   ];
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -322,6 +324,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -338,11 +341,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
-      allowedOverflows: const {
-        'small_41d_month_commitments_sheet.cover',
-        'small_41d_month_commitments_sheet.phone',
-        'small_41d_month_commitments_sheet.wide',
-      },
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -353,6 +352,7 @@ void main() {
       const RemindersScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -363,6 +363,7 @@ void main() {
       const RoadmapScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -378,6 +379,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -393,6 +395,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -412,6 +415,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -426,6 +430,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 }

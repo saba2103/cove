@@ -124,6 +124,8 @@ Future<void> _splashGoldenMatrix(WidgetTester tester) async {
   });
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   testWidgets('4.1a before/after golden: cove_checkbox & CoveChecklistRow',
       (tester) async {
@@ -149,6 +151,7 @@ void main() {
           ],
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -163,6 +166,7 @@ void main() {
           onTabSelected: (_) {},
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -198,6 +202,7 @@ void main() {
           ],
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -206,6 +211,7 @@ void main() {
       tester,
       'core_41a_undo_toast',
       const _UndoToastTriggerShowcase(),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -223,6 +229,7 @@ void main() {
           ],
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -249,6 +256,7 @@ void main() {
           ],
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -275,6 +283,7 @@ void main() {
           ],
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -287,6 +296,7 @@ void main() {
           child: CoveStreakIndicator(count: 14, label: 'days'),
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -301,6 +311,7 @@ void main() {
       _scaffoldWrap(
         CoveErrorState.syncPending(onRetry: () {}),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -320,6 +331,7 @@ void main() {
           ),
         ),
       ),
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 

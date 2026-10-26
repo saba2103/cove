@@ -200,6 +200,8 @@ Widget _sheetHost(Widget sheet) {
   );
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -220,9 +222,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
-        allowedOverflows: const {
-          'routines_41e_routine_event_form_sheet.cover',
-        },
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -237,6 +237,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -251,11 +252,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
-        allowedOverflows: const {
-          'routines_41e_habits_screen.cover',
-          'routines_41e_habits_screen.phone',
-          'routines_41e_habits_screen.wide',
-        },
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -270,6 +267,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
   });

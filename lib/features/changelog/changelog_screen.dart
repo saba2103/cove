@@ -88,7 +88,10 @@ class ChangelogScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
+                          spacing: CoveSpace.sm,
+                          runSpacing: CoveSpace.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               'Cove Evolution',
@@ -97,7 +100,6 @@ class ChangelogScreen extends StatelessWidget {
                                 color: cv.textPrimary,
                               ),
                             ),
-                            const SizedBox(width: CoveSpace.sm),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: CoveSpace.sm,
@@ -281,64 +283,81 @@ class _TimelineItemRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Top Chips: Version & Category
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                            vertical: CoveSpace.xs,
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: CoveSpace.sm,
+                        runSpacing: CoveSpace.xs,
+                        children: [
+                          Wrap(
+                            spacing: CoveSpace.sm,
+                            runSpacing: CoveSpace.xs,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CoveSpace.sm,
+                                  vertical: CoveSpace.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cv.accentWash,
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(_kChipRadius),
+                                  ),
+                                ),
+                                child: Text(
+                                  item.version,
+                                  style: CoveType.barLabel.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: cv.accentText,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CoveSpace.sm,
+                                  vertical: CoveSpace.xs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cv.surfaceRow,
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(_kChipRadius),
+                                  ),
+                                  border: Border.all(color: cv.lineHairline),
+                                ),
+                                child: Text(
+                                  item.category.toUpperCase(),
+                                  style: CoveType.barLabel.copyWith(
+                                    letterSpacing: 0.6,
+                                    fontWeight: FontWeight.w600,
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          decoration: BoxDecoration(
-                            color: cv.accentWash,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(_kChipRadius),
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                item.date,
+                                style: CoveType.barLabel.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: cv.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Icon(
+                                item.icon,
+                                size: _kCategoryIconSize,
+                                color: cv.textSecondary,
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            item.version,
-                            style: CoveType.barLabel.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: cv.accentText,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: CoveSpace.sm),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                            vertical: CoveSpace.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cv.surfaceRow,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(_kChipRadius),
-                            ),
-                            border: Border.all(color: cv.lineHairline),
-                          ),
-                          child: Text(
-                            item.category.toUpperCase(),
-                            style: CoveType.barLabel.copyWith(
-                              letterSpacing: 0.6,
-                              fontWeight: FontWeight.w600,
-                              color: cv.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          item.date,
-                          style: CoveType.barLabel.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: cv.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: CoveSpace.sm),
-                        Icon(
-                          item.icon,
-                          size: _kCategoryIconSize,
-                          color: cv.textSecondary,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: CoveSpace.sm),
 

@@ -131,6 +131,8 @@ List<Override> _createOverrides() {
   ];
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -144,6 +146,7 @@ void main() {
       const AboutCoveScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -154,11 +157,7 @@ void main() {
       const ChangelogScreen(),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
-      allowedOverflows: const {
-        'about_41c_changelog_screen.cover',
-        'about_41c_changelog_screen.phone',
-        'about_41c_changelog_screen.wide',
-      },
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -171,6 +170,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 
@@ -204,7 +204,7 @@ void main() {
       ),
       overrides: _createOverrides(),
       wrap: wrapInAppShellConstraint,
-      allowedOverflows: const {'about_41c_changelog_preview_mockup.cover'},
+      allowedOverflows: _kKnownLegacyOverflows,
     );
   });
 }

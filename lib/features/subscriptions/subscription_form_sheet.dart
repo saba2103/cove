@@ -515,21 +515,27 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: 18),
 
               // Financed Through (Card, Person, Bank, etc.)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'FINANCED THROUGH',
-                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-                  ),
-                  Text(
-                    'Card, Person, or Bank',
-                    style: CoveType.barLabel.copyWith(
-                      color: cv.textSecondary,
-                      fontWeight: FontWeight.w400,
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: CoveSpace.section,
+                  runSpacing: CoveSpace.xs,
+                  children: [
+                    Text(
+                      'FINANCED THROUGH',
+                      style: CoveType.capsPage.copyWith(color: cv.textSecondary),
                     ),
-                  ),
-                ],
+                    Text(
+                      'Card, Person, or Bank',
+                      style: CoveType.barLabel.copyWith(
+                        color: cv.textSecondary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: CoveSpace.sm),
               CovePillInput(
@@ -614,38 +620,44 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               // EMI Configuration Section
               if (_endDate != null || (_totalInstallments != null && _totalInstallments! > 0)) ...[
                 // Actual Number of Months (Tenure) & Installments Paid
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'TOTAL TENURE & INSTALLMENTS',
-                      style: CoveType.capsPage.copyWith(
-                        color: cv.textSecondary,
-                      ),
-                    ),
-                    if (_totalInstallments != null && _totalInstallments! > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: CoveSpace.sm,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cv.accentWash,
-                          borderRadius: BorderRadius.circular(CoveRadius.pill),
-                          border: Border.all(
-                            color: cv.accentFill.withValues(alpha: 0.4),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          '$_effectivePaidInstallments/$_totalInstallments paid',
-                          style: CoveType.barLabel.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: cv.accentText,
-                          ),
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: CoveSpace.section,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      Text(
+                        'TOTAL TENURE & INSTALLMENTS',
+                        style: CoveType.capsPage.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
-                  ],
+                      if (_totalInstallments != null && _totalInstallments! > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CoveSpace.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cv.accentWash,
+                            borderRadius: BorderRadius.circular(CoveRadius.pill),
+                            border: Border.all(
+                              color: cv.accentFill.withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            '$_effectivePaidInstallments/$_totalInstallments paid',
+                            style: CoveType.barLabel.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: cv.accentText,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: CoveSpace.sm),
                 Container(
@@ -662,25 +674,27 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${_totalInstallments ?? 12} Months Total',
-                                style: CoveType.rowTitle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: cv.textPrimary,
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_totalInstallments ?? 12} Months Total',
+                                  style: CoveType.rowTitle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: cv.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Tenure duration for this EMI',
-                                style: CoveType.barLabel.copyWith(
-                                  color: cv.textSecondary,
-                                  fontWeight: FontWeight.w400,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tenure duration for this EMI',
+                                  style: CoveType.barLabel.copyWith(
+                                    color: cv.textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Container(
                             decoration: BoxDecoration(
@@ -758,51 +772,54 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       Divider(color: cv.lineHairline, height: 1),
                       const SizedBox(height: 14),
                       // Installments Paid row with editable text input and stepper
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Paid So Far',
-                                      style: CoveType.rowTitle.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: cv.textPrimary,
-                                      ),
+                      LayoutBuilder(
+                        builder: (context, paidConstraints) {
+                          final paidLabelColumn = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: CoveSpace.xs,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'Paid So Far',
+                                    style: CoveType.rowTitle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: cv.textPrimary,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                      decoration: BoxDecoration(
-                                        color: cv.accentWash,
-                                        borderRadius: BorderRadius.circular(CoveRadius.pill),
-                                      ),
-                                      child: Text(
-                                        'Syncs with Last Due',
-                                        style: CoveType.barLabel.copyWith(
-                                          color: cv.accentText,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${((_totalInstallments ?? 12) - _effectivePaidInstallments).clamp(0, _totalInstallments ?? 12)} remaining of ${_totalInstallments ?? 12}',
-                                  style: CoveType.barLabel.copyWith(
-                                    color: cv.textSecondary,
-                                    fontWeight: FontWeight.w400,
                                   ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: cv.accentWash,
+                                      borderRadius: BorderRadius.circular(
+                                        CoveRadius.pill,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Syncs with Last Due',
+                                      style: CoveType.barLabel.copyWith(
+                                        color: cv.accentText,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${((_totalInstallments ?? 12) - _effectivePaidInstallments).clamp(0, _totalInstallments ?? 12)} remaining of ${_totalInstallments ?? 12}',
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textSecondary,
+                                  fontWeight: FontWeight.w400,
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: CoveSpace.md),
-                          Container(
+                              ),
+                            ],
+                          );
+                          final paidStepper = Container(
                             decoration: BoxDecoration(
                               color: cv.surfaceCard,
                               borderRadius: BorderRadius.circular(CoveRadius.pill),
@@ -887,8 +904,28 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                          );
+
+                          if (paidConstraints.maxWidth < 320) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                paidLabelColumn,
+                                const SizedBox(height: CoveSpace.sm),
+                                paidStepper,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(child: paidLabelColumn),
+                              const SizedBox(width: CoveSpace.md),
+                              paidStepper,
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -896,31 +933,37 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 const SizedBox(height: 18),
 
                 // Last Installment / Ends On date picker
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'LAST PAYMENT / ENDS ON',
-                      style: CoveType.capsPage.copyWith(
-                        color: cv.textSecondary,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() {
-                        _endDate = null;
-                        _totalInstallments = null;
-                        _paidInstallments = null;
-                        _paidInstallmentsController.clear();
-                      }),
-                      child: Text(
-                        'Convert to Sub',
-                        style: CoveType.rowSub.copyWith(
-                          color: cv.statusAlertText,
-                          fontWeight: FontWeight.w500,
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: CoveSpace.section,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      Text(
+                        'LAST PAYMENT / ENDS ON',
+                        style: CoveType.capsPage.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          _endDate = null;
+                          _totalInstallments = null;
+                          _paidInstallments = null;
+                          _paidInstallmentsController.clear();
+                        }),
+                        child: Text(
+                          'Convert to Sub',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.statusAlertText,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: CoveSpace.sm),
                 InkWell(

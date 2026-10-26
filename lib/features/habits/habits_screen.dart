@@ -488,26 +488,26 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: CoveSpace.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(
-                            habit.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: CoveType.rowTitle.copyWith(
-                              color: streak.isCheckedToday
-                                  ? cv.textSecondary
-                                  : cv.textPrimary,
-                              decoration: streak.isCheckedToday
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                              decorationColor: cv.textSecondary,
-                            ),
+                        Text(
+                          habit.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.rowTitle.copyWith(
+                            color: streak.isCheckedToday
+                                ? cv.textSecondary
+                                : cv.textPrimary,
+                            decoration: streak.isCheckedToday
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            decorationColor: cv.textSecondary,
                           ),
                         ),
-                        if (streak.hasAcknowledgmentToday) ...[
-                          const SizedBox(width: 6),
+                        if (streak.hasAcknowledgmentToday)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
@@ -524,11 +524,11 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                               ),
                             ),
                           ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           cadenceLabel,
@@ -565,6 +565,10 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert, size: 16, color: cv.textTertiary),
                 padding: EdgeInsets.zero,
+                style: const ButtonStyle(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                ),
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 color: cv.surfaceCard,
                 shape: RoundedRectangleBorder(

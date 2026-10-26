@@ -110,10 +110,13 @@ class SignInScreen extends ConsumerWidget {
                       color: cv.textTertiary,
                     ),
                     const SizedBox(width: CoveSpace.sm),
-                    Text(
-                      'End-to-end encrypted on-device. Zero cloud knowledge.',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.textTertiary,
+                    Flexible(
+                      child: Text(
+                        'End-to-end encrypted on-device. Zero cloud knowledge.',
+                        textAlign: TextAlign.center,
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
+                        ),
                       ),
                     ),
                   ],

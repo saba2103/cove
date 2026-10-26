@@ -165,6 +165,8 @@ Widget _sheetHost(Widget sheet) {
   );
 }
 
+const Set<String> _kKnownLegacyOverflows = {};
+
 void main() {
   setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -184,6 +186,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -198,6 +201,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
 
@@ -212,11 +216,7 @@ void main() {
         ),
         overrides: _createOverrides(),
         wrap: wrapInAppShellConstraint,
-        allowedOverflows: const {
-          'edit_41f_subscription_form_sheet.cover',
-          'edit_41f_subscription_form_sheet.phone',
-          'edit_41f_subscription_form_sheet.wide',
-        },
+        allowedOverflows: _kKnownLegacyOverflows,
       );
     });
   });

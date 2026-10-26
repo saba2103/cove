@@ -499,22 +499,28 @@ class _CalendarEventFormSheetState
               const SizedBox(height: 18),
 
               // Recurrence / Repeat Selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'REPEAT',
-                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-                  ),
-                  if (_recurrence != 'none')
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: CoveSpace.section,
+                  runSpacing: CoveSpace.xs,
+                  children: [
                     Text(
-                      'Recurring event',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.accentText,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      'REPEAT',
+                      style: CoveType.capsPage.copyWith(color: cv.textSecondary),
                     ),
-                ],
+                    if (_recurrence != 'none')
+                      Text(
+                        'Recurring event',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: CoveSpace.sm),
               SingleChildScrollView(

@@ -479,25 +479,31 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               const SizedBox(height: 18),
 
               // Payment Method Selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _isTransfer ? 'HOW WAS THIS SENT?' : 'HOW WAS THIS PAID?',
-                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-                  ),
-                  if (_paymentMethod != null)
-                    GestureDetector(
-                      onTap: () => setState(() => _paymentMethod = null),
-                      child: Text(
-                        'Clear',
-                        style: CoveType.barLabel.copyWith(
-                          color: cv.textSecondary,
-                          fontWeight: FontWeight.w400,
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: CoveSpace.section,
+                  runSpacing: CoveSpace.xs,
+                  children: [
+                    Text(
+                      _isTransfer ? 'HOW WAS THIS SENT?' : 'HOW WAS THIS PAID?',
+                      style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                    ),
+                    if (_paymentMethod != null)
+                      GestureDetector(
+                        onTap: () => setState(() => _paymentMethod = null),
+                        child: Text(
+                          'Clear',
+                          style: CoveType.barLabel.copyWith(
+                            color: cv.textSecondary,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
@@ -586,28 +592,38 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 ),
               ] else ...[
                 // Category Selector
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'CATEGORY',
-                      style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isCustomCategory = !_isCustomCategory;
-                        });
-                      },
-                      child: Text(
-                        _isCustomCategory ? 'Use standard list' : '+ Custom category',
-                        style: CoveType.rowSub.copyWith(
-                          color: cv.accentText,
-                          fontWeight: FontWeight.w600,
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: CoveSpace.section,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      Text(
+                        'CATEGORY',
+                        style: CoveType.capsPage.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isCustomCategory = !_isCustomCategory;
+                          });
+                        },
+                        child: Text(
+                          _isCustomCategory
+                              ? 'Use standard list'
+                              : '+ Custom category',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.accentText,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: CoveSpace.sm),
                 if (_isCustomCategory)
