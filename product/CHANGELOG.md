@@ -6,6 +6,14 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ## [v2.0-alpha.1] — 2026-10-22
 
+### Added
+- **Batch 4.2a — First-Run Seed Card, Starter Rows & Rule (`Oct 26, 2026`)**:
+  - *Outcome*:
+    1. **`CoveSeedCard`, `CoveSeedArt`, and `CoveStarterRow` (`design/specs/16-first-run.md` §1, §2)**: Added [`lib/core/widgets/cove_seed_card.dart`](../lib/core/widgets/cove_seed_card.dart) and [`lib/core/widgets/cove_starter_row.dart`](../lib/core/widgets/cove_starter_row.dart) (exported from [`lib/core/widgets/widgets.dart`](../lib/core/widgets/widgets.dart)), including all seven vector path illustrations (`sprout`, `calendar`, `bands`, `coin`, `arrows`, `wave`, `key`) in `CoveSeedArt(kind)` with zero image assets, dashed `line.strong` card borders, radial `accent.fill` top-centre glow, optional primary gold `+` pill button, and optional `alt` lines.
+    2. **Per-Screen First-Run Rule (`firstRunProvider(CoveScreen)`) (`design/specs/16-first-run.md` §3)**: Added [`lib/sync/providers/first_run_provider.dart`](../lib/sync/providers/first_run_provider.dart) and `AppDatabase.getFirstRunCounts` / `watchFirstRunCounts` in [`lib/sync/db/app_database.dart`](../lib/sync/db/app_database.dart), querying per-screen record counts and persisting `first_run_done.<screen>` in `SharedPreferences` the first time a screen sees data so deleting records never brings the seed card back.
+  - *Under the Hood*:
+    - Added unit tests for `firstRunProvider(CoveScreen)` in [`test/first_run_provider_test.dart`](../test/first_run_provider_test.dart) and 18 golden baselines across 3 widths × 2 modes with the zero-overflow guard in [`test/golden/first_run_42a_golden_test.dart`](../test/golden/first_run_42a_golden_test.dart).
+
 ### Changed
 - **Task 4.2-pre — Habit Menu Tap Target Back to 48dp (`Oct 26, 2026`)**:
   - *Outcome*:

@@ -11,5 +11,6 @@ export 'key_management/pairing_qr_view.dart';
 export 'local_state_store.dart';
 export 'providers/active_home_provider.dart';
 export 'providers/cove_sync_providers.dart';
+export 'providers/first_run_provider.dart';
 export 'sync_engine.dart';
 export 'sync_engine_impl.dart';

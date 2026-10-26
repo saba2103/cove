@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -259,6 +260,59 @@ class LocalCheckinReminders extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class FirstRunCounts {
+  final int expenses;
+  final int events;
+  final int habits;
+  final int habitCheckins;
+  final int listItems;
+  final int commitments;
+  final int routineEvents;
+  final int activity;
+  final bool hasPartnerInDb;
+
+  const FirstRunCounts({
+    this.expenses = 0,
+    this.events = 0,
+    this.habits = 0,
+    this.habitCheckins = 0,
+    this.listItems = 0,
+    this.commitments = 0,
+    this.routineEvents = 0,
+    this.activity = 0,
+    this.hasPartnerInDb = false,
+  });
+
+  static const empty = FirstRunCounts();
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FirstRunCounts &&
+          expenses == other.expenses &&
+          events == other.events &&
+          habits == other.habits &&
+          habitCheckins == other.habitCheckins &&
+          listItems == other.listItems &&
+          commitments == other.commitments &&
+          routineEvents == other.routineEvents &&
+          activity == other.activity &&
+          hasPartnerInDb == other.hasPartnerInDb;
+
+  @override
+  int get hashCode => Object.hash(
+        expenses,
+        events,
+        habits,
+        habitCheckins,
+        listItems,
+        commitments,
+        routineEvents,
+        activity,
+        hasPartnerInDb,
+      );
+}
+
 @DriftDatabase(tables: [
   LocalHomes,
   LocalLists,
@@ -279,6 +333,12 @@ class LocalCheckinReminders extends Table {
   LocalCheckinReminders,
 ])
 class AppDatabase extends _$AppDatabase {
+  final Map<String, FirstRunCounts> cachedFirstRunCounts = {};
+  final StreamController<String> firstRunCountsUpdates =
+      StreamController<String>.broadcast(sync: true);
+  StreamSubscription<Set<TableUpdate>>? _firstRunUpdatesSub;
+  bool _isClosed = false;
+
   AppDatabase([QueryExecutor? executor])
       : super(executor ??
             driftDatabase(
@@ -292,7 +352,23 @@ class AppDatabase extends _$AppDatabase {
                 sqlite3Wasm: Uri.parse('sqlite3.wasm'),
                 driftWorker: Uri.parse('drift_worker.js'),
               ),
-            ));
+            )) {
+    if (executor is! ReadOnlyQueryExecutor) {
+      _firstRunUpdatesSub = tableUpdates().listen((_) {
+        if (!_isClosed) {
+          unawaited(_refreshKnownHomeCounts());
+        }
+      });
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    _isClosed = true;
+    await _firstRunUpdatesSub?.cancel();
+    await firstRunCountsUpdates.close();
+    await super.close();
+  }
 
   /// Opens an unshared, strictly read-only SQLite connection (`OpenMode.readOnly`
   /// + `PRAGMA busy_timeout = 5000`, `enableMigrations: false`) to [file]
@@ -988,6 +1064,122 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.id.equals(entityId)))
         .getSingleOrNull();
     return row != null;
+  }
+
+  // --- FIRST-RUN RECORD COUNTS (`design/specs/16-first-run.md` §3) ---
+
+  Future<void> _refreshKnownHomeCounts() async {
+    if (_isClosed) return;
+    try {
+      final homes = await select(localHomes).get();
+      final homeIds = <String>{
+        '*',
+        ...cachedFirstRunCounts.keys,
+        ...homes.map((h) => h.id),
+      };
+      for (final homeId in homeIds) {
+        if (_isClosed) return;
+        await getFirstRunCounts(homeId);
+      }
+    } catch (_) {}
+  }
+
+  Future<FirstRunCounts> getFirstRunCounts(String homeId) async {
+    if (_isClosed) return FirstRunCounts.empty;
+    final key = homeId.isEmpty ? '*' : homeId;
+    final matchAll = key == '*';
+    final row = await customSelect(
+      '''
+      SELECT
+        (SELECT COUNT(*) FROM local_expenses WHERE (?2 = 1 OR home_id = ?1)) AS expenses_count,
+        (SELECT COUNT(*) FROM local_calendar_events WHERE (?2 = 1 OR home_id = ?1)) AS events_count,
+        (SELECT COUNT(*) FROM local_habits WHERE (?2 = 1 OR home_id = ?1) AND is_archived = 0) AS habits_count,
+        (SELECT COUNT(*) FROM local_habit_checkins WHERE (?2 = 1 OR home_id = ?1)) AS checkins_count,
+        (SELECT COUNT(*) FROM local_list_items WHERE (?2 = 1 OR home_id = ?1)) AS list_items_count,
+        (SELECT COUNT(*) FROM local_subscriptions WHERE (?2 = 1 OR home_id = ?1)) AS commitments_count,
+        (SELECT COUNT(*) FROM local_routine_events WHERE (?2 = 1 OR home_id = ?1)) AS routine_events_count,
+        (SELECT COUNT(*) FROM local_activity_events WHERE (?2 = 1 OR home_id = ?1) AND event_type NOT IN (
+          'member_profile_updated',
+          'profile_updated',
+          'user_profile_updated',
+          'avatar_updated',
+          'avatar_changed',
+          'name_updated',
+          'display_name_updated',
+          'home_currency_updated',
+          'home_updated',
+          'preferences_updated',
+          'settings_updated'
+        )) AS activity_count,
+        (
+          SELECT CASE WHEN (
+            EXISTS(
+              SELECT 1 FROM local_activity_events a
+              LEFT JOIN local_homes h ON h.id = a.home_id
+              WHERE (?2 = 1 OR a.home_id = ?1) AND (
+                a.event_type IN ('member_profile_updated', 'partner_joined', 'member_joined')
+                OR (h.created_by IS NOT NULL AND a.actor_id != '' AND a.actor_id != h.created_by)
+              )
+            )
+            OR EXISTS(
+              SELECT 1 FROM local_outbox_events o
+              LEFT JOIN local_homes h ON h.id = o.home_id
+              WHERE (?2 = 1 OR o.home_id = ?1) AND (
+                o.event_type IN ('member_profile_updated', 'partner_joined', 'member_joined')
+                OR o.sync_status = 'syncedToPartner'
+                OR (h.created_by IS NOT NULL AND o.actor_id != '' AND o.actor_id != h.created_by)
+              )
+            )
+          ) THEN 1 ELSE 0 END
+        ) AS has_partner_in_db
+      ''',
+      variables: [
+        Variable.withString(key),
+        Variable.withInt(matchAll ? 1 : 0),
+      ],
+      readsFrom: {
+        localHomes,
+        localExpenses,
+        localCalendarEvents,
+        localHabits,
+        localHabitCheckins,
+        localListItems,
+        localSubscriptions,
+        localRoutineEvents,
+        localActivityEvents,
+        localOutboxEvents,
+      },
+    ).getSingle();
+
+    final counts = FirstRunCounts(
+      expenses: row.read<int>('expenses_count'),
+      events: row.read<int>('events_count'),
+      habits: row.read<int>('habits_count'),
+      habitCheckins: row.read<int>('checkins_count'),
+      listItems: row.read<int>('list_items_count'),
+      commitments: row.read<int>('commitments_count'),
+      routineEvents: row.read<int>('routine_events_count'),
+      activity: row.read<int>('activity_count'),
+      hasPartnerInDb: row.read<int>('has_partner_in_db') != 0,
+    );
+    cachedFirstRunCounts[key] = counts;
+    if (!_isClosed && !firstRunCountsUpdates.isClosed) {
+      firstRunCountsUpdates.add(key);
+    }
+    return counts;
+  }
+
+  Stream<FirstRunCounts> watchFirstRunCounts(String homeId) async* {
+    final key = homeId.isEmpty ? '*' : homeId;
+    if (cachedFirstRunCounts.containsKey(key)) {
+      yield cachedFirstRunCounts[key]!;
+    } else {
+      yield await getFirstRunCounts(key);
+    }
+    await for (final _ in tableUpdates()) {
+      if (_isClosed) return;
+      yield await getFirstRunCounts(key);
+    }
   }
 }
 
