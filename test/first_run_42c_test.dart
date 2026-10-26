@@ -33,7 +33,6 @@ import 'package:cove/features/weather/weather_model.dart';
 import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
-import 'package:cove/sync/key_management/pairing_payload.dart';
 import 'package:cove/sync/key_management/pairing_qr_view.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
@@ -252,10 +251,9 @@ class _SpyHomeController extends HomeController {
   @override
   Future<String> createPairingCode({
     required String homeId,
-    required PairingPayload payload,
   }) async {
     createPairingCodeCalls++;
-    return super.createPairingCode(homeId: homeId, payload: payload);
+    return super.createPairingCode(homeId: homeId);
   }
 }
 

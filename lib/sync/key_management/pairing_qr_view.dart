@@ -1,16 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+
 import '../../core/theme/cove_theme.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../features/home/home_controller.dart';
 import '../../features/profile/partner_profile_controller.dart';
+import 'pairing_approval_sheet.dart';
 import 'pairing_payload.dart';
+import 'pairing_relay.dart';
 
 /// Modal or screen view presenting a Home Pairing QR code and a 6-digit PIN code.
-/// The partner opens their camera/scanner or enters the 6-digit code directly.
+/// The QR code carries the payload directly from A's screen to B's camera and
+/// never touches the server. The 6-digit code is keyless and requires inviter
+/// approval via [PairingApprovalSheet].
 class PairingQrView extends ConsumerStatefulWidget {
   final PairingPayload payload;
   final VoidCallback? onDone;
@@ -29,11 +36,20 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
   String? _pairingCode;
   bool _isLoadingCode = true;
   bool _copied = false;
+  bool _isSubmittingDecision = false;
+  PairingRequestRecord? _activePendingRequest;
+  StreamSubscription<List<PairingRequestRecord>>? _requestsSub;
 
   @override
   void initState() {
     super.initState();
     _initPairingCode();
+  }
+
+  @override
+  void dispose() {
+    _requestsSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _initPairingCode() async {
@@ -44,17 +60,70 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
           ? cached
           : await homeController.createPairingCode(
               homeId: widget.payload.homeId,
-              payload: widget.payload,
             );
       if (mounted) {
         setState(() {
           _pairingCode = code;
           _isLoadingCode = false;
         });
+        _listenForPendingRequests(code);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _isLoadingCode = false);
+      }
+    }
+  }
+
+  void _listenForPendingRequests(String code) {
+    _requestsSub?.cancel();
+    final homeController = ref.read(homeControllerProvider);
+    _requestsSub = homeController.watchPendingRequestsForCode(code).listen(
+      (pending) {
+        if (!mounted) return;
+        setState(() {
+          _activePendingRequest = pending.isNotEmpty ? pending.first : null;
+        });
+      },
+      onError: (_) {},
+    );
+  }
+
+  Future<void> _handleApprove(PairingRequestRecord request) async {
+    if (_isSubmittingDecision) return;
+    setState(() => _isSubmittingDecision = true);
+    try {
+      await ref.read(homeControllerProvider).approvePairingRequest(
+            request: request,
+            payloadOverride: widget.payload,
+          );
+      if (mounted) {
+        setState(() {
+          _isSubmittingDecision = false;
+          _activePendingRequest = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSubmittingDecision = false);
+      }
+    }
+  }
+
+  Future<void> _handleDecline(PairingRequestRecord request) async {
+    if (_isSubmittingDecision) return;
+    setState(() => _isSubmittingDecision = true);
+    try {
+      await ref.read(homeControllerProvider).declinePairingRequest(request.id);
+      if (mounted) {
+        setState(() {
+          _isSubmittingDecision = false;
+          _activePendingRequest = null;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSubmittingDecision = false);
       }
     }
   }
@@ -74,9 +143,28 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
     final typography = context.typography;
     final qrData = widget.payload.toQrString();
 
+    final pendingRequest = _activePendingRequest;
+    if (pendingRequest != null) {
+      return Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: PairingApprovalSheet(
+              request: pendingRequest,
+              homeName: widget.payload.homeName,
+              isSubmitting: _isSubmittingDecision,
+              onApprove: () => _handleApprove(pendingRequest),
+              onDecline: () => _handleDecline(pendingRequest),
+            ),
+          ),
+        ),
+      );
+    }
+
     String formattedCode = '...';
     if (_pairingCode != null && _pairingCode!.length == 6) {
-      formattedCode = '${_pairingCode!.substring(0, 3)}  ${_pairingCode!.substring(3)}';
+      formattedCode =
+          '${_pairingCode!.substring(0, 3)}  ${_pairingCode!.substring(3)}';
     }
 
     final partnerName = ref.watch(partnerProfileProvider).displayName;
@@ -104,7 +192,9 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                 Text(
                   pairDesc,
                   textAlign: TextAlign.center,
-                  style: typography.bodyRegular.copyWith(color: colors.textMuted),
+                  style: typography.bodyRegular.copyWith(
+                    color: colors.textMuted,
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -138,7 +228,10 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                 // 6-Digit Pairing Code Display Card
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.surfaceRow,
                     borderRadius: BorderRadius.circular(12),
@@ -188,23 +281,32 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                           onTap: _copyCode,
                           borderRadius: BorderRadius.circular(20),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   _copied ? Icons.check : Icons.copy_rounded,
                                   size: 14,
-                                  color: _copied ? colors.accentPrimary : colors.textMuted,
+                                  color: _copied
+                                      ? colors.accentPrimary
+                                      : colors.textMuted,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  _copied ? 'Copied to clipboard' : 'Copy 6-digit code',
+                                  _copied
+                                      ? 'Copied to clipboard'
+                                      : 'Copy 6-digit code',
                                   style: TextStyle(
                                     fontFamily: 'PlusJakartaSans',
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
-                                    color: _copied ? colors.accentPrimary : colors.textMuted,
+                                    color: _copied
+                                        ? colors.accentPrimary
+                                        : colors.textMuted,
                                   ),
                                 ),
                               ],
@@ -226,12 +328,15 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                 const SizedBox(height: 2),
                 Text(
                   'Zero-Knowledge Direct Key Exchange',
-                  style: typography.caption.copyWith(color: colors.accentPrimary),
+                  style: typography.caption.copyWith(
+                    color: colors.accentPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 CovePillButton(
                   label: 'Done',
-                  onPressed: widget.onDone ?? () => Navigator.of(context).maybePop(),
+                  onPressed:
+                      widget.onDone ?? () => Navigator.of(context).maybePop(),
                   isFullWidth: true,
                 ),
               ],

@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
 import 'package:clock/clock.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/utils/uuid_generator.dart';
 import '../../sync/crypto/sodium_crypto_service.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/key_management/home_key_store.dart';
+import '../../sync/key_management/pairing_crypto.dart';
 import '../../sync/key_management/pairing_payload.dart';
+import '../../sync/key_management/pairing_relay.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -26,6 +31,20 @@ class _SessionPairingCode {
   });
 }
 
+/// Ephemeral client-side state held by the joiner (B) after submitting a
+/// 6-digit code join request and while waiting for the inviter (A) to approve.
+class PendingPairingJoinSession {
+  final PairingRequestRecord request;
+  final PairingBoxKeyPair keyPair;
+  final PairingVerificationWords verificationWords;
+
+  const PendingPairingJoinSession({
+    required this.request,
+    required this.keyPair,
+    required this.verificationWords,
+  });
+}
+
 class HomeController {
   final Ref ref;
   final Map<String, _SessionPairingCode> _cachedPairingCodes =
@@ -37,6 +56,7 @@ class HomeController {
   AppDatabase get _db => ref.read(appDatabaseProvider);
   HomeKeyStore get _keyStore => ref.read(homeKeyStoreProvider);
   SodiumCryptoService get _crypto => ref.read(sodiumCryptoServiceProvider);
+  PairingRelay? get _pairingRelay => ref.read(pairingRelayProvider);
 
   /// Returns the pairing code created in this session for [homeId] only until
   /// its `expires_at` timestamp; otherwise returns `null`.
@@ -89,13 +109,14 @@ class HomeController {
     await _keyStore.saveKey(homeId, symmetricKey);
 
     // 3. Insert into local Drift database
-    final initialCurrency = currency ?? ref.read(currencyPreferenceProvider).code;
+    final initialCurrency =
+        currency ?? ref.read(currencyPreferenceProvider).code;
     await _db.into(_db.localHomes).insertOnConflictUpdate(
           LocalHomesCompanion.insert(
             id: homeId,
             name: name,
             description: drift.Value(description),
-            icon: drift.Value(null), // Deterministic icon mark
+            icon: const drift.Value(null), // Deterministic icon mark
             currency: drift.Value(initialCurrency),
             createdAt: now,
             createdBy: userId,
@@ -119,7 +140,9 @@ class HomeController {
           'user_id': userId,
           'joined_at': now.toIso8601String(),
         });
-        debugPrint('[HomeController] Home and membership successfully saved to Supabase: $homeId');
+        debugPrint(
+          '[HomeController] Home and membership successfully saved to Supabase: $homeId',
+        );
       } catch (e) {
         debugPrint('[HomeController] Error saving home to Supabase: $e');
       }
@@ -188,9 +211,13 @@ class HomeController {
           'display_name': userProfile.displayName,
           'avatar_url': userProfile.avatarUrl,
         });
-        debugPrint('[HomeController] Partner successfully added to Supabase home_members: ${payload.homeId}');
+        debugPrint(
+          '[HomeController] Partner successfully added to Supabase home_members: ${payload.homeId}',
+        );
       } catch (e) {
-        debugPrint('[HomeController] Error adding partner to Supabase home_members: $e');
+        debugPrint(
+          '[HomeController] Error adding partner to Supabase home_members: $e',
+        );
       }
     }
 
@@ -207,15 +234,17 @@ class HomeController {
     // 7. Broadcast joiner's profile so inviter gets our display name immediately
     final userProfile = ref.read(userProfileProvider);
     final emitAction = ref.read(coveEmitActionProvider);
-    unawaited(emitAction(
-      eventType: 'member_profile_updated',
-      payload: {
-        'display_name': userProfile.displayName,
-        'avatar_url': userProfile.avatarUrl,
-        'user_id': userId,
-      },
-      targetHomeId: payload.homeId,
-    ));
+    unawaited(
+      emitAction(
+        eventType: 'member_profile_updated',
+        payload: {
+          'display_name': userProfile.displayName,
+          'avatar_url': userProfile.avatarUrl,
+          'user_id': userId,
+        },
+        targetHomeId: payload.homeId,
+      ),
+    );
   }
 
   /// Retrieves an existing pairing payload for a Home (to show QR code again).
@@ -313,49 +342,49 @@ class HomeController {
         'display_name': userProfile.displayName,
         'avatar_url': userProfile.avatarUrl,
       });
-      debugPrint('[HomeController] Verified/synced home and membership to Supabase: $homeId');
+      debugPrint(
+        '[HomeController] Verified/synced home and membership to Supabase: $homeId',
+      );
     } catch (e) {
-      debugPrint('[HomeController] Error ensuring home synced to Supabase: $e');
+      debugPrint(
+        '[HomeController] Error ensuring home synced to Supabase: $e',
+      );
     }
   }
 
-  /// Generates a random 6-digit pairing code, stores it ephemerally with 10-min TTL,
-  /// and returns the code string.
+  /// Generates a CSPRNG 6-digit pairing code and stores a keyless row in
+  /// `pairing_codes` (`code`, `home_id`, `inviter_id`, `expires_at` = now + 10 min,
+  /// `status = 'open'`). Never writes a payload or home key to the server, and
+  /// never touches `homes.description`.
   Future<String> createPairingCode({
     required String homeId,
-    required PairingPayload payload,
   }) async {
-    final rng = Random();
+    final rng = Random.secure();
     final code = (100000 + rng.nextInt(900000)).toString();
     final now = clock.now().toUtc();
     final expiresAt = now.add(const Duration(minutes: 10));
-    final payloadJson = payload.toQrString();
 
     final supabase = ref.read(supabaseClientProvider);
-    if (supabase != null) {
-      bool storedInTable = false;
-      try {
-        await supabase.from('pairing_codes').upsert({
-          'code': code,
-          'home_id': homeId,
-          'payload': payloadJson,
-          'created_at': now.toIso8601String(),
-          'expires_at': expiresAt.toIso8601String(),
-        });
-        storedInTable = true;
-      } catch (_) {
-        // pairing_codes table not migrated yet
-      }
+    final user = ref.read(authProvider).value;
+    final inviterId =
+        supabase?.auth.currentUser?.id ?? user?.id ?? 'local_user';
 
-      if (!storedInTable) {
-        try {
-          final pairingTag = 'pairing:$code:${expiresAt.millisecondsSinceEpoch}:$payloadJson';
-          await supabase.from('homes').update({
-            'description': pairingTag,
-          }).eq('id', homeId);
-        } catch (e) {
-          debugPrint('[HomeController] Error saving ephemeral pairing code to homes: $e');
-        }
+    final relay = _pairingRelay;
+    if (relay != null) {
+      unawaited(relay.cleanupDoneAndExpired(nowUtc: now));
+      try {
+        await relay.insertPairingCode(
+          PairingCodeRecord(
+            code: code,
+            homeId: homeId,
+            inviterId: inviterId,
+            expiresAt: expiresAt,
+            status: 'open',
+            createdAt: now,
+          ),
+        );
+      } catch (e) {
+        debugPrint('[HomeController] Error creating keyless pairing code: $e');
       }
     }
 
@@ -367,86 +396,186 @@ class HomeController {
     return code;
   }
 
-  /// Joins a home using an ephemeral 6-digit pairing code.
-  Future<void> joinHomeFromCode(String rawCode) async {
+  /// Watches pending join requests (`status = 'pending'`) for [code].
+  Stream<List<PairingRequestRecord>> watchPendingRequestsForCode(String code) {
+    final relay = _pairingRelay;
+    if (relay == null) return Stream.value(const <PairingRequestRecord>[]);
+    return relay.watchPendingRequestsForCode(code);
+  }
+
+  /// Approves [request] on the inviter's phone (**Let them in**):
+  /// seals the pairing payload (home id, name, symmetric key, inviter) to the
+  /// joiner's public key using `crypto_box_seal` and writes only the sealed blob
+  /// to `pairing_requests` (`status = 'approved'`), marking the code single-use.
+  Future<void> approvePairingRequest({
+    required PairingRequestRecord request,
+    PairingPayload? payloadOverride,
+  }) async {
+    final relay = _pairingRelay;
+    if (relay == null) {
+      throw StateError('Pairing service is not connected.');
+    }
+
+    PairingPayload? payload = payloadOverride;
+    if (payload == null) {
+      final codeRow = await relay.getPairingCode(request.code);
+      if (codeRow == null) {
+        throw StateError('Pairing code ${request.code} was not found.');
+      }
+      payload = await getPairingPayload(codeRow.homeId);
+    }
+    if (payload == null) {
+      throw StateError('Missing home key; cannot approve join request.');
+    }
+
+    final plaintextBytes = Uint8List.fromList(utf8.encode(payload.toQrString()));
+    final sealedBytes = PairingCrypto.cryptoBoxSeal(
+      plaintext: plaintextBytes,
+      recipientPublicKey: request.joinerPublicKeyBytes,
+    );
+    final sealedPayloadBase64 = base64Encode(sealedBytes);
+
+    await relay.approveRequest(
+      requestId: request.id,
+      code: request.code,
+      sealedPayload: sealedPayloadBase64,
+    );
+  }
+
+  /// Declines [request] on the inviter's phone (**Not them**):
+  /// sets `status = 'declined'` with no sealed payload so the joiner never
+  /// receives a key.
+  Future<void> declinePairingRequest(String requestId) async {
+    final relay = _pairingRelay;
+    if (relay == null) {
+      throw StateError('Pairing service is not connected.');
+    }
+    await relay.declineRequest(requestId: requestId);
+  }
+
+  /// Joiner step 1 (`17-invite-and-keys.md` §1 step 2–3):
+  /// Generates a fresh X25519 keypair, submits a `pairing_requests` row for
+  /// [rawCode], and derives the two verification words (`AMBER · HARBOUR`).
+  Future<PendingPairingJoinSession> submitPairingJoinRequest(
+    String rawCode, {
+    PairingBoxKeyPair? keyPairOverride,
+  }) async {
     final code = rawCode.replaceAll(RegExp(r'\s+'), '').trim();
-    if (code.length != 6) {
+    if (code.length != 6 || int.tryParse(code) == null) {
       throw const FormatException('Pairing code must be 6 digits.');
     }
 
+    final relay = _pairingRelay;
+    if (relay == null) {
+      throw StateError('Authentication service is not connected.');
+    }
+
     final supabase = ref.read(supabaseClientProvider);
-    if (supabase == null) {
-      throw Exception('Authentication service is not connected.');
+    final user = ref.read(authProvider).value;
+    final joinerId =
+        supabase?.auth.currentUser?.id ?? user?.id ?? 'local_joiner';
+    final userProfile = ref.read(userProfileProvider);
+    final joinerName = userProfile.displayName.trim().isNotEmpty
+        ? userProfile.displayName.trim()
+        : (user?.displayName ?? 'Partner');
+
+    final keyPair = keyPairOverride ?? PairingCrypto.generateKeyPair();
+    final verificationWords = PairingCrypto.deriveVerificationWords(
+      joinerPublicKey: keyPair.publicKey,
+      code: code,
+    );
+
+    final request = await relay.submitJoinRequest(
+      code: code,
+      joinerId: joinerId,
+      joinerName: joinerName,
+      joinerPublicKey: keyPair.publicKeyBase64,
+    );
+
+    return PendingPairingJoinSession(
+      request: request,
+      keyPair: keyPair,
+      verificationWords: verificationWords,
+    );
+  }
+
+  /// Joiner step 2 (`17-invite-and-keys.md` §1 step 6):
+  /// Opens the approved `sealed_payload` with [session.keyPair], imports the
+  /// home key via [joinHomeFromQr], marks the request `'done'`, and cleans up
+  /// done/expired rows.
+  Future<void> completeApprovedPairingJoin(
+    PendingPairingJoinSession session,
+  ) async {
+    final relay = _pairingRelay;
+    if (relay == null) {
+      throw StateError('Authentication service is not connected.');
     }
 
-    String? payloadJson;
-    String? matchedHomeId;
+    final latest = await relay.getRequestById(session.request.id);
+    if (latest == null) {
+      throw StateError('Join request is no longer available.');
+    }
+    if (latest.status == 'declined') {
+      throw StateError('Join request was declined by the home owner.');
+    }
+    if (latest.status != 'approved' ||
+        latest.sealedPayload == null ||
+        latest.sealedPayload!.isEmpty) {
+      throw StateError('Join request has not been approved yet.');
+    }
 
-    // 1. Try lookup in pairing_codes table
-    try {
-      final res = await supabase
-          .from('pairing_codes')
-          .select('code, home_id, payload, expires_at')
-          .eq('code', code)
-          .maybeSingle();
+    final sealedBytes = Uint8List.fromList(base64Decode(latest.sealedPayload!));
+    final openedBytes = PairingCrypto.cryptoBoxSealOpen(
+      sealedBox: sealedBytes,
+      recipientKeyPair: session.keyPair,
+    );
+    final qrString = utf8.decode(openedBytes);
 
-      if (res != null) {
-        final expiresAtStr = res['expires_at'] as String?;
-        if (expiresAtStr != null) {
-          final expiresAt = DateTime.tryParse(expiresAtStr);
-          if (expiresAt != null && clock.now().toUtc().isAfter(expiresAt)) {
-            throw Exception('Pairing code has expired. Please request a new code.');
-          }
-        }
-        payloadJson = res['payload'] as String?;
-        matchedHomeId = res['home_id'] as String?;
+    await joinHomeFromQr(qrString);
+    await relay.markRequestDone(requestId: session.request.id);
+    await relay.cleanupDoneAndExpired(nowUtc: clock.now().toUtc());
+  }
 
-        unawaited(supabase.from('pairing_codes').delete().eq('code', code));
+  /// Waits for [session] to be approved or declined on the inviter's phone,
+  /// then completes the join upon approval.
+  Future<void> waitForApprovedPairingJoin(
+    PendingPairingJoinSession session, {
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    final relay = _pairingRelay;
+    if (relay == null) {
+      throw StateError('Authentication service is not connected.');
+    }
+
+    await for (final record
+        in relay.watchRequestById(session.request.id).timeout(timeout)) {
+      if (record == null) {
+        throw StateError('Join request was cancelled or expired.');
       }
-    } catch (e) {
-      if (e is Exception && e.toString().contains('expired')) rethrow;
-    }
-
-    // 2. Fallback: Lookup in homes table by description tag
-    if (payloadJson == null) {
-      try {
-        final rows = await supabase
-            .from('homes')
-            .select('id, description')
-            .like('description', 'pairing:$code:%');
-
-        if (rows.isNotEmpty) {
-          for (final row in rows) {
-            final desc = row['description'] as String? ?? '';
-            if (desc.startsWith('pairing:$code:')) {
-              final parts = desc.split(':');
-              if (parts.length >= 4) {
-                final expiresMs = int.tryParse(parts[2]);
-                if (expiresMs != null && clock.now().millisecondsSinceEpoch > expiresMs) {
-                  throw Exception('Pairing code has expired. Please request a new code.');
-                }
-                final prefix = 'pairing:$code:${parts[2]}:';
-                payloadJson = desc.substring(prefix.length);
-                matchedHomeId = row['id'] as String?;
-                break;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        if (e is Exception && e.toString().contains('expired')) rethrow;
+      if (record.status == 'declined') {
+        throw StateError('Join request was declined by the home owner.');
+      }
+      if (record.status == 'approved' &&
+          record.sealedPayload != null &&
+          record.sealedPayload!.isNotEmpty) {
+        await completeApprovedPairingJoin(session);
+        return;
       }
     }
+    throw StateError('Join request closed before approval.');
+  }
 
-    if (payloadJson == null) {
-      throw Exception('Invalid or expired 6-digit code. Please check your partner\'s screen.');
-    }
-
-    await joinHomeFromQr(payloadJson);
-
-    if (matchedHomeId != null) {
-      unawaited(supabase.from('homes').update({'description': null}).eq('id', matchedHomeId));
-    }
+  /// Joins a home using a 6-digit pairing code (`17-invite-and-keys.md` §1):
+  /// submits a join request with a fresh keypair, surfaces the two verification
+  /// words via [onSessionCreated], and awaits the inviter's approval.
+  Future<void> joinHomeFromCode(
+    String rawCode, {
+    ValueChanged<PendingPairingJoinSession>? onSessionCreated,
+    Duration timeout = const Duration(minutes: 10),
+  }) async {
+    final session = await submitPairingJoinRequest(rawCode);
+    onSessionCreated?.call(session);
+    await waitForApprovedPairingJoin(session, timeout: timeout);
   }
 
   String _generateUuid() => generateCoveUuid();

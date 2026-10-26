@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
+import '../profile/partner_profile_controller.dart';
 import 'home_controller.dart';
 
 class JoinHomeScreen extends ConsumerStatefulWidget {
@@ -50,6 +51,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
   MobileScannerController? _scannerController;
 
   bool _isProcessing = false;
+  PendingPairingJoinSession? _pendingSession;
   String? _errorMessage;
   late bool _showManualInput;
 
@@ -76,6 +78,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
 
     setState(() {
       _isProcessing = true;
+      _pendingSession = null;
       _errorMessage = null;
     });
 
@@ -84,15 +87,27 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
       final cleanDigits = input.replaceAll(RegExp(r'\s+'), '');
 
       if (cleanDigits.length == 6 && int.tryParse(cleanDigits) != null) {
-        // 6-digit pairing code
-        await controller.joinHomeFromCode(cleanDigits);
+        // 6-digit pairing code (approved on inviter's phone)
+        await controller.joinHomeFromCode(
+          cleanDigits,
+          onSessionCreated: (session) {
+            if (mounted) {
+              setState(() {
+                _pendingSession = session;
+              });
+            }
+          },
+        );
       } else {
         // Fallback to QR JSON payload string
         await controller.joinHomeFromQr(input);
       }
 
       if (mounted) {
-        setState(() => _isProcessing = false);
+        setState(() {
+          _isProcessing = false;
+          _pendingSession = null;
+        });
         // Exit onboarding into the main shell
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -100,10 +115,12 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
       if (mounted) {
         setState(() {
           _isProcessing = false;
+          _pendingSession = null;
           final err = e
               .toString()
               .replaceAll('Exception: ', '')
-              .replaceAll('FormatException: ', '');
+              .replaceAll('FormatException: ', '')
+              .replaceAll('Bad state: ', '');
           _errorMessage =
               err.isNotEmpty ? err : 'Invalid pairing code. Please try again.';
         });
@@ -114,6 +131,12 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final partnerProfile = ref.watch(partnerProfileProvider);
+    final inviterLabel = (partnerProfile.hasCustomName &&
+            partnerProfile.displayName.trim().isNotEmpty &&
+            partnerProfile.displayName.trim() != 'Partner')
+        ? partnerProfile.displayName.trim()
+        : 'your partner';
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
@@ -337,6 +360,47 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                               ),
                             ),
                           ),
+
+                          if (_pendingSession != null) ...[
+                            const SizedBox(height: CoveSpace.lg),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: CoveSpace.lg,
+                                vertical: CoveSpace.md,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cv.surfaceRow,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(CoveRadius.inline),
+                                ),
+                                border: Border.all(color: cv.lineHairline),
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    _pendingSession!
+                                        .verificationWords.formatted,
+                                    key: const ValueKey(
+                                      'joiner_verification_words',
+                                    ),
+                                    style: CoveType.title.copyWith(
+                                      color: cv.accentText,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: CoveSpace.xs),
+                                  Text(
+                                    'Ask $inviterLabel to check these words.',
+                                    style: CoveType.readout.copyWith(
+                                      color: cv.textSecondary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
 
                           const SizedBox(height: CoveSpace.gutter),
 
