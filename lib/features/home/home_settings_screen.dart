@@ -14,7 +14,6 @@ import '../../core/widgets/cove_row.dart';
 import '../../core/widgets/cove_section_label.dart';
 import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sheet.dart';
-import '../../sync/db/app_database.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -116,14 +115,15 @@ class HomeSettingsScreen extends ConsumerWidget {
   Future<void> _showInviteQrSheet(
     BuildContext context,
     HomeController homeController,
-    LocalHome activeHome,
+    String homeId,
   ) async {
-    final payload = await homeController.ensurePairingPayload(activeHome);
-    if (context.mounted) {
+    final payload = await homeController.getPairingPayload(homeId);
+    if (payload != null && context.mounted) {
       await CoveSheet.show<void>(
         context: context,
         builder: (_) => PairingQrView(payload: payload),
       );
+      homeController.pairingCodeRevision.value++;
     }
   }
 
@@ -292,8 +292,6 @@ class HomeSettingsScreen extends ConsumerWidget {
         FirstRunState.firstRun;
 
     if (isFirstRun) {
-      final pairingCode = ref.watch(activeHomePairingCodeProvider).value;
-      final hasPairingCode = pairingCode != null && pairingCode.isNotEmpty;
       final relativeTime = _formatMadeRelativeTime(
         activeHome.createdAt,
         clock.now(),
@@ -398,7 +396,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                             onTap: () => _showInviteQrSheet(
                               context,
                               homeController,
-                              activeHome,
+                              activeHome.id,
                             ),
                           ),
                         ],
@@ -410,28 +408,37 @@ class HomeSettingsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                       horizontal: CoveSpace.gutter,
                     ),
-                    child: CoveSeedCard(
-                      art: CoveSeedArtKind.key,
-                      title: 'A home with one person in it',
-                      body:
-                          'Cove only becomes itself when there are two of '
-                          'you. Send a key — everything you add before your '
-                          'partner joins is waiting for them.',
-                      buttonLabel: 'Send a key',
-                      onPressed: () => _showInviteQrSheet(
-                        context,
-                        homeController,
-                        activeHome,
-                      ),
-                      altText: hasPairingCode ? 'Or share a code · ' : null,
-                      altAccentText: hasPairingCode ? pairingCode : null,
-                      onAltTap: hasPairingCode
-                          ? () => _showInviteQrSheet(
-                              context,
-                              homeController,
-                              activeHome,
-                            )
-                          : null,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: homeController.pairingCodeRevision,
+                      builder: (context, _, _) {
+                        final pairingCode =
+                            homeController.cachedPairingCodeFor(activeHome.id);
+                        final hasPairingCode =
+                            pairingCode != null && pairingCode.isNotEmpty;
+                        return CoveSeedCard(
+                          art: CoveSeedArtKind.key,
+                          title: 'A home with one person in it',
+                          body:
+                              'Cove only becomes itself when there are two of '
+                              'you. Send a key — everything you add before your '
+                              'partner joins is waiting for them.',
+                          buttonLabel: 'Send a key',
+                          onPressed: () => _showInviteQrSheet(
+                            context,
+                            homeController,
+                            activeHome.id,
+                          ),
+                          altText: hasPairingCode ? 'Or share a code · ' : null,
+                          altAccentText: hasPairingCode ? pairingCode : null,
+                          onAltTap: hasPairingCode
+                              ? () => _showInviteQrSheet(
+                                  context,
+                                  homeController,
+                                  activeHome.id,
+                                )
+                              : null,
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -722,7 +729,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                         onTap: () => _showInviteQrSheet(
                           context,
                           homeController,
-                          activeHome,
+                          activeHome.id,
                         ),
                       ),
                       CoveRow(

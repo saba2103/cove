@@ -5,7 +5,6 @@ import 'package:cove/features/activity/activity_screen.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/expenses_screen.dart';
 import 'package:cove/features/expenses/monthly_budget_controller.dart';
-import 'package:cove/features/home/home_controller.dart';
 import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/lists/list_controller.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
@@ -199,9 +198,6 @@ List<Override> _createFirstRunOverrides() {
     activityFeedProvider.overrideWith((ref) => Stream.value(const [])),
     unreadActivityCountProvider.overrideWith((ref) => 0),
     checkinRemindersProvider.overrideWith(_FakeReminderNotifier.new),
-    activeHomePairingCodeProvider.overrideWith(
-      (ref) => Future<String?>.value('NEST-4471'),
-    ),
     activeHomeExpensesProvider.overrideWith((ref) => Stream.value(const [])),
     activeHomeSubscriptionsProvider
         .overrideWith((ref) => Stream.value(const [])),

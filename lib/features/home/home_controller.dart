@@ -16,9 +16,21 @@ import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
 
+class _SessionPairingCode {
+  final String code;
+  final DateTime expiresAt;
+
+  const _SessionPairingCode({
+    required this.code,
+    required this.expiresAt,
+  });
+}
+
 class HomeController {
   final Ref ref;
-  final Map<String, String> _cachedPairingCodes = <String, String>{};
+  final Map<String, _SessionPairingCode> _cachedPairingCodes =
+      <String, _SessionPairingCode>{};
+  final ValueNotifier<int> pairingCodeRevision = ValueNotifier<int>(0);
 
   HomeController(this.ref);
 
@@ -26,7 +38,36 @@ class HomeController {
   HomeKeyStore get _keyStore => ref.read(homeKeyStoreProvider);
   SodiumCryptoService get _crypto => ref.read(sodiumCryptoServiceProvider);
 
-  String? cachedPairingCodeFor(String homeId) => _cachedPairingCodes[homeId];
+  /// Returns the pairing code created in this session for [homeId] only until
+  /// its `expires_at` timestamp; otherwise returns `null`.
+  String? cachedPairingCodeFor(String homeId) {
+    final entry = _cachedPairingCodes[homeId];
+    if (entry == null) return null;
+    if (!clock.now().toUtc().isBefore(entry.expiresAt)) {
+      _cachedPairingCodes.remove(homeId);
+      return null;
+    }
+    return entry.code;
+  }
+
+  void _bumpPairingCodeRevision() {
+    Future.microtask(() {
+      pairingCodeRevision.value++;
+    });
+  }
+
+  @visibleForTesting
+  void cachePairingCodeForTest({
+    required String homeId,
+    required String code,
+    required DateTime expiresAt,
+  }) {
+    _cachedPairingCodes[homeId] = _SessionPairingCode(
+      code: code,
+      expiresAt: expiresAt.toUtc(),
+    );
+    _bumpPairingCodeRevision();
+  }
 
   /// Creates a new shared household, generates its 256-bit encryption key,
   /// saves it to secure storage, and returns the PairingPayload for the QR code.
@@ -179,7 +220,12 @@ class HomeController {
 
   /// Retrieves an existing pairing payload for a Home (to show QR code again).
   Future<PairingPayload?> getPairingPayload(String homeId) async {
-    final key = await _keyStore.getKey(homeId);
+    final Uint8List? key;
+    try {
+      key = await _keyStore.getKey(homeId);
+    } catch (_) {
+      return null;
+    }
     if (key == null) return null;
 
     final home = await (_db.select(_db.localHomes)
@@ -200,53 +246,10 @@ class HomeController {
     );
   }
 
-  /// Ensures a [PairingPayload] is available for [home], generating and storing
-  /// a key if one does not exist on device yet.
-  Future<PairingPayload> ensurePairingPayload(LocalHome home) async {
-    try {
-      final existing = await getPairingPayload(home.id);
-      if (existing != null) return existing;
-    } catch (_) {}
-
-    Uint8List? key;
-    try {
-      key = await _keyStore.getKey(home.id);
-      if (key == null) {
-        key = _crypto.generateHomeKey();
-        await _keyStore.saveKey(home.id, key);
-      }
-    } catch (_) {
-      key = Uint8List.fromList(List<int>.filled(32, 1));
-    }
-
-    final user = ref.read(authProvider).value;
-    final userProfile = ref.read(userProfileProvider);
-    return PairingPayload(
-      homeId: home.id,
-      homeName: home.name,
-      symmetricKey: key,
-      inviterId: user?.id ?? home.createdBy,
-      inviterName: userProfile.displayName,
-      inviterAvatar: userProfile.avatarUrl,
-      createdAt: home.createdAt,
-    );
-  }
-
-  /// Returns the current pairing code for [home], generating one via
-  /// [createPairingCode] if none has been created yet.
-  Future<String?> ensurePairingCode(LocalHome home) async {
-    final cached = _cachedPairingCodes[home.id];
-    if (cached != null && cached.isNotEmpty) return cached;
-    try {
-      final payload = await ensurePairingPayload(home);
-      return await createPairingCode(homeId: home.id, payload: payload);
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Leaves a home, cleans up keys and local data.
   Future<void> leaveHome(String homeId) async {
+    _cachedPairingCodes.remove(homeId);
+    _bumpPairingCodeRevision();
     await _keyStore.removeKey(homeId);
 
     final supabase = ref.read(supabaseClientProvider);
@@ -276,11 +279,8 @@ class HomeController {
   /// Ensures a locally stored home and current user membership exist in Supabase.
   /// Self-heals any connection dropouts or delayed initial inserts.
   Future<void> ensureHomeSyncedToSupabase(String homeId) async {
-    // Ensure symmetric key exists on device
     if (!await _keyStore.hasKey(homeId)) {
-      debugPrint('[HomeController] Home $homeId missing symmetric key on device. Auto-generating key.');
-      final newKey = _crypto.generateHomeKey();
-      await _keyStore.saveKey(homeId, newKey);
+      return;
     }
 
     final supabase = ref.read(supabaseClientProvider);
@@ -359,7 +359,11 @@ class HomeController {
       }
     }
 
-    _cachedPairingCodes[homeId] = code;
+    _cachedPairingCodes[homeId] = _SessionPairingCode(
+      code: code,
+      expiresAt: expiresAt,
+    );
+    _bumpPairingCodeRevision();
     return code;
   }
 
@@ -450,11 +454,4 @@ class HomeController {
 
 final homeControllerProvider = Provider<HomeController>((ref) {
   return HomeController(ref);
-});
-
-final activeHomePairingCodeProvider = FutureProvider<String?>((ref) async {
-  final home = ref.watch(activeHomeProvider).value;
-  if (home == null) return null;
-  final controller = ref.watch(homeControllerProvider);
-  return controller.ensurePairingCode(home);
 });

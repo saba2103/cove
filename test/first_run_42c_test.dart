@@ -15,6 +15,7 @@ import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/expenses/expenses_screen.dart';
 import 'package:cove/features/expenses/monthly_budget_controller.dart';
 import 'package:cove/features/expenses/monthly_budget_sheet.dart';
+import 'package:cove/features/home/home_controller.dart';
 import 'package:cove/features/home/home_settings_screen.dart';
 import 'package:cove/features/lists/list_controller.dart';
 import 'package:cove/features/notifications/notification_controller.dart';
@@ -29,13 +30,15 @@ import 'package:cove/features/routines/routine_models.dart';
 import 'package:cove/features/subscriptions/subscriptions_screen.dart';
 import 'package:cove/features/weather/weather_controller.dart';
 import 'package:cove/features/weather/weather_model.dart';
+import 'package:cove/sync/crypto/sodium_crypto_service.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
+import 'package:cove/sync/key_management/pairing_payload.dart';
 import 'package:cove/sync/key_management/pairing_qr_view.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
 import 'package:cove/sync/providers/first_run_provider.dart';
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,6 +180,7 @@ class _FakeHomeKeyStore extends Fake implements HomeKeyStore {
   final Map<String, Uint8List> _keys = <String, Uint8List>{
     'home_1': Uint8List.fromList(List<int>.filled(32, 7)),
   };
+  int saveKeyCalls = 0;
 
   @override
   Future<Uint8List?> getKey(String homeId) async => _keys[homeId];
@@ -186,12 +190,72 @@ class _FakeHomeKeyStore extends Fake implements HomeKeyStore {
 
   @override
   Future<void> saveKey(String homeId, Uint8List key) async {
+    saveKeyCalls++;
     _keys[homeId] = key;
   }
 
   @override
   Future<void> removeKey(String homeId) async {
     _keys.remove(homeId);
+  }
+}
+
+class _FailingHomeKeyStore extends Fake implements HomeKeyStore {
+  int saveKeyCalls = 0;
+
+  @override
+  Future<Uint8List?> getKey(String homeId) async {
+    throw StateError('Secure storage read failure');
+  }
+
+  @override
+  Future<bool> hasKey(String homeId) async {
+    throw StateError('Secure storage read failure');
+  }
+
+  @override
+  Future<void> saveKey(String homeId, Uint8List key) async {
+    saveKeyCalls++;
+  }
+}
+
+class _FailingSecureStorage extends Fake implements FlutterSecureStorage {
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Keystore read failure');
+  }
+}
+
+class _SpyCryptoService extends SodiumCryptoService {
+  int generateHomeKeyCalls = 0;
+
+  @override
+  Uint8List generateHomeKey() {
+    generateHomeKeyCalls++;
+    return super.generateHomeKey();
+  }
+}
+
+class _SpyHomeController extends HomeController {
+  int createPairingCodeCalls = 0;
+
+  _SpyHomeController(super.ref);
+
+  @override
+  Future<String> createPairingCode({
+    required String homeId,
+    required PairingPayload payload,
+  }) async {
+    createPairingCodeCalls++;
+    return super.createPairingCode(homeId: homeId, payload: payload);
   }
 }
 
@@ -253,6 +317,9 @@ void main() {
     ValueNotifier<List<LocalSubscription>>? subscriptionsNotifier,
     ValueNotifier<List<FormattedActivityItem>>? activitiesNotifier,
     Stream<FirstRunCounts> Function(Ref ref)? customCountsStream,
+    HomeKeyStore? keyStoreOverride,
+    SodiumCryptoService? cryptoOverride,
+    HomeController Function(Ref ref)? homeControllerBuilder,
   }) {
     final effectiveExpenses =
         expensesNotifier ?? ValueNotifier<List<LocalExpense>>(const []);
@@ -263,7 +330,11 @@ void main() {
 
     return [
       appDatabaseProvider.overrideWithValue(db),
-      homeKeyStoreProvider.overrideWithValue(fakeKeyStore),
+      homeKeyStoreProvider.overrideWithValue(keyStoreOverride ?? fakeKeyStore),
+      if (cryptoOverride != null)
+        sodiumCryptoServiceProvider.overrideWithValue(cryptoOverride),
+      if (homeControllerBuilder != null)
+        homeControllerProvider.overrideWith((ref) => homeControllerBuilder(ref)),
       if (customCountsStream != null)
         firstRunDbCountsStreamProvider('home_1').overrideWith(
           (ref) => customCountsStream(ref),
@@ -758,21 +829,31 @@ void main() {
 
   group('4.2c Our home first-run state', () {
     testWidgets(
-      'uses real home name, city and creation time, and real pairing code; Send a key opens PairingQrView; leaves first run once partner joins (surviving delete)',
+      'rendering Our home in first run calls createPairingCode zero times; alt line shows only a session code created by tapping Send a key; leaves first run once partner joins (surviving delete)',
       (tester) async {
         tester.view.physicalSize = const Size(390, 1200);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
 
+        _SpyHomeController? spyController;
+
         await withClock(Clock.fixed(_kFixedDate), () async {
           await tester.pumpWidget(
             wrapScreen(
               const HomeSettingsScreen(),
-              overrides: buildOverrides(),
+              overrides: buildOverrides(
+                homeControllerBuilder: (ref) {
+                  return spyController = _SpyHomeController(ref);
+                },
+              ),
             ),
           );
           await tester.pumpAndSettle();
+
+          // Viewing Our home in first run calls createPairingCode zero times
+          expect(spyController, isNotNull);
+          expect(spyController!.createPairingCodeCalls, 0);
 
           // Real home name, city and creation time
           expect(find.text('The Nest'), findsOneWidget);
@@ -797,15 +878,25 @@ void main() {
           );
           expect(find.text('Send a key'), findsOneWidget);
 
-          // Real pairing code generated via HomeController
-          expect(find.textContaining('Or share a code · '), findsOneWidget);
+          // Alt line is hidden before the user has tapped Send a key in this session
+          expect(find.textContaining('Or share a code'), findsNothing);
 
-          // Tap "Send a key" -> opens PairingQrView
+          // Tap "Send a key" -> opens PairingQrView and creates a session code once
           await tester.tap(find.text('Send a key'));
           await tester.pumpAndSettle();
           expect(find.byType(PairingQrView), findsOneWidget);
+          expect(spyController!.createPairingCodeCalls, 1);
+          final sessionCode = spyController!.cachedPairingCodeFor('home_1');
+          expect(sessionCode, isNotNull);
+
           Navigator.of(tester.element(find.byType(PairingQrView))).pop();
           await tester.pumpAndSettle();
+
+          // Now the alt line shows the session code created by tapping Send a key
+          expect(
+            find.text('Or share a code · $sessionCode', findRichText: true),
+            findsOneWidget,
+          );
 
           // Partner joins (a second actor record in the home) -> leaves first run
           await db.into(db.localActivityEvents).insert(
@@ -829,6 +920,158 @@ void main() {
 
           expect(find.byType(CoveSeedCard), findsNothing);
           expect(find.text('WHO LIVES HERE'), findsOneWidget);
+        });
+      },
+    );
+
+    testWidgets(
+      'a secure-storage read failure produces no invite (no fallback key)',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final failingKeyStore = _FailingHomeKeyStore();
+        final spyCrypto = _SpyCryptoService();
+        _SpyHomeController? spyController;
+
+        await withClock(Clock.fixed(_kFixedDate), () async {
+          await tester.pumpWidget(
+            wrapScreen(
+              const HomeSettingsScreen(),
+              overrides: buildOverrides(
+                keyStoreOverride: failingKeyStore,
+                cryptoOverride: spyCrypto,
+                homeControllerBuilder: (ref) {
+                  return spyController = _SpyHomeController(ref);
+                },
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(spyController, isNotNull);
+          expect(await spyController!.getPairingPayload('home_1'), isNull);
+          expect(spyCrypto.generateHomeKeyCalls, 0);
+          expect(failingKeyStore.saveKeyCalls, 0);
+
+          // Tapping Send a key when secure storage fails produces no invite sheet
+          await tester.tap(find.text('Send a key'));
+          await tester.pumpAndSettle();
+          expect(find.byType(PairingQrView), findsNothing);
+          expect(spyController!.createPairingCodeCalls, 0);
+          expect(spyCrypto.generateHomeKeyCalls, 0);
+          expect(failingKeyStore.saveKeyCalls, 0);
+
+          // Also verify real HomeKeyStore with failing underlying FlutterSecureStorage
+          final realStoreWithFailingBackend = HomeKeyStore(
+            storage: _FailingSecureStorage(),
+            fallbackStorage: _FailingSecureStorage(),
+          );
+          expect(await realStoreWithFailingBackend.getKey('home_1'), isNull);
+        });
+      },
+    );
+
+    testWidgets(
+      'an expired cached code is never shown on Our home or reused in PairingQrView',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        _SpyHomeController? spyController;
+
+        // 1. Seed an expired cached code and verify Our home never shows it
+        await withClock(Clock.fixed(_kFixedDate), () async {
+          await tester.pumpWidget(
+            wrapScreen(
+              const HomeSettingsScreen(),
+              scopeKey: const ValueKey('expired_code_scope_1'),
+              overrides: buildOverrides(
+                homeControllerBuilder: (ref) {
+                  final ctrl = _SpyHomeController(ref);
+                  ctrl.cachePairingCodeForTest(
+                    homeId: 'home_1',
+                    code: '999888',
+                    expiresAt: _kFixedDate.subtract(const Duration(seconds: 1)),
+                  );
+                  return spyController = ctrl;
+                },
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(spyController!.cachedPairingCodeFor('home_1'), isNull);
+          expect(
+            find.textContaining('Or share a code', findRichText: true),
+            findsNothing,
+          );
+          expect(
+            find.textContaining('999888', findRichText: true),
+            findsNothing,
+          );
+          expect(spyController!.createPairingCodeCalls, 0);
+        });
+
+        // 2. Create a valid code at t0, then advance past expires_at (t0 + 11 min)
+        await withClock(Clock.fixed(_kFixedDate), () async {
+          await tester.pumpWidget(
+            wrapScreen(
+              const HomeSettingsScreen(),
+              scopeKey: const ValueKey('expired_code_scope_2'),
+              overrides: buildOverrides(
+                homeControllerBuilder: (ref) {
+                  return spyController = _SpyHomeController(ref);
+                },
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('Send a key'));
+          await tester.pumpAndSettle();
+          expect(find.byType(PairingQrView), findsOneWidget);
+          expect(spyController!.createPairingCodeCalls, 1);
+          final initialCode = spyController!.cachedPairingCodeFor('home_1')!;
+          Navigator.of(tester.element(find.byType(PairingQrView))).pop();
+          await tester.pumpAndSettle();
+
+          expect(
+            find.text('Or share a code · $initialCode', findRichText: true),
+            findsOneWidget,
+          );
+
+          // Advance clock past 10-minute TTL
+          await withClock(
+            Clock.fixed(_kFixedDate.add(const Duration(minutes: 11))),
+            () async {
+              expect(spyController!.cachedPairingCodeFor('home_1'), isNull);
+              spyController!.pairingCodeRevision.value++;
+              await tester.pumpAndSettle();
+
+              // Expired code is hidden on Our home
+              expect(
+                find.textContaining('Or share a code', findRichText: true),
+                findsNothing,
+              );
+              expect(
+                find.textContaining(initialCode, findRichText: true),
+                findsNothing,
+              );
+
+              // Opening PairingQrView after expiry does not reuse expired code; mints a new one
+              await tester.tap(find.text('Send a key'));
+              await tester.pumpAndSettle();
+              expect(find.byType(PairingQrView), findsOneWidget);
+              expect(spyController!.createPairingCodeCalls, 2);
+              Navigator.of(tester.element(find.byType(PairingQrView))).pop();
+              await tester.pumpAndSettle();
+            },
+          );
         });
       },
     );
