@@ -16,11 +16,13 @@ import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_row.dart';
 import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../add/add_draft.dart';
 import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
@@ -221,6 +223,147 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final home = ref.watch(activeHomeProvider).value;
     final bottomPadding =
         CoveSpace.barClearance + CovePageInsets.bottomOf(context);
+    final isFirstRun = widget.initialExpenses == null &&
+        ref.watch(firstRunProvider(CoveScreen.expenses)) ==
+            FirstRunState.firstRun;
+
+    final referenceDate = _resolveReferenceDate(allExpenses);
+    final standingMonth = DateTime(referenceDate.year, referenceDate.month, 1);
+    final standingMonthName = DateFormat('MMMM').format(standingMonth);
+    final monthlyBudget = ref.watch(monthlyBudgetProvider);
+
+    if (isFirstRun) {
+      final hasBudget = monthlyBudget != null && monthlyBudget > 0;
+      return Scaffold(
+        backgroundColor: cv.surfaceCanvas,
+        body: CovePageInsets(
+          child: CoveMaxWidth(
+            child: RefreshIndicator(
+              color: cv.accentFill,
+              backgroundColor: cv.surfaceCard,
+              onRefresh: _handleRefresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: bottomPadding),
+                children: [
+                  CovePageHeader(
+                    title: 'Expenses',
+                    readout: '$standingMonthName · nothing yet',
+                    actions: [
+                      CoveRoundButton(
+                        key: const ValueKey('expenses_record_transfer_button'),
+                        icon: Icons.swap_horiz_rounded,
+                        variant: CoveRoundButtonVariant.ghost,
+                        tooltip: 'Record a transfer',
+                        semanticLabel: 'Record a transfer',
+                        onPressed: () => ExpenseFormSheet.show(
+                          context,
+                          initialIsTransfer: true,
+                        ),
+                      ),
+                      CoveRoundButton(
+                        key: const ValueKey('expenses_add_button'),
+                        icon: Icons.add_rounded,
+                        variant: CoveRoundButtonVariant.gold,
+                        tooltip: 'Log Expense',
+                        semanticLabel: 'Log Expense',
+                        onPressed: () => AddFlow.show(
+                          context,
+                          kind: AddKind.expense,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CoveSpace.md),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CoveMetricGrid(
+                          children: [
+                            const CoveMetricCard(
+                              label: 'Spent',
+                              value: '—',
+                              subtitle: 'this month',
+                              valueTone: CoveMetricValueTone.primary,
+                            ),
+                            CoveMetricCard(
+                              key: const ValueKey(
+                                'expenses_first_run_budget_card',
+                              ),
+                              label: 'Budget',
+                              value: hasBudget
+                                  ? '${currency.symbol}${formatCoveAmount(monthlyBudget)}'
+                                  : 'Not set',
+                              subtitle: hasBudget
+                                  ? 'this month'
+                                  : 'tap to set one',
+                              valueTone: CoveMetricValueTone.primary,
+                              onTap: () => MonthlyBudgetSheet.show(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: CoveSpace.lg),
+                        CoveSeedCard(
+                          art: CoveSeedArtKind.coin,
+                          title: 'No money has moved',
+                          body:
+                              'Log one purchase and this page starts working: '
+                              'the pace, the projection, who paid what, and a '
+                              'dial of where it went.',
+                          buttonLabel: 'Log an expense',
+                          onPressed: () => AddFlow.show(
+                            context,
+                            kind: AddKind.expense,
+                          ),
+                          altText: 'A budget makes the rest of it mean something.',
+                        ),
+                        const SizedBox(height: CoveSpace.section),
+                        const CoveSectionLabel.page(
+                          label: 'Every day this month',
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: CoveSpace.lg,
+                          ),
+                          child: Text(
+                            'The chart needs a few days before it can say '
+                            'anything useful.',
+                            textAlign: TextAlign.center,
+                            style: CoveType.readout.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
+                        ),
+                        const CoveSectionLabel.page(
+                          label: 'Where it went',
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: CoveSpace.lg,
+                          ),
+                          child: Text(
+                            'Categories appear as you use them — nothing to '
+                            'set up first.',
+                            textAlign: TextAlign.center,
+                            style: CoveType.readout.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     if (allExpenses.isEmpty) {
       return Scaffold(
@@ -286,15 +429,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       );
     }
 
-    final referenceDate = _resolveReferenceDate(allExpenses);
-    final standingMonth = DateTime(referenceDate.year, referenceDate.month, 1);
     final daysInStandingMonth = DateUtils.getDaysInMonth(
       standingMonth.year,
       standingMonth.month,
     );
     final standingDay = referenceDate.day.clamp(1, daysInStandingMonth);
     final daysRemaining = math.max(0, daysInStandingMonth - standingDay);
-    final standingMonthName = DateFormat('MMMM').format(standingMonth);
 
     // Standing month expenses (used by Hero, Daily Chart, Pace Cards, Where It Went)
     final standingMonthExpenses = allExpenses.where((e) {
@@ -412,8 +552,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final double projectedMonthTotal = dailyPace * daysInStandingMonth;
     final double prevDailyPace =
         daysInPrevMonth > 0 ? prevMonthTotal / daysInPrevMonth : 0.0;
-
-    final monthlyBudget = ref.watch(monthlyBudgetProvider);
 
     // Independent ledger month state (Rule 2: browsing ledger month never disturbs standing hero)
     final ledgerMonth = _ledgerMonthOverride ?? standingMonth;

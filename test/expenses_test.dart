@@ -16,6 +16,7 @@ import 'package:cove/sync/event_store_impl.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -183,6 +184,8 @@ void main() {
     });
 
     return [
+      for (final screen in CoveScreen.values)
+        firstRunProvider(screen).overrideWithValue(FirstRunState.inUse),
       appDatabaseProvider.overrideWithValue(db),
       homeKeyStoreProvider.overrideWithValue(keyStore),
       sodiumCryptoServiceProvider.overrideWithValue(crypto),

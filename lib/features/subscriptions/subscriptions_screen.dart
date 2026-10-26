@@ -17,9 +17,12 @@ import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_row.dart';
 import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
+import '../../core/widgets/cove_starter_row.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../add/add_draft.dart';
 import '../add/add_flow.dart';
 import '../auth/auth_controller.dart';
@@ -201,6 +204,13 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     final cv = context.cv;
     final bottomPadding =
         CoveSpace.barClearance + CovePageInsets.bottomOf(context);
+    final isFirstRun = widget.initialSubscriptions == null &&
+        ref.watch(firstRunProvider(CoveScreen.commitments)) ==
+            FirstRunState.firstRun;
+
+    if (isFirstRun) {
+      return _buildFirstRunState(context, bottomPadding: bottomPadding);
+    }
 
     if (subscriptions.isEmpty) {
       return _buildEmptyState(context, bottomPadding: bottomPadding);
@@ -1465,6 +1475,123 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFirstRunState(
+    BuildContext context, {
+    required double bottomPadding,
+  }) {
+    final cv = context.cv;
+
+    return Scaffold(
+      backgroundColor: cv.surfaceCanvas,
+      body: CovePageInsets(
+        child: CoveMaxWidth(
+          child: RefreshIndicator(
+            color: cv.accentFill,
+            backgroundColor: cv.surfaceCard,
+            onRefresh: _handleRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(bottom: bottomPadding),
+              children: [
+                CovePageHeader(
+                  title: 'Commitments',
+                  readout: 'nothing yet',
+                  actions: [
+                    CoveRoundButton(
+                      icon: Icons.add_rounded,
+                      variant: CoveRoundButtonVariant.gold,
+                      tooltip: 'Add Commitment',
+                      semanticLabel: 'Add Commitment',
+                      onPressed: () => AddFlow.show(
+                        context,
+                        kind: AddKind.commitment,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CoveSpace.md),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.gutter,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      CoveSeedCard(
+                        art: CoveSeedArtKind.arrows,
+                        title: 'Nothing renews yet',
+                        body:
+                            'Rent, the EMIs, the subscriptions you forget '
+                            'about. Add them once and Cove counts them down '
+                            'for you.',
+                        buttonLabel: 'Add a commitment',
+                        onPressed: () => AddFlow.show(
+                          context,
+                          kind: AddKind.commitment,
+                        ),
+                        altText:
+                            'Start with rent — it is the one you already know.',
+                      ),
+                      const SizedBox(height: CoveSpace.md),
+                      CoveStarterRow(
+                        title: 'Rent or maintenance',
+                        subtitle: 'the one that never changes',
+                        icon: Icons.autorenew_rounded,
+                        onTap: () => AddFlow.show(
+                          context,
+                          kind: AddKind.commitment,
+                          presetMonthly: true,
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.sm),
+                      CoveStarterRow(
+                        title: 'An EMI you are paying off',
+                        subtitle: 'so you can see when it ends',
+                        icon: Icons.credit_card_outlined,
+                        onTap: () => AddFlow.show(
+                          context,
+                          kind: AddKind.commitment,
+                          presetEmi: true,
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.sm),
+                      CoveStarterRow(
+                        title: 'A subscription',
+                        subtitle: 'the ones that renew quietly',
+                        icon: Icons.schedule_rounded,
+                        onTap: () => AddFlow.show(
+                          context,
+                          kind: AddKind.commitment,
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.section),
+                      const CoveSectionLabel.page(
+                        label: 'The runway',
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: CoveSpace.lg,
+                        ),
+                        child: Text(
+                          'The runway draws itself once there is something '
+                          'to pay off.',
+                          textAlign: TextAlign.center,
+                          style: CoveType.readout.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

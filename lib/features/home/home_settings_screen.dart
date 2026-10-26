@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -11,10 +12,13 @@ import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_round_button.dart';
 import '../../core/widgets/cove_row.dart';
 import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sheet.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../auth/auth_controller.dart';
 import '../expenses/monthly_budget_controller.dart';
 import '../profile/currency_selector_sheet.dart';
@@ -23,6 +27,7 @@ import '../profile/home_metadata_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
+import '../today/letter/compose_day_letter.dart';
 import '../weather/weather_controller.dart';
 import 'home_controller.dart';
 
@@ -76,13 +81,45 @@ class HomeSettingsScreen extends ConsumerWidget {
     );
   }
 
+  static String _formatMadeRelativeTime(DateTime createdAt, DateTime now) {
+    final createdLocal = createdAt.toLocal();
+    final nowLocal = now.toLocal();
+    final createdDay = DateTime(
+      createdLocal.year,
+      createdLocal.month,
+      createdLocal.day,
+    );
+    final todayDay = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final daysDiff = todayDay.difference(createdDay).inDays;
+
+    if (daysDiff <= 0) {
+      return formatLetterDayPart(createdLocal);
+    }
+    if (daysDiff == 1) {
+      return 'yesterday';
+    }
+    if (daysDiff < 7) {
+      return '$daysDiff days ago';
+    }
+    if (daysDiff < 14) {
+      return 'last week';
+    }
+    if (daysDiff < 30) {
+      return '${daysDiff ~/ 7} weeks ago';
+    }
+    if (createdLocal.year == nowLocal.year) {
+      return 'in ${DateFormat('MMMM').format(createdLocal)}';
+    }
+    return 'in ${DateFormat('MMM yyyy').format(createdLocal)}';
+  }
+
   Future<void> _showInviteQrSheet(
     BuildContext context,
     HomeController homeController,
-    String homeId,
+    LocalHome activeHome,
   ) async {
-    final payload = await homeController.getPairingPayload(homeId);
-    if (payload != null && context.mounted) {
+    final payload = await homeController.ensurePairingPayload(activeHome);
+    if (context.mounted) {
       await CoveSheet.show<void>(
         context: context,
         builder: (_) => PairingQrView(payload: payload),
@@ -250,6 +287,160 @@ class HomeSettingsScreen extends ConsumerWidget {
     final activeHabitsCount = habits.where((h) => !h.isArchived).length;
 
     final bottomInset = CovePageInsets.bottomOf(context);
+    final isFirstRun =
+        ref.watch(firstRunProvider(CoveScreen.ourHome)) ==
+        FirstRunState.firstRun;
+
+    if (isFirstRun) {
+      final pairingCode = ref.watch(activeHomePairingCodeProvider).value;
+      final hasPairingCode = pairingCode != null && pairingCode.isNotEmpty;
+      final relativeTime = _formatMadeRelativeTime(
+        activeHome.createdAt,
+        clock.now(),
+      );
+      final madeLine = descriptionLine.trim().isNotEmpty
+          ? '${descriptionLine.trim()} · made $relativeTime'
+          : 'made $relativeTime';
+
+      return Scaffold(
+        backgroundColor: cv.surfaceCanvas,
+        body: CovePageInsets(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: CoveSpace.barClearance + bottomInset,
+            ),
+            child: CoveMaxWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CovePageHeader(
+                    title: '',
+                    leading: CoveRoundButton(
+                      icon: Icons.arrow_back_rounded,
+                      variant: CoveRoundButtonVariant.ghost,
+                      semanticLabel: 'Back',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                    actions: [
+                      CoveRoundButton(
+                        icon: Icons.edit_outlined,
+                        variant: CoveRoundButtonVariant.ghost,
+                        semanticLabel: 'Edit home',
+                        onPressed: () => EditHomeDialog.show(context),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: _kGlowSize,
+                        height: _kArchHeight,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      cv.accentWash,
+                                      cv.surfaceCanvas.withValues(alpha: 0.0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(
+                              width: _kArchWidth,
+                              height: _kArchHeight,
+                              child: _HomeArchIllustration(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.gutter,
+                        ),
+                        child: Text(
+                          activeHome.name,
+                          textAlign: TextAlign.center,
+                          style: CoveType.title.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.gutter,
+                        ),
+                        child: Text(
+                          madeLine,
+                          textAlign: TextAlign.center,
+                          style: CoveType.readout.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: CoveSpace.lg),
+                      Wrap(
+                        spacing: CoveSpace.section,
+                        runSpacing: CoveSpace.lg,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _FirstRunYouTile(
+                            name: creatorName,
+                          ),
+                          _FirstRunInvitePartnerTile(
+                            onTap: () => _showInviteQrSheet(
+                              context,
+                              homeController,
+                              activeHome,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CoveSpace.section),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: CoveSeedCard(
+                      art: CoveSeedArtKind.key,
+                      title: 'A home with one person in it',
+                      body:
+                          'Cove only becomes itself when there are two of '
+                          'you. Send a key — everything you add before your '
+                          'partner joins is waiting for them.',
+                      buttonLabel: 'Send a key',
+                      onPressed: () => _showInviteQrSheet(
+                        context,
+                        homeController,
+                        activeHome,
+                      ),
+                      altText: hasPairingCode ? 'Or share a code · ' : null,
+                      altAccentText: hasPairingCode ? pairingCode : null,
+                      onAltTap: hasPairingCode
+                          ? () => _showInviteQrSheet(
+                              context,
+                              homeController,
+                              activeHome,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
@@ -531,7 +722,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                         onTap: () => _showInviteQrSheet(
                           context,
                           homeController,
-                          activeHome.id,
+                          activeHome,
                         ),
                       ),
                       CoveRow(
@@ -599,6 +790,103 @@ class HomeSettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FirstRunYouTile extends StatelessWidget {
+  final String name;
+
+  const _FirstRunYouTile({
+    required this.name,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CoveAvatar.profile(
+          person: CovePerson.a,
+          nameOrInitial: name,
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        Text(
+          name,
+          style: CoveType.readout.copyWith(
+            color: cv.textPrimary,
+          ),
+        ),
+        Text(
+          'you',
+          style: CoveType.rowSub.copyWith(
+            color: cv.textTertiary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FirstRunInvitePartnerTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  static const double _kBorderWidth = 1.0; // (literal)
+
+  const _FirstRunInvitePartnerTile({
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    return Semantics(
+      button: true,
+      label: 'Invite your partner',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: CoveSize.avatarProfile,
+              height: CoveSize.avatarProfile,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: cv.surfaceCard,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: cv.lineStrong,
+                    width: _kBorderWidth,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.add_rounded,
+                    size: CoveSpace.lg,
+                    color: cv.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: CoveSpace.sm),
+            Text(
+              'Invite',
+              style: CoveType.readout.copyWith(
+                color: cv.textSecondary,
+              ),
+            ),
+            Text(
+              'your partner',
+              style: CoveType.rowSub.copyWith(
+                color: cv.textTertiary,
+              ),
+            ),
+          ],
         ),
       ),
     );

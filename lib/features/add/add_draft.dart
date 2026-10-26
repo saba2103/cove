@@ -82,6 +82,7 @@ class AddFlowContext {
   final String? routineId;
   final int? startMinutes;
   final bool presetEmi;
+  final bool presetMonthly;
   final List<Routine> existingRoutines;
   final List<LocalRoutine> existingLocalRoutines;
 
@@ -97,6 +98,7 @@ class AddFlowContext {
     this.routineId,
     this.startMinutes,
     this.presetEmi = false,
+    this.presetMonthly = false,
     this.existingRoutines = const [],
     this.existingLocalRoutines = const [],
   })  : anchor = _dateOnly(anchor),
@@ -114,6 +116,7 @@ class AddFlowContext {
     String? routineId,
     int? startMinutes,
     bool? presetEmi,
+    bool? presetMonthly,
     List<Routine>? existingRoutines,
     List<LocalRoutine>? existingLocalRoutines,
   }) {
@@ -129,6 +132,7 @@ class AddFlowContext {
       routineId: routineId ?? this.routineId,
       startMinutes: startMinutes ?? this.startMinutes,
       presetEmi: presetEmi ?? this.presetEmi,
+      presetMonthly: presetMonthly ?? this.presetMonthly,
       existingRoutines: existingRoutines ?? this.existingRoutines,
       existingLocalRoutines:
           existingLocalRoutines ?? this.existingLocalRoutines,

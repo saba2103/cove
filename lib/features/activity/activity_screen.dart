@@ -11,9 +11,12 @@ import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_max_width.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_round_button.dart';
+import '../../core/widgets/cove_section_label.dart';
+import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../../sync/providers/first_run_provider.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -266,6 +269,78 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
 
     final daySections = _groupActivitiesByDay(activities);
     final bottomInset = CovePageInsets.bottomOf(context);
+    final isFirstRun = widget.initialActivities == null &&
+        ref.watch(firstRunProvider(CoveScreen.activity)) ==
+            FirstRunState.firstRun;
+    final firstRunPartner = resolveFirstRunPartnerName(ref);
+
+    if (isFirstRun) {
+      return Scaffold(
+        backgroundColor: cv.surfaceCanvas,
+        body: CovePageInsets(
+          child: SingleChildScrollView(
+            key: const PageStorageKey('activity_feed_scroll_key'),
+            controller: _scrollController,
+            padding: EdgeInsets.only(
+              bottom: CoveSpace.barClearance + bottomInset,
+            ),
+            child: CoveMaxWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  CovePageHeader(
+                    title: 'Activity',
+                    leading: CoveRoundButton(
+                      icon: Icons.arrow_back_rounded,
+                      variant: CoveRoundButtonVariant.ghost,
+                      semanticLabel: 'Back',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                  const SizedBox(height: CoveSpace.md),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.gutter,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CoveSeedCard(
+                          art: CoveSeedArtKind.wave,
+                          title: 'Nothing has happened yet',
+                          body:
+                              'When $firstRunPartner adds something, ticks '
+                              'something off or marks a bill paid, it shows '
+                              'up here.',
+                          altText:
+                              'Cove never sends a notification you did not ask for.',
+                        ),
+                        const SizedBox(height: CoveSpace.section),
+                        const CoveSectionLabel.page(
+                          label: 'Today',
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: CoveSpace.lg,
+                          ),
+                          child: Text(
+                            'Quiet.',
+                            textAlign: TextAlign.center,
+                            style: CoveType.readout.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,

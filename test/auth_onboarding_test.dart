@@ -20,6 +20,7 @@ import 'package:cove/sync/key_management/pairing_payload.dart';
 import 'package:cove/sync/key_management/pairing_qr_view.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -129,6 +130,8 @@ void main() {
     String? activeHomeId,
   }) {
     return [
+      for (final screen in CoveScreen.values)
+        firstRunProvider(screen).overrideWithValue(FirstRunState.inUse),
       appDatabaseProvider.overrideWithValue(db),
       homeKeyStoreProvider.overrideWithValue(keyStore),
       sodiumCryptoServiceProvider.overrideWithValue(crypto),

@@ -38,10 +38,14 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
 
   Future<void> _initPairingCode() async {
     try {
-      final code = await ref.read(homeControllerProvider).createPairingCode(
-            homeId: widget.payload.homeId,
-            payload: widget.payload,
-          );
+      final homeController = ref.read(homeControllerProvider);
+      final cached = homeController.cachedPairingCodeFor(widget.payload.homeId);
+      final code = (cached != null && cached.isNotEmpty)
+          ? cached
+          : await homeController.createPairingCode(
+              homeId: widget.payload.homeId,
+              payload: widget.payload,
+            );
       if (mounted) {
         setState(() {
           _pairingCode = code;

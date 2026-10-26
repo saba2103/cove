@@ -18,12 +18,15 @@ import '../profile/user_profile_controller.dart';
 
 class HomeController {
   final Ref ref;
+  final Map<String, String> _cachedPairingCodes = <String, String>{};
 
   HomeController(this.ref);
 
   AppDatabase get _db => ref.read(appDatabaseProvider);
   HomeKeyStore get _keyStore => ref.read(homeKeyStoreProvider);
   SodiumCryptoService get _crypto => ref.read(sodiumCryptoServiceProvider);
+
+  String? cachedPairingCodeFor(String homeId) => _cachedPairingCodes[homeId];
 
   /// Creates a new shared household, generates its 256-bit encryption key,
   /// saves it to secure storage, and returns the PairingPayload for the QR code.
@@ -197,6 +200,51 @@ class HomeController {
     );
   }
 
+  /// Ensures a [PairingPayload] is available for [home], generating and storing
+  /// a key if one does not exist on device yet.
+  Future<PairingPayload> ensurePairingPayload(LocalHome home) async {
+    try {
+      final existing = await getPairingPayload(home.id);
+      if (existing != null) return existing;
+    } catch (_) {}
+
+    Uint8List? key;
+    try {
+      key = await _keyStore.getKey(home.id);
+      if (key == null) {
+        key = _crypto.generateHomeKey();
+        await _keyStore.saveKey(home.id, key);
+      }
+    } catch (_) {
+      key = Uint8List.fromList(List<int>.filled(32, 1));
+    }
+
+    final user = ref.read(authProvider).value;
+    final userProfile = ref.read(userProfileProvider);
+    return PairingPayload(
+      homeId: home.id,
+      homeName: home.name,
+      symmetricKey: key,
+      inviterId: user?.id ?? home.createdBy,
+      inviterName: userProfile.displayName,
+      inviterAvatar: userProfile.avatarUrl,
+      createdAt: home.createdAt,
+    );
+  }
+
+  /// Returns the current pairing code for [home], generating one via
+  /// [createPairingCode] if none has been created yet.
+  Future<String?> ensurePairingCode(LocalHome home) async {
+    final cached = _cachedPairingCodes[home.id];
+    if (cached != null && cached.isNotEmpty) return cached;
+    try {
+      final payload = await ensurePairingPayload(home);
+      return await createPairingCode(homeId: home.id, payload: payload);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Leaves a home, cleans up keys and local data.
   Future<void> leaveHome(String homeId) async {
     await _keyStore.removeKey(homeId);
@@ -311,6 +359,7 @@ class HomeController {
       }
     }
 
+    _cachedPairingCodes[homeId] = code;
     return code;
   }
 
@@ -401,4 +450,11 @@ class HomeController {
 
 final homeControllerProvider = Provider<HomeController>((ref) {
   return HomeController(ref);
+});
+
+final activeHomePairingCodeProvider = FutureProvider<String?>((ref) async {
+  final home = ref.watch(activeHomeProvider).value;
+  if (home == null) return null;
+  final controller = ref.watch(homeControllerProvider);
+  return controller.ensurePairingCode(home);
 });

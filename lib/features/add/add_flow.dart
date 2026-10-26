@@ -47,6 +47,7 @@ class AddFlow extends ConsumerStatefulWidget {
   final String? routineId;
   final int? startMinutes;
   final bool presetEmi;
+  final bool presetMonthly;
 
   /// Optional pre-populated draft for golden showcases or Again (§6).
   final AddDraft? initialDraft;
@@ -76,6 +77,7 @@ class AddFlow extends ConsumerStatefulWidget {
     this.routineId,
     this.startMinutes,
     this.presetEmi = false,
+    this.presetMonthly = false,
     this.initialDraft,
     this.initialStepIndex,
     this.initialIsAdded = false,
@@ -92,6 +94,7 @@ class AddFlow extends ConsumerStatefulWidget {
     String? routineId,
     int? startMinutes,
     bool presetEmi = false,
+    bool presetMonthly = false,
   }) {
     return CoveSheet.show<String>(
       context: context,
@@ -102,6 +105,7 @@ class AddFlow extends ConsumerStatefulWidget {
         routineId: routineId,
         startMinutes: startMinutes,
         presetEmi: presetEmi,
+        presetMonthly: presetMonthly,
       ),
     );
   }
@@ -306,6 +310,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       routineId: widget.routineId,
       startMinutes: widget.startMinutes,
       presetEmi: widget.presetEmi,
+      presetMonthly: widget.presetMonthly,
       existingRoutines: existingRoutines,
     );
   }
