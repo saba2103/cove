@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_arc_title">Day Arc</string>
+    <string name="widget_arc_description">Today\'s routine bands, events, habits, and next up on a 24-hour ring.</string>
+    <string name="widget_slip_title">The Slip</string>
+    <string name="widget_slip_description">Open items on your list, ready to tick from the home screen.</string>
+    <string name="widget_ledger_title">The Ledger</string>
+    <string name="widget_ledger_description">Shared spend this month, who carried it, and the next commitment due.</string>
+    <string name="widget_day_sheet_title">Day Sheet</string>
+    <string name="widget_day_sheet_description">Today\'s printed agenda, habits, and spend on one sheet.</string>
+</resources>

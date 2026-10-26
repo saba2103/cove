@@ -1,3 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_stat_cove,@drawable/splash_emblem,@drawable/launch_background" />
+    tools:keep="@drawable/ic_stat_cove,@drawable/splash_emblem,@drawable/launch_background,@drawable/widget_preview_arc,@drawable/widget_preview_slip,@drawable/widget_preview_ledger,@drawable/widget_preview_day_sheet,@layout/cove_widget_bitmap_container,@layout/cove_ledger_widget,@xml/cove_day_arc_widget_info,@xml/cove_slip_widget_info,@xml/cove_ledger_widget_info,@xml/cove_day_sheet_widget_info" />

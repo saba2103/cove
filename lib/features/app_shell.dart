@@ -23,11 +23,13 @@ import 'notifications/notification_detail_dispatcher.dart';
 import 'notifications/notification_models.dart';
 import 'profile/user_profile_controller.dart';
 import 'routines/routine_screen.dart';
+import 'subscriptions/commitment_detail_sheet.dart';
 import 'subscriptions/commitments_helicopter_screen.dart';
 import 'subscriptions/emi_tracker_screen.dart';
 import 'subscriptions/subscriptions_screen.dart';
 import 'today/today_screen.dart';
 import 'weather/weather_controller.dart';
+import 'widgets/cove_widget_service.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -60,6 +62,7 @@ class _AppShellState extends ConsumerState<AppShell>
   DateTime? _lastBackPressed;
   StreamSubscription? _navSub;
   StreamSubscription? _notifSub;
+  StreamSubscription<Uri?>? _widgetClickSub;
 
   @override
   void initState() {
@@ -128,7 +131,64 @@ class _AppShellState extends ConsumerState<AppShell>
       // Wake the Drive backup controller so the nightly backup job is
       // (re)registered with WorkManager on every launch.
       ref.read(driveBackupProvider);
+
+      // Schedule the 30-minute periodic WorkManager refresh for home-screen
+      // widgets and wire widget tap deep links (18-widgets.md).
+      final widgetService = ref.read(coveWidgetServiceProvider);
+      unawaited(widgetService.scheduler.schedulePeriodicRefresh());
+      unawaited(
+        widgetService.bridge.initiallyLaunchedFromHomeWidget().then((uri) {
+          if (!mounted || uri == null) return;
+          _handleWidgetLaunchUri(uri);
+        }),
+      );
+      _widgetClickSub = widgetService.bridge.widgetClicked.listen((uri) {
+        if (!mounted || uri == null) return;
+        _handleWidgetLaunchUri(uri);
+      });
     });
+  }
+
+  void _handleWidgetLaunchUri(Uri uri) {
+    if (uri.scheme != 'cove' || uri.host != 'widget') return;
+    final segments = uri.pathSegments;
+    if (segments.isEmpty) return;
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    switch (segments.first) {
+      case 'arc':
+        _handleSeatTap('day');
+        break;
+      case 'slip':
+        _handleSeatTap('todo');
+        break;
+      case 'sheet':
+        _handleSeatTap('home');
+        break;
+      case 'ledger':
+        final target = segments.length > 1 ? segments[1] : 'expenses';
+        if (target == 'commitment' || target == 'commitments') {
+          _handleSeatTap('commitments');
+          final commitmentId = uri.queryParameters['id'];
+          if (commitmentId != null && commitmentId.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final subs =
+                  ref.read(activeHomeSubscriptionsProvider).value ?? const [];
+              for (final sub in subs) {
+                if (sub.id == commitmentId) {
+                  CommitmentDetailSheet.show(context, sub);
+                  break;
+                }
+              }
+            });
+          }
+        } else {
+          _handleSeatTap('expenses');
+        }
+        break;
+    }
   }
 
   @override
@@ -151,6 +211,7 @@ class _AppShellState extends ConsumerState<AppShell>
     WidgetsBinding.instance.removeObserver(this);
     _navSub?.cancel();
     _notifSub?.cancel();
+    _widgetClickSub?.cancel();
     super.dispose();
   }
 
@@ -426,6 +487,7 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    ref.watch(coveWidgetAutoSyncProvider);
 
     ref.listen<NotificationModule?>(notificationNavigationProvider, (
       prev,

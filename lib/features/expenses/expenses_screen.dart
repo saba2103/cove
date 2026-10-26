@@ -429,88 +429,43 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       );
     }
 
-    final daysInStandingMonth = DateUtils.getDaysInMonth(
-      standingMonth.year,
-      standingMonth.month,
-    );
-    final standingDay = referenceDate.day.clamp(1, daysInStandingMonth);
-    final daysRemaining = math.max(0, daysInStandingMonth - standingDay);
-
-    // Standing month expenses (used by Hero, Daily Chart, Pace Cards, Where It Went)
-    final standingMonthExpenses = allExpenses.where((e) {
-      return e.expenseDate.year == standingMonth.year &&
-          e.expenseDate.month == standingMonth.month;
-    }).toList();
-
-    final standingActualExpenses =
-        standingMonthExpenses.where((e) => !e.isTransfer).toList();
-    final standingTransfers =
-        standingMonthExpenses.where((e) => e.isTransfer).toList();
-
-    double sharedMonthlyTotal = 0.0;
-    double paidByMeSharedTotal = 0.0;
-    double paidByPartnerSharedTotal = 0.0;
-    int sharedCount = 0;
-    int personalCount = 0;
-
-    for (final exp in standingActualExpenses) {
-      final share = computeExpenseShare(exp, currentUserId: currentUser?.id);
-      if (share.isShared) {
-        sharedMonthlyTotal += exp.amount;
-        sharedCount++;
-        if (share.isPaidByViewer) {
-          paidByMeSharedTotal += exp.amount;
-        } else {
-          paidByPartnerSharedTotal += exp.amount;
-        }
-      } else {
-        personalCount++;
-      }
-    }
-
-    double transfersMonthlyTotal = 0.0;
-    double sentByMeTotal = 0.0;
-    double sentByPartnerTotal = 0.0;
-    final int transfersCount = standingTransfers.length;
-
-    for (final t in standingTransfers) {
-      transfersMonthlyTotal += t.amount;
-      final share = computeExpenseShare(t, currentUserId: currentUser?.id);
-      if (share.isPaidByViewer) {
-        sentByMeTotal += t.amount;
-      } else {
-        sentByPartnerTotal += t.amount;
-      }
-    }
-
-    // Previous month comparison
-    final prevMonth = DateTime(standingMonth.year, standingMonth.month - 1, 1);
-    final prevMonthName = DateFormat('MMMM').format(prevMonth);
-    final daysInPrevMonth = DateUtils.getDaysInMonth(
-      prevMonth.year,
-      prevMonth.month,
-    );
-    final prevMonthActualExpenses = allExpenses.where((e) {
-      return !e.isTransfer &&
-          e.splitRatio > 0.0 &&
-          e.expenseDate.year == prevMonth.year &&
-          e.expenseDate.month == prevMonth.month;
-    }).toList();
-
-    final double prevMonthTotal = prevMonthActualExpenses.fold<double>(
-      0.0,
-      (acc, e) => acc + e.amount,
-    );
-    final double prevMonthByThisDay = prevMonthActualExpenses
-        .where((e) => e.expenseDate.day <= standingDay)
-        .fold<double>(0.0, (acc, e) => acc + e.amount);
-
     final partnerName = partnerProfile.displayName.isNotEmpty
         ? partnerProfile.displayName
         : 'Partner';
     final myName =
         userProfile.displayName.isNotEmpty ? userProfile.displayName : 'You';
     final creatorId = home?.createdBy ?? currentUser?.id ?? 'user_alex';
+
+    final summary = widget.initialExpenses == null
+        ? ref.watch(expensesStandingSummaryProvider)
+        : ExpensesStandingSummary.compute(
+            allExpenses: allExpenses,
+            currentUserId: currentUser?.id,
+            myName: myName,
+            partnerName: partnerName,
+            creatorId: creatorId,
+            currency: currency,
+            monthlyBudget: monthlyBudget,
+            referenceDate: referenceDate,
+          );
+
+    final daysInStandingMonth = summary.daysInStandingMonth;
+    final standingDay = summary.standingDay;
+    final daysRemaining = summary.daysRemaining;
+    final standingActualExpenses = summary.standingActualExpenses;
+    final sharedMonthlyTotal = summary.sharedMonthlyTotal;
+    final paidByMeSharedTotal = summary.paidByMeSharedTotal;
+    final paidByPartnerSharedTotal = summary.paidByPartnerSharedTotal;
+    final sharedCount = summary.sharedCount;
+    final personalCount = summary.personalCount;
+    final transfersMonthlyTotal = summary.transfersMonthlyTotal;
+    final sentByMeTotal = summary.sentByMeTotal;
+    final sentByPartnerTotal = summary.sentByPartnerTotal;
+    final transfersCount = summary.transfersCount;
+    final prevMonthName = summary.prevMonthName;
+    final daysInPrevMonth = summary.daysInPrevMonth;
+    final prevMonthTotal = summary.prevMonthTotal;
+    final prevMonthByThisDay = summary.prevMonthByThisDay;
 
     // Category breakdown for standing month actual expenses
     final categoryTotals = <String, double>{};
@@ -701,7 +656,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                               sortedCategories: sortedCategories,
                               totalSpendAll: totalSpendAll,
                               categoryColorMap: categoryColorMap,
-                              standingMonthExpenses: standingMonthExpenses,
+                              standingMonthExpenses:
+                                  summary.standingMonthExpenses,
                             ),
                           ],
                         ],

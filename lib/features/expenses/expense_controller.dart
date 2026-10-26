@@ -1,14 +1,19 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:clock/clock.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show DateUtils, debugPrint, immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
+import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
+import '../profile/user_profile_controller.dart';
+import 'monthly_budget_controller.dart';
 
 enum ExpenseVisibility {
   /// Both partners see this expense; included in household shared total & split.
@@ -526,4 +531,243 @@ final customCategoriesProvider =
 
 final expenseControllerProvider = Provider<ExpenseController>((ref) {
   return ExpenseController(ref);
+});
+
+/// Optional override for the standing month's reference date (defaults to `null`,
+/// which uses `clock.now()`).
+final expensesReferenceDateProvider = Provider<DateTime?>((ref) => null);
+
+/// Shared standing-month expense figures consumed by both [ExpensesScreen] and
+/// the home-screen Ledger widget (`design/specs/18-widgets.md` §3).
+@immutable
+class ExpensesStandingSummary {
+  final DateTime referenceDate;
+  final DateTime standingMonth;
+  final String standingMonthName;
+  final int daysInStandingMonth;
+  final int standingDay;
+  final int daysRemaining;
+  final List<LocalExpense> standingMonthExpenses;
+  final List<LocalExpense> standingActualExpenses;
+  final List<LocalExpense> standingTransfers;
+  final double sharedMonthlyTotal;
+  final double paidByMeSharedTotal;
+  final double paidByPartnerSharedTotal;
+  final int sharedCount;
+  final int personalCount;
+  final double transfersMonthlyTotal;
+  final double sentByMeTotal;
+  final double sentByPartnerTotal;
+  final int transfersCount;
+  final DateTime prevMonth;
+  final String prevMonthName;
+  final int daysInPrevMonth;
+  final double prevMonthTotal;
+  final double prevMonthByThisDay;
+  final bool hasPrevComparison;
+  final double prevDelta;
+  final bool isSpendingLess;
+  final int prevPct;
+  final String myName;
+  final String partnerName;
+  final String creatorId;
+  final CurrencyOption currency;
+  final double? monthlyBudget;
+
+  const ExpensesStandingSummary({
+    required this.referenceDate,
+    required this.standingMonth,
+    required this.standingMonthName,
+    required this.daysInStandingMonth,
+    required this.standingDay,
+    required this.daysRemaining,
+    required this.standingMonthExpenses,
+    required this.standingActualExpenses,
+    required this.standingTransfers,
+    required this.sharedMonthlyTotal,
+    required this.paidByMeSharedTotal,
+    required this.paidByPartnerSharedTotal,
+    required this.sharedCount,
+    required this.personalCount,
+    required this.transfersMonthlyTotal,
+    required this.sentByMeTotal,
+    required this.sentByPartnerTotal,
+    required this.transfersCount,
+    required this.prevMonth,
+    required this.prevMonthName,
+    required this.daysInPrevMonth,
+    required this.prevMonthTotal,
+    required this.prevMonthByThisDay,
+    required this.hasPrevComparison,
+    required this.prevDelta,
+    required this.isSpendingLess,
+    required this.prevPct,
+    required this.myName,
+    required this.partnerName,
+    required this.creatorId,
+    required this.currency,
+    required this.monthlyBudget,
+  });
+
+  factory ExpensesStandingSummary.compute({
+    required List<LocalExpense> allExpenses,
+    required String? currentUserId,
+    required String myName,
+    required String partnerName,
+    required String creatorId,
+    required CurrencyOption currency,
+    required double? monthlyBudget,
+    DateTime? referenceDate,
+  }) {
+    final resolvedDate = referenceDate ?? clock.now();
+    final standingMonth = DateTime(resolvedDate.year, resolvedDate.month, 1);
+    final standingMonthName = DateFormat('MMMM').format(standingMonth);
+    final daysInStandingMonth = DateUtils.getDaysInMonth(
+      standingMonth.year,
+      standingMonth.month,
+    );
+    final standingDay = resolvedDate.day.clamp(1, daysInStandingMonth);
+    final daysRemaining = math.max(0, daysInStandingMonth - standingDay);
+
+    final standingMonthExpenses = allExpenses.where((e) {
+      return e.expenseDate.year == standingMonth.year &&
+          e.expenseDate.month == standingMonth.month;
+    }).toList();
+
+    final standingActualExpenses =
+        standingMonthExpenses.where((e) => !e.isTransfer).toList();
+    final standingTransfers =
+        standingMonthExpenses.where((e) => e.isTransfer).toList();
+
+    double sharedMonthlyTotal = 0.0;
+    double paidByMeSharedTotal = 0.0;
+    double paidByPartnerSharedTotal = 0.0;
+    int sharedCount = 0;
+    int personalCount = 0;
+
+    for (final exp in standingActualExpenses) {
+      final share = computeExpenseShare(exp, currentUserId: currentUserId);
+      if (share.isShared) {
+        sharedMonthlyTotal += exp.amount;
+        sharedCount++;
+        if (share.isPaidByViewer) {
+          paidByMeSharedTotal += exp.amount;
+        } else {
+          paidByPartnerSharedTotal += exp.amount;
+        }
+      } else {
+        personalCount++;
+      }
+    }
+
+    double transfersMonthlyTotal = 0.0;
+    double sentByMeTotal = 0.0;
+    double sentByPartnerTotal = 0.0;
+    final int transfersCount = standingTransfers.length;
+
+    for (final t in standingTransfers) {
+      transfersMonthlyTotal += t.amount;
+      final share = computeExpenseShare(t, currentUserId: currentUserId);
+      if (share.isPaidByViewer) {
+        sentByMeTotal += t.amount;
+      } else {
+        sentByPartnerTotal += t.amount;
+      }
+    }
+
+    final prevMonth = DateTime(standingMonth.year, standingMonth.month - 1, 1);
+    final prevMonthName = DateFormat('MMMM').format(prevMonth);
+    final daysInPrevMonth = DateUtils.getDaysInMonth(
+      prevMonth.year,
+      prevMonth.month,
+    );
+    final prevMonthActualExpenses = allExpenses.where((e) {
+      return !e.isTransfer &&
+          e.splitRatio > 0.0 &&
+          e.expenseDate.year == prevMonth.year &&
+          e.expenseDate.month == prevMonth.month;
+    }).toList();
+
+    final double prevMonthTotal = prevMonthActualExpenses.fold<double>(
+      0.0,
+      (acc, e) => acc + e.amount,
+    );
+    final double prevMonthByThisDay = prevMonthActualExpenses
+        .where((e) => e.expenseDate.day <= standingDay)
+        .fold<double>(0.0, (acc, e) => acc + e.amount);
+
+    final bool hasPrevComparison = prevMonthByThisDay > 0;
+    final double prevDelta = sharedMonthlyTotal - prevMonthByThisDay;
+    final bool isSpendingLess = prevDelta <= 0;
+    final int prevPct = prevMonthByThisDay > 0
+        ? ((prevDelta.abs() / prevMonthByThisDay) * 100).round()
+        : 0;
+
+    return ExpensesStandingSummary(
+      referenceDate: resolvedDate,
+      standingMonth: standingMonth,
+      standingMonthName: standingMonthName,
+      daysInStandingMonth: daysInStandingMonth,
+      standingDay: standingDay,
+      daysRemaining: daysRemaining,
+      standingMonthExpenses: standingMonthExpenses,
+      standingActualExpenses: standingActualExpenses,
+      standingTransfers: standingTransfers,
+      sharedMonthlyTotal: sharedMonthlyTotal,
+      paidByMeSharedTotal: paidByMeSharedTotal,
+      paidByPartnerSharedTotal: paidByPartnerSharedTotal,
+      sharedCount: sharedCount,
+      personalCount: personalCount,
+      transfersMonthlyTotal: transfersMonthlyTotal,
+      sentByMeTotal: sentByMeTotal,
+      sentByPartnerTotal: sentByPartnerTotal,
+      transfersCount: transfersCount,
+      prevMonth: prevMonth,
+      prevMonthName: prevMonthName,
+      daysInPrevMonth: daysInPrevMonth,
+      prevMonthTotal: prevMonthTotal,
+      prevMonthByThisDay: prevMonthByThisDay,
+      hasPrevComparison: hasPrevComparison,
+      prevDelta: prevDelta,
+      isSpendingLess: isSpendingLess,
+      prevPct: prevPct,
+      myName: myName,
+      partnerName: partnerName,
+      creatorId: creatorId,
+      currency: currency,
+      monthlyBudget: monthlyBudget,
+    );
+  }
+}
+
+/// Provider computing the standing-month expenses summary once for both
+/// [ExpensesScreen] and the Ledger widget.
+final expensesStandingSummaryProvider = Provider<ExpensesStandingSummary>((ref) {
+  final allExpenses =
+      ref.watch(activeHomeExpensesProvider).value ?? const <LocalExpense>[];
+  final currentUser = ref.watch(authProvider).value;
+  final userProfile = ref.watch(userProfileProvider);
+  final partnerProfile = ref.watch(partnerProfileProvider);
+  final home = ref.watch(activeHomeProvider).value;
+  final currency = ref.watch(currencyPreferenceProvider);
+  final monthlyBudget = ref.watch(monthlyBudgetProvider);
+  final referenceDateOverride = ref.watch(expensesReferenceDateProvider);
+
+  final partnerName = partnerProfile.displayName.isNotEmpty
+      ? partnerProfile.displayName
+      : 'Partner';
+  final myName =
+      userProfile.displayName.isNotEmpty ? userProfile.displayName : 'You';
+  final creatorId = home?.createdBy ?? currentUser?.id ?? 'user_alex';
+
+  return ExpensesStandingSummary.compute(
+    allExpenses: allExpenses,
+    currentUserId: currentUser?.id,
+    myName: myName,
+    partnerName: partnerName,
+    creatorId: creatorId,
+    currency: currency,
+    monthlyBudget: monthlyBudget,
+    referenceDate: referenceDateOverride,
+  );
 });

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:clock/clock.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -478,4 +480,196 @@ final previousFinancingSourcesProvider = FutureProvider<List<String>>((ref) asyn
   final list = set.toList();
   list.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   return list;
+});
+
+/// Returns true when [sub] is a savings / SIP commitment.
+bool isSavingsCommitment(LocalSubscription sub) {
+  if (sub.isEmi) return false;
+  final cat = (sub.category ?? '').trim().toLowerCase();
+  final name = sub.name.trim().toLowerCase();
+  if (cat == 'savings' ||
+      cat == 'sip' ||
+      cat == 'investment' ||
+      cat == 'investments' ||
+      cat == 'mutual_funds' ||
+      cat == 'gold_sip') {
+    return true;
+  }
+  return name.contains('sip') ||
+      name.contains('mutual fund') ||
+      name.contains('savings');
+}
+
+/// Formats the relative renewal date for a commitment (`Tomorrow` / weekday / date)
+/// per `design/specs/18-widgets.md` §3.
+String formatCommitmentRenewalWhen(DateTime nextBillingDate, {DateTime? now}) {
+  final current = now ?? clock.now();
+  final today = DateTime(current.year, current.month, current.day);
+  final dueDay = DateTime(
+    nextBillingDate.year,
+    nextBillingDate.month,
+    nextBillingDate.day,
+  );
+  final daysUntil = dueDay.difference(today).inDays;
+  if (daysUntil == 0) return 'Today';
+  if (daysUntil == 1) return 'Tomorrow';
+  if (daysUntil >= 2 && daysUntil <= 6) {
+    return DateFormat('EEEE').format(dueDay);
+  }
+  return DateFormat('d MMM').format(dueDay);
+}
+
+/// Optional override for the commitments reference date (defaults to `null`,
+/// which uses `clock.now()`).
+final commitmentsReferenceDateProvider = Provider<DateTime?>((ref) => null);
+
+/// Shared commitments summary figures consumed by both [SubscriptionsScreen]
+/// and the home-screen Ledger widget (`design/specs/18-widgets.md` §3).
+@immutable
+class CommitmentsSummary {
+  final List<LocalSubscription> activeSubs;
+  final List<LocalSubscription> inactiveSubs;
+  final List<LocalSubscription> sharedActive;
+  final List<LocalSubscription> privateActive;
+  final List<LocalSubscription> sortedSharedActive;
+  final LocalSubscription? nextSharedCommitment;
+  final String? nextSharedCommitmentWhen;
+  final double subsMonthlyOnly;
+  final double emisMonthlyOnly;
+  final double savingsMonthlyOnly;
+  final double subsAnnualOnly;
+  final double emisAnnualOnly;
+  final double savingsAnnualOnly;
+  final double subsCombinedMonthly;
+  final double emisCombinedMonthly;
+  final double savingsCombinedMonthly;
+
+  const CommitmentsSummary({
+    required this.activeSubs,
+    required this.inactiveSubs,
+    required this.sharedActive,
+    required this.privateActive,
+    required this.sortedSharedActive,
+    required this.nextSharedCommitment,
+    required this.nextSharedCommitmentWhen,
+    required this.subsMonthlyOnly,
+    required this.emisMonthlyOnly,
+    required this.savingsMonthlyOnly,
+    required this.subsAnnualOnly,
+    required this.emisAnnualOnly,
+    required this.savingsAnnualOnly,
+    required this.subsCombinedMonthly,
+    required this.emisCombinedMonthly,
+    required this.savingsCombinedMonthly,
+  });
+
+  factory CommitmentsSummary.compute(
+    List<LocalSubscription> subscriptions, {
+    bool includePrivateInHero = false,
+    DateTime? referenceDate,
+  }) {
+    final activeSubs = subscriptions
+        .where((s) => s.isActive && !s.isEmiFinished)
+        .toList();
+    final inactiveSubs = subscriptions
+        .where((s) => !s.isActive || s.isEmiFinished)
+        .toList();
+    final sharedActive = activeSubs.where((s) => !s.isPrivate).toList();
+    final privateActive = activeSubs.where((s) => s.isPrivate).toList();
+
+    final relevantActive = includePrivateInHero ? activeSubs : sharedActive;
+
+    double subsMonthlyOnly = 0.0;
+    double emisMonthlyOnly = 0.0;
+    double savingsMonthlyOnly = 0.0;
+
+    double subsAnnualOnly = 0.0;
+    double emisAnnualOnly = 0.0;
+    double savingsAnnualOnly = 0.0;
+
+    double subsCombinedMonthly = 0.0;
+    double emisCombinedMonthly = 0.0;
+    double savingsCombinedMonthly = 0.0;
+
+    for (final item in relevantActive) {
+      final months = getBillingCycleMonths(item.billingCycle);
+      final isAnnual = months == 12;
+      final isMonthly = months == 1;
+      final isSavings = isSavingsCommitment(item);
+
+      if (isAnnual) {
+        if (item.isEmi) {
+          emisAnnualOnly += item.amount;
+        } else if (isSavings) {
+          savingsAnnualOnly += item.amount;
+        } else {
+          subsAnnualOnly += item.amount;
+        }
+      } else if (isMonthly) {
+        if (item.isEmi) {
+          emisMonthlyOnly += item.amount;
+        } else if (isSavings) {
+          savingsMonthlyOnly += item.amount;
+        } else {
+          subsMonthlyOnly += item.amount;
+        }
+      }
+
+      final monthlyAmount = item.amount / months;
+      if (item.isEmi) {
+        emisCombinedMonthly += monthlyAmount;
+      } else if (isSavings) {
+        savingsCombinedMonthly += monthlyAmount;
+      } else {
+        subsCombinedMonthly += monthlyAmount;
+      }
+    }
+
+    final sortedSharedActive = List<LocalSubscription>.from(sharedActive)
+      ..sort((a, b) {
+        final cmp = a.nextBillingDate.compareTo(b.nextBillingDate);
+        if (cmp != 0) return cmp;
+        return b.amount.compareTo(a.amount);
+      });
+
+    final nextSharedCommitment =
+        sortedSharedActive.isNotEmpty ? sortedSharedActive.first : null;
+    final nextSharedCommitmentWhen = nextSharedCommitment != null
+        ? formatCommitmentRenewalWhen(
+            nextSharedCommitment.nextBillingDate,
+            now: referenceDate,
+          )
+        : null;
+
+    return CommitmentsSummary(
+      activeSubs: activeSubs,
+      inactiveSubs: inactiveSubs,
+      sharedActive: sharedActive,
+      privateActive: privateActive,
+      sortedSharedActive: sortedSharedActive,
+      nextSharedCommitment: nextSharedCommitment,
+      nextSharedCommitmentWhen: nextSharedCommitmentWhen,
+      subsMonthlyOnly: subsMonthlyOnly,
+      emisMonthlyOnly: emisMonthlyOnly,
+      savingsMonthlyOnly: savingsMonthlyOnly,
+      subsAnnualOnly: subsAnnualOnly,
+      emisAnnualOnly: emisAnnualOnly,
+      savingsAnnualOnly: savingsAnnualOnly,
+      subsCombinedMonthly: subsCombinedMonthly,
+      emisCombinedMonthly: emisCombinedMonthly,
+      savingsCombinedMonthly: savingsCombinedMonthly,
+    );
+  }
+}
+
+/// Provider computing the commitments summary once for both
+/// [SubscriptionsScreen] and the Ledger widget.
+final commitmentsSummaryProvider = Provider<CommitmentsSummary>((ref) {
+  final subscriptions = ref.watch(activeHomeSubscriptionsProvider).value ??
+      const <LocalSubscription>[];
+  final referenceDate = ref.watch(commitmentsReferenceDateProvider);
+  return CommitmentsSummary.compute(
+    subscriptions,
+    referenceDate: referenceDate,
+  );
 });

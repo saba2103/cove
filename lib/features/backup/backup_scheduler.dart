@@ -5,6 +5,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../sync/db/app_database.dart';
 import '../../sync/key_management/home_key_store.dart';
+import '../widgets/cove_widget_service.dart';
 import 'backup_service.dart';
 import 'backup_snapshot_service.dart';
 import 'drive_backup_remote.dart';
@@ -40,14 +41,19 @@ class WorkmanagerBackupScheduler implements BackupScheduler {
 
   static bool _initialized = false;
 
+  static Future<void> ensureWorkmanagerInitialized() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (_initialized) return;
+    await Workmanager().initialize(coveBackgroundDispatcher);
+    _initialized = true;
+  }
+
   @override
   bool get isSupported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   @override
   Future<void> initialize() async {
-    if (!isSupported || _initialized) return;
-    await Workmanager().initialize(coveBackgroundDispatcher);
-    _initialized = true;
+    await ensureWorkmanagerInitialized();
   }
 
   @override
@@ -111,7 +117,12 @@ class BackgroundBackupRunner {
 @pragma('vm:entry-point')
 void coveBackgroundDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    if (task != WorkmanagerBackupScheduler.taskName) return true;
-    return BackgroundBackupRunner.run();
+    if (task == WorkmanagerBackupScheduler.taskName) {
+      return BackgroundBackupRunner.run();
+    }
+    if (task == WorkmanagerWidgetRefreshScheduler.taskName) {
+      return CoveWidgetService().runBackgroundRefresh();
+    }
+    return true;
   });
 }

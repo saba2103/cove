@@ -33,6 +33,7 @@ import 'commitment_detail_sheet.dart';
 import 'commitment_models.dart';
 import 'commitments_helicopter_screen.dart';
 import 'emi_tracker_screen.dart';
+import 'subscription_controller.dart';
 
 /// Segment filter modes for the Commitments screen (`design/screens/commitments.md`).
 enum CommitmentKindFilter {
@@ -87,22 +88,8 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         .pullLatestEvents(homeId: homeId, forceFullCatchup: true);
   }
 
-  static bool _isSavingsCommitment(LocalSubscription sub) {
-    if (sub.isEmi) return false;
-    final cat = (sub.category ?? '').trim().toLowerCase();
-    final name = sub.name.trim().toLowerCase();
-    if (cat == 'savings' ||
-        cat == 'sip' ||
-        cat == 'investment' ||
-        cat == 'investments' ||
-        cat == 'mutual_funds' ||
-        cat == 'gold_sip') {
-      return true;
-    }
-    return name.contains('sip') ||
-        name.contains('mutual fund') ||
-        name.contains('savings');
-  }
+  static bool _isSavingsCommitment(LocalSubscription sub) =>
+      isSavingsCommitment(sub);
 
   static String _kindTagFor(LocalSubscription sub) {
     if (sub.isEmi) return 'EMI';
@@ -233,66 +220,29 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     final partnerUserId = partnerProfile.userId ?? 'partner_user';
     final currency = ref.watch(currencyPreferenceProvider);
 
-    // 1. Separate Active vs Inactive (finished EMIs move out of active list)
-    final activeSubs = subscriptions
-        .where((s) => s.isActive && !s.isEmiFinished)
-        .toList();
-    final inactiveSubs = subscriptions
-        .where((s) => !s.isActive || s.isEmiFinished)
-        .toList();
+    final summary =
+        (widget.initialSubscriptions == null && !_includePrivateInHero)
+            ? ref.watch(commitmentsSummaryProvider)
+            : CommitmentsSummary.compute(
+                subscriptions,
+                includePrivateInHero: _includePrivateInHero,
+              );
 
-    // 2. Separate Shared vs Private
-    final sharedActive = activeSubs.where((s) => !s.isPrivate).toList();
-    final privateActive = activeSubs.where((s) => s.isPrivate).toList();
-
-    // 3. Compute Totals & Breakdown (EMIs / Subs / Savings)
+    final activeSubs = summary.activeSubs;
+    final inactiveSubs = summary.inactiveSubs;
+    final sharedActive = summary.sharedActive;
+    final privateActive = summary.privateActive;
     final relevantActive = _includePrivateInHero ? activeSubs : sharedActive;
 
-    double subsMonthlyOnly = 0.0;
-    double emisMonthlyOnly = 0.0;
-    double savingsMonthlyOnly = 0.0;
-
-    double subsAnnualOnly = 0.0;
-    double emisAnnualOnly = 0.0;
-    double savingsAnnualOnly = 0.0;
-
-    double subsCombinedMonthly = 0.0;
-    double emisCombinedMonthly = 0.0;
-    double savingsCombinedMonthly = 0.0;
-
-    for (final item in relevantActive) {
-      final months = getBillingCycleMonths(item.billingCycle);
-      final isAnnual = months == 12;
-      final isMonthly = months == 1;
-      final isSavings = _isSavingsCommitment(item);
-
-      if (isAnnual) {
-        if (item.isEmi) {
-          emisAnnualOnly += item.amount;
-        } else if (isSavings) {
-          savingsAnnualOnly += item.amount;
-        } else {
-          subsAnnualOnly += item.amount;
-        }
-      } else if (isMonthly) {
-        if (item.isEmi) {
-          emisMonthlyOnly += item.amount;
-        } else if (isSavings) {
-          savingsMonthlyOnly += item.amount;
-        } else {
-          subsMonthlyOnly += item.amount;
-        }
-      }
-
-      final monthlyAmount = item.amount / months;
-      if (item.isEmi) {
-        emisCombinedMonthly += monthlyAmount;
-      } else if (isSavings) {
-        savingsCombinedMonthly += monthlyAmount;
-      } else {
-        subsCombinedMonthly += monthlyAmount;
-      }
-    }
+    final subsMonthlyOnly = summary.subsMonthlyOnly;
+    final emisMonthlyOnly = summary.emisMonthlyOnly;
+    final savingsMonthlyOnly = summary.savingsMonthlyOnly;
+    final subsAnnualOnly = summary.subsAnnualOnly;
+    final emisAnnualOnly = summary.emisAnnualOnly;
+    final savingsAnnualOnly = summary.savingsAnnualOnly;
+    final subsCombinedMonthly = summary.subsCombinedMonthly;
+    final emisCombinedMonthly = summary.emisCombinedMonthly;
+    final savingsCombinedMonthly = summary.savingsCombinedMonthly;
 
     final double displayedSubs;
     final double displayedEmis;
