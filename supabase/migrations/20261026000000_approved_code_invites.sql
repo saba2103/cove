@@ -40,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_pairing_codes_expires_at
 ALTER TABLE public.pairing_codes ENABLE ROW LEVEL SECURITY;
 
 -- Inviter creates a keyless code for a home they belong to.
+DROP POLICY IF EXISTS "Inviters can insert their own pairing codes" ON public.pairing_codes;
 CREATE POLICY "Inviters can insert their own pairing codes"
   ON public.pairing_codes
   FOR INSERT
@@ -50,11 +51,12 @@ CREATE POLICY "Inviters can insert their own pairing codes"
       SELECT 1
       FROM public.home_members hm
       WHERE hm.home_id = pairing_codes.home_id
-        AND hm.user_id = auth.uid()
+         AND hm.user_id = auth.uid()
     )
   );
 
 -- Only the inviter can read their own pairing codes.
+DROP POLICY IF EXISTS "Inviters can read their own pairing codes" ON public.pairing_codes;
 CREATE POLICY "Inviters can read their own pairing codes"
   ON public.pairing_codes
   FOR SELECT
@@ -62,6 +64,7 @@ CREATE POLICY "Inviters can read their own pairing codes"
   USING (inviter_id = auth.uid());
 
 -- Only the inviter can update status on their own pairing codes.
+DROP POLICY IF EXISTS "Inviters can update their own pairing codes" ON public.pairing_codes;
 CREATE POLICY "Inviters can update their own pairing codes"
   ON public.pairing_codes
   FOR UPDATE
@@ -70,11 +73,59 @@ CREATE POLICY "Inviters can update their own pairing codes"
   WITH CHECK (inviter_id = auth.uid());
 
 -- Only the inviter can delete their own pairing codes.
+DROP POLICY IF EXISTS "Only inviter can delete own pairing codes" ON public.pairing_codes;
 CREATE POLICY "Only inviter can delete own pairing codes"
   ON public.pairing_codes
   FOR DELETE
   TO authenticated
   USING (inviter_id = auth.uid());
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pairing_codes TO authenticated;
+
+-- 2b. `create_pairing_code(target_home_id TEXT)`:
+-- Deletes the inviter's own expired codes first, then inserts a new 6-digit code
+-- into `public.pairing_codes`, retrying on a primary-key collision up to 5 times.
+CREATE OR REPLACE FUNCTION public.create_pairing_code(target_home_id TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_code TEXT;
+  v_retry INTEGER;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  -- Delete the inviter's own expired codes first.
+  DELETE FROM public.pairing_codes
+   WHERE inviter_id = v_uid
+     AND expires_at <= now();
+
+  -- Try 1 initial insert + up to 5 retries on a primary-key collision.
+  FOR v_retry IN 0..5 LOOP
+    v_code := lpad(floor(random() * 1000000)::int::text, 6, '0');
+    BEGIN
+      INSERT INTO public.pairing_codes (code, home_id, inviter_id, expires_at, status)
+      VALUES (v_code, target_home_id, v_uid, now() + interval '10 minutes', 'open');
+      RETURN v_code;
+    EXCEPTION WHEN unique_violation THEN
+      IF v_retry = 5 THEN
+        RAISE;
+      END IF;
+    END;
+  END LOOP;
+
+  RAISE EXCEPTION 'Could not allocate a unique pairing code after 5 retries'
+    USING ERRCODE = '23505';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_pairing_code(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_pairing_code(TEXT) TO authenticated;
 
 -- 3. Rate-limit ledger (RLS enabled, no direct client access; used by SECURITY DEFINER functions).
 CREATE TABLE IF NOT EXISTS public.pairing_rate_limit_events (
@@ -88,10 +139,13 @@ CREATE INDEX IF NOT EXISTS idx_pairing_rate_limit_events_user_kind_time
   ON public.pairing_rate_limit_events(user_id, kind, created_at);
 
 ALTER TABLE public.pairing_rate_limit_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.pairing_rate_limit_events FROM PUBLIC, anon, authenticated;
 
 -- 4. Joiner code lookup function: returns ONLY (home_name, inviter_name, status)
--- for an open, unexpired code, and nothing otherwise. Counts failed lookups per
--- user (at most 5 failed lookups per hour).
+-- for an open, unexpired code, and nothing otherwise. Reads the inviter's name
+-- from `public.home_members.display_name` (falling back to `auth.users` metadata
+-- if `display_name` is null/empty). Counts failed lookups per user (at most 5
+-- failed lookups per hour).
 CREATE OR REPLACE FUNCTION public.lookup_pairing_code(target_code TEXT)
 RETURNS TABLE (
   home_name TEXT,
@@ -126,7 +180,12 @@ BEGIN
   END IF;
 
   SELECT h.name,
-         COALESCE(NULLIF(btrim(hm.display_name), ''), 'Partner'),
+         COALESCE(
+           NULLIF(btrim(hm.display_name), ''),
+           NULLIF(btrim(u.raw_user_meta_data->>'full_name'), ''),
+           NULLIF(btrim(u.raw_user_meta_data->>'name'), ''),
+           'Partner'
+         ),
          pc.status
     INTO v_home_name, v_inviter_name, v_status
     FROM public.pairing_codes pc
@@ -135,6 +194,8 @@ BEGIN
     LEFT JOIN public.home_members hm
       ON hm.home_id = pc.home_id
      AND hm.user_id = pc.inviter_id
+    LEFT JOIN auth.users u
+      ON u.id = pc.inviter_id
    WHERE pc.code = target_code
      AND pc.status = 'open'
      AND pc.expires_at > now()
@@ -304,6 +365,7 @@ CREATE TRIGGER trg_pairing_requests_enforce_update
   EXECUTE FUNCTION public.enforce_pairing_request_update();
 
 -- Joiner (B) inserts its own pending request for an open, unexpired code.
+DROP POLICY IF EXISTS "Joiners can insert their own pairing request" ON public.pairing_requests;
 CREATE POLICY "Joiners can insert their own pairing request"
   ON public.pairing_requests
   FOR INSERT
@@ -316,6 +378,7 @@ CREATE POLICY "Joiners can insert their own pairing request"
   );
 
 -- Joiner (B) reads its own request; Inviter (A) reads requests for its own codes.
+DROP POLICY IF EXISTS "Inviter and joiner can read pairing requests" ON public.pairing_requests;
 CREATE POLICY "Inviter and joiner can read pairing requests"
   ON public.pairing_requests
   FOR SELECT
@@ -332,6 +395,7 @@ CREATE POLICY "Inviter and joiner can read pairing requests"
 
 -- Inviter (A) updates requests for its own codes; Joiner (B) updates its own request.
 -- Column immutability and status transitions are enforced by `trg_pairing_requests_enforce_update`.
+DROP POLICY IF EXISTS "Inviter and joiner can update pairing requests" ON public.pairing_requests;
 CREATE POLICY "Inviter and joiner can update pairing requests"
   ON public.pairing_requests
   FOR UPDATE
@@ -356,6 +420,7 @@ CREATE POLICY "Inviter and joiner can update pairing requests"
   );
 
 -- Delete policy: ONLY the joiner or the code's inviter, never anyone else.
+DROP POLICY IF EXISTS "Only joiner or code inviter can delete pairing requests" ON public.pairing_requests;
 CREATE POLICY "Only joiner or code inviter can delete pairing requests"
   ON public.pairing_requests
   FOR DELETE
@@ -369,3 +434,5 @@ CREATE POLICY "Only joiner or code inviter can delete pairing requests"
         AND pc.inviter_id = auth.uid()
     )
   );
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.pairing_requests TO authenticated;

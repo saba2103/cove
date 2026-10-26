@@ -145,6 +145,31 @@ class _NoOpSyncEngine extends Fake implements SyncEngineImpl {
   Future<void> stop() async {}
 }
 
+class _CollidingPairingRelay extends InMemoryPairingRelay {
+  int collisionsRemaining = 0;
+  int insertAttempts = 0;
+  int deleteExpiredCalls = 0;
+
+  @override
+  Future<void> deleteOwnExpiredCodes({
+    required String inviterId,
+    required DateTime nowUtc,
+  }) async {
+    deleteExpiredCalls++;
+    await super.deleteOwnExpiredCodes(inviterId: inviterId, nowUtc: nowUtc);
+  }
+
+  @override
+  Future<void> insertPairingCode(PairingCodeRecord record) async {
+    insertAttempts++;
+    if (collisionsRemaining > 0) {
+      collisionsRemaining--;
+      throw PairingCodeCollisionException(record.code);
+    }
+    await super.insertPairingCode(record);
+  }
+}
+
 class _TestClientRig {
   final AppDatabase db;
   final _MemoryHomeKeyStore keyStore;
@@ -861,6 +886,94 @@ void main() {
               ),
             ),
           );
+        });
+      },
+    );
+
+    test(
+      '8. createPairingCode deletes the inviter\'s own expired codes first and retries on a primary-key collision (up to 5 times)',
+      () async {
+        final collidingRelay = _CollidingPairingRelay();
+        final rig = _TestClientRig.create(
+          user: const CoveUser(
+            id: 'user_a_saba',
+            email: 'saba@cove.local',
+            displayName: 'Saba',
+          ),
+          relay: collidingRelay,
+        );
+        addTearDown(rig.dispose);
+
+        await withClock(Clock.fixed(_kFixedNow), () async {
+          final payloadA = await rig.homeController.createHome(
+            name: 'The Nest',
+          );
+
+          // Seed an expired code for user_a_saba, an unexpired code for user_a_saba,
+          // and an expired code for another inviter (user_b_ancy).
+          await collidingRelay.insertPairingCode(
+            PairingCodeRecord(
+              code: '100001',
+              homeId: payloadA.homeId,
+              inviterId: 'user_a_saba',
+              expiresAt: _kFixedNow.subtract(const Duration(minutes: 1)),
+              status: 'open',
+              createdAt: _kFixedNow.subtract(const Duration(minutes: 11)),
+              homeName: 'The Nest',
+              inviterName: 'Saba',
+            ),
+          );
+          await collidingRelay.insertPairingCode(
+            PairingCodeRecord(
+              code: '100002',
+              homeId: payloadA.homeId,
+              inviterId: 'user_a_saba',
+              expiresAt: _kFixedNow.add(const Duration(minutes: 5)),
+              status: 'open',
+              createdAt: _kFixedNow.subtract(const Duration(minutes: 5)),
+              homeName: 'The Nest',
+              inviterName: 'Saba',
+            ),
+          );
+          await collidingRelay.insertPairingCode(
+            PairingCodeRecord(
+              code: '200001',
+              homeId: 'other_home',
+              inviterId: 'user_b_ancy',
+              expiresAt: _kFixedNow.subtract(const Duration(minutes: 1)),
+              status: 'open',
+              createdAt: _kFixedNow.subtract(const Duration(minutes: 11)),
+              homeName: 'Other Home',
+              inviterName: 'Ancy',
+            ),
+          );
+
+          // Simulate 3 primary-key collisions before succeeding on retry #3 (4th attempt).
+          collidingRelay.insertAttempts = 0;
+          collidingRelay.collisionsRemaining = 3;
+
+          final code = await rig.homeController.createPairingCode(
+            homeId: payloadA.homeId,
+          );
+          expect(code, matches(RegExp(r'^\d{6}$')));
+          expect(collidingRelay.deleteExpiredCalls, greaterThanOrEqualTo(1));
+          expect(collidingRelay.insertAttempts, equals(4));
+
+          // Inviter A's expired code '100001' was deleted first; A's unexpired
+          // code '100002' and B's code '200001' remain untouched.
+          expect(collidingRelay.codes.containsKey('100001'), isFalse);
+          expect(collidingRelay.codes.containsKey('100002'), isTrue);
+          expect(collidingRelay.codes.containsKey('200001'), isTrue);
+          expect(collidingRelay.codes.containsKey(code), isTrue);
+
+          // If all 6 attempts (initial + 5 retries) collide, throws PairingCodeCollisionException.
+          collidingRelay.insertAttempts = 0;
+          collidingRelay.collisionsRemaining = 6;
+          await expectLater(
+            () => rig.homeController.createPairingCode(homeId: payloadA.homeId),
+            throwsA(isA<PairingCodeCollisionException>()),
+          );
+          expect(collidingRelay.insertAttempts, equals(6));
         });
       },
     );

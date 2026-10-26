@@ -127,6 +127,8 @@ class HomeController {
           ),
         );
 
+    final userProfile = ref.read(userProfileProvider);
+
     // 4. Insert into Supabase if connected
     if (supabase != null) {
       try {
@@ -143,6 +145,8 @@ class HomeController {
           'home_id': homeId,
           'user_id': userId,
           'joined_at': now.toIso8601String(),
+          'display_name': userProfile.displayName,
+          'avatar_url': userProfile.avatarUrl,
         });
         debugPrint(
           '[HomeController] Home and membership successfully saved to Supabase: $homeId',
@@ -158,8 +162,6 @@ class HomeController {
     // 6. Start Sync Engine with this home
     final engine = ref.read(syncEngineProvider);
     await engine.start(activeHomeId: homeId, activeHomeKey: symmetricKey);
-
-    final userProfile = ref.read(userProfileProvider);
 
     return PairingPayload(
       homeId: homeId,
@@ -357,12 +359,15 @@ class HomeController {
 
   /// Generates a 6-digit pairing code using `libsodium`'s `randombytes` and
   /// stores a keyless row in `pairing_codes` (`code`, `home_id`, `inviter_id`,
-  /// `expires_at` = now + 10 min, `status = 'open'`). Never writes a payload or
-  /// home key to the server, and never touches `homes.description`.
+  /// `expires_at` = now + 10 min, `status = 'open'`).
+  ///
+  /// Deletes the inviter's own expired codes first, and retries on a
+  /// primary-key collision (up to 5 times). Never writes a payload or home key
+  /// to the server, and never touches `homes.description`.
   Future<String> createPairingCode({
     required String homeId,
   }) async {
-    final code = PairingCrypto.generateSixDigitCode();
+    const maxCollisionRetries = 5;
     final now = clock.now().toUtc();
     final expiresAt = now.add(const Duration(minutes: 10));
     final inviterId = _currentUserId();
@@ -371,32 +376,53 @@ class HomeController {
           ..where((t) => t.id.equals(homeId)))
         .getSingleOrNull();
 
+    String? createdCode;
     final relay = _pairingRelay;
     if (relay != null) {
+      try {
+        await relay.deleteOwnExpiredCodes(
+          inviterId: inviterId,
+          nowUtc: now,
+        );
+      } catch (e) {
+        debugPrint('[HomeController] Error deleting expired pairing codes: $e');
+      }
       unawaited(
         relay.cleanupDoneAndExpired(
           nowUtc: now,
           actorUserId: inviterId,
         ),
       );
-      try {
-        await relay.insertPairingCode(
-          PairingCodeRecord(
-            code: code,
-            homeId: homeId,
-            inviterId: inviterId,
-            expiresAt: expiresAt,
-            status: 'open',
-            createdAt: now,
-            homeName: home?.name,
-            inviterName: userProfile.displayName,
-          ),
-        );
-      } catch (e) {
-        debugPrint('[HomeController] Error creating keyless pairing code: $e');
+      for (var retry = 0; retry <= maxCollisionRetries; retry++) {
+        final candidate = PairingCrypto.generateSixDigitCode();
+        try {
+          await relay.insertPairingCode(
+            PairingCodeRecord(
+              code: candidate,
+              homeId: homeId,
+              inviterId: inviterId,
+              expiresAt: expiresAt,
+              status: 'open',
+              createdAt: now,
+              homeName: home?.name,
+              inviterName: userProfile.displayName,
+            ),
+          );
+          createdCode = candidate;
+          break;
+        } on PairingCodeCollisionException {
+          if (retry == maxCollisionRetries) {
+            rethrow;
+          }
+        } catch (e) {
+          debugPrint('[HomeController] Error creating keyless pairing code: $e');
+          createdCode = candidate;
+          break;
+        }
       }
     }
 
+    final code = createdCode ?? PairingCrypto.generateSixDigitCode();
     _cachedPairingCodes[homeId] = _SessionPairingCode(
       code: code,
       expiresAt: expiresAt,

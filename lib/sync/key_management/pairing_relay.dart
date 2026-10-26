@@ -10,6 +10,18 @@ import '../../core/utils/uuid_generator.dart';
 import '../providers/cove_sync_providers.dart';
 import 'pairing_crypto.dart';
 
+/// Thrown when inserting a new 6-digit code into `public.pairing_codes`
+/// collides with an existing primary key (`23505` / `duplicate key`).
+class PairingCodeCollisionException implements Exception {
+  final String code;
+
+  const PairingCodeCollisionException(this.code);
+
+  @override
+  String toString() =>
+      'PairingCodeCollisionException: code $code already exists.';
+}
+
 /// Keyless server record in `public.pairing_codes`.
 /// Never contains the pairing payload or home key.
 /// Readable only by the inviter (`inviter_id = auth.uid()`).
@@ -184,6 +196,15 @@ abstract class PairingRelay {
   static const int maxRequestsPerUserPerHour = 5;
   static const int maxFailedLookupsPerUserPerHour = 5;
 
+  /// Deletes the inviter's own expired `pairing_codes` rows before minting a
+  /// new code.
+  Future<void> deleteOwnExpiredCodes({
+    required String inviterId,
+    required DateTime nowUtc,
+  });
+
+  /// Inserts a new `pairing_codes` row. Throws [PairingCodeCollisionException]
+  /// if `record.code` already exists.
   Future<void> insertPairingCode(PairingCodeRecord record);
 
   /// Reads a `pairing_codes` row owned by [inviterId].
@@ -247,8 +268,28 @@ class SupabasePairingRelay implements PairingRelay {
   SupabasePairingRelay(this._supabase);
 
   @override
+  Future<void> deleteOwnExpiredCodes({
+    required String inviterId,
+    required DateTime nowUtc,
+  }) async {
+    await _supabase
+        .from('pairing_codes')
+        .delete()
+        .eq('inviter_id', inviterId)
+        .lt('expires_at', nowUtc.toUtc().toIso8601String());
+  }
+
+  @override
   Future<void> insertPairingCode(PairingCodeRecord record) async {
-    await _supabase.from('pairing_codes').upsert(record.toRow());
+    try {
+      await _supabase.from('pairing_codes').insert(record.toRow());
+    } on PostgrestException catch (e) {
+      if (e.code == '23505' ||
+          e.message.toLowerCase().contains('duplicate key')) {
+        throw PairingCodeCollisionException(record.code);
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -425,10 +466,12 @@ class SupabasePairingRelay implements PairingRelay {
           .from('pairing_requests')
           .delete()
           .inFilter('status', const ['done', 'declined']);
-      await _supabase
-          .from('pairing_codes')
-          .delete()
-          .lt('expires_at', nowUtc.toUtc().toIso8601String());
+      if (actorUserId != null) {
+        await deleteOwnExpiredCodes(
+          inviterId: actorUserId,
+          nowUtc: nowUtc,
+        );
+      }
     } catch (_) {}
   }
 }
@@ -452,6 +495,9 @@ class PairingRelayWriteLog {
 /// In-memory implementation of [PairingRelay] enforcing the exact server
 /// constraints:
 /// - Inviter reads only their own `pairing_codes`; joiners use `lookupPairingCode`.
+/// - `insertPairingCode` rejects primary-key collisions with
+///   [PairingCodeCollisionException].
+/// - `deleteOwnExpiredCodes` removes only the inviter's own expired codes.
 /// - Rate limits: max 5 failed code lookups per user per hour, and max 5
 ///   pairing requests per user per hour (plus max 3 requests per code).
 /// - Immutability trigger on `pairing_requests`: `code`, `joiner_id`, and
@@ -509,13 +555,34 @@ class InMemoryPairingRelay implements PairingRelay {
   }
 
   @override
+  Future<void> deleteOwnExpiredCodes({
+    required String inviterId,
+    required DateTime nowUtc,
+  }) async {
+    final expiredOwnCodes = _codes.values
+        .where((c) => c.inviterId == inviterId && c.isExpiredAt(nowUtc))
+        .map((c) => c.code)
+        .toList();
+    for (final code in expiredOwnCodes) {
+      _codes.remove(code);
+      _recordWrite('pairing_codes', 'delete_expired', {
+        'code': code,
+        'inviter_id': inviterId,
+      });
+    }
+  }
+
+  @override
   Future<void> insertPairingCode(PairingCodeRecord record) async {
+    if (_codes.containsKey(record.code)) {
+      throw PairingCodeCollisionException(record.code);
+    }
     _codes[record.code] = record;
     _recordWrite('pairing_codes', 'insert', record.toRow());
   }
 
-  /// Attempts to read `pairing_codes` as [callerUserId].
-  /// Under RLS, only the inviter (`record.inviterId == callerUserId`) can see
+  /// Attempts to read `pairing_codes` as [inviterId].
+  /// Under RLS, only the inviter (`record.inviterId == inviterId`) can see
   /// the row; any other authenticated user sees `null`.
   @override
   Future<PairingCodeRecord?> getOwnPairingCode({
