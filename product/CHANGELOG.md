@@ -38,6 +38,12 @@ This document tracks all user-facing changes, architectural upgrades, and engine
     - Added unit tests for `firstRunProvider(CoveScreen)` in [`test/first_run_provider_test.dart`](../test/first_run_provider_test.dart) and 18 golden baselines across 3 widths × 2 modes with the zero-overflow guard in [`test/golden/first_run_42a_golden_test.dart`](../test/golden/first_run_42a_golden_test.dart).
 
 ### Changed
+- **Notification Icon Retention in Release Builds & Legacy Fallback (`Oct 26, 2026`)**:
+  - *Outcome*:
+    1. **Keep `@drawable/ic_stat_cove` Across Release Resource Shrinking**: Added [`android/app/src/main/res/raw/keep.xml`](../android/app/src/main/res/raw/keep.xml) with `tools:keep="@drawable/ic_stat_cove,@drawable/splash_emblem,@drawable/launch_background"` so R8's resource shrinker never strips `@drawable/ic_stat_cove` in release builds.
+    2. **Loud Initialisation Failure & Legacy `android` Platform Fallback**: Updated [`NotificationService.initializeLocalNotifications`](../lib/features/notifications/notification_service.dart) and [`NotificationService.registerDeviceToken`](../lib/features/notifications/notification_service.dart) so if `flutter_local_notifications` fails to initialize on Android, the error is logged loudly and the device registers as plain `'android'` (legacy messages Android displays itself) instead of `'android:data-v1'`.
+  - *Under the Hood*:
+    - Added unit and release-APK `aapt2` verification tests in [`test/features/notifications/notify_partner_314e_test.dart`](../test/features/notifications/notify_partner_314e_test.dart).
 - **Batch 4.3b — A Missing Key Means Restore, Never a New Key (`Oct 26, 2026`)**:
   - *Outcome*:
     1. **Removed Key Self-Heal from `SyncEngineImpl`**: Removed auto-generated key fallback in [`SyncEngineImpl.start`](../lib/sync/sync_engine_impl.dart) and [`SyncEngineImpl.dispatchLocalEvent`](../lib/sync/sync_engine_impl.dart) (`design/specs/17-invite-and-keys.md` §3). If the active home has no key on this device, `SyncEngineImpl.start` stays `SyncConnectionState.disconnected` without starting realtime or outbox timers, and `dispatchLocalEvent` throws `StateError` without inventing a new key.

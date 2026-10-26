@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:ui' show IsolateNameServer;
 
 import 'package:drift/drift.dart' as drift;
@@ -173,7 +174,9 @@ Future<void> main() async {
   }
 
   final container = ProviderContainer();
-  container.read(notificationServiceProvider).registerMainIsolatePort();
+  final notifService = container.read(notificationServiceProvider);
+  notifService.registerMainIsolatePort();
+  unawaited(notifService.initializeLocalNotifications());
 
   runApp(
     UncontrolledProviderScope(

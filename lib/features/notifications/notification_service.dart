@@ -30,6 +30,7 @@ class NotificationService {
   final void Function(CoveNotificationPayload payload)? onNavigatePayload;
   final LocalNotificationSink? notificationSink;
   final NotificationEventDecryptor? decryptEvent;
+  final Future<bool?> Function()? localNotificationsInitializer;
   final Duration budget;
 
   NotificationModule? _pendingNavigationModule;
@@ -52,6 +53,12 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   bool _localNotificationsInitialized = false;
+  bool _localNotificationsInitFailed = false;
+  Future<void>? _localNotificationsInitFuture;
+  String? _lastRegisteredToken;
+
+  bool get localNotificationsInitialized => _localNotificationsInitialized;
+  bool get localNotificationsInitFailed => _localNotificationsInitFailed;
 
   late final LocalNotificationSink _sink = notificationSink ??
       FlutterLocalNotificationSink(
@@ -94,6 +101,7 @@ class NotificationService {
     this.onNavigatePayload,
     this.notificationSink,
     this.decryptEvent,
+    this.localNotificationsInitializer,
     this.budget = NotificationPipeline.defaultBudget,
   });
 
@@ -114,8 +122,20 @@ class NotificationService {
   /// builds that include the 3.14c on-device notification pipeline.
   static const String androidDataV1Platform = 'android:data-v1';
 
+  /// Legacy Android platform string registered when `flutter_local_notifications`
+  /// fails to initialize so the server falls back to messages Android displays itself.
+  static const String androidLegacyPlatform = 'android';
+
   /// Registers an FCM token against the user's account in public.user_devices.
   Future<bool> registerDeviceToken(String token, {String? platform}) async {
+    _lastRegisteredToken = token;
+    final pendingInit = _localNotificationsInitFuture;
+    if (pendingInit != null) {
+      try {
+        await pendingInit;
+      } catch (_) {}
+    }
+
     final uid = currentUserId;
     if (uid == null || supabaseClient == null) return false;
 
@@ -127,7 +147,9 @@ class NotificationService {
         'platform': detectedPlatform,
         'last_seen_at': clock.now().toUtc().toIso8601String(),
       }, onConflict: 'fcm_token');
-      debugPrint('[NotificationService] Device token registered successfully in user_devices for $uid');
+      debugPrint(
+        '[NotificationService] Device token registered successfully in user_devices for $uid (platform: $detectedPlatform)',
+      );
       return true;
     } catch (e) {
       debugPrint('[NotificationService] Failed to register device token: $e');
@@ -449,9 +471,39 @@ class NotificationService {
   }
 
   /// Initializes local notifications plugin for Android / iOS.
-  Future<void> initializeLocalNotifications() async {
+  ///
+  /// If initialization fails on Android (for example `invalid_icon` when a
+  /// resource was stripped), marks [_localNotificationsInitFailed] = `true`,
+  /// logs the failure loudly, and downgrades device token registration to
+  /// plain `'android'` ([androidLegacyPlatform]) so the server falls back to
+  /// legacy notification messages that Android displays itself.
+  Future<void> initializeLocalNotifications() {
+    if (_localNotificationsInitialized && _localNotificationsInitFuture != null) {
+      return _localNotificationsInitFuture!;
+    }
+    final future = _runInitializeLocalNotifications();
+    _localNotificationsInitFuture = future;
+    return future;
+  }
+
+  Future<void> _runInitializeLocalNotifications() async {
     if (kIsWeb) return;
     try {
+      if (localNotificationsInitializer != null) {
+        final ok = await localNotificationsInitializer!();
+        if (ok == false) {
+          throw StateError(
+            'flutter_local_notifications initialize returned false',
+          );
+        }
+        _localNotificationsInitialized = true;
+        _localNotificationsInitFailed = false;
+        debugPrint(
+          '[NotificationService] Local notifications initialized successfully (platform: ${defaultPlatformString()})',
+        );
+        return;
+      }
+
       const androidSettings = AndroidInitializationSettings(
         RenderedNotification.smallIconResource,
       );
@@ -465,7 +517,7 @@ class NotificationService {
         iOS: iosSettings,
       );
 
-      await _localNotifications.initialize(
+      final initialized = await _localNotifications.initialize(
         settings: initSettings,
         onDidReceiveNotificationResponse: (response) {
           final payloadStr = response.payload;
@@ -478,6 +530,11 @@ class NotificationService {
           }
         },
       );
+      if (initialized == false) {
+        throw StateError(
+          'flutter_local_notifications initialize returned false',
+        );
+      }
 
       final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
@@ -497,6 +554,10 @@ class NotificationService {
       }
 
       _localNotificationsInitialized = true;
+      _localNotificationsInitFailed = false;
+      debugPrint(
+        '[NotificationService] Local notifications initialized successfully (platform: ${defaultPlatformString()})',
+      );
 
       // Check if a local notification launched the app from a terminated state
       final launchDetails =
@@ -516,8 +577,24 @@ class NotificationService {
           }
         }
       }
-    } catch (e) {
-      debugPrint('[NotificationService] Local notifications initialization error: $e');
+    } catch (e, st) {
+      _localNotificationsInitialized = false;
+      _localNotificationsInitFailed = true;
+      debugPrint(
+        '[NotificationService] ERROR: Local notifications initialization failed — '
+        'falling back to legacy android platform ($androidLegacyPlatform): $e\n$st',
+      );
+      final existingToken = _lastRegisteredToken;
+      if (existingToken != null &&
+          !kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android) {
+        unawaited(
+          registerDeviceToken(
+            existingToken,
+            platform: androidLegacyPlatform,
+          ),
+        );
+      }
     }
   }
 
@@ -615,11 +692,15 @@ class NotificationService {
   }
 
   /// Returns the default `user_devices.platform` value for the current target
-  /// platform (`'android:data-v1'` on Android builds that include 3.14c).
+  /// platform (`'android:data-v1'` on Android builds when local notifications
+  /// are healthy, or `'android'` if local notifications failed to initialize).
   String defaultPlatformString() {
     if (kIsWeb) return 'web';
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
+        if (_localNotificationsInitFailed) {
+          return androidLegacyPlatform;
+        }
         return androidDataV1Platform;
       case TargetPlatform.iOS:
         return 'ios';

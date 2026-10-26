@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:clock/clock.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -60,6 +61,34 @@ String _resolveNodeBinary() {
     }
   }
   return 'node';
+}
+
+/// Resolves `aapt2` from the Android SDK build-tools so tests can inspect
+/// the compiled release APK resource table.
+String? _resolveAapt2Binary() {
+  final sdkRoots = <String>[
+    '/opt/homebrew/share/android-commandlinetools/build-tools',
+    if (Platform.environment['ANDROID_HOME'] != null)
+      '${Platform.environment['ANDROID_HOME']}/build-tools',
+    if (Platform.environment['ANDROID_SDK_ROOT'] != null)
+      '${Platform.environment['ANDROID_SDK_ROOT']}/build-tools',
+    if (Platform.environment['HOME'] != null)
+      '${Platform.environment['HOME']}/Library/Android/sdk/build-tools',
+  ];
+
+  for (final root in sdkRoots) {
+    final dir = Directory(root);
+    if (!dir.existsSync()) continue;
+    final versions = dir.listSync().whereType<Directory>().toList()
+      ..sort((a, b) => b.path.compareTo(a.path));
+    for (final v in versions) {
+      final bin = File('${v.path}/aapt2');
+      if (bin.existsSync()) {
+        return bin.path;
+      }
+    }
+  }
+  return null;
 }
 
 void main() {
@@ -140,6 +169,119 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       }
     });
+
+    test(
+      'if local notifications fail to initialise (e.g. invalid_icon), logs loudly and registers the device as plain android instead of android:data-v1',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final originalDebugPrint = debugPrint;
+        final logs = <String>[];
+        debugPrint = (String? message, {int? wrapWidth}) {
+          if (message != null) logs.add(message);
+        };
+        try {
+          await withClock(Clock.fixed(fixedNow), () async {
+            final httpClient = _CapturingHttpClient();
+            final supabase = SupabaseClient(
+              'https://cove-test.supabase.co',
+              'test-anon-key',
+              httpClient: httpClient,
+            );
+            final service = NotificationService(
+              supabaseClient: supabase,
+              getCurrentUserId: () => 'user-saba',
+              localNotificationsInitializer: () async {
+                throw PlatformException(
+                  code: 'invalid_icon',
+                  message:
+                      'The resource @drawable/ic_stat_cove could not be found.',
+                );
+              },
+            );
+            addTearDown(service.dispose);
+
+            await service.initializeLocalNotifications();
+            expect(service.localNotificationsInitialized, isFalse);
+            expect(service.localNotificationsInitFailed, isTrue);
+            expect(service.defaultPlatformString(), 'android');
+            expect(
+              logs.any(
+                (l) =>
+                    l.contains(
+                      'ERROR: Local notifications initialization failed',
+                    ) &&
+                    l.contains('invalid_icon'),
+              ),
+              isTrue,
+            );
+
+            final ok = await service.registerDeviceToken('fcm-token-fold');
+            expect(ok, isTrue);
+
+            final upsertReq = httpClient.requests.singleWhere(
+              (r) => r.url.path.endsWith('/rest/v1/user_devices'),
+            );
+            final decoded = jsonDecode(upsertReq.body);
+            final row = decoded is List
+                ? Map<String, dynamic>.from(decoded.single as Map)
+                : Map<String, dynamic>.from(decoded as Map);
+
+            expect(row['user_id'], 'user-saba');
+            expect(row['fcm_token'], 'fcm-token-fold');
+            expect(row['platform'], 'android');
+          });
+        } finally {
+          debugPrint = originalDebugPrint;
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    test(
+      'release APK keeps @drawable/ic_stat_cove when checked with aapt2',
+      () async {
+        final keepXml = File('android/app/src/main/res/raw/keep.xml');
+        expect(keepXml.existsSync(), isTrue);
+        expect(
+          await keepXml.readAsString(),
+          contains('@drawable/ic_stat_cove'),
+        );
+
+        final aapt2 = _resolveAapt2Binary();
+        expect(
+          aapt2,
+          isNotNull,
+          reason: 'aapt2 must be available in Android SDK build-tools',
+        );
+
+        final buildResult = await Process.run(
+          'flutter',
+          <String>['build', 'apk', '--release'],
+        );
+        expect(
+          buildResult.exitCode,
+          0,
+          reason:
+              'flutter build apk --release failed:\n${buildResult.stdout}\n${buildResult.stderr}',
+        );
+
+        final apkFile = File('build/app/outputs/flutter-apk/app-release.apk');
+        expect(apkFile.existsSync(), isTrue);
+
+        final dumpResult = await Process.run(
+          aapt2!,
+          <String>['dump', 'resources', apkFile.path],
+        );
+        expect(
+          dumpResult.exitCode,
+          0,
+          reason: 'aapt2 dump resources failed:\n${dumpResult.stderr}',
+        );
+        final dumpOutput = dumpResult.stdout as String;
+        expect(dumpOutput, contains('drawable/ic_stat_cove'));
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
   });
 
   group('Task 3.14e — notify-partner branching & 42c300a legacy parity', () {
