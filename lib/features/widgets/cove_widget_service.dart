@@ -16,9 +16,9 @@ import '../../sync/providers/cove_sync_providers.dart';
 import '../backup/backup_scheduler.dart';
 import '../expenses/expense_controller.dart';
 import '../profile/preferences_controller.dart';
-import '../routines/routine_controller.dart';
 import '../subscriptions/subscription_controller.dart';
 import '../weather/weather_controller.dart';
+import 'cove_day_arc_widget.dart';
 import 'cove_ledger_widget.dart';
 
 /// Metadata for each of the four Android home-screen widgets (`design/specs/18-widgets.md`).
@@ -223,6 +223,12 @@ class WorkmanagerWidgetRefreshScheduler implements WidgetRefreshScheduler {
 /// Service that renders Cove's Flutter widget bitmaps and pushes updates to
 /// Android's `AppWidgetManager`.
 class CoveWidgetService {
+  static const String arcDarkKey = 'cove_widget_arc_dark';
+  static const String arcLightKey = 'cove_widget_arc_light';
+  static const String cachedArcSnapshotPrefKey =
+      'cove_widget_arc_snapshot_v1';
+  static const Size arcLogicalSize = Size(176, 176);
+
   static const String ledgerDarkKey = 'cove_widget_ledger_dark';
   static const String ledgerLightKey = 'cove_widget_ledger_light';
   static const String ledgerCompactDarkKey = 'cove_widget_ledger_compact_dark';
@@ -241,11 +247,81 @@ class CoveWidgetService {
 
   String? _lastRenderedSignature;
   int _renderGeneration = 0;
+  String? _lastRenderedArcSignature;
+  int _arcRenderGeneration = 0;
 
   CoveWidgetService({
     this.bridge = const HomeWidgetPlatformBridge(),
     WidgetRefreshScheduler? scheduler,
   }) : scheduler = scheduler ?? WorkmanagerWidgetRefreshScheduler();
+
+  /// Renders the Day Arc widget (2×2, dark + light) into PNG bitmaps via
+  /// [bridge] and triggers an `AppWidgetManager` update.
+  Future<void> renderAndPushDayArc({
+    required DayArcSummary summary,
+    bool force = false,
+  }) async {
+    final signature = [
+      DateFormat('yyyy-MM-dd').format(summary.referenceDate),
+      summary.nowMinutes,
+      summary.centerTimeLabel ?? '',
+      summary.centerTitle,
+      summary.bands
+          .map(
+            (b) =>
+                '${b.id}:${b.title}:${b.startMinutes}-${b.endMinutes}:${b.strength.name}',
+          )
+          .join(','),
+      summary.habitDots
+          .map((d) => '${d.habitId}:${d.minutes}:${d.isKept ? 1 : 0}')
+          .join(','),
+    ].join('|');
+
+    if (!force && _lastRenderedArcSignature == signature) {
+      return;
+    }
+    _lastRenderedArcSignature = signature;
+    final generation = ++_arcRenderGeneration;
+
+    await _saveArcSnapshotToPrefs(summary);
+    if (generation != _arcRenderGeneration) return;
+
+    if (!bridge.isSupported) return;
+
+    try {
+      final darkArc = _wrapForOffscreenRender(
+        theme: CoveTheme.darkTheme,
+        size: arcLogicalSize,
+        child: CoveDayArcCard(summary: summary),
+      );
+      final lightArc = _wrapForOffscreenRender(
+        theme: CoveTheme.lightTheme,
+        size: arcLogicalSize,
+        child: CoveDayArcCard(summary: summary),
+      );
+
+      await bridge.renderFlutterWidget(
+        darkArc,
+        key: arcDarkKey,
+        logicalSize: arcLogicalSize,
+      );
+      if (generation != _arcRenderGeneration) return;
+      await bridge.renderFlutterWidget(
+        lightArc,
+        key: arcLightKey,
+        logicalSize: arcLogicalSize,
+      );
+      if (generation != _arcRenderGeneration) return;
+
+      await bridge.updateWidget(
+        androidName: CoveWidgetProviderInfo.dayArc.androidName,
+        qualifiedAndroidName:
+            CoveWidgetProviderInfo.dayArc.qualifiedAndroidName,
+      );
+    } catch (e) {
+      debugPrint('[CoveWidgetService] Failed to render Day Arc widget: $e');
+    }
+  }
 
   /// Renders the Ledger widget (dark + light, 4×2 + 3×2 compact) into PNG
   /// bitmaps via [bridge] and triggers an `AppWidgetManager` update.
@@ -372,6 +448,20 @@ class CoveWidgetService {
         WorkmanagerWidgetRefreshScheduler.lastBackgroundRefreshEpochMsKey,
         now.millisecondsSinceEpoch,
       );
+
+      final rawArcSnapshot = prefs.getString(cachedArcSnapshotPrefKey);
+      if (rawArcSnapshot != null && rawArcSnapshot.isNotEmpty) {
+        final restoredArc = _restoreArcSnapshotFromJson(
+          jsonDecode(rawArcSnapshot) as Map<String, dynamic>,
+          now: now,
+        );
+        if (restoredArc != null) {
+          await renderAndPushDayArc(
+            summary: restoredArc,
+            force: true,
+          );
+        }
+      }
 
       final rawSnapshot = prefs.getString(cachedLedgerSnapshotPrefKey);
       if (rawSnapshot != null && rawSnapshot.isNotEmpty) {
@@ -572,6 +662,51 @@ class CoveWidgetService {
       return null;
     }
   }
+
+  Future<void> _saveArcSnapshotToPrefs(DayArcSummary summary) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final payload = <String, dynamic>{
+        'referenceDate': summary.referenceDate.toIso8601String(),
+        'bands': summary.bands.map((b) => b.toJson()).toList(),
+        'habitDots': summary.habitDots.map((d) => d.toJson()).toList(),
+      };
+      await prefs.setString(cachedArcSnapshotPrefKey, jsonEncode(payload));
+    } catch (_) {}
+  }
+
+  DayArcSummary? _restoreArcSnapshotFromJson(
+    Map<String, dynamic> map, {
+    required DateTime now,
+  }) {
+    try {
+      final referenceDate = DateTime.parse(map['referenceDate'] as String);
+      final rawBands = map['bands'] as List<dynamic>? ?? const [];
+      final rawDots = map['habitDots'] as List<dynamic>? ?? const [];
+      final bands = rawBands
+          .whereType<Map<String, dynamic>>()
+          .map(DayArcBand.fromJson)
+          .toList();
+      final habitDots = rawDots
+          .whereType<Map<String, dynamic>>()
+          .map(DayArcHabitDot.fromJson)
+          .toList();
+      final nowMinutes = (now.hour * 60 + now.minute).clamp(0, 1439);
+      final base = DayArcSummary(
+        referenceDate: referenceDate,
+        nowMinutes: nowMinutes,
+        bands: bands,
+        habitDots: habitDots,
+        currentOrNextBand: DayArcSummary.selectCurrentOrNextBand(
+          bands,
+          nowMinutes,
+        ),
+      );
+      return base.atTime(now);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 final widgetRefreshSchedulerProvider = Provider<WidgetRefreshScheduler>((ref) {
@@ -588,20 +723,19 @@ final coveWidgetServiceProvider = Provider<CoveWidgetService>((ref) {
 /// affecting any widget changes (`design/specs/18-widgets.md` § Rendering).
 final coveWidgetAutoSyncProvider = Provider<void>((ref) {
   final service = ref.watch(coveWidgetServiceProvider);
+  final dayArc = ref.watch(dayArcSummaryProvider);
   final expenses = ref.watch(expensesStandingSummaryProvider);
   final commitments = ref.watch(commitmentsSummaryProvider);
 
-  // Also watch the remaining widget data streams (Calendar, Routines, Habits,
-  // Lists, Weather) so any change to widget-relevant data triggers a refresh.
-  ref.watch(activeHomeCalendarEventsProvider);
-  ref.watch(activeHomeRoutinesProvider);
-  ref.watch(activeHomeAllRoutineEventsProvider);
-  ref.watch(activeHomeHabitsProvider);
-  ref.watch(activeHomeAllHabitCheckinsProvider);
+  // Also watch the remaining widget data streams (Lists, Weather) so any
+  // change to widget-relevant data triggers a refresh.
   ref.watch(activeHomeListsProvider);
   ref.watch(activeHomeAllListItemsProvider);
   ref.watch(weatherProvider);
 
+  unawaited(
+    service.renderAndPushDayArc(summary: dayArc),
+  );
   unawaited(
     service.renderAndPushLedger(
       expenses: expenses,

@@ -158,6 +158,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
     switch (segments.first) {
       case 'arc':
+        _selectedCalendarDate = clock.now();
         _handleSeatTap('day');
         break;
       case 'slip':
