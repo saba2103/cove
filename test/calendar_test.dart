@@ -17,6 +17,7 @@ import 'package:cove/sync/event_store_impl.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
@@ -25,7 +26,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'golden/golden_harness.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
@@ -217,6 +217,8 @@ void main() {
     }
 
     return [
+      firstRunProvider(CoveScreen.calendar)
+          .overrideWithValue(FirstRunState.inUse),
       appDatabaseProvider.overrideWithValue(db),
       activeHomeIdProvider.overrideWith(() => FakeActiveHomeNotifier(homeId)),
       syncEngineProvider.overrideWithValue(fakeSyncEngine),
@@ -301,7 +303,6 @@ void main() {
   group('Shared Calendar Feature Tests', () {
     testWidgets('1. Empty state renders CovePageHeader, fixed section order, and quiet empty lines',
         (tester) async {
-      SharedPreferences.setMockInitialValues({'first_run_done.calendar': true});
       final fixedDate = DateTime(2026, 10, 15);
       await tester.pumpWidget(
         createWidgetUnderTest(

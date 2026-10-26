@@ -44,6 +44,7 @@ import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -584,6 +585,8 @@ List<Override> _createGoldenOverrides() {
   final stubDb = _StubAppDatabase();
 
   return [
+    for (final screen in CoveScreen.values)
+      firstRunProvider(screen).overrideWithValue(FirstRunState.inUse),
     appDatabaseProvider.overrideWithValue(stubDb),
     homeKeyStoreProvider.overrideWithValue(keyStore),
     backupRemoteProvider.overrideWithValue(FakeBackupRemote()),

@@ -4,9 +4,9 @@ import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_theme.dart';
 import 'package:cove/core/widgets/cove_seed_card.dart';
 import 'package:cove/core/widgets/cove_starter_row.dart';
+import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/add/add_draft.dart';
 import 'package:cove/features/add/add_flow.dart';
-import 'package:cove/features/activity/activity_read_status_controller.dart';
 import 'package:cove/features/auth/auth_controller.dart';
 import 'package:cove/features/calendar/calendar_screen.dart';
 import 'package:cove/features/expenses/monthly_budget_controller.dart';
@@ -27,6 +27,8 @@ import 'package:cove/features/weather/weather_model.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -57,18 +59,6 @@ final LocalHome _kSeedHome = LocalHome(
   createdAt: _kFixedDate,
   createdBy: 'user_1',
 );
-
-class _StubAppDatabase extends Fake implements AppDatabase {
-  @override
-  Future<int> purgeOrphanedAndArchivedListItems([String? activeHomeId]) async =>
-      0;
-
-  @override
-  Future<int> clearProfileActivityEvents() async => 0;
-
-  @override
-  Future<void> close() async {}
-}
 
 class _FakeAuthNotifier extends Notifier<AsyncValue<CoveUser?>>
     implements AuthNotifier {
@@ -176,8 +166,12 @@ class _ConfigurablePartnerProfileNotifier extends PartnerProfileNotifier {
 }
 
 Stream<T> _notifierStream<T>(Ref ref, ValueNotifier<T> notifier) {
-  final controller = StreamController<T>();
-  controller.add(notifier.value);
+  final controller = StreamController<T>.broadcast();
+  Future.microtask(() {
+    if (!controller.isClosed) {
+      controller.add(notifier.value);
+    }
+  });
   void listener() {
     if (!controller.isClosed) {
       controller.add(notifier.value);
@@ -195,14 +189,25 @@ Stream<T> _notifierStream<T>(Ref ref, ValueNotifier<T> notifier) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  late AppDatabase db;
+
   setUpAll(() async {
     await loadCoveFonts();
   });
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     PartnerProfileNotifier.resetCache();
+    db = AppDatabase(NativeDatabase.memory());
+    await db.into(db.localHomes).insert(
+          LocalHomesCompanion.insert(
+            id: 'home_1',
+            name: 'The Nest',
+            createdAt: _kFixedDate,
+            createdBy: 'user_1',
+          ),
+        );
   });
 
   List<Override> buildOverrides({
@@ -214,8 +219,8 @@ void main() {
     ValueNotifier<List<LocalCalendarEvent>>? eventsNotifier,
     ValueNotifier<List<Routine>>? routinesNotifier,
     ValueNotifier<List<RoutineEvent>>? routineEventsNotifier,
+    Stream<FirstRunCounts> Function(Ref ref)? customCountsStream,
   }) {
-    final stubDb = _StubAppDatabase();
     final effectiveExpenses =
         expensesNotifier ?? ValueNotifier<List<LocalExpense>>(const []);
     final effectiveEvents =
@@ -226,7 +231,11 @@ void main() {
         routineEventsNotifier ?? ValueNotifier<List<RoutineEvent>>(const []);
 
     return [
-      appDatabaseProvider.overrideWithValue(stubDb),
+      appDatabaseProvider.overrideWithValue(db),
+      if (customCountsStream != null)
+        firstRunDbCountsStreamProvider('home_1').overrideWith(
+          (ref) => customCountsStream(ref),
+        ),
       authProvider.overrideWith(_FakeAuthNotifier.new),
       activeHomeIdProvider.overrideWith(_TestActiveHomeNotifier.new),
       activeHomeProvider.overrideWith((ref) => Stream.value(_kSeedHome)),
@@ -291,6 +300,128 @@ void main() {
       ),
     );
   }
+
+  group('No flash on launch (4.2)', () {
+    testWidgets(
+      'with counts delayed 500ms and a home that has data, the seed card is never in the widget tree at any frame',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        // Seed the database with data for Today, Calendar, and Routines.
+        await db.into(db.localExpenses).insert(
+              LocalExpensesCompanion.insert(
+                id: 'exp_1',
+                homeId: 'home_1',
+                title: 'Coffee',
+                amount: 180.0,
+                paidBy: 'user_1',
+                expenseDate: _kFixedDate,
+                createdAt: _kFixedDate,
+              ),
+            );
+        await db.into(db.localCalendarEvents).insert(
+              LocalCalendarEventsCompanion.insert(
+                id: 'evt_1',
+                homeId: 'home_1',
+                title: 'Dinner',
+                startTime: _kFixedDate,
+                endTime: _kFixedDate.add(const Duration(hours: 1)),
+                createdBy: 'user_1',
+                createdAt: _kFixedDate,
+              ),
+            );
+        await db.into(db.localRoutines).insert(
+              LocalRoutinesCompanion.insert(
+                id: 'rt_1',
+                homeId: 'home_1',
+                name: 'Everyday',
+                daysJson: '[1,2,3,4,5,6,7]',
+                createdAt: _kFixedDate,
+              ),
+            );
+        await db.into(db.localRoutineEvents).insert(
+              LocalRoutineEventsCompanion.insert(
+                id: 're_1',
+                routineId: 'rt_1',
+                homeId: 'home_1',
+                title: 'Morning walk',
+                startMinutes: 420,
+                endMinutes: 450,
+                createdAt: _kFixedDate,
+              ),
+            );
+
+        final seededCounts = await db.getFirstRunCounts('home_1');
+
+        final screens = <Widget>[
+          const TodayScreen(),
+          CalendarScreen(initialSelectedDate: _kFixedDate),
+          const RoutineScreen(),
+        ];
+
+        await withClock(Clock.fixed(_kFixedDate), () async {
+          for (var i = 0; i < screens.length; i++) {
+            await tester.pumpWidget(
+              wrapScreen(
+                screens[i],
+                scopeKey: ValueKey('delayed_scope_$i'),
+                overrides: buildOverrides(
+                  routinesNotifier: ValueNotifier([
+                    Routine(
+                      id: 'rt_1',
+                      homeId: 'home_1',
+                      name: 'Everyday',
+                      days: const [1, 2, 3, 4, 5, 6, 7],
+                      createdAt: _kFixedDate,
+                    ),
+                  ]),
+                  routineEventsNotifier: ValueNotifier([
+                    RoutineEvent(
+                      id: 're_1',
+                      routineId: 'rt_1',
+                      homeId: 'home_1',
+                      title: 'Morning walk',
+                      startMinutes: 420,
+                      endMinutes: 450,
+                      createdAt: _kFixedDate,
+                    ),
+                  ]),
+                  customCountsStream: (_) => Stream<FirstRunCounts>.fromFuture(
+                    Future<FirstRunCounts>.delayed(
+                      const Duration(milliseconds: 500),
+                      () => seededCounts,
+                    ),
+                  ),
+                ),
+              ),
+            );
+
+            // Frame 0 (initial build while counts are loading): no seed card.
+            expect(find.byType(CoveSeedCard), findsNothing);
+
+            // Step through every 50ms frame across the 500ms delay: never a seed card.
+            for (var elapsed = 0; elapsed < 600; elapsed += 50) {
+              await tester.pump(const Duration(milliseconds: 50));
+              expect(
+                find.byType(CoveSeedCard),
+                findsNothing,
+                reason:
+                    'Seed card flashed on ${screens[i].runtimeType} at ${elapsed + 50}ms',
+              );
+            }
+
+            await tester.pumpAndSettle();
+            expect(find.byType(CoveSeedCard), findsNothing);
+          }
+
+          await tester.pumpWidget(const SizedBox());
+        });
+      },
+    );
+  });
 
   group('4.2b — Today first-run', () {
     testWidgets(
@@ -407,6 +538,8 @@ void main() {
           );
           Navigator.of(tester.element(find.byType(AddFlow))).pop();
           await tester.pumpAndSettle();
+
+          await tester.pumpWidget(const SizedBox());
         });
       },
     );
@@ -432,34 +565,47 @@ void main() {
 
           expect(find.text('Your first day in Cove'), findsOneWidget);
 
-          // Add first record (an expense)
-          expensesNotifier.value = [
-            LocalExpense(
-              id: 'exp_1',
-              homeId: 'home_1',
-              title: 'Coffee',
-              amount: 180.0,
-              currency: 'INR',
-              category: 'Dining',
-              paidBy: 'user_1',
-              splitRatio: 0.5,
-              isTransfer: false,
-              expenseDate: _kFixedDate,
-              createdAt: _kFixedDate,
-            ),
-          ];
+          // Add first record to DB (an expense)
+          final expense = LocalExpense(
+            id: 'exp_1',
+            homeId: 'home_1',
+            title: 'Coffee',
+            amount: 180.0,
+            currency: 'INR',
+            category: 'Dining',
+            paidBy: 'user_1',
+            splitRatio: 0.5,
+            isTransfer: false,
+            expenseDate: _kFixedDate,
+            createdAt: _kFixedDate,
+          );
+          await db.into(db.localExpenses).insert(
+                LocalExpensesCompanion.insert(
+                  id: expense.id,
+                  homeId: expense.homeId,
+                  title: expense.title,
+                  amount: expense.amount,
+                  paidBy: expense.paidBy,
+                  expenseDate: expense.expenseDate,
+                  createdAt: expense.createdAt,
+                ),
+              );
+          expensesNotifier.value = [expense];
           await tester.pumpAndSettle();
 
           expect(find.text('Your first day in Cove'), findsNothing);
           expect(find.byType(CoveSeedCard), findsNothing);
 
-          // Delete that record -> Today stays out of first-run
+          // Delete that record from DB -> Today stays out of first-run
+          await db.deleteExpense('exp_1');
           expensesNotifier.value = const [];
           await tester.pumpAndSettle();
 
           expect(find.text('Your first day in Cove'), findsNothing);
           expect(find.byType(CoveSeedCard), findsNothing);
           expect(find.text('Nothing spent today.'), findsOneWidget);
+
+          await tester.pumpWidget(const SizedBox());
         });
       },
     );
@@ -529,25 +675,36 @@ void main() {
           Navigator.of(tester.element(find.byType(AddFlow))).pop();
           await tester.pumpAndSettle();
 
-          // Insert a calendar event -> leaves first-run
-          eventsNotifier.value = [
-            LocalCalendarEvent(
-              id: 'evt_1',
-              homeId: 'home_1',
-              title: 'Dinner',
-              startTime: _kFixedDate,
-              endTime: _kFixedDate.add(const Duration(hours: 1)),
-              isAllDay: false,
-              createdBy: 'user_1',
-              createdAt: _kFixedDate,
-            ),
-          ];
+          // Insert a calendar event into DB -> leaves first-run
+          final event = LocalCalendarEvent(
+            id: 'evt_1',
+            homeId: 'home_1',
+            title: 'Dinner',
+            startTime: _kFixedDate,
+            endTime: _kFixedDate.add(const Duration(hours: 1)),
+            isAllDay: false,
+            createdBy: 'user_1',
+            createdAt: _kFixedDate,
+          );
+          await db.into(db.localCalendarEvents).insert(
+                LocalCalendarEventsCompanion.insert(
+                  id: event.id,
+                  homeId: event.homeId,
+                  title: event.title,
+                  startTime: event.startTime,
+                  endTime: event.endTime,
+                  createdBy: event.createdBy,
+                  createdAt: event.createdAt,
+                ),
+              );
+          eventsNotifier.value = [event];
           await tester.pumpAndSettle();
 
           expect(find.byType(CoveSeedCard), findsNothing);
           expect(find.text('An empty Thursday'), findsNothing);
 
-          // Delete the calendar event -> stays in post-first-run empty state
+          // Delete the calendar event from DB -> stays in post-first-run empty state
+          await db.deleteCalendarEvent('evt_1');
           eventsNotifier.value = const [];
           await tester.pumpAndSettle();
 
@@ -556,6 +713,8 @@ void main() {
             find.text('Nothing on the calendar for this day.'),
             findsOneWidget,
           );
+
+          await tester.pumpWidget(const SizedBox());
         });
       },
     );
@@ -639,7 +798,27 @@ void main() {
           Navigator.of(tester.element(find.byType(AddFlow))).pop();
           await tester.pumpAndSettle();
 
-          // 4. Add a routine + routine block -> leaves first-run
+          // 4. Add a routine + routine block to DB -> leaves first-run
+          await db.into(db.localRoutines).insert(
+                LocalRoutinesCompanion.insert(
+                  id: 'rt_1',
+                  homeId: 'home_1',
+                  name: 'Everyday',
+                  daysJson: '[1,2,3,4,5,6,7]',
+                  createdAt: _kFixedDate,
+                ),
+              );
+          await db.into(db.localRoutineEvents).insert(
+                LocalRoutineEventsCompanion.insert(
+                  id: 're_1',
+                  routineId: 'rt_1',
+                  homeId: 'home_1',
+                  title: 'Morning walk',
+                  startMinutes: 420,
+                  endMinutes: 450,
+                  createdAt: _kFixedDate,
+                ),
+              );
           routinesNotifier.value = [
             Routine(
               id: 'rt_1',
@@ -667,12 +846,17 @@ void main() {
           expect(find.text('Two days, not yet drawn'), findsNothing);
           expect(find.text('Morning walk'), findsOneWidget);
 
-          // 5. Delete the routine block -> does NOT return to first-run
+          // 5. Delete the routine block from DB -> does NOT return to first-run
+          await (db.delete(db.localRoutineEvents)
+                ..where((e) => e.id.equals('re_1')))
+              .go();
           routineEventsNotifier.value = const [];
           await tester.pumpAndSettle();
 
           expect(find.byType(CoveSeedCard), findsNothing);
           expect(find.text('Two days, not yet drawn'), findsNothing);
+
+          await tester.pumpWidget(const SizedBox());
         });
       },
     );

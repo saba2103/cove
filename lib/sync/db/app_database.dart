@@ -333,10 +333,6 @@ class FirstRunCounts {
   LocalCheckinReminders,
 ])
 class AppDatabase extends _$AppDatabase {
-  final Map<String, FirstRunCounts> cachedFirstRunCounts = {};
-  final StreamController<String> firstRunCountsUpdates =
-      StreamController<String>.broadcast(sync: true);
-  StreamSubscription<Set<TableUpdate>>? _firstRunUpdatesSub;
   bool _isClosed = false;
 
   AppDatabase([QueryExecutor? executor])
@@ -352,21 +348,11 @@ class AppDatabase extends _$AppDatabase {
                 sqlite3Wasm: Uri.parse('sqlite3.wasm'),
                 driftWorker: Uri.parse('drift_worker.js'),
               ),
-            )) {
-    if (executor is! ReadOnlyQueryExecutor) {
-      _firstRunUpdatesSub = tableUpdates().listen((_) {
-        if (!_isClosed) {
-          unawaited(_refreshKnownHomeCounts());
-        }
-      });
-    }
-  }
+            ));
 
   @override
   Future<void> close() async {
     _isClosed = true;
-    await _firstRunUpdatesSub?.cancel();
-    await firstRunCountsUpdates.close();
     await super.close();
   }
 
@@ -1068,37 +1054,19 @@ class AppDatabase extends _$AppDatabase {
 
   // --- FIRST-RUN RECORD COUNTS (`design/specs/16-first-run.md` §3) ---
 
-  Future<void> _refreshKnownHomeCounts() async {
-    if (_isClosed) return;
-    try {
-      final homes = await select(localHomes).get();
-      final homeIds = <String>{
-        '*',
-        ...cachedFirstRunCounts.keys,
-        ...homes.map((h) => h.id),
-      };
-      for (final homeId in homeIds) {
-        if (_isClosed) return;
-        await getFirstRunCounts(homeId);
-      }
-    } catch (_) {}
-  }
-
   Future<FirstRunCounts> getFirstRunCounts(String homeId) async {
-    if (_isClosed) return FirstRunCounts.empty;
-    final key = homeId.isEmpty ? '*' : homeId;
-    final matchAll = key == '*';
+    if (_isClosed || homeId.isEmpty) return FirstRunCounts.empty;
     final row = await customSelect(
       '''
       SELECT
-        (SELECT COUNT(*) FROM local_expenses WHERE (?2 = 1 OR home_id = ?1)) AS expenses_count,
-        (SELECT COUNT(*) FROM local_calendar_events WHERE (?2 = 1 OR home_id = ?1)) AS events_count,
-        (SELECT COUNT(*) FROM local_habits WHERE (?2 = 1 OR home_id = ?1) AND is_archived = 0) AS habits_count,
-        (SELECT COUNT(*) FROM local_habit_checkins WHERE (?2 = 1 OR home_id = ?1)) AS checkins_count,
-        (SELECT COUNT(*) FROM local_list_items WHERE (?2 = 1 OR home_id = ?1)) AS list_items_count,
-        (SELECT COUNT(*) FROM local_subscriptions WHERE (?2 = 1 OR home_id = ?1)) AS commitments_count,
-        (SELECT COUNT(*) FROM local_routine_events WHERE (?2 = 1 OR home_id = ?1)) AS routine_events_count,
-        (SELECT COUNT(*) FROM local_activity_events WHERE (?2 = 1 OR home_id = ?1) AND event_type NOT IN (
+        (SELECT COUNT(*) FROM local_expenses WHERE home_id = ?1) AS expenses_count,
+        (SELECT COUNT(*) FROM local_calendar_events WHERE home_id = ?1) AS events_count,
+        (SELECT COUNT(*) FROM local_habits WHERE home_id = ?1 AND is_archived = 0) AS habits_count,
+        (SELECT COUNT(*) FROM local_habit_checkins WHERE home_id = ?1) AS checkins_count,
+        (SELECT COUNT(*) FROM local_list_items WHERE home_id = ?1) AS list_items_count,
+        (SELECT COUNT(*) FROM local_subscriptions WHERE home_id = ?1) AS commitments_count,
+        (SELECT COUNT(*) FROM local_routine_events WHERE home_id = ?1) AS routine_events_count,
+        (SELECT COUNT(*) FROM local_activity_events WHERE home_id = ?1 AND event_type NOT IN (
           'member_profile_updated',
           'profile_updated',
           'user_profile_updated',
@@ -1116,7 +1084,7 @@ class AppDatabase extends _$AppDatabase {
             EXISTS(
               SELECT 1 FROM local_activity_events a
               LEFT JOIN local_homes h ON h.id = a.home_id
-              WHERE (?2 = 1 OR a.home_id = ?1) AND (
+              WHERE a.home_id = ?1 AND (
                 a.event_type IN ('member_profile_updated', 'partner_joined', 'member_joined')
                 OR (h.created_by IS NOT NULL AND a.actor_id != '' AND a.actor_id != h.created_by)
               )
@@ -1124,7 +1092,7 @@ class AppDatabase extends _$AppDatabase {
             OR EXISTS(
               SELECT 1 FROM local_outbox_events o
               LEFT JOIN local_homes h ON h.id = o.home_id
-              WHERE (?2 = 1 OR o.home_id = ?1) AND (
+              WHERE o.home_id = ?1 AND (
                 o.event_type IN ('member_profile_updated', 'partner_joined', 'member_joined')
                 OR o.sync_status = 'syncedToPartner'
                 OR (h.created_by IS NOT NULL AND o.actor_id != '' AND o.actor_id != h.created_by)
@@ -1134,8 +1102,7 @@ class AppDatabase extends _$AppDatabase {
         ) AS has_partner_in_db
       ''',
       variables: [
-        Variable.withString(key),
-        Variable.withInt(matchAll ? 1 : 0),
+        Variable.withString(homeId),
       ],
       readsFrom: {
         localHomes,
@@ -1151,7 +1118,7 @@ class AppDatabase extends _$AppDatabase {
       },
     ).getSingle();
 
-    final counts = FirstRunCounts(
+    return FirstRunCounts(
       expenses: row.read<int>('expenses_count'),
       events: row.read<int>('events_count'),
       habits: row.read<int>('habits_count'),
@@ -1162,24 +1129,35 @@ class AppDatabase extends _$AppDatabase {
       activity: row.read<int>('activity_count'),
       hasPartnerInDb: row.read<int>('has_partner_in_db') != 0,
     );
-    cachedFirstRunCounts[key] = counts;
-    if (!_isClosed && !firstRunCountsUpdates.isClosed) {
-      firstRunCountsUpdates.add(key);
-    }
-    return counts;
   }
 
-  Stream<FirstRunCounts> watchFirstRunCounts(String homeId) async* {
-    final key = homeId.isEmpty ? '*' : homeId;
-    if (cachedFirstRunCounts.containsKey(key)) {
-      yield cachedFirstRunCounts[key]!;
-    } else {
-      yield await getFirstRunCounts(key);
+  Stream<FirstRunCounts> watchFirstRunCounts(String homeId) {
+    if (_isClosed || homeId.isEmpty) {
+      return const Stream<FirstRunCounts>.empty();
     }
-    await for (final _ in tableUpdates()) {
-      if (_isClosed) return;
-      yield await getFirstRunCounts(key);
-    }
+    return Stream<FirstRunCounts>.multi((controller) {
+      var active = true;
+      Future<void> emit() async {
+        if (!active || _isClosed || controller.isClosed) return;
+        try {
+          final counts = await getFirstRunCounts(homeId);
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.add(counts);
+          }
+        } catch (e, st) {
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.addError(e, st);
+          }
+        }
+      }
+
+      unawaited(emit());
+      final sub = tableUpdates().listen((_) => unawaited(emit()));
+      controller.onCancel = () {
+        active = false;
+        return sub.cancel();
+      };
+    }, isBroadcast: true);
   }
 }
 

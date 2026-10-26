@@ -118,7 +118,8 @@ void main() {
     List<LocalSubscription>? subscriptions,
   }) {
     return [
-      firstRunProvider(CoveScreen.today).overrideWithValue(false),
+      for (final screen in CoveScreen.values)
+        firstRunProvider(screen).overrideWithValue(FirstRunState.inUse),
       notificationServiceProvider.overrideWithValue(FakeNotificationService()),
       authProvider.overrideWith(() => FakeAuthNotifier(AsyncValue.data(testUser))),
       activeHomeIdProvider.overrideWith(() => FakeActiveHomeNotifier('home_123')),

@@ -37,19 +37,10 @@ final activeHomeProvider = StreamProvider<LocalHome?>((ref) {
 /// When false (e.g. newly created home waiting for partner), sync ticks remain 1-tick
 /// and dashboard surfaces a gentle "waiting for partner" status.
 class ActiveHomePartnerNotifier extends Notifier<bool> {
-  static final Expando<bool> _explicitlySet = Expando<bool>();
-
-  /// True when [setHasPartner] was called or when a test class overrides
-  /// [ActiveHomePartnerNotifier].
-  static bool isExplicit(ActiveHomePartnerNotifier notifier) =>
-      (_explicitlySet[notifier] ?? false) ||
-      notifier.runtimeType != ActiveHomePartnerNotifier;
-
   @override
   bool build() => true;
 
   void setHasPartner(bool hasPartner) {
-    _explicitlySet[this] = true;
     state = hasPartner;
   }
 }

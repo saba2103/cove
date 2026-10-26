@@ -218,9 +218,8 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         ? partnerProfile.displayName
         : 'Partner';
     final creatorId = home?.createdBy ?? currentUserId;
-    final isFirstRun = ref.watch(firstRunProvider(CoveScreen.calendar)) &&
-        widget.events.isEmpty &&
-        widget.subscriptions.isEmpty;
+    final isFirstRun =
+        ref.watch(firstRunProvider(CoveScreen.calendar)) == FirstRunState.firstRun;
     final isTodaySelected = CalendarDateUtils.isSameDay(
       selectedDateOnly,
       CalendarDateUtils.dateOnly(now),

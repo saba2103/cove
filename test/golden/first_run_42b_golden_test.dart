@@ -20,6 +20,7 @@ import 'package:cove/features/weather/weather_model.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -175,6 +176,8 @@ class _StubListController extends ListController {
 List<Override> _createFirstRunOverrides() {
   final stubDb = _StubAppDatabase();
   return [
+    for (final screen in CoveScreen.values)
+      firstRunProvider(screen).overrideWithValue(FirstRunState.firstRun),
     appDatabaseProvider.overrideWithValue(stubDb),
     authProvider.overrideWith(_FakeAuthNotifier.new),
     activeHomeIdProvider.overrideWith(_FakeActiveHomeNotifier.new),

@@ -253,7 +253,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     // Calendar events (non-subscription events, or all today events)
     final calendarEvents = todayData.events;
-    final isFirstRunScreen = ref.watch(firstRunProvider(CoveScreen.today));
+    final isFirstRunScreen =
+        ref.watch(firstRunProvider(CoveScreen.today)) == FirstRunState.firstRun;
     final firstRunPartner = resolveFirstRunPartnerName(ref);
 
     // Compose the Day Letter on every build over today's real data, home currency, and real commitment due dates.

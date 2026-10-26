@@ -34,6 +34,7 @@ import 'package:cove/features/weather/weather_model.dart';
 import 'package:cove/sync/db/app_database.dart';
 import 'package:cove/sync/providers/active_home_provider.dart';
 import 'package:cove/sync/providers/cove_sync_providers.dart';
+import 'package:cove/sync/providers/first_run_provider.dart';
 import 'package:cove/sync/sync_engine.dart';
 import 'package:cove/sync/sync_engine_impl.dart';
 import 'package:flutter/material.dart';
@@ -318,6 +319,8 @@ void main() {
     final stubSync = _StubSyncEngine();
     return [
       notificationServiceProvider.overrideWithValue(FakeNotificationService()),
+      for (final screen in CoveScreen.values)
+        firstRunProvider(screen).overrideWithValue(FirstRunState.inUse),
       appDatabaseProvider.overrideWithValue(stubDb),
       syncEngineProvider.overrideWithValue(stubSync),
       authProvider.overrideWith(

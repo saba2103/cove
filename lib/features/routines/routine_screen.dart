@@ -234,7 +234,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             : 'Alex');
 
     final bottomInset = CovePageInsets.bottomOf(context);
-    final isFirstRun = ref.watch(firstRunProvider(CoveScreen.routines));
+    final isFirstRun =
+        ref.watch(firstRunProvider(CoveScreen.routines)) == FirstRunState.firstRun;
     final firstRunPartner = resolveFirstRunPartnerName(ref);
 
     return Scaffold(
