@@ -277,6 +277,10 @@ class LocalPets extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@TableIndex(
+  name: 'idx_local_pet_tags_record',
+  columns: {#recordKind, #recordId},
+)
 class LocalPetTags extends Table {
   TextColumn get id => text()();
   TextColumn get homeId => text()();
@@ -288,6 +292,11 @@ class LocalPetTags extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {petId, recordKind, recordId},
+      ];
 }
 
 class FirstRunCounts {
@@ -610,9 +619,20 @@ class AppDatabase extends _$AppDatabase {
             );
             await m.createTable(localPets);
             await m.createTable(localPetTags);
+            await m.createIndex(idxLocalPetTagsRecord);
           }
         },
       );
+
+  /// Inserts a pet tag if `(pet_id, record_kind, record_id)` is not already
+  /// tagged (`INSERT OR IGNORE`). Whichever device's `id` arrives second is a
+  /// no-op so duplicate tags for the same `(pet, record)` can never exist.
+  Future<int> insertPetTagIfAbsent(LocalPetTagsCompanion tag) {
+    return into(localPetTags).insert(
+      tag,
+      mode: InsertMode.insertOrIgnore,
+    );
+  }
 
   // --- REACTION STREAMS FILTERED BY homeId ---
 

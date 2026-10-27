@@ -1931,6 +1931,36 @@
         "constraints": [],
         "explicit_pk": [
           "id"
+        ],
+        "unique_keys": [
+          [
+            "pet_id",
+            "record_kind",
+            "record_id"
+          ]
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "references": [
+        18
+      ],
+      "type": "index",
+      "data": {
+        "on": 18,
+        "name": "idx_local_pet_tags_record",
+        "sql": null,
+        "unique": false,
+        "columns": [
+          {
+            "column": "record_kind",
+            "order_by": null
+          },
+          {
+            "column": "record_id",
+            "order_by": null
+          }
         ]
       }
     }
@@ -2103,7 +2133,16 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"local_pet_tags\" (\"id\" TEXT NOT NULL, \"home_id\" TEXT NOT NULL, \"pet_id\" TEXT NOT NULL, \"record_kind\" TEXT NOT NULL, \"record_id\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL, PRIMARY KEY (\"id\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"local_pet_tags\" (\"id\" TEXT NOT NULL, \"home_id\" TEXT NOT NULL, \"pet_id\" TEXT NOT NULL, \"record_kind\" TEXT NOT NULL, \"record_id\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL, PRIMARY KEY (\"id\"), UNIQUE (\"pet_id\", \"record_kind\", \"record_id\"));"
+        }
+      ]
+    },
+    {
+      "name": "idx_local_pet_tags_record",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE INDEX idx_local_pet_tags_record ON local_pet_tags (record_kind, record_id)"
         }
       ]
     }

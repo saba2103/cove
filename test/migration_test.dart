@@ -7,6 +7,7 @@ import 'package:cove/features/notifications/notification_pipeline.dart';
 import 'package:cove/features/notifications/notification_service.dart';
 import 'package:cove/features/widgets/cove_widget_tick_service.dart';
 import 'package:cove/sync/db/app_database.dart';
+import 'package:cove/sync/db/local_state_store_impl.dart';
 import 'package:cove/sync/key_management/home_key_store.dart';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -1136,6 +1137,143 @@ void main() {
           isEmpty,
         );
       });
+    });
+
+    test(
+        'two devices tag the same pet on the same record offline -> after both sync, exactly one tag (whichever device id arrives second is a no-op)',
+        () async {
+      // Simulate two devices (Saba's Fold and Ancy's Pixel), each migrated from v11 -> v12.
+      final schemaA = await verifier.schemaAt(11);
+      final oldDbA = v11.DatabaseAtV11(schemaA.newConnection());
+      await _populateV11Database(oldDbA);
+      await oldDbA.close();
+      final dbA = AppDatabase(schemaA.newConnection());
+      addTearDown(dbA.close);
+
+      final schemaB = await verifier.schemaAt(11);
+      final oldDbB = v11.DatabaseAtV11(schemaB.newConnection());
+      await _populateV11Database(oldDbB);
+      await oldDbB.close();
+      final dbB = AppDatabase(schemaB.newConnection());
+      addTearDown(dbB.close);
+
+      final storeA = LocalStateStoreImpl(dbA);
+      final storeB = LocalStateStoreImpl(dbB);
+
+      // Verify the lookup index on (record_kind, record_id) and unique index on
+      // (pet_id, record_kind, record_id) exist on both migrated v12 databases.
+      for (final db in [dbA, dbB]) {
+        final indexRows = await db
+            .customSelect("PRAGMA index_list('local_pet_tags');")
+            .get();
+        final indexNames =
+            indexRows.map((r) => r.read<String>('name')).toList();
+        expect(indexNames, contains('idx_local_pet_tags_record'));
+        expect(
+          indexRows.where((r) => r.read<int>('unique') == 1).length,
+          greaterThanOrEqualTo(2), // PK (id) + UNIQUE (pet_id, record_kind, record_id)
+        );
+      }
+
+      // Both devices have the same pet ('pet_milo') and expense ('exp_dinner_1').
+      final petPayload = <String, dynamic>{
+        'id': 'pet_milo',
+        'home_id': 'home_cove_1',
+        'name': 'Milo',
+        'created_by': 'user_saba',
+        'created_at': _t1.toIso8601String(),
+        'is_archived': false,
+      };
+      await storeA.applyEvent(
+        eventId: 'evt_pet_created_1',
+        homeId: 'home_cove_1',
+        eventType: 'pet_created',
+        payload: petPayload,
+        timestamp: _t1,
+        authorId: 'user_saba',
+      );
+      await storeB.applyEvent(
+        eventId: 'evt_pet_created_1',
+        homeId: 'home_cove_1',
+        eventType: 'pet_created',
+        payload: petPayload,
+        timestamp: _t1,
+        authorId: 'user_saba',
+      );
+
+      // Offline: Saba tags Milo on 'exp_dinner_1' on Device A with id 'tag_saba_fold'.
+      final tagEventA = <String, dynamic>{
+        'id': 'tag_saba_fold',
+        'home_id': 'home_cove_1',
+        'pet_id': 'pet_milo',
+        'record_kind': 'expense',
+        'record_id': 'exp_dinner_1',
+        'created_at': _t2.toIso8601String(),
+      };
+      await storeA.applyEvent(
+        eventId: 'evt_tag_a',
+        homeId: 'home_cove_1',
+        eventType: 'pet_tag_added',
+        payload: tagEventA,
+        timestamp: _t2,
+        authorId: 'user_saba',
+      );
+
+      // Offline: Ancy tags Milo on the same 'exp_dinner_1' on Device B with a DIFFERENT id 'tag_ancy_pixel'.
+      final tagEventB = <String, dynamic>{
+        'id': 'tag_ancy_pixel',
+        'home_id': 'home_cove_1',
+        'pet_id': 'pet_milo',
+        'record_kind': 'expense',
+        'record_id': 'exp_dinner_1',
+        'created_at': _t2.add(const Duration(seconds: 15)).toIso8601String(),
+      };
+      await storeB.applyEvent(
+        eventId: 'evt_tag_b',
+        homeId: 'home_cove_1',
+        eventType: 'pet_tag_added',
+        payload: tagEventB,
+        timestamp: _t2.add(const Duration(seconds: 15)),
+        authorId: 'user_ancy',
+      );
+
+      // Both devices now come online and sync each other's pet_tag_added event:
+      // - On Device A, Ancy's 'tag_ancy_pixel' arrives second -> no-op.
+      await storeA.applyEvent(
+        eventId: 'evt_tag_b',
+        homeId: 'home_cove_1',
+        eventType: 'pet_tag_added',
+        payload: tagEventB,
+        timestamp: _t2.add(const Duration(seconds: 15)),
+        authorId: 'user_ancy',
+      );
+      // - On Device B, Saba's 'tag_saba_fold' arrives second -> no-op.
+      await storeB.applyEvent(
+        eventId: 'evt_tag_a',
+        homeId: 'home_cove_1',
+        eventType: 'pet_tag_added',
+        payload: tagEventA,
+        timestamp: _t2,
+        authorId: 'user_saba',
+      );
+
+      final tagsOnA = await (dbA.select(dbA.localPetTags)
+            ..where((t) =>
+                t.recordKind.equals('expense') &
+                t.recordId.equals('exp_dinner_1')))
+          .get();
+      expect(tagsOnA, hasLength(1));
+      expect(tagsOnA.single.petId, 'pet_milo');
+      expect(tagsOnA.single.id, 'tag_saba_fold');
+
+      final tagsOnB = await (dbB.select(dbB.localPetTags)
+            ..where((t) =>
+                t.recordKind.equals('expense') &
+                t.recordId.equals('exp_dinner_1')))
+          .get();
+      expect(tagsOnB, hasLength(1));
+      expect(tagsOnB.single.petId, 'pet_milo');
+      expect(tagsOnB.single.id, 'tag_ancy_pixel');
     });
   });
 }

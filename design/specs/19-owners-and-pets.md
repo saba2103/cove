@@ -27,7 +27,10 @@ For now pets are only labels you can put on records. No feeding, walk or vet tra
 
 - `local_pets`: `id`, `home_id`, `name`, `created_at`, `created_by`, `is_archived`.
 - `local_pet_tags`: `id`, `home_id`, `pet_id`, `record_kind` (expense · event · task · habit ·
-  commitment · routine_event), `record_id`, `created_at`. One row per (pet, record).
+  commitment · routine_event), `record_id`, `created_at`. One row per (pet, record): unique key on
+  `(pet_id, record_kind, record_id)` and lookup index on `(record_kind, record_id)`. Applying
+  `pet_tag_added` for an existing `(pet_id, record_kind, record_id)` pair is an `INSERT OR IGNORE`
+  no-op, whichever device's `id` arrives second.
 - **Sync events:** `pet_created`, `pet_renamed`, `pet_archived`, `pet_tag_added`,
   `pet_tag_removed`. Deleting a record removes its tags (deferred with the record, through
   PendingDeleteService).

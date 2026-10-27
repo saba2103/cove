@@ -9640,6 +9640,10 @@ class $LocalPetTagsTable extends LocalPetTags
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {petId, recordKind, recordId},
+  ];
+  @override
   LocalPetTag map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return LocalPetTag(
@@ -9943,6 +9947,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalCheckinRemindersTable(this);
   late final $LocalPetsTable localPets = $LocalPetsTable(this);
   late final $LocalPetTagsTable localPetTags = $LocalPetTagsTable(this);
+  late final Index idxLocalPetTagsRecord = Index(
+    'idx_local_pet_tags_record',
+    'CREATE INDEX idx_local_pet_tags_record ON local_pet_tags (record_kind, record_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9967,6 +9975,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localCheckinReminders,
     localPets,
     localPetTags,
+    idxLocalPetTagsRecord,
   ];
 }
 

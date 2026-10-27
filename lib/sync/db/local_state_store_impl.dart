@@ -934,6 +934,109 @@ class LocalStateStoreImpl implements LocalStateStore {
           await (db.delete(db.localCheckinReminders)..where((t) => t.id.equals(remId))).go();
           break;
 
+        // --- PETS & PET TAGS (schema v12) ---
+        case 'pet_created':
+          final petId = payload['id'] as String?;
+          if (petId == null || petId.isEmpty) break;
+          final petHomeId = (payload['home_id'] as String?) ?? homeId;
+          final petName = (payload['name'] as String?) ?? 'Pet';
+          final petCreatedBy = (payload['created_by'] as String?) ?? authorId;
+          final petCreatedAt = payload['created_at'] != null
+              ? (DateTime.tryParse(payload['created_at'] as String) ?? timestamp)
+              : timestamp;
+          final isArchived = (payload['is_archived'] as bool?) ?? false;
+          await db.into(db.localPets).insertOnConflictUpdate(
+                LocalPetsCompanion.insert(
+                  id: petId,
+                  homeId: petHomeId,
+                  name: petName,
+                  createdAt: petCreatedAt,
+                  createdBy: petCreatedBy,
+                  isArchived: Value(isArchived),
+                ),
+              );
+          break;
+
+        case 'pet_renamed':
+          final petId = payload['id'] as String?;
+          final newName = payload['name'] as String?;
+          if (petId != null &&
+              petId.isNotEmpty &&
+              newName != null &&
+              newName.trim().isNotEmpty) {
+            await (db.update(db.localPets)..where((t) => t.id.equals(petId)))
+                .write(
+              LocalPetsCompanion(name: Value(newName.trim())),
+            );
+          }
+          break;
+
+        case 'pet_archived':
+          final petId = payload['id'] as String?;
+          if (petId != null && petId.isNotEmpty) {
+            final isArchived = (payload['is_archived'] as bool?) ?? true;
+            await (db.update(db.localPets)..where((t) => t.id.equals(petId)))
+                .write(
+              LocalPetsCompanion(isArchived: Value(isArchived)),
+            );
+          }
+          break;
+
+        case 'pet_tag_added':
+          final tagId = payload['id'] as String?;
+          final petId = payload['pet_id'] as String?;
+          final recordKind = payload['record_kind'] as String?;
+          final recordId = payload['record_id'] as String?;
+          if (tagId == null ||
+              tagId.isEmpty ||
+              petId == null ||
+              petId.isEmpty ||
+              recordKind == null ||
+              recordKind.isEmpty ||
+              recordId == null ||
+              recordId.isEmpty) {
+            break;
+          }
+          final tagHomeId = (payload['home_id'] as String?) ?? homeId;
+          final tagCreatedAt = payload['created_at'] != null
+              ? (DateTime.tryParse(payload['created_at'] as String) ?? timestamp)
+              : timestamp;
+          await db.insertPetTagIfAbsent(
+            LocalPetTagsCompanion.insert(
+              id: tagId,
+              homeId: tagHomeId,
+              petId: petId,
+              recordKind: recordKind,
+              recordId: recordId,
+              createdAt: tagCreatedAt,
+            ),
+          );
+          break;
+
+        case 'pet_tag_removed':
+          final tagId = payload['id'] as String?;
+          final petId = payload['pet_id'] as String?;
+          final recordKind = payload['record_kind'] as String?;
+          final recordId = payload['record_id'] as String?;
+          if (petId != null &&
+              petId.isNotEmpty &&
+              recordKind != null &&
+              recordKind.isNotEmpty &&
+              recordId != null &&
+              recordId.isNotEmpty) {
+            await (db.delete(db.localPetTags)
+                  ..where((t) =>
+                      t.petId.equals(petId) &
+                      t.recordKind.equals(recordKind) &
+                      t.recordId.equals(recordId)))
+                .go();
+          } else if (tagId != null && tagId.isNotEmpty) {
+            await (db.delete(db.localPetTags)
+                  ..where((t) => t.id.equals(tagId)))
+                .go();
+          }
+          break;
+
         default:
           // Unknown or custom event: silently accepted into event log
           break;
@@ -945,6 +1048,8 @@ class LocalStateStoreImpl implements LocalStateStore {
   @override
   Future<void> clearAll() async {
     await db.transaction(() async {
+      await db.delete(db.localPetTags).go();
+      await db.delete(db.localPets).go();
       await db.delete(db.localCalendarEvents).go();
       await db.delete(db.localHabitCheckins).go();
       await db.delete(db.localHabits).go();

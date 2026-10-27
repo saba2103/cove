@@ -8022,6 +8022,10 @@ class LocalPetTags extends Table
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {petId, recordKind, recordId},
+  ];
+  @override
   LocalPetTagsData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return LocalPetTagsData(
@@ -8058,7 +8062,10 @@ class LocalPetTags extends Table
   }
 
   @override
-  List<String> get customConstraints => const ['PRIMARY KEY(id)'];
+  List<String> get customConstraints => const [
+    'PRIMARY KEY(id)',
+    'UNIQUE(pet_id, record_kind, record_id)',
+  ];
   @override
   bool get dontWriteConstraints => true;
 }
@@ -8326,6 +8333,10 @@ class DatabaseAtV12 extends GeneratedDatabase {
       LocalCheckinReminders(this);
   late final LocalPets localPets = LocalPets(this);
   late final LocalPetTags localPetTags = LocalPetTags(this);
+  late final Index idxLocalPetTagsRecord = Index(
+    'idx_local_pet_tags_record',
+    'CREATE INDEX idx_local_pet_tags_record ON local_pet_tags (record_kind, record_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8350,6 +8361,7 @@ class DatabaseAtV12 extends GeneratedDatabase {
     localCheckinReminders,
     localPets,
     localPetTags,
+    idxLocalPetTagsRecord,
   ];
   @override
   int get schemaVersion => 12;

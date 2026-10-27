@@ -28,6 +28,7 @@ final class Schema12 extends i0.VersionedSchema {
     localCheckinReminders,
     localPets,
     localPetTags,
+    idxLocalPetTagsRecord,
   ];
   late final Shape0 localHomes = Shape0(
     source: i0.VersionedTable(
@@ -385,7 +386,10 @@ final class Schema12 extends i0.VersionedSchema {
       entityName: 'local_pet_tags',
       withoutRowId: false,
       isStrict: false,
-      tableConstraints: ['PRIMARY KEY(id)'],
+      tableConstraints: [
+        'PRIMARY KEY(id)',
+        'UNIQUE(pet_id, record_kind, record_id)',
+      ],
       columns: [
         _column_0,
         _column_9,
@@ -397,6 +401,10 @@ final class Schema12 extends i0.VersionedSchema {
       attachedDatabase: database,
     ),
     alias: null,
+  );
+  final i1.Index idxLocalPetTagsRecord = i1.Index(
+    'idx_local_pet_tags_record',
+    'CREATE INDEX idx_local_pet_tags_record ON local_pet_tags (record_kind, record_id)',
   );
 }
 
