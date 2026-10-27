@@ -480,11 +480,23 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
               CoveCheckbox(
                 value: streak.isCheckedToday,
                 hitSize: CoveSize.hit,
-                onChanged: (checked) {
-                  ref.read(habitControllerProvider).toggleCheckin(
-                        habit: habit,
-                        checked: checked,
+                onChanged: (checked) async {
+                  try {
+                    await ref.read(habitControllerProvider).toggleCheckin(
+                          habit: habit,
+                          checked: checked,
+                        );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.maybeOf(context)
+                      ?..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text('Could not save: $e'),
+                          duration: const Duration(seconds: 3),
+                        ),
                       );
+                  }
                 },
               ),
 

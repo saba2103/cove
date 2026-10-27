@@ -1151,11 +1151,23 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       },
       child: CoveChecklistRow(
         value: isCompleted,
-        onChanged: (val) {
-          ref.read(listControllerProvider).toggleItem(
-                itemId: item.id,
-                isCompleted: val,
+        onChanged: (val) async {
+          try {
+            await ref.read(listControllerProvider).toggleItem(
+                  itemId: item.id,
+                  isCompleted: val,
+                );
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.maybeOf(context)
+              ?..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text('Could not save: $e'),
+                  duration: const Duration(seconds: 3),
+                ),
               );
+          }
         },
         onTap: () => ListItemDetailSheet.show(
           context,

@@ -73,6 +73,7 @@ class PartnerProfileNotifier extends Notifier<PartnerProfileState> {
     required String name,
     String? avatarUrl,
     String? userId,
+    bool persistToStorage = true,
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty || trimmed == 'Partner' || trimmed == 'You') return;
@@ -100,17 +101,28 @@ class PartnerProfileNotifier extends Notifier<PartnerProfileState> {
       notifier.state = newState;
     }
 
+    if (!persistToStorage) return;
+
     try {
-      await storage.write(key: '$_partnerNameKeyPrefix$homeId', value: trimmed);
-      await storage.write(key: '${_partnerNameKeyPrefix}default', value: trimmed);
-      if (avatarUrl != null && avatarUrl.isNotEmpty) {
-        await storage.write(key: '$_partnerAvatarKeyPrefix$homeId', value: avatarUrl);
-        await storage.write(key: '${_partnerAvatarKeyPrefix}default', value: avatarUrl);
-      }
-      if (userId != null && userId.isNotEmpty) {
-        await storage.write(key: '$_partnerIdKeyPrefix$homeId', value: userId);
-        await storage.write(key: '${_partnerIdKeyPrefix}default', value: userId);
-      }
+      final writes = <Future<void>>[
+        storage.write(key: '$_partnerNameKeyPrefix$homeId', value: trimmed),
+        storage.write(key: '${_partnerNameKeyPrefix}default', value: trimmed),
+        if (avatarUrl != null && avatarUrl.isNotEmpty) ...[
+          storage.write(
+            key: '$_partnerAvatarKeyPrefix$homeId',
+            value: avatarUrl,
+          ),
+          storage.write(
+            key: '${_partnerAvatarKeyPrefix}default',
+            value: avatarUrl,
+          ),
+        ],
+        if (userId != null && userId.isNotEmpty) ...[
+          storage.write(key: '$_partnerIdKeyPrefix$homeId', value: userId),
+          storage.write(key: '${_partnerIdKeyPrefix}default', value: userId),
+        ],
+      ];
+      await Future.wait(writes).timeout(const Duration(milliseconds: 500));
     } catch (_) {}
   }
 

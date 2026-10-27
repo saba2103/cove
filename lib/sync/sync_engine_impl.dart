@@ -7,6 +7,7 @@ import '../features/notifications/notification_models.dart';
 import '../features/profile/partner_profile_controller.dart';
 import '../features/profile/user_profile_controller.dart';
 import 'crypto/sodium_crypto_service.dart';
+import 'db/local_state_store_impl.dart';
 import 'encryption_service.dart';
 import 'event_store.dart';
 import 'event_store_impl.dart';
@@ -365,8 +366,6 @@ class SyncEngineImpl implements SyncEngine {
     final eventId = _generateUuid();
     final actorId = currentUserId;
 
-    _processedEventIds.add(eventId);
-
     // 1. Client-side authenticated encryption (AEAD SecretBox)
     final plaintextJson = jsonEncode(payload);
     final encrypted = await encryptionService.encrypt(
@@ -386,16 +385,32 @@ class SyncEngineImpl implements SyncEngine {
     );
 
     // 2. One atomic transaction for the local record projection and its outbox
-    //    event (`design/specs/18-widgets.md` § Ticking rule 3).
+    //    event (`design/specs/18-widgets.md` § Ticking rule 3). Non-database
+    //    side effects (e.g. FlutterSecureStorage) run in [postCommit] after the
+    //    SQLite transaction commits so slow secure-storage I/O never holds the
+    //    write transaction open.
+    Future<void> Function()? postCommit;
     Future<void> writeRecordAndOutbox() async {
-      await localStateStore.applyEvent(
-        eventId: eventId,
-        homeId: resolvedHomeId,
-        eventType: eventType,
-        payload: payload,
-        timestamp: now,
-        authorId: actorId,
-      );
+      final stateStore = localStateStore;
+      if (stateStore is LocalStateStoreImpl) {
+        postCommit = await stateStore.applyEventInTransaction(
+          eventId: eventId,
+          homeId: resolvedHomeId,
+          eventType: eventType,
+          payload: payload,
+          timestamp: now,
+          authorId: actorId,
+        );
+      } else {
+        await stateStore.applyEvent(
+          eventId: eventId,
+          homeId: resolvedHomeId,
+          eventType: eventType,
+          payload: payload,
+          timestamp: now,
+          authorId: actorId,
+        );
+      }
       await eventStore.appendEvent(
         event,
         payloadJson: plaintextJson,
@@ -403,10 +418,18 @@ class SyncEngineImpl implements SyncEngine {
     }
 
     final store = eventStore;
+    final stateStore = localStateStore;
     if (store is EventStoreImpl) {
       await store.db.transaction(writeRecordAndOutbox);
+    } else if (stateStore is LocalStateStoreImpl) {
+      await stateStore.db.transaction(writeRecordAndOutbox);
     } else {
       await writeRecordAndOutbox();
+    }
+
+    _processedEventIds.add(eventId);
+    if (postCommit != null) {
+      await postCommit!();
     }
 
     // 3. Attempt immediate push to Supabase relay

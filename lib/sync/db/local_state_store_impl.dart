@@ -35,7 +35,35 @@ class LocalStateStoreImpl implements LocalStateStore {
     required DateTime timestamp,
     required String authorId,
   }) async {
-    await db.transaction(() async {
+    final postCommit = await db.transaction(
+      () => applyEventInTransaction(
+        eventId: eventId,
+        homeId: homeId,
+        eventType: eventType,
+        payload: payload,
+        timestamp: timestamp,
+        authorId: authorId,
+      ),
+    );
+    if (postCommit != null) {
+      await postCommit();
+    }
+  }
+
+  /// Applies the SQLite record projection inside the caller's open transaction
+  /// and returns an optional [postCommit] callback for non-database side
+  /// effects (e.g. [FlutterSecureStorage] or profile/budget notifier caches)
+  /// so secure-storage I/O never holds a SQLite write transaction open.
+  Future<Future<void> Function()?> applyEventInTransaction({
+    String? eventId,
+    required String homeId,
+    required String eventType,
+    required Map<String, dynamic> payload,
+    required DateTime timestamp,
+    required String authorId,
+  }) async {
+    Future<void> Function()? postCommit;
+    {
       // 1. Idempotently record event in applied events ledger
       if (eventId != null && eventId.isNotEmpty) {
         await db.recordAppliedEvent(eventId);
@@ -177,13 +205,25 @@ class LocalStateStoreImpl implements LocalStateStore {
             }
             await (db.delete(db.localListItems)..where((t) => t.listId.equals(listId))).go();
             await (db.delete(db.localLists)..where((t) => t.id.equals(listId))).go();
-            try {
-              final rawOrder = await storage.read(key: 'cove_lists_tab_order_$homeId');
-              if (rawOrder != null && rawOrder.contains(listId)) {
-                final updated = rawOrder.split(',').where((id) => id.isNotEmpty && id != listId).join(',');
-                await storage.write(key: 'cove_lists_tab_order_$homeId', value: updated);
-              }
-            } catch (_) {}
+            postCommit = () async {
+              try {
+                final rawOrder = await storage
+                    .read(key: 'cove_lists_tab_order_$homeId')
+                    .timeout(const Duration(milliseconds: 400));
+                if (rawOrder != null && rawOrder.contains(listId)) {
+                  final updated = rawOrder
+                      .split(',')
+                      .where((id) => id.isNotEmpty && id != listId)
+                      .join(',');
+                  await storage
+                      .write(
+                        key: 'cove_lists_tab_order_$homeId',
+                        value: updated,
+                      )
+                      .timeout(const Duration(milliseconds: 400));
+                }
+              } catch (_) {}
+            };
           }
           break;
 
@@ -198,12 +238,16 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'lists_reordered':
           final orderList = (payload['order'] as List<dynamic>?)?.map((e) => e.toString()).toList();
           if (orderList != null && orderList.isNotEmpty) {
-            try {
-              await storage.write(
-                key: 'cove_lists_tab_order_$homeId',
-                value: orderList.join(','),
-              );
-            } catch (_) {}
+            postCommit = () async {
+              try {
+                await storage
+                    .write(
+                      key: 'cove_lists_tab_order_$homeId',
+                      value: orderList.join(','),
+                    )
+                    .timeout(const Duration(milliseconds: 500));
+              } catch (_) {}
+            };
           }
           break;
 
@@ -693,12 +737,16 @@ class LocalStateStoreImpl implements LocalStateStore {
           final rawOrder = payload['order'];
           if (rawOrder is List) {
             final orderList = rawOrder.map((e) => e.toString()).toList();
-            try {
-              await storage.write(
-                key: 'cove_roadmap_order_$homeId',
-                value: jsonEncode(orderList),
-              );
-            } catch (_) {}
+            postCommit = () async {
+              try {
+                await storage
+                    .write(
+                      key: 'cove_roadmap_order_$homeId',
+                      value: jsonEncode(orderList),
+                    )
+                    .timeout(const Duration(milliseconds: 500));
+              } catch (_) {}
+            };
           }
           break;
 
@@ -772,11 +820,14 @@ class LocalStateStoreImpl implements LocalStateStore {
               // Same account on another device: sync local user profile!
               final useInitials = payload['use_initials'] == true;
               if (dName != null && dName.trim().isNotEmpty) {
-                await UserProfileNotifier.updateUserFromRemote(
-                  name: dName.trim(),
-                  avatarUrl: useInitials ? null : avatar,
-                  useInitials: useInitials,
-                );
+                final trimmedSelf = dName.trim();
+                postCommit = () async {
+                  await UserProfileNotifier.updateUserFromRemote(
+                    name: trimmedSelf,
+                    avatarUrl: useInitials ? null : avatar,
+                    useInitials: useInitials,
+                  );
+                };
               }
               break;
             }
@@ -787,24 +838,31 @@ class LocalStateStoreImpl implements LocalStateStore {
               dName.trim() != 'Partner' &&
               dName.trim() != 'You') {
             final trimmed = dName.trim();
-            try {
-              await storage.write(key: 'cove_partner_name_$homeId', value: trimmed);
-              await storage.write(key: 'cove_partner_name_default', value: trimmed);
-              if (avatar != null && avatar.isNotEmpty) {
-                await storage.write(key: 'cove_partner_avatar_$homeId', value: avatar);
-                await storage.write(key: 'cove_partner_avatar_default', value: avatar);
-              }
-              if (pUserId.isNotEmpty) {
-                await storage.write(key: 'cove_partner_id_$homeId', value: pUserId);
-                await storage.write(key: 'cove_partner_id_default', value: pUserId);
-              }
-            } catch (_) {}
-            await PartnerProfileNotifier.updatePartnerFromRemote(
-              homeId: homeId,
-              name: trimmed,
-              avatarUrl: avatar,
-              userId: pUserId,
-            );
+            postCommit = () async {
+              try {
+                final writes = <Future<void>>[
+                  storage.write(key: 'cove_partner_name_$homeId', value: trimmed),
+                  storage.write(key: 'cove_partner_name_default', value: trimmed),
+                  if (avatar != null && avatar.isNotEmpty) ...[
+                    storage.write(key: 'cove_partner_avatar_$homeId', value: avatar),
+                    storage.write(key: 'cove_partner_avatar_default', value: avatar),
+                  ],
+                  if (pUserId.isNotEmpty) ...[
+                    storage.write(key: 'cove_partner_id_$homeId', value: pUserId),
+                    storage.write(key: 'cove_partner_id_default', value: pUserId),
+                  ],
+                ];
+                await Future.wait(writes)
+                    .timeout(const Duration(milliseconds: 500));
+              } catch (_) {}
+              await PartnerProfileNotifier.updatePartnerFromRemote(
+                homeId: homeId,
+                name: trimmed,
+                avatarUrl: avatar,
+                userId: pUserId,
+                persistToStorage: false,
+              );
+            };
           }
           break;
 
@@ -817,7 +875,9 @@ class LocalStateStoreImpl implements LocalStateStore {
                 monthlyBudget: Value(bAmt),
               ),
             );
-            await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: bAmt);
+            postCommit = () async {
+              await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: bAmt);
+            };
           }
           break;
 
@@ -828,7 +888,9 @@ class LocalStateStoreImpl implements LocalStateStore {
               monthlyBudget: Value(null),
             ),
           );
-          await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: null);
+          postCommit = () async {
+            await MonthlyBudgetNotifier.updateFromRemote(homeId: bHomeId, amount: null);
+          };
           break;
 
         // --- CHECK-IN REMINDERS ---
@@ -876,7 +938,8 @@ class LocalStateStoreImpl implements LocalStateStore {
           // Unknown or custom event: silently accepted into event log
           break;
       }
-    });
+    }
+    return postCommit;
   }
 
   @override
