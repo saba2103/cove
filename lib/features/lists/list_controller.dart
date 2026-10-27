@@ -93,6 +93,8 @@ class ListController {
     );
   }
 
+  static const Object _ownerSentinel = Object();
+
   /// Adds an item to a list and emits `list_item_added`.
   Future<String> addItem({
     required String listId,
@@ -100,6 +102,7 @@ class ListController {
     String? notes,
     DateTime? dueDate,
     String? listName,
+    String? owner,
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -122,6 +125,7 @@ class ListController {
         'title': title.trim(),
         'notes': notes?.trim(),
         if (dueDate != null) 'due_date': dueDate.toIso8601String(),
+        'owner': ?owner,
       },
     );
     return id;
@@ -275,11 +279,13 @@ class ListController {
     } catch (_) {}
   }
 
-  /// Updates an item's title or notes and emits `list_item_updated`.
+  /// Updates an item's title, notes, due date, or owner and emits `list_item_updated`.
   Future<void> updateItem({
     required String itemId,
     required String title,
     String? notes,
+    Object? dueDate = _ownerSentinel,
+    Object? owner = _ownerSentinel,
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -292,6 +298,9 @@ class ListController {
         'home_id': homeId,
         'title': title.trim(),
         'notes': notes?.trim(),
+        if (!identical(dueDate, _ownerSentinel))
+          'due_date': (dueDate as DateTime?)?.toIso8601String(),
+        if (!identical(owner, _ownerSentinel)) 'owner': owner as String?,
       },
     );
   }

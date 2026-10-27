@@ -184,6 +184,10 @@ void main() {
     startMinutes: 8 * 60, // 8:00 AM
     durationMinutes: 30, // -> 8:30 AM (510)
     days: const <int>{1, 2, 3, 4, 5},
+    owner: CommitmentOwner.both,
+    viewerUserId: 'user_saba',
+    partnerUserId: 'user_ancy',
+    hasPartner: true,
   );
 
   testWidgets(
@@ -310,7 +314,7 @@ void main() {
   );
 
   testWidgets(
-    '7. AddFlow routine step 5 (Review — CoveBand) golden matrix (3 widths × 2 modes)',
+    '7. AddFlow routine step 6 (Review — CoveBand) golden matrix (3 widths × 2 modes)',
     (tester) async {
       await goldenMatrix(
         tester,
@@ -319,7 +323,7 @@ void main() {
           child: AddFlow(
             initialKind: AddKind.routine,
             initialDraft: routineDraft,
-            initialStepIndex: 4,
+            initialStepIndex: 5,
           ),
         ),
         overrides: buildGoldenOverrides(),

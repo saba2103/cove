@@ -444,10 +444,22 @@ class DaySheetSummary {
         final end = runsPastMidnight
             ? 1440
             : re.endMinutes.clamp(start + 1, 1440);
+        final String routineOwnerLabel;
+        if (re.owner.isEmpty || re.owner == 'both') {
+          routineOwnerLabel = 'Both of you';
+        } else if (re.owner == viewerId ||
+            re.owner == 'me' ||
+            re.owner == 'local_user') {
+          routineOwnerLabel = 'You';
+        } else {
+          routineOwnerLabel = cleanPartner;
+        }
         final note = re.notes?.trim();
         final subtitle = (note != null && note.isNotEmpty)
-            ? note
-            : 'Together · routine';
+            ? (re.owner.isNotEmpty && re.owner != 'both'
+                  ? '$routineOwnerLabel · $note'
+                  : note)
+            : '$routineOwnerLabel · routine';
         lines.add(
           DaySheetLine(
             id: re.id,
@@ -488,14 +500,14 @@ class DaySheetSummary {
         timeLabel = formatCompactClockTime(start);
       }
 
-      final createdBy = raw.createdBy;
+      final eventOwner = raw.owner ?? 'both';
       final String whoLabel;
-      if (createdBy.isEmpty) {
-        whoLabel = 'Together';
-      } else if (createdBy == viewerId ||
-          createdBy == 'me' ||
-          createdBy == 'local_user') {
-        whoLabel = 'Together';
+      if (eventOwner.isEmpty || eventOwner == 'both') {
+        whoLabel = 'Both of you';
+      } else if (eventOwner == viewerId ||
+          eventOwner == 'me' ||
+          eventOwner == 'local_user') {
+        whoLabel = 'You';
       } else {
         whoLabel = cleanPartner;
       }
@@ -544,14 +556,28 @@ class DaySheetSummary {
       final timeLabel =
           hasExplicitTime ? formatCompactClockTime(start) : 'Today';
       final listName = listNamesById[item.listId] ?? 'List';
-      final createdByViewer = item.createdBy == viewerId ||
-          item.createdBy == 'me' ||
-          item.createdBy == 'local_user';
-      final who = createdByViewer ? 'You' : cleanPartner;
+      final taskOwner = item.owner;
+      String? who;
+      if (taskOwner != null && taskOwner.isNotEmpty) {
+        if (taskOwner == 'both') {
+          who = 'Both of you';
+        } else if (taskOwner == 'either') {
+          who = 'Either of you';
+        } else if (taskOwner == viewerId ||
+            taskOwner == 'me' ||
+            taskOwner == 'local_user') {
+          who = 'You';
+        } else {
+          who = cleanPartner;
+        }
+      }
       final notes = item.notes?.trim();
-      final subtitle = (notes != null && notes.isNotEmpty)
-          ? notes
-          : '$who · $listName';
+      final String subtitle;
+      if (notes != null && notes.isNotEmpty) {
+        subtitle = who != null ? '$who · $notes' : notes;
+      } else {
+        subtitle = who != null ? '$who · $listName' : listName;
+      }
 
       lines.add(
         DaySheetLine(

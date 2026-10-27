@@ -4,12 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
+import '../../sync/providers/active_home_provider.dart';
+import '../add/widgets/add_person_picker.dart';
+import '../auth/auth_controller.dart';
+import '../profile/partner_profile_controller.dart';
+import '../profile/user_profile_controller.dart';
 import 'calendar_controller.dart';
 
 class CalendarEventFormSheet extends ConsumerStatefulWidget {
@@ -55,6 +61,7 @@ class _CalendarEventFormSheetState
   late TimeOfDay _endTime;
   late bool _isAllDay;
   String _recurrence = 'none';
+  late String _owner;
 
   bool _isSaving = false;
   String? _errorMessage;
@@ -72,6 +79,9 @@ class _CalendarEventFormSheetState
 
     _isAllDay = item?.isAllDay ?? false;
     _recurrence = item?.recurrence ?? 'none';
+    _owner = (item?.owner != null && item!.owner!.trim().isNotEmpty)
+        ? item.owner!.trim()
+        : 'both';
     _startDate = DateTime(baseDate.year, baseDate.month, baseDate.day);
     _startTime = TimeOfDay(hour: baseDate.hour, minute: baseDate.minute);
 
@@ -213,6 +223,7 @@ class _CalendarEventFormSheetState
               ? null
               : _locationController.text.trim(),
           recurrence: recValue,
+          owner: _owner,
         );
       } else {
         await controller.createEvent(
@@ -227,6 +238,7 @@ class _CalendarEventFormSheetState
               ? null
               : _locationController.text.trim(),
           recurrence: recValue,
+          owner: _owner,
         );
       }
 
@@ -629,6 +641,15 @@ class _CalendarEventFormSheetState
                 controller: _descriptionController,
                 hintText: 'Confirmation codes, details, reminders...',
               ),
+              const SizedBox(height: 18),
+
+              // Whose is it?
+              Text(
+                'WHOSE IS IT?',
+                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+              ),
+              const SizedBox(height: CoveSpace.sm),
+              _buildOwnerPicker(),
               const SizedBox(height: 16),
 
               if (_errorMessage != null) ...[
@@ -650,6 +671,64 @@ class _CalendarEventFormSheetState
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOwnerPicker() {
+    final user = ref.watch(authProvider).value;
+    final userProfile = ref.watch(userProfileProvider);
+    final partnerProfile = ref.watch(partnerProfileProvider);
+    final home = ref.watch(activeHomeProvider).value;
+
+    final viewerId = user?.id ?? 'user_alex';
+    final partnerId = partnerProfile.userId ?? 'partner_user';
+    final viewerName = userProfile.displayName.trim().isNotEmpty
+        ? userProfile.displayName.trim()
+        : 'You';
+    final partnerName = partnerProfile.displayName.trim().isNotEmpty
+        ? partnerProfile.displayName.trim()
+        : 'Partner';
+
+    final creatorId = home?.createdBy ?? viewerId;
+    final viewerPerson = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: viewerId,
+    );
+    final partnerPerson =
+        viewerPerson == CovePerson.a ? CovePerson.b : CovePerson.a;
+
+    final selectedValue = _owner == 'both'
+        ? 'both'
+        : (_owner == partnerId ||
+                (_owner != viewerId &&
+                    _owner != 'me' &&
+                    _owner != 'user_alex' &&
+                    _owner != 'local_user')
+            ? partnerId
+            : viewerId);
+
+    return AddPersonPicker<String>(
+      people: <AddPersonTileData<String>>[
+        AddPersonTileData<String>(
+          value: viewerId,
+          person: viewerPerson,
+          label: viewerName,
+          nameOrInitial: viewerName,
+        ),
+        AddPersonTileData<String>(
+          value: partnerId,
+          person: partnerPerson,
+          label: partnerName,
+          nameOrInitial: partnerName,
+        ),
+        const AddPersonTileData<String>(
+          value: 'both',
+          person: CovePerson.both,
+          label: 'Both of you',
+        ),
+      ],
+      selectedValue: selectedValue,
+      onSelected: (val) => setState(() => _owner = val),
     );
   }
 }

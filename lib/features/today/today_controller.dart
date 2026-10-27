@@ -90,6 +90,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
         location: ev.location,
         subtitle: ev.location?.isNotEmpty == true ? '$timeStr · ${ev.location}' : timeStr,
         isSubscription: false,
+        owner: ev.owner ?? 'both',
       ));
     }
   }

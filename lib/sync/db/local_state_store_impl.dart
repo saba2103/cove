@@ -297,6 +297,14 @@ class LocalStateStoreImpl implements LocalStateStore {
             dueDate = DateTime.tryParse(payload['due_date'].toString());
           }
 
+          final existingListItem = await (db.select(db.localListItems)
+                ..where((t) => t.id.equals(itemId)))
+              .getSingleOrNull();
+          final hasItemOwner = payload.containsKey('owner');
+          final resolvedItemOwner = hasItemOwner
+              ? payload['owner'] as String?
+              : existingListItem?.owner;
+
           await db.into(db.localListItems).insertOnConflictUpdate(
                 LocalListItemsCompanion.insert(
                   id: itemId,
@@ -305,6 +313,7 @@ class LocalStateStoreImpl implements LocalStateStore {
                   title: (payload['title'] as String?) ?? '',
                   notes: Value(payload['notes'] as String?),
                   dueDate: Value(dueDate),
+                  owner: Value(resolvedItemOwner),
                   isCompleted: const Value(false),
                   createdAt: timestamp,
                   createdBy: authorId,
@@ -322,11 +331,14 @@ class LocalStateStoreImpl implements LocalStateStore {
           if (hasDueDate && payload['due_date'] != null) {
             updatedDueDate = DateTime.tryParse(payload['due_date'].toString());
           }
+          final hasOwner = payload.containsKey('owner');
+          final updatedOwner = payload['owner'] as String?;
           await (db.update(db.localListItems)..where((t) => t.id.equals(itemId))).write(
             LocalListItemsCompanion(
               title: title != null ? Value(title) : const Value.absent(),
               notes: notes != null ? Value(notes) : const Value.absent(),
               dueDate: hasDueDate ? Value(updatedDueDate) : const Value.absent(),
+              owner: hasOwner ? Value(updatedOwner) : const Value.absent(),
             ),
           );
           break;
@@ -642,6 +654,13 @@ class LocalStateStoreImpl implements LocalStateStore {
           final eventId = payload['id'] as String;
           if (await db.isTombstoned(eventId)) break;
 
+          final existingEvent = await (db.select(db.localCalendarEvents)
+                ..where((t) => t.id.equals(eventId)))
+              .getSingleOrNull();
+          final resolvedEventOwner = payload.containsKey('owner')
+              ? ((payload['owner'] as String?) ?? 'both')
+              : (existingEvent?.owner ?? 'both');
+
           final startStr = payload['start_time'] as String?;
           final endStr = payload['end_time'] as String?;
           final start = startStr != null
@@ -661,8 +680,9 @@ class LocalStateStoreImpl implements LocalStateStore {
                   endTime: end,
                   isAllDay: Value(payload['is_all_day'] as bool? ?? false),
                   location: Value(payload['location'] as String?),
-                  createdAt: timestamp,
-                  createdBy: authorId,
+                  owner: Value(resolvedEventOwner),
+                  createdAt: existingEvent?.createdAt ?? timestamp,
+                  createdBy: existingEvent?.createdBy ?? authorId,
                   recurrence: Value(payload['recurrence'] as String?),
                 ),
               );
@@ -778,6 +798,12 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'routine_event_created':
         case 'routine_event_updated':
           final eId = payload['id'] as String;
+          final existingRoutineEvent = await (db.select(db.localRoutineEvents)
+                ..where((t) => t.id.equals(eId)))
+              .getSingleOrNull();
+          final resolvedRoutineOwner = payload.containsKey('owner')
+              ? ((payload['owner'] as String?) ?? 'both')
+              : (existingRoutineEvent?.owner ?? 'both');
           final eRoutineId = (payload['routine_id'] as String?) ?? '';
           final eTitle = (payload['title'] as String?) ?? '';
           final eStart = (payload['start_minutes'] as num?)?.toInt() ?? 0;
@@ -794,7 +820,8 @@ class LocalStateStoreImpl implements LocalStateStore {
               endMinutes: Value(eEnd),
               category: Value(eCategory),
               notes: Value(eNotes),
-              createdAt: Value(timestamp),
+              owner: Value(resolvedRoutineOwner),
+              createdAt: Value(existingRoutineEvent?.createdAt ?? timestamp),
             ),
           );
           break;

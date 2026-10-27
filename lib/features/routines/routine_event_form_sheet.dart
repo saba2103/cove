@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/pending_delete_service.dart';
+import '../../sync/providers/active_home_provider.dart';
+import '../add/widgets/add_person_picker.dart';
+import '../auth/auth_controller.dart';
+import '../profile/partner_profile_controller.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
 
@@ -31,6 +36,7 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
   late int _startMinutes;
   late int _endMinutes;
   String _selectedCategory = 'General';
+  late String _owner;
   bool _isSubmitting = false;
 
   final List<String> _categories = const [
@@ -55,10 +61,12 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
       _startMinutes = ev.startMinutes;
       _endMinutes = ev.endMinutes;
       _selectedCategory = ev.category ?? 'General';
+      _owner = ev.owner.trim().isNotEmpty ? ev.owner.trim() : 'both';
     } else {
       final base = widget.initialStartMinutes ?? 9 * 60; // 9:00 AM default
       _startMinutes = base;
       _endMinutes = (base + 60) % 1440; // 1 hour duration
+      _owner = 'both';
     }
   }
 
@@ -125,6 +133,7 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
           endMinutes: _endMinutes,
           category: _selectedCategory,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          owner: _owner,
         );
       } else {
         await controller.createRoutineEvent(
@@ -134,6 +143,7 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
           endMinutes: _endMinutes,
           category: _selectedCategory,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          owner: _owner,
         );
       }
 
@@ -408,6 +418,16 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Text(
+                'Whose is it?',
+                style: CoveType.readout.copyWith(
+                  color: cv.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: CoveSpace.sm),
+              _buildOwnerPicker(),
               const SizedBox(height: CoveSpace.lg),
               FilledButton(
                 style: FilledButton.styleFrom(
@@ -438,6 +458,54 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildOwnerPicker() {
+    final user = ref.watch(authProvider).value;
+    final myId = user?.id ?? 'local_user';
+    final myName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!.trim()
+        : 'You';
+    final partnerProfile = ref.watch(partnerProfileProvider);
+    final partnerId = partnerProfile.userId ?? 'partner';
+    final partnerName = partnerProfile.displayName;
+    final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+
+    final people = <AddPersonTileData<String>>[
+      AddPersonTileData(
+        value: myId,
+        person: CovePerson.a,
+        label: myName,
+        nameOrInitial: myName,
+      ),
+      if (hasPartner) ...[
+        AddPersonTileData(
+          value: partnerId,
+          person: CovePerson.b,
+          label: partnerName,
+          nameOrInitial: partnerName,
+        ),
+        const AddPersonTileData(
+          value: 'both',
+          person: CovePerson.both,
+          label: 'Both of you',
+        ),
+      ],
+    ];
+
+    final resolvedSelected = (!hasPartner && _owner == 'both')
+        ? myId
+        : (_owner != myId && _owner != partnerId && _owner != 'both'
+            ? 'both'
+            : _owner);
+
+    return AddPersonPicker<String>(
+      people: people,
+      selectedValue: resolvedSelected,
+      onSelected: (value) {
+        setState(() => _owner = value);
+      },
     );
   }
 }

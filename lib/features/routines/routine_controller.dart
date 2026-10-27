@@ -154,6 +154,7 @@ class RoutineController {
     required int endMinutes,
     String? category,
     String? notes,
+    String owner = 'both',
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -174,6 +175,7 @@ class RoutineController {
         'end_minutes': endMinutes,
         'category': category?.trim(),
         'notes': notes?.trim(),
+        'owner': owner,
         'created_by': userId,
       },
     );
@@ -189,6 +191,7 @@ class RoutineController {
     required int endMinutes,
     String? category,
     String? notes,
+    String? owner,
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -205,6 +208,7 @@ class RoutineController {
         'end_minutes': endMinutes,
         'category': category?.trim(),
         'notes': notes?.trim(),
+        'owner': ?owner,
       },
     );
   }

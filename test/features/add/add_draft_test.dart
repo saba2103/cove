@@ -450,7 +450,7 @@ void main() {
 
   group('6. Step counts & solo-home partner/private behavior', () {
     test(
-      'expense has 7, event 5, task 3 or 4, habit 4, commitment 7 or 9 (EMI), routine 5; in a home with no partner, partner options are gone but private toggle remains',
+      'expense has 7, event 6, task 4 or 5, habit 4, commitment 7 or 9 (EMI), routine 6; in a home with no partner, partner options are gone but private toggle remains',
       () => runWithFixedClock(() {
         final ctxWithPartner = AddFlowContext(
           anchor: fixedToday,
@@ -464,19 +464,28 @@ void main() {
         final expense = ExpenseDraft.initial(ctxWithPartner);
         expect(stepsFor(expense, ctxWithPartner), hasLength(7));
 
-        // Event: 5 steps
+        // Event: 6 steps
         final event = EventDraft.initial(ctxWithPartner);
-        expect(stepsFor(event, ctxWithPartner), hasLength(5));
+        expect(stepsFor(event, ctxWithPartner), <AddStep>[
+          AddStep.eventTitle,
+          AddStep.eventDay,
+          AddStep.eventTime,
+          AddStep.eventLocation,
+          AddStep.eventWhose,
+          AddStep.review,
+        ]);
+        expect(stepsFor(event, ctxWithPartner), hasLength(6));
 
-        // Task: 4 steps when listCount > 1 && !openedFromList, or listCount == 0 && !openedFromList
+        // Task: 5 steps when listCount > 1 && !openedFromList, or listCount == 0 && !openedFromList
         final taskMultiList = TaskDraft.initial(ctxWithPartner);
         expect(stepsFor(taskMultiList, ctxWithPartner), <AddStep>[
           AddStep.taskTitle,
           AddStep.taskWhichList,
           AddStep.taskByWhen,
+          AddStep.taskWhose,
           AddStep.review,
         ]);
-        expect(stepsFor(taskMultiList, ctxWithPartner), hasLength(4));
+        expect(stepsFor(taskMultiList, ctxWithPartner), hasLength(5));
 
         final ctxZeroLists = ctxWithPartner.copyWith(listCount: 0);
         final taskZeroLists = TaskDraft.initial(ctxZeroLists);
@@ -484,15 +493,16 @@ void main() {
           AddStep.taskTitle,
           AddStep.taskNameTheList,
           AddStep.taskByWhen,
+          AddStep.taskWhose,
           AddStep.review,
         ]);
-        expect(stepsFor(taskZeroLists, ctxZeroLists), hasLength(4));
+        expect(stepsFor(taskZeroLists, ctxZeroLists), hasLength(5));
 
-        // Task: 3 steps when listCount == 1 or openedFromList == true
+        // Task: 4 steps when listCount == 1 or openedFromList == true
         final ctxOneList = ctxWithPartner.copyWith(listCount: 1);
         expect(
           stepsFor(TaskDraft.initial(ctxOneList), ctxOneList),
-          hasLength(3),
+          hasLength(4),
         );
         final ctxOpenedFromList = ctxWithPartner.copyWith(
           listCount: 3,
@@ -500,7 +510,7 @@ void main() {
         );
         expect(
           stepsFor(TaskDraft.initial(ctxOpenedFromList), ctxOpenedFromList),
-          hasLength(3),
+          hasLength(4),
         );
 
         // Habit: 4 steps
@@ -529,9 +539,17 @@ void main() {
         );
         expect(stepsFor(commitmentEmi, ctxWithPartner), hasLength(9));
 
-        // Routine: 5 steps
+        // Routine: 6 steps
         final routine = RoutineDraft.initial(ctxWithPartner);
-        expect(stepsFor(routine, ctxWithPartner), hasLength(5));
+        expect(stepsFor(routine, ctxWithPartner), <AddStep>[
+          AddStep.routineTitle,
+          AddStep.routineWhen,
+          AddStep.routineDuration,
+          AddStep.routineDays,
+          AddStep.routineWhose,
+          AddStep.review,
+        ]);
+        expect(stepsFor(routine, ctxWithPartner), hasLength(6));
 
         // Solo home (hasPartner == false): partner options are gone, private toggle remains.
         final soloCtx = ctxWithPartner.copyWith(hasPartner: false);

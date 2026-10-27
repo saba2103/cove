@@ -28,6 +28,7 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
   final Set<int> days; // 1 = Mon .. 7 = Sun
   final String capsLabel;
   final String? caption;
+  final String? owner;
   final String? stamp;
   final bool stampLanded;
   final CoveSlipVisibility? visibility;
@@ -73,6 +74,7 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
     required Set<int> days,
     this.capsLabel = 'COVE · ROUTINE',
     this.caption,
+    this.owner,
     this.stamp,
     this.stampLanded = true,
     this.visibility,
@@ -250,18 +252,57 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
           ),
           const SizedBox(height: CoveSpace.md),
 
-          // 4. Caption: 8:00 – 8:30 AM
+          // 4. Caption: 8:00 – 8:30 AM [· owner]
           Center(
-            child: CoveSlipFieldTapTarget(
-              field: CoveSlipField.time,
-              fieldTaps: fieldTaps,
-              alignment: Alignment.center,
-              child: Text(
-                resolvedCaption,
-                textAlign: TextAlign.center,
-                style: CoveType.readout.copyWith(color: palette.secondary),
-              ),
-            ),
+            child: (owner != null && owner!.trim().isNotEmpty)
+                ? Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      CoveSlipFieldTapTarget(
+                        field: CoveSlipField.time,
+                        fieldTaps: fieldTaps,
+                        alignment: Alignment.center,
+                        child: Text(
+                          resolvedCaption,
+                          textAlign: TextAlign.center,
+                          style: CoveType.readout.copyWith(
+                            color: palette.secondary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        ' · ',
+                        style: CoveType.readout.copyWith(
+                          color: palette.tertiary,
+                        ),
+                      ),
+                      CoveSlipFieldTapTarget(
+                        field: CoveSlipField.owner,
+                        fieldTaps: fieldTaps,
+                        alignment: Alignment.center,
+                        child: Text(
+                          owner!.trim(),
+                          textAlign: TextAlign.center,
+                          style: CoveType.readout.copyWith(
+                            color: palette.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : CoveSlipFieldTapTarget(
+                    field: CoveSlipField.time,
+                    fieldTaps: fieldTaps,
+                    alignment: Alignment.center,
+                    child: Text(
+                      resolvedCaption,
+                      textAlign: TextAlign.center,
+                      style: CoveType.readout.copyWith(
+                        color: palette.secondary,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),

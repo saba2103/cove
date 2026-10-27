@@ -542,7 +542,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             .read(addAgainPreferenceProvider.notifier)
             .setAgain(AddKind.expense, createdId);
       } else if (d is EventDraft) {
-        final args = d.toCreateArgs();
+        final args = d.toCreateArgs(
+          viewerUserId: ctx.viewerUserId,
+          partnerUserId: ctx.partnerUserId,
+        );
         final controller = ref.read(calendarControllerProvider);
         final createdId = await controller.createEvent(
           title: args.title,
@@ -552,12 +555,17 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           isAllDay: args.isAllDay,
           location: args.location,
           recurrence: args.recurrence,
+          owner: args.owner,
         );
         await ref
             .read(addAgainPreferenceProvider.notifier)
             .setAgain(AddKind.event, createdId);
       } else if (d is TaskDraft) {
-        final args = d.toCreateArgs(fallbackListId: ctx.activeListId);
+        final args = d.toCreateArgs(
+          fallbackListId: ctx.activeListId,
+          viewerUserId: ctx.viewerUserId,
+          partnerUserId: ctx.partnerUserId,
+        );
         final controller = ref.read(listControllerProvider);
         var targetListId = args.listId;
         if (args.newListName != null && args.newListName!.isNotEmpty) {
@@ -572,6 +580,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           notes: args.notes,
           dueDate: args.dueDate,
           listName: args.newListName,
+          owner: args.owner,
         );
         await ref
             .read(addAgainPreferenceProvider.notifier)
@@ -611,7 +620,11 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       } else if (d is RoutineDraft) {
         final existingRoutines =
             ref.read(activeHomeRoutinesProvider).value ?? const [];
-        final args = d.toCreateArgs(existingRoutines: existingRoutines);
+        final args = d.toCreateArgs(
+          existingRoutines: existingRoutines,
+          viewerUserId: ctx.viewerUserId,
+          partnerUserId: ctx.partnerUserId,
+        );
         final controller = ref.read(routineControllerProvider);
         String targetRoutineId;
         var createdNewSet = false;
@@ -639,6 +652,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             title: args.title,
             startMinutes: args.startMinutes,
             endMinutes: args.endMinutes,
+            owner: args.owner,
           );
           _pendingCreatedRoutineId = null;
           _pendingCreatedRoutineDays = null;
@@ -880,6 +894,24 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     LocalListItem item,
     String carriedLine,
   ) {
+    final rawOwner = item.owner?.trim();
+    final TaskOwner taskOwner;
+    if (!ctx.hasPartner) {
+      taskOwner = TaskOwner.you;
+    } else if (rawOwner == 'both') {
+      taskOwner = TaskOwner.both;
+    } else if (rawOwner == 'either' || rawOwner == null || rawOwner.isEmpty) {
+      taskOwner = TaskOwner.either;
+    } else if (rawOwner == ctx.partnerUserId ||
+        (rawOwner != ctx.viewerUserId &&
+            rawOwner != 'me' &&
+            rawOwner != 'user_alex' &&
+            rawOwner != 'local_user')) {
+      taskOwner = TaskOwner.partner;
+    } else {
+      taskOwner = TaskOwner.you;
+    }
+
     final draft = TaskDraft(
       title: item.title,
       listId: item.listId,
@@ -887,6 +919,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       noParticularDay: false,
       listCount: ctx.listCount,
       openedFromList: ctx.openedFromList,
+      owner: taskOwner,
+      viewerUserId: ctx.viewerUserId,
+      partnerUserId: ctx.partnerUserId,
+      hasPartner: ctx.hasPartner,
     );
 
     final steps = draft.stepsFor(ctx);
@@ -914,6 +950,22 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   ) {
     final hasLocation =
         event.location != null && event.location!.trim().isNotEmpty;
+    final rawOwner = event.owner?.trim();
+    final CommitmentOwner eventOwner;
+    if (!ctx.hasPartner) {
+      eventOwner = CommitmentOwner.you;
+    } else if (rawOwner == null || rawOwner.isEmpty || rawOwner == 'both') {
+      eventOwner = CommitmentOwner.both;
+    } else if (rawOwner == ctx.partnerUserId ||
+        (rawOwner != ctx.viewerUserId &&
+            rawOwner != 'me' &&
+            rawOwner != 'user_alex' &&
+            rawOwner != 'local_user')) {
+      eventOwner = CommitmentOwner.partner;
+    } else {
+      eventOwner = CommitmentOwner.you;
+    }
+
     final draft = EventDraft(
       title: event.title,
       day: null,
@@ -922,6 +974,10 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       isAllDay: event.isAllDay,
       location: hasLocation ? event.location!.trim() : null,
       locationSkipped: !hasLocation,
+      owner: eventOwner,
+      viewerUserId: ctx.viewerUserId,
+      partnerUserId: ctx.partnerUserId,
+      hasPartner: ctx.hasPartner,
     );
 
     final steps = draft.stepsFor(ctx);
@@ -1388,6 +1444,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         return 'What time?';
       case AddStep.eventLocation:
         return 'Where?';
+      case AddStep.eventWhose:
+        return 'Whose is it?';
       case AddStep.taskTitle:
         return 'What needs doing?';
       case AddStep.taskWhichList:
@@ -1396,6 +1454,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         return 'Name the list';
       case AddStep.taskByWhen:
         return 'By when?';
+      case AddStep.taskWhose:
+        return 'Whose is it?';
       case AddStep.habitName:
         return 'What is the habit?';
       case AddStep.habitHowOften:
@@ -1432,6 +1492,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         return 'For how long?';
       case AddStep.routineDays:
         return 'Which days?';
+      case AddStep.routineWhose:
+        return 'Whose is it?';
       case AddStep.review:
         return 'Does this look right?';
     }
@@ -1535,6 +1597,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           return _formatHourMinute(d.hour, d.minute);
         case AddStep.eventLocation:
           return d.location?.trim();
+        case AddStep.eventWhose:
+          return _commitmentOwnerLabel(d.owner);
         default:
           return null;
       }
@@ -1552,6 +1616,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             return 'No particular day';
           }
           return _shortDayCrumb(d.dueDate!, ctx.today);
+        case AddStep.taskWhose:
+          return _taskOwnerLabel(d.owner);
         default:
           return null;
       }
@@ -1617,11 +1683,37 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           return _routineDurationCrumb(d.durationMinutes);
         case AddStep.routineDays:
           return routineNameForDays(d.days);
+        case AddStep.routineWhose:
+          return _commitmentOwnerLabel(d.owner);
         default:
           return null;
       }
     }
     return null;
+  }
+
+  String _commitmentOwnerLabel(CommitmentOwner owner) {
+    switch (owner) {
+      case CommitmentOwner.you:
+        return _viewerName();
+      case CommitmentOwner.partner:
+        return _partnerName();
+      case CommitmentOwner.both:
+        return 'Both of you';
+    }
+  }
+
+  String _taskOwnerLabel(TaskOwner owner) {
+    switch (owner) {
+      case TaskOwner.you:
+        return _viewerName();
+      case TaskOwner.partner:
+        return _partnerName();
+      case TaskOwner.both:
+        return 'Both of you';
+      case TaskOwner.either:
+        return 'Either of you';
+    }
   }
 
   String _commitmentCycleCrumb(CommitmentCycleOption cycle) {
@@ -2249,12 +2341,69 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           },
         );
 
+      case AddStep.eventWhose:
+        return _buildEventWhoseBody(context, ctx, d);
+
       case AddStep.review:
         return _buildEventReviewBody(context, ctx, d);
 
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildEventWhoseBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    EventDraft d,
+  ) {
+    final viewerName = _viewerName();
+    final partnerName = _partnerName();
+    final home = ref.watch(activeHomeProvider).value;
+    final creatorId = home?.createdBy ?? ctx.viewerUserId;
+    final viewerPerson = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: ctx.viewerUserId,
+    );
+    final partnerPerson = viewerPerson == CovePerson.a
+        ? CovePerson.b
+        : CovePerson.a;
+
+    final people = <AddPersonTileData<CommitmentOwner>>[
+      AddPersonTileData<CommitmentOwner>(
+        value: CommitmentOwner.you,
+        person: viewerPerson,
+        label: viewerName,
+        nameOrInitial: viewerName,
+        enabled: true,
+      ),
+      if (ctx.hasPartner) ...[
+        AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.partner,
+          person: partnerPerson,
+          label: partnerName,
+          nameOrInitial: partnerName,
+          enabled: true,
+        ),
+        const AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.both,
+          person: CovePerson.both,
+          label: 'Both of you',
+          enabled: true,
+        ),
+      ],
+    ];
+
+    return AddPersonPicker<CommitmentOwner>(
+      people: people,
+      selectedValue: d.owner,
+      onSelected: (owner) {
+        setState(() {
+          _draft = d.copyWith(owner: owner);
+        });
+        _advanceStep(ctx);
+      },
+    );
   }
 
   Widget _buildEventReviewBody(
@@ -2289,6 +2438,11 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                   ctx,
                   fromReviewField: true,
                 ),
+            CoveSlipField.owner: () => _goToStepEnum(
+                  AddStep.eventWhose,
+                  ctx,
+                  fromReviewField: true,
+                ),
             CoveSlipField.time: () => _goToStepEnum(
                   AddStep.eventTime,
                   ctx,
@@ -2307,7 +2461,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               ? 'at ${d.location!.trim()}'
               : 'Add location',
           date: dateFormatted,
-          owner: 'Both of you',
+          owner: _commitmentOwnerLabel(d.owner),
           hour: hourDisplay,
           meridiem: meridiemDisplay,
           visibility: CoveSlipVisibility.bothCanSee,
@@ -2420,12 +2574,75 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           },
         );
 
+      case AddStep.taskWhose:
+        return _buildTaskWhoseBody(context, ctx, d);
+
       case AddStep.review:
         return _buildTaskReviewBody(context, ctx, d);
 
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildTaskWhoseBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    TaskDraft d,
+  ) {
+    final viewerName = _viewerName();
+    final partnerName = _partnerName();
+    final home = ref.watch(activeHomeProvider).value;
+    final creatorId = home?.createdBy ?? ctx.viewerUserId;
+    final viewerPerson = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: ctx.viewerUserId,
+    );
+    final partnerPerson = viewerPerson == CovePerson.a
+        ? CovePerson.b
+        : CovePerson.a;
+
+    final people = <AddPersonTileData<TaskOwner>>[
+      AddPersonTileData<TaskOwner>(
+        value: TaskOwner.you,
+        person: viewerPerson,
+        label: viewerName,
+        nameOrInitial: viewerName,
+        enabled: true,
+      ),
+      if (ctx.hasPartner) ...[
+        AddPersonTileData<TaskOwner>(
+          value: TaskOwner.partner,
+          person: partnerPerson,
+          label: partnerName,
+          nameOrInitial: partnerName,
+          enabled: true,
+        ),
+        const AddPersonTileData<TaskOwner>(
+          value: TaskOwner.both,
+          person: CovePerson.both,
+          label: 'Both of you',
+          enabled: true,
+        ),
+        const AddPersonTileData<TaskOwner>(
+          value: TaskOwner.either,
+          person: CovePerson.both,
+          label: 'Either of you',
+          enabled: true,
+        ),
+      ],
+    ];
+
+    return AddPersonPicker<TaskOwner>(
+      people: people,
+      selectedValue: d.owner,
+      onSelected: (owner) {
+        setState(() {
+          _draft = d.copyWith(owner: owner);
+        });
+        _advanceStep(ctx);
+      },
+    );
   }
 
   Widget _buildTaskReviewBody(
@@ -2438,6 +2655,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final dueLine = (d.noParticularDay || d.dueDate == null)
         ? 'No particular day'
         : 'By ${dayLabel(d.dueDate!, ctx.today)}';
+    final ownerLine = _taskOwnerLabel(d.owner);
     final steps = _currentSteps(ctx);
 
     final fieldTaps = _isAdded
@@ -2450,6 +2668,11 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                 ),
             CoveSlipField.dueDate: () => _goToStepEnum(
                   AddStep.taskByWhen,
+                  ctx,
+                  fromReviewField: true,
+                ),
+            CoveSlipField.owner: () => _goToStepEnum(
+                  AddStep.taskWhose,
                   ctx,
                   fromReviewField: true,
                 ),
@@ -2478,6 +2701,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             CoveNoteItem(
               title: d.title.trim(),
               addedBy: dueLine,
+              owner: ownerLine,
               isDone: false,
             ),
           ],
@@ -3121,12 +3345,69 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           },
         );
 
+      case AddStep.routineWhose:
+        return _buildRoutineWhoseBody(context, ctx, d);
+
       case AddStep.review:
         return _buildRoutineReviewBody(context, ctx, d);
 
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildRoutineWhoseBody(
+    BuildContext context,
+    AddFlowContext ctx,
+    RoutineDraft d,
+  ) {
+    final viewerName = _viewerName();
+    final partnerName = _partnerName();
+    final home = ref.watch(activeHomeProvider).value;
+    final creatorId = home?.createdBy ?? ctx.viewerUserId;
+    final viewerPerson = CoveAvatar.resolvePerson(
+      homeCreatedBy: creatorId,
+      actorUserId: ctx.viewerUserId,
+    );
+    final partnerPerson = viewerPerson == CovePerson.a
+        ? CovePerson.b
+        : CovePerson.a;
+
+    final people = <AddPersonTileData<CommitmentOwner>>[
+      AddPersonTileData<CommitmentOwner>(
+        value: CommitmentOwner.you,
+        person: viewerPerson,
+        label: viewerName,
+        nameOrInitial: viewerName,
+        enabled: true,
+      ),
+      if (ctx.hasPartner) ...[
+        AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.partner,
+          person: partnerPerson,
+          label: partnerName,
+          nameOrInitial: partnerName,
+          enabled: true,
+        ),
+        const AddPersonTileData<CommitmentOwner>(
+          value: CommitmentOwner.both,
+          person: CovePerson.both,
+          label: 'Both of you',
+          enabled: true,
+        ),
+      ],
+    ];
+
+    return AddPersonPicker<CommitmentOwner>(
+      people: people,
+      selectedValue: d.owner,
+      onSelected: (owner) {
+        setState(() {
+          _draft = d.copyWith(owner: owner);
+        });
+        _advanceStep(ctx);
+      },
+    );
   }
 
   Widget _buildRoutineReviewBody(
@@ -3137,6 +3418,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     final cv = context.cv;
     final start = (d.startMinutes ?? 540).clamp(0, 1439);
     final end = d.resolvedEndMinutes;
+    final ownerLabel = _commitmentOwnerLabel(d.owner);
 
     final fieldTaps = _isAdded
         ? null
@@ -3161,6 +3443,11 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                   ctx,
                   fromReviewField: true,
                 ),
+            CoveSlipField.owner: () => _goToStepEnum(
+                  AddStep.routineWhose,
+                  ctx,
+                  fromReviewField: true,
+                ),
           };
 
     return Column(
@@ -3173,6 +3460,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           startMinutes: start,
           endMinutes: end,
           days: d.days,
+          owner: ownerLabel,
           visibility: CoveSlipVisibility.bothCanSee,
           stamp: _isAdded ? 'ADDED' : null,
           fieldTaps: fieldTaps,

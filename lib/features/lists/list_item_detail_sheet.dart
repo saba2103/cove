@@ -4,12 +4,15 @@ import 'package:intl/intl.dart';
 
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_detail_sheet.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_note.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
+import '../../sync/providers/active_home_provider.dart';
+import '../add/widgets/add_person_picker.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import 'list_controller.dart';
@@ -47,75 +50,132 @@ class ListItemDetailSheet extends ConsumerWidget {
     final cv = context.cv;
     final controller = TextEditingController(text: item.title);
     final notesController = TextEditingController(text: item.notes ?? '');
+    final user = ref.read(authProvider).value;
+    final myId = user?.id ?? 'local_user';
+    final myName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!.trim()
+        : 'You';
+    final partnerProfile = ref.read(partnerProfileProvider);
+    final partnerId = partnerProfile.userId ?? 'partner';
+    final partnerName = partnerProfile.displayName;
+    final hasPartner = ref.read(activeHomeHasPartnerProvider);
+    String? selectedOwner = item.owner;
+
+    final people = <AddPersonTileData<String>>[
+      AddPersonTileData(
+        value: myId,
+        person: CovePerson.a,
+        label: myName,
+        nameOrInitial: myName,
+      ),
+      if (hasPartner) ...[
+        AddPersonTileData(
+          value: partnerId,
+          person: CovePerson.b,
+          label: partnerName,
+          nameOrInitial: partnerName,
+        ),
+        const AddPersonTileData(
+          value: 'both',
+          person: CovePerson.both,
+          label: 'Both of you',
+        ),
+        const AddPersonTileData(
+          value: 'either',
+          person: CovePerson.both,
+          label: 'Either of you',
+        ),
+      ],
+    ];
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cv.surfaceCard,
-        shape: CoveShape.border(
-          CoveRadius.inline,
-          side: BorderSide(
-            color: cv.lineHairline,
-            width: _kDialogBorderWidth,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: cv.surfaceCard,
+          shape: CoveShape.border(
+            CoveRadius.inline,
+            side: BorderSide(
+              color: cv.lineHairline,
+              width: _kDialogBorderWidth,
+            ),
           ),
-        ),
-        title: Text(
-          'Edit Item',
-          style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              style: CoveType.body.copyWith(color: cv.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Item name',
-                labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.lineHairline),
+          title: Text(
+            'Edit Item',
+            style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: CoveType.body.copyWith(color: cv.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Item name',
+                    labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.lineHairline),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.accentFill),
+                    ),
+                  ),
                 ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.accentFill),
+                const SizedBox(height: CoveSpace.md),
+                TextField(
+                  controller: notesController,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: CoveType.body.copyWith(color: cv.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Notes (optional)',
+                    labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.lineHairline),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.accentFill),
+                    ),
+                  ),
                 ),
+                const SizedBox(height: CoveSpace.md),
+                Text(
+                  'Whose is it?',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                AddPersonPicker<String>(
+                  people: people,
+                  selectedValue: selectedOwner,
+                  onSelected: (value) {
+                    setDialogState(() {
+                      selectedOwner = selectedOwner == value ? null : value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(
+                'Cancel',
+                style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
               ),
             ),
-            const SizedBox(height: CoveSpace.md),
-            TextField(
-              controller: notesController,
-              textCapitalization: TextCapitalization.sentences,
-              style: CoveType.body.copyWith(color: cv.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'Notes (optional)',
-                labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.lineHairline),
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.accentFill),
-                ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                'Save',
+                style: CoveType.rowTitle.copyWith(color: cv.accentText),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              'Cancel',
-              style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'Save',
-              style: CoveType.rowTitle.copyWith(color: cv.accentText),
-            ),
-          ),
-        ],
       ),
     );
 
@@ -127,6 +187,7 @@ class ListItemDetailSheet extends ConsumerWidget {
               itemId: item.id,
               title: newTitle,
               notes: newNotes.isNotEmpty ? newNotes : null,
+              owner: selectedOwner,
             );
         if (context.mounted) {
           Navigator.of(context).pop();
@@ -227,9 +288,27 @@ class ListItemDetailSheet extends ConsumerWidget {
         ? '${item.notes!.trim()} · Added by $addedByName'
         : 'Added by $addedByName';
 
+    final rawOwner = item.owner;
+    String? ownerLabel;
+    if (rawOwner != null && rawOwner.isNotEmpty) {
+      if (rawOwner == 'both') {
+        ownerLabel = 'Both of you';
+      } else if (rawOwner == 'either') {
+        ownerLabel = 'Either of you';
+      } else if (rawOwner == user?.id ||
+          rawOwner == 'local_user' ||
+          rawOwner == 'me') {
+        ownerLabel = 'You';
+      } else {
+        ownerLabel = partnerProfile.displayName;
+      }
+    }
+
     final meaningTitle =
         isCompleted ? 'Done by $completedByName' : 'On $listName';
-    final meaningSubtitle = 'Added by $addedByName · $formattedCreatedDate';
+    final meaningSubtitle = ownerLabel != null
+        ? '$ownerLabel · Added by $addedByName · $formattedCreatedDate'
+        : 'Added by $addedByName · $formattedCreatedDate';
 
     return CoveDetailSheet(
       kindGlyph: const Icon(Icons.checklist_rounded),
@@ -243,6 +322,7 @@ class ListItemDetailSheet extends ConsumerWidget {
           CoveNoteItem(
             title: item.title,
             addedBy: noteAddedByLine,
+            owner: ownerLabel,
             isDone: isCompleted,
             onChanged: (val) => _handleToggle(context, ref, val),
           ),

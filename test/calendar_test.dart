@@ -390,7 +390,11 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Skip'));
       await tester.pumpAndSettle();
 
-      // Step 5: Review -> Add event
+      // Step 5: Whose is it? -> Next (defaults to Both of you)
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      // Step 6: Review -> Add event
       await tester.tap(find.bySemanticsLabel('Add event'));
       await tester.pumpAndSettle();
 
@@ -541,6 +545,7 @@ class _TestCalendarController extends CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String owner = 'both',
   }) async {
     final res = await super.createEvent(
       title: title,
@@ -550,6 +555,7 @@ class _TestCalendarController extends CalendarController {
       isAllDay: isAllDay,
       location: location,
       recurrence: recurrence,
+      owner: owner,
     );
     await onMutate();
     return res;
@@ -565,6 +571,7 @@ class _TestCalendarController extends CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String? owner,
   }) async {
     await super.updateEvent(
       id: id,
@@ -575,6 +582,7 @@ class _TestCalendarController extends CalendarController {
       isAllDay: isAllDay,
       location: location,
       recurrence: recurrence,
+      owner: owner,
     );
     await onMutate();
   }

@@ -691,10 +691,34 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         ? 'DAY'
         : DateFormat('a').format(startLocal).toUpperCase();
 
+    final rawOwner = event.owner ?? 'both';
+    final String ownerLabel;
+    final Widget ownerAvatar;
+    if (rawOwner.isEmpty || rawOwner == 'both') {
+      ownerLabel = 'Both of you';
+      ownerAvatar = const CoveAvatar.inline(person: CovePerson.both);
+    } else if (rawOwner == currentUserId ||
+        rawOwner == 'local_user' ||
+        rawOwner == 'me') {
+      ownerLabel = myName;
+      final isCreator = currentUserId == creatorId || rawOwner == creatorId;
+      ownerAvatar = CoveAvatar.inline(
+        person: isCreator ? CovePerson.a : CovePerson.b,
+        nameOrInitial: myName,
+      );
+    } else {
+      ownerLabel = partnerName;
+      final isCreator = rawOwner == creatorId;
+      ownerAvatar = CoveAvatar.inline(
+        person: isCreator ? CovePerson.a : CovePerson.b,
+        nameOrInitial: partnerName,
+      );
+    }
+
     final subtitleParts = <String>[
       if (event.location != null && event.location!.trim().isNotEmpty)
         event.location!.trim(),
-      'Both of you',
+      ownerLabel,
     ];
 
     return CoveRow(
@@ -719,7 +743,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         children: [
           CoveSyncTick(status: syncStatus),
           const SizedBox(width: CoveSpace.sm),
-          const CoveAvatar.inline(person: CovePerson.both),
+          ownerAvatar,
         ],
       ),
       isLast: isLast,
@@ -859,6 +883,24 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     final actorName =
         (actorId == currentUserId || actorId == 'local_user') ? myName : partnerName;
 
+    final rawOwner = item.owner;
+    final String whoLabel;
+    if (rawOwner != null && rawOwner.isNotEmpty) {
+      if (rawOwner == 'both') {
+        whoLabel = 'Both of you';
+      } else if (rawOwner == 'either') {
+        whoLabel = 'Either of you';
+      } else if (rawOwner == currentUserId ||
+          rawOwner == 'local_user' ||
+          rawOwner == 'me') {
+        whoLabel = myName;
+      } else {
+        whoLabel = partnerName;
+      }
+    } else {
+      whoLabel = actorName;
+    }
+
     return CoveRow(
       leading: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -894,7 +936,7 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         ),
       ),
       title: item.title,
-      subtitle: '${entry.listName} · $actorName',
+      subtitle: '${entry.listName} · $whoLabel',
       trailing: Text(
         isDone ? 'STRUCK' : 'WENT ON',
         style: CoveType.capsCard.copyWith(

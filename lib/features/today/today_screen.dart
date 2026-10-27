@@ -584,6 +584,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                     events: calendarEvents,
                     slipVariant: slipVariant,
                     hasPartner: todayData.hasPartner,
+                    currentUserId: currentUserId,
+                    partnerName: todayData.partnerName,
                     now: now,
                   ),
                   const SizedBox(height: CoveSpace.section),
@@ -732,6 +734,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required List<TodayEventItem> events,
     required CoveSlipVariant slipVariant,
     required bool hasPartner,
+    required String currentUserId,
+    required String partnerName,
     required DateTime now,
   }) {
     final readout = events.isEmpty
@@ -804,12 +808,23 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           ? 'DAY'
           : DateFormat('a').format(startLocal).toUpperCase();
 
+      final String ownerLabel;
+      if (ev.owner.isEmpty || ev.owner == 'both') {
+        ownerLabel = hasPartner ? 'Both of you' : 'You';
+      } else if (ev.owner == currentUserId ||
+          ev.owner == 'local_user' ||
+          ev.owner == 'me') {
+        ownerLabel = 'You';
+      } else {
+        ownerLabel = partnerName;
+      }
+
       return CoveTicket(
         key: ValueKey('today_ticket_${ev.id}'),
         variant: slipVariant,
         title: ev.title,
         date: subtitlePart,
-        owner: hasPartner ? 'Both of you' : 'You',
+        owner: ownerLabel,
         hour: hourStr,
         meridiem: meridiemStr,
         onTap: openCalendar,
@@ -1138,9 +1153,25 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           (currentUserId.isEmpty || task.item.createdBy == currentUserId)
           ? 'added by you'
           : 'added by $partnerName';
+      final rawOwner = task.item.owner;
+      String? ownerLabel;
+      if (rawOwner != null && rawOwner.isNotEmpty) {
+        if (rawOwner == 'both') {
+          ownerLabel = 'Both of you';
+        } else if (rawOwner == 'either') {
+          ownerLabel = 'Either of you';
+        } else if (rawOwner == currentUserId ||
+            rawOwner == 'local_user' ||
+            rawOwner == 'me') {
+          ownerLabel = 'You';
+        } else {
+          ownerLabel = partnerName;
+        }
+      }
       return CoveNoteItem(
         title: task.title,
         addedBy: addedBy,
+        owner: ownerLabel,
         isDone: task.isCompleted,
         onChanged: (checked) async {
           final controller = ref.read(listControllerProvider);

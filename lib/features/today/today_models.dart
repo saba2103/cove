@@ -12,6 +12,7 @@ class TodayEventItem {
   final bool isSubscription;
   final String? amountFormatted;
   final String? subtitle;
+  final String owner;
 
   const TodayEventItem({
     required this.id,
@@ -23,6 +24,7 @@ class TodayEventItem {
     this.isSubscription = false,
     this.amountFormatted,
     this.subtitle,
+    this.owner = 'both',
   });
 }
 

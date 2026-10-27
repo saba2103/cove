@@ -97,6 +97,7 @@ class _SpyCalendarController extends CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String owner = 'both',
   }) async {
     if (shouldFail) {
       throw StateError('Simulated createEvent failure');
@@ -110,6 +111,7 @@ class _SpyCalendarController extends CalendarController {
         isAllDay: isAllDay,
         location: location,
         recurrence: recurrence,
+        owner: owner,
       ),
     );
     return 'evt-created-${calls.length}';
@@ -125,12 +127,14 @@ class _SpyListController extends ListController {
         String? notes,
         DateTime? dueDate,
         String? listName,
+        String? owner,
       })> addedItems = <({
     String listId,
     String title,
     String? notes,
     DateTime? dueDate,
     String? listName,
+    String? owner,
   })>[];
   final List<String> callOrder = <String>[];
 
@@ -150,6 +154,7 @@ class _SpyListController extends ListController {
     String? notes,
     DateTime? dueDate,
     String? listName,
+    String? owner,
   }) async {
     addedItems.add((
       listId: listId,
@@ -157,6 +162,7 @@ class _SpyListController extends ListController {
       notes: notes,
       dueDate: dueDate,
       listName: listName,
+      owner: owner,
     ));
     callOrder.add('addItem:$listId:$title');
     return 'item_${addedItems.length}';
@@ -235,11 +241,13 @@ class _SpyRoutineController extends RoutineController {
         String title,
         int startMinutes,
         int endMinutes,
+        String owner,
       })> createdEvents = <({
     String routineId,
     String title,
     int startMinutes,
     int endMinutes,
+    String owner,
   })>[];
   final List<String> callOrder = <String>[];
   bool shouldFailCreateRoutineEvent = false;
@@ -269,6 +277,7 @@ class _SpyRoutineController extends RoutineController {
     required int endMinutes,
     String? category,
     String? notes,
+    String owner = 'both',
   }) async {
     if (shouldFailCreateRoutineEvent) {
       callOrder.add('createRoutineEvent_FAILED:$routineId:$title');
@@ -279,6 +288,7 @@ class _SpyRoutineController extends RoutineController {
       title: title,
       startMinutes: startMinutes,
       endMinutes: endMinutes,
+      owner: owner,
     ));
     callOrder.add('createRoutineEvent:$routineId:$title:$startMinutes-$endMinutes');
     return 'routine_event_${createdEvents.length}';
@@ -612,7 +622,7 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 5: Where?
+        // Step 4 of 6: Where?
         expect(find.text('Where?'), findsOneWidget);
         await tester.enterText(
           find.byKey(const ValueKey('add_flow_text_input')),
@@ -622,7 +632,12 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 5 of 5: Review
+        // Step 5 of 6: Whose is it?
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 6: Review
         expect(find.text('Does this look right?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Add event'));
         await tester.pumpAndSettle();
@@ -637,6 +652,7 @@ void main() {
           firstCall.endTime,
           equals(firstCall.startTime.add(const Duration(hours: 1))),
         );
+        expect(firstCall.owner, equals('both'));
 
         // Now tap "Add another" and walk an All day event
         await tester.tap(find.bySemanticsLabel('Add another'));
@@ -664,7 +680,12 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Skip'));
         await tester.pumpAndSettle();
 
-        // Commit on Step 5
+        // Step 5 of 6: Whose is it? -> select Saba (auto-advances to Review)
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Saba'));
+        await tester.pumpAndSettle();
+
+        // Commit on Step 6
         await tester.tap(find.bySemanticsLabel('Add event'));
         await tester.pumpAndSettle();
 
@@ -675,6 +696,7 @@ void main() {
         expect(allDayCall.location, isNull);
         expect(allDayCall.startTime, equals(DateTime(2026, 10, 6, 0, 0)));
         expect(allDayCall.endTime, equals(DateTime(2026, 10, 6, 23, 59)));
+        expect(allDayCall.owner, equals('user_saba'));
       });
     },
   );
@@ -1079,12 +1101,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Home'));
         await tester.pumpAndSettle();
 
-        // Step 3 of 4: By when? -> tap Tomorrow, 6 Oct
+        // Step 3 of 5: By when? -> tap Tomorrow, 6 Oct
         expect(find.text('By when?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Tomorrow, 6 Oct'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 4: Review -> CoveNote
+        // Step 4 of 5: Whose is it? -> default Either of you
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 5: Review -> CoveNote
         expect(find.text('Does this look right?'), findsOneWidget);
         expect(find.byType(CoveNote), findsOneWidget);
         expect(find.text('COVE · HOME'), findsOneWidget);
@@ -1099,8 +1126,9 @@ void main() {
         expect(spyListA.addedItems.single.listId, 'list_home');
         expect(spyListA.addedItems.single.title, 'Gas cylinder');
         expect(spyListA.addedItems.single.dueDate, DateTime(2026, 10, 6));
+        expect(spyListA.addedItems.single.owner, 'either');
 
-        // --- Case B: 1 list -> Which list? skipped (3 steps); No particular day -> dueDate null ---
+        // --- Case B: 1 list -> Which list? skipped (4 steps); No particular day -> dueDate null ---
         late _SpyListController spyListB;
         await tester.pumpWidget(
           ProviderScope(
@@ -1133,12 +1161,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Directly on By when? (Step 2 of 3 — Which list skipped)
+        // Directly on By when? (Step 2 of 4 — Which list skipped)
         expect(find.text('By when?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('No particular day'));
         await tester.pumpAndSettle();
 
-        // Step 3 of 3: Review -> CoveNote with "No particular day"
+        // Step 3 of 4: Whose is it? -> select Both of you (auto-advances to Review)
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Both of you'));
+        await tester.pumpAndSettle();
+
+        // Step 4 of 4: Review -> CoveNote with "No particular day"
         expect(find.text('Does this look right?'), findsOneWidget);
         expect(find.byType(CoveNote), findsOneWidget);
         expect(find.text('No particular day'), findsWidgets);
@@ -1151,6 +1184,7 @@ void main() {
         expect(spyListB.addedItems.single.listId, 'list_grocery');
         expect(spyListB.addedItems.single.title, 'Buy milk');
         expect(spyListB.addedItems.single.dueDate, isNull);
+        expect(spyListB.addedItems.single.owner, 'both');
 
         // --- Case C: 0 lists -> Name the list creates one first through ListController ---
         late _SpyListController spyListC;
@@ -1176,7 +1210,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Step 1 of 4: What needs doing?
+        // Step 1 of 5: What needs doing?
         expect(find.text('What needs doing?'), findsOneWidget);
         await tester.enterText(
           find.byKey(const ValueKey('add_flow_text_input')),
@@ -1186,7 +1220,7 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 2 of 4: Name the list
+        // Step 2 of 5: Name the list
         expect(find.text('Name the list'), findsOneWidget);
         await tester.enterText(
           find.byKey(const ValueKey('add_flow_text_input')),
@@ -1196,12 +1230,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 3 of 4: By when?
+        // Step 3 of 5: By when?
         expect(find.text('By when?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Today, 5 Oct'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 4: Review -> CoveNote
+        // Step 4 of 5: Whose is it?
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 5: Review -> CoveNote
         expect(find.text('Does this look right?'), findsOneWidget);
         expect(find.text('COVE · REPAIRS'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Add task'));
@@ -1777,12 +1816,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('30 min'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 5: Which days? -> default Mon-Fri {1, 2, 3, 4, 5}
+        // Step 4 of 6: Which days? -> default Mon-Fri {1, 2, 3, 4, 5}
         expect(find.text('Which days?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 5 of 5: Review -> CoveBand
+        // Step 5 of 6: Whose is it? -> default Both of you
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 6: Review -> CoveBand
         expect(find.text('Does this look right?'), findsOneWidget);
         final bandA = tester.widget<CoveBand>(find.byType(CoveBand));
         expect(bandA.title, 'Morning tea');
@@ -1800,6 +1844,7 @@ void main() {
         expect(spyRoutineA.createdEvents.single.title, 'Morning tea');
         expect(spyRoutineA.createdEvents.single.startMinutes, 480);
         expect(spyRoutineA.createdEvents.single.endMinutes, 510);
+        expect(spyRoutineA.createdEvents.single.owner, 'both');
 
         // --- Case B: New routine set (Mon, Wed, Fri) + second-call failure reporting & retry ---
         late _SpyRoutineController spyRoutineB;
@@ -1847,6 +1892,11 @@ void main() {
         await tester.pump();
         await tester.tap(find.bySemanticsLabel('Thursday'));
         await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 6: Whose is it?
+        expect(find.text('Whose is it?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
@@ -2256,6 +2306,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Add routine'));
         await tester.pumpAndSettle();
         expect(find.text('Added.'), findsOneWidget);
@@ -2502,7 +2554,7 @@ void main() {
         await tester.tap(find.bySemanticsLabel('30 min'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 5: Which days? is STILL asked and preselected to Weekend Flow's days {6, 7}
+        // Step 4 of 6: Which days? is STILL asked and preselected to Weekend Flow's days {6, 7}
         expect(find.text('Which days?'), findsOneWidget);
         final weekToggles = tester.widget<AddWeekToggles>(
           find.byType(AddWeekToggles),
@@ -2512,7 +2564,12 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 5 of 5: Review -> matches existing 'routine_weekend' set
+        // Step 5 of 6: Whose is it?
+        expect(find.text('Whose is it?'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 6 of 6: Review -> matches existing 'routine_weekend' set
         expect(find.text('Does this look right?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Add routine'));
         await tester.pumpAndSettle();
@@ -2541,7 +2598,7 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 2 of 5: When, usually? is preselected to 7:00 AM (420 min)
+        // Step 2 of 6: When, usually? is preselected to 7:00 AM (420 min)
         expect(find.text('When, usually?'), findsOneWidget);
         final clockFace = tester.widget<AddClockFace>(
           find.byType(AddClockFace),
@@ -2551,11 +2608,11 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 
-        // Step 3 of 5: For how long? -> 45 min
+        // Step 3 of 6: For how long? -> 45 min
         await tester.tap(find.bySemanticsLabel('45 min'));
         await tester.pumpAndSettle();
 
-        // Step 4 of 5: Which days? is preselected to {6, 7}; toggle Friday (5) on so it creates a new set {5, 6, 7}
+        // Step 4 of 6: Which days? is preselected to {6, 7}; toggle Friday (5) on so it creates a new set {5, 6, 7}
         expect(find.text('Which days?'), findsOneWidget);
         expect(
           tester.widget<AddWeekToggles>(find.byType(AddWeekToggles)).selectedDays,
@@ -2563,6 +2620,11 @@ void main() {
         );
         await tester.tap(find.bySemanticsLabel('Friday'));
         await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Next'));
+        await tester.pumpAndSettle();
+
+        // Step 5 of 6: Whose is it?
+        expect(find.text('Whose is it?'), findsOneWidget);
         await tester.tap(find.bySemanticsLabel('Next'));
         await tester.pumpAndSettle();
 

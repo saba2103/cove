@@ -154,8 +154,12 @@ void main() {
     listId: 'list_home',
     dueDate: fixedTomorrow,
     noParticularDay: false,
+    owner: TaskOwner.you,
     listCount: 3,
     openedFromList: false,
+    viewerUserId: 'user_saba',
+    partnerUserId: 'user_ancy',
+    hasPartner: true,
   );
 
   final fullHabitDraft = HabitDraft(
@@ -186,7 +190,7 @@ void main() {
   );
 
   testWidgets(
-    '2. AddFlow task step 4 (Review — CoveNote) golden matrix (3 widths × 2 modes)',
+    '2. AddFlow task step 5 (Review — CoveNote) golden matrix (3 widths × 2 modes)',
     (tester) async {
       await goldenMatrix(
         tester,
@@ -195,7 +199,7 @@ void main() {
           child: AddFlow(
             initialKind: AddKind.task,
             initialDraft: fullTaskDraft,
-            initialStepIndex: 3,
+            initialStepIndex: 4,
           ),
         ),
         overrides: buildGoldenOverrides(),

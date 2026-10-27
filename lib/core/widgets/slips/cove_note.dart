@@ -9,6 +9,7 @@ import 'cove_slip.dart';
 class CoveNoteItem {
   final String title;
   final String? addedBy;
+  final String? owner;
   final bool isDone;
   final ValueChanged<bool>? onChanged;
   final VoidCallback? onTap;
@@ -16,6 +17,7 @@ class CoveNoteItem {
   const CoveNoteItem({
     required this.title,
     this.addedBy,
+    this.owner,
     this.isDone = false,
     this.onChanged,
     this.onTap,
@@ -138,6 +140,7 @@ class _CoveNoteItemView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAddedBy = item.addedBy != null && item.addedBy!.trim().isNotEmpty;
+    final hasOwner = item.owner != null && item.owner!.trim().isNotEmpty;
     final titleColor = item.isDone ? palette.secondary : palette.title;
     final dateField = (fieldTaps != null &&
             fieldTaps!.containsKey(CoveSlipField.dueDate))
@@ -183,6 +186,17 @@ class _CoveNoteItemView extends StatelessWidget {
             fieldTaps: fieldTaps,
             child: Text(
               item.addedBy!,
+              style: CoveType.readout.copyWith(color: palette.tertiary),
+            ),
+          ),
+        ],
+        if (hasOwner) ...[
+          const SizedBox(height: CoveSpace.xs),
+          CoveSlipFieldTapTarget(
+            field: CoveSlipField.owner,
+            fieldTaps: fieldTaps,
+            child: Text(
+              item.owner!,
               style: CoveType.readout.copyWith(color: palette.tertiary),
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
+import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../core/widgets/cove_empty_state.dart';
 import '../../core/widgets/cove_error_state.dart';
@@ -18,6 +19,7 @@ import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
+import '../add/widgets/add_person_picker.dart';
 import '../auth/auth_controller.dart';
 import '../notifications/notification_controller.dart';
 import '../profile/partner_profile_controller.dart';
@@ -344,72 +346,137 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   Future<void> _handleEditItem(LocalListItem item) async {
     final cv = context.cv;
     final controller = TextEditingController(text: item.title);
+    final user = ref.read(authProvider).value;
+    final myId = user?.id ?? 'local_user';
+    final myName = user?.displayName?.trim().isNotEmpty == true
+        ? user!.displayName!.trim()
+        : 'You';
+    final partnerProfile = ref.read(partnerProfileProvider);
+    final partnerId = partnerProfile.userId ?? 'partner';
+    final partnerName = partnerProfile.displayName;
+    final hasPartner = ref.read(activeHomeHasPartnerProvider);
+    String? selectedOwner = item.owner;
+
+    final people = <AddPersonTileData<String>>[
+      AddPersonTileData(
+        value: myId,
+        person: CovePerson.a,
+        label: myName,
+        nameOrInitial: myName,
+      ),
+      if (hasPartner) ...[
+        AddPersonTileData(
+          value: partnerId,
+          person: CovePerson.b,
+          label: partnerName,
+          nameOrInitial: partnerName,
+        ),
+        const AddPersonTileData(
+          value: 'both',
+          person: CovePerson.both,
+          label: 'Both of you',
+        ),
+        const AddPersonTileData(
+          value: 'either',
+          person: CovePerson.both,
+          label: 'Either of you',
+        ),
+      ],
+    ];
 
     final newTitle = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cv.surfaceCard,
-        shape: CoveShape.border(
-          CoveRadius.inline,
-          side: BorderSide(color: cv.lineHairline, width: 1),
-        ),
-        title: Text(
-          'Edit item',
-          style: CoveType.rowTitle.copyWith(
-            fontWeight: FontWeight.w600,
-            color: cv.textPrimary,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: cv.surfaceCard,
+          shape: CoveShape.border(
+            CoveRadius.inline,
+            side: BorderSide(color: cv.lineHairline, width: 1),
           ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          style: CoveType.body.copyWith(
-            color: cv.textPrimary,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Item name',
-            hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: cv.lineHairline),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: cv.accentFill),
+          title: Text(
+            'Edit item',
+            style: CoveType.rowTitle.copyWith(
+              fontWeight: FontWeight.w600,
+              color: cv.textPrimary,
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Cancel',
-              style: CoveType.readout.copyWith(color: cv.textSecondary),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: CoveType.body.copyWith(
+                    color: cv.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Item name',
+                    hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.lineHairline),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: cv.accentFill),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: CoveSpace.md),
+                Text(
+                  'Whose is it?',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                AddPersonPicker<String>(
+                  people: people,
+                  selectedValue: selectedOwner,
+                  onSelected: (value) {
+                    setDialogState(() {
+                      selectedOwner = selectedOwner == value ? null : value;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
-          TextButton(
-            onPressed: () {
-              final val = controller.text.trim();
-              if (val.isNotEmpty) {
-                Navigator.of(ctx).pop(val);
-              }
-            },
-            child: Text(
-              'Save',
-              style: CoveType.readout.copyWith(
-                fontWeight: FontWeight.w600,
-                color: cv.accentText,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                'Cancel',
+                style: CoveType.readout.copyWith(color: cv.textSecondary),
               ),
             ),
-          ),
-        ],
+            TextButton(
+              onPressed: () {
+                final val = controller.text.trim();
+                if (val.isNotEmpty) {
+                  Navigator.of(ctx).pop(val);
+                }
+              },
+              child: Text(
+                'Save',
+                style: CoveType.readout.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: cv.accentText,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (newTitle != null && newTitle.isNotEmpty && newTitle != item.title) {
+    if (newTitle != null &&
+        newTitle.isNotEmpty &&
+        (newTitle != item.title || selectedOwner != item.owner)) {
       await ref.read(listControllerProvider).updateItem(
             itemId: item.id,
             title: newTitle,
             notes: item.notes,
+            owner: selectedOwner,
           );
     }
   }
@@ -1123,14 +1190,33 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
 
     // Build neutral attribution tag
     final partnerName = ref.watch(partnerProfileProvider).displayName;
-    final String attributionText;
+    final String baseAttribution;
     if (isCompleted && item.completedBy != null) {
       final isYou = item.completedBy == currentUser?.id;
-      attributionText = isYou ? 'Completed by You' : 'Completed by $partnerName';
+      baseAttribution = isYou ? 'Completed by You' : 'Completed by $partnerName';
     } else {
       final isYou = item.createdBy == currentUser?.id;
-      attributionText = isYou ? 'Added by You' : 'Added by $partnerName';
+      baseAttribution = isYou ? 'Added by You' : 'Added by $partnerName';
     }
+
+    final rawOwner = item.owner;
+    String? ownerLabel;
+    if (rawOwner != null && rawOwner.isNotEmpty) {
+      if (rawOwner == 'both') {
+        ownerLabel = 'Both of you';
+      } else if (rawOwner == 'either') {
+        ownerLabel = 'Either of you';
+      } else if (rawOwner == currentUser?.id ||
+          rawOwner == 'local_user' ||
+          rawOwner == 'me') {
+        ownerLabel = 'You';
+      } else {
+        ownerLabel = partnerName;
+      }
+    }
+    final attributionText = ownerLabel != null
+        ? '$ownerLabel · $baseAttribution'
+        : baseAttribution;
 
     // Determine two-tick delivery status
     final tickStatus = resolveCoveSyncStatus(

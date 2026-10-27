@@ -635,6 +635,7 @@ class _TestListController extends ListController {
     String? notes,
     String? listName,
     DateTime? dueDate,
+    String? owner,
   }) async {
     final res = await super.addItem(
       listId: listId,
@@ -642,6 +643,7 @@ class _TestListController extends ListController {
       notes: notes,
       listName: listName,
       dueDate: dueDate,
+      owner: owner,
     );
     await onMutate();
     return res;

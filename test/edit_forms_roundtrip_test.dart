@@ -104,6 +104,7 @@ class _SpyCalendarController extends Fake implements CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String? owner,
   }) async {
     capturedUpdate = {
       'id': id,
@@ -114,6 +115,7 @@ class _SpyCalendarController extends Fake implements CalendarController {
       'isAllDay': isAllDay,
       'location': location,
       'recurrence': recurrence,
+      'owner': owner,
     };
   }
 }

@@ -153,6 +153,7 @@ class CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String owner = 'both',
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -175,6 +176,7 @@ class CalendarController {
         'location': location,
         'created_by': userId,
         'recurrence': recurrence,
+        'owner': owner,
       },
     );
 
@@ -191,6 +193,7 @@ class CalendarController {
     bool isAllDay = false,
     String? location,
     String? recurrence,
+    String? owner,
   }) async {
     final homeId = _activeHomeId;
     if (homeId == null) throw StateError('No active home selected.');
@@ -208,6 +211,7 @@ class CalendarController {
         'is_all_day': isAllDay,
         'location': location,
         'recurrence': recurrence,
+        'owner': ?owner,
       },
     );
   }

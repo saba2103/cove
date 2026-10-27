@@ -31,17 +31,19 @@ enum AddStep {
   expenseWhoPaid,
   expensePaymentMethod,
 
-  // Event (5 steps)
+  // Event (6 steps)
   eventTitle,
   eventDay,
   eventTime,
   eventLocation,
+  eventWhose,
 
-  // Task (3 or 4 steps)
+  // Task (4 or 5 steps)
   taskTitle,
   taskWhichList,
   taskNameTheList,
   taskByWhen,
+  taskWhose,
 
   // Habit (4 steps)
   habitName,
@@ -58,11 +60,12 @@ enum AddStep {
   commitmentPaidFrom,
   commitmentWhose,
 
-  // Routine (5 steps)
+  // Routine (6 steps)
   routineTitle,
   routineWhen,
   routineDuration,
   routineDays,
+  routineWhose,
 
   // Shared final confirmation step
   review,
@@ -603,6 +606,7 @@ class EventCreateArgs {
   final bool isAllDay;
   final String? location;
   final String? recurrence;
+  final String owner;
 
   const EventCreateArgs({
     required this.title,
@@ -612,6 +616,7 @@ class EventCreateArgs {
     required this.isAllDay,
     required this.location,
     this.recurrence,
+    this.owner = 'both',
   });
 
   @override
@@ -624,7 +629,8 @@ class EventCreateArgs {
           endTime == other.endTime &&
           isAllDay == other.isAllDay &&
           location == other.location &&
-          recurrence == other.recurrence;
+          recurrence == other.recurrence &&
+          owner == other.owner;
 
   @override
   int get hashCode => Object.hash(
@@ -635,10 +641,11 @@ class EventCreateArgs {
         isAllDay,
         location,
         recurrence,
+        owner,
       );
 }
 
-/// Immutable draft for `AddKind.event` (`design/specs/14-add-flow.md` §5).
+/// Immutable draft for `AddKind.event` (`design/specs/14-add-flow.md` §5 & `19-owners-and-pets.md` §1, §3).
 @immutable
 class EventDraft extends AddDraft {
   final String title;
@@ -648,6 +655,10 @@ class EventDraft extends AddDraft {
   final bool isAllDay;
   final String? location;
   final bool locationSkipped;
+  final CommitmentOwner owner;
+  final String viewerUserId;
+  final String partnerUserId;
+  final bool hasPartner;
 
   const EventDraft({
     this.title = '',
@@ -657,14 +668,55 @@ class EventDraft extends AddDraft {
     this.isAllDay = false,
     this.location,
     this.locationSkipped = false,
-  });
+    CommitmentOwner owner = CommitmentOwner.both,
+    this.viewerUserId = 'user_alex',
+    this.partnerUserId = 'partner_user',
+    this.hasPartner = true,
+  }) : owner = !hasPartner ? CommitmentOwner.you : owner;
 
   factory EventDraft.initial(AddFlowContext context) {
-    return EventDraft(day: context.anchor);
+    return EventDraft(
+      day: context.anchor,
+      owner: context.hasPartner ? CommitmentOwner.both : CommitmentOwner.you,
+      viewerUserId: context.viewerUserId,
+      partnerUserId: context.partnerUserId,
+      hasPartner: context.hasPartner,
+    );
   }
 
   @override
   AddKind get kind => AddKind.event;
+
+  List<CommitmentOwner> availableOwners([AddFlowContext? context]) {
+    final partnerExists = context?.hasPartner ?? hasPartner;
+    if (!partnerExists) {
+      return const <CommitmentOwner>[CommitmentOwner.you];
+    }
+    return const <CommitmentOwner>[
+      CommitmentOwner.you,
+      CommitmentOwner.partner,
+      CommitmentOwner.both,
+    ];
+  }
+
+  String resolvedOwner({
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
+  }) {
+    final vId = viewerUserId ?? this.viewerUserId;
+    final pId = partnerUserId ?? this.partnerUserId;
+    final partnerExists = hasPartner ?? this.hasPartner;
+    if (!partnerExists) return vId;
+    switch (owner) {
+      case CommitmentOwner.you:
+        return vId;
+      case CommitmentOwner.partner:
+        return pId;
+      case CommitmentOwner.both:
+        return 'both';
+    }
+  }
 
   EventDraft copyWith({
     String? title,
@@ -674,7 +726,12 @@ class EventDraft extends AddDraft {
     bool? isAllDay,
     Object? location = _sentinel,
     bool? locationSkipped,
+    CommitmentOwner? owner,
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
   }) {
+    final nextHasPartner = hasPartner ?? this.hasPartner;
     final String? nextLocation = identical(location, _sentinel)
         ? this.location
         : location as String?;
@@ -690,6 +747,10 @@ class EventDraft extends AddDraft {
                   (nextLocation == null || nextLocation.trim().isEmpty)
               ? true
               : this.locationSkipped),
+      owner: !nextHasPartner ? CommitmentOwner.you : (owner ?? this.owner),
+      viewerUserId: viewerUserId ?? this.viewerUserId,
+      partnerUserId: partnerUserId ?? this.partnerUserId,
+      hasPartner: nextHasPartner,
     );
   }
 
@@ -698,6 +759,7 @@ class EventDraft extends AddDraft {
     AddStep.eventDay,
     AddStep.eventTime,
     AddStep.eventLocation,
+    AddStep.eventWhose,
     AddStep.review,
   ];
 
@@ -717,6 +779,8 @@ class EventDraft extends AddDraft {
       case AddStep.eventLocation:
         return (location != null && location!.trim().isNotEmpty) ||
             locationSkipped;
+      case AddStep.eventWhose:
+        return true;
       case AddStep.review:
         return isComplete;
       default:
@@ -728,9 +792,13 @@ class EventDraft extends AddDraft {
   bool get isComplete =>
       isAnswered(AddStep.eventTitle) &&
       isAnswered(AddStep.eventDay) &&
-      isAnswered(AddStep.eventTime);
+      isAnswered(AddStep.eventTime) &&
+      isAnswered(AddStep.eventWhose);
 
-  EventCreateArgs toCreateArgs() {
+  EventCreateArgs toCreateArgs({
+    String? viewerUserId,
+    String? partnerUserId,
+  }) {
     if (!isComplete) {
       throw StateError('EventDraft is incomplete and cannot build args.');
     }
@@ -756,6 +824,10 @@ class EventDraft extends AddDraft {
       isAllDay: isAllDay,
       location: cleanLocation,
       recurrence: null,
+      owner: resolvedOwner(
+        viewerUserId: viewerUserId,
+        partnerUserId: partnerUserId,
+      ),
     );
   }
 }
@@ -763,6 +835,14 @@ class EventDraft extends AddDraft {
 // ============================================================================
 // 3. TASK DRAFT
 // ============================================================================
+
+/// Whose a task is (`you`, `partner`, `both`, or `either`).
+enum TaskOwner {
+  you,
+  partner,
+  both,
+  either,
+}
 
 /// Plain value object holding the exact named arguments for `ListController.addItem`
 /// (and optional `ListController.createList` when `newListName != null`).
@@ -773,6 +853,7 @@ class TaskCreateArgs {
   final String title;
   final String? notes;
   final DateTime? dueDate;
+  final String owner;
 
   const TaskCreateArgs({
     required this.listId,
@@ -780,6 +861,7 @@ class TaskCreateArgs {
     required this.title,
     this.notes,
     required this.dueDate,
+    this.owner = 'either',
   });
 
   @override
@@ -790,14 +872,15 @@ class TaskCreateArgs {
           newListName == other.newListName &&
           title == other.title &&
           notes == other.notes &&
-          dueDate == other.dueDate;
+          dueDate == other.dueDate &&
+          owner == other.owner;
 
   @override
   int get hashCode =>
-      Object.hash(listId, newListName, title, notes, dueDate);
+      Object.hash(listId, newListName, title, notes, dueDate, owner);
 }
 
-/// Immutable draft for `AddKind.task` (`design/specs/14-add-flow.md` §5).
+/// Immutable draft for `AddKind.task` (`design/specs/14-add-flow.md` §5 & `19-owners-and-pets.md` §1, §3).
 @immutable
 class TaskDraft extends AddDraft {
   final String title;
@@ -807,6 +890,10 @@ class TaskDraft extends AddDraft {
   final bool noParticularDay;
   final int listCount;
   final bool openedFromList;
+  final TaskOwner owner;
+  final String viewerUserId;
+  final String partnerUserId;
+  final bool hasPartner;
 
   const TaskDraft({
     this.title = '',
@@ -816,7 +903,11 @@ class TaskDraft extends AddDraft {
     this.noParticularDay = false,
     this.listCount = 1,
     this.openedFromList = false,
-  });
+    TaskOwner owner = TaskOwner.either,
+    this.viewerUserId = 'user_alex',
+    this.partnerUserId = 'partner_user',
+    this.hasPartner = true,
+  }) : owner = !hasPartner ? TaskOwner.you : owner;
 
   factory TaskDraft.initial(AddFlowContext context) {
     return TaskDraft(
@@ -824,11 +915,49 @@ class TaskDraft extends AddDraft {
       listId: context.activeListId,
       listCount: context.listCount,
       openedFromList: context.openedFromList,
+      owner: context.hasPartner ? TaskOwner.either : TaskOwner.you,
+      viewerUserId: context.viewerUserId,
+      partnerUserId: context.partnerUserId,
+      hasPartner: context.hasPartner,
     );
   }
 
   @override
   AddKind get kind => AddKind.task;
+
+  List<TaskOwner> availableOwners([AddFlowContext? context]) {
+    final partnerExists = context?.hasPartner ?? hasPartner;
+    if (!partnerExists) {
+      return const <TaskOwner>[TaskOwner.you];
+    }
+    return const <TaskOwner>[
+      TaskOwner.you,
+      TaskOwner.partner,
+      TaskOwner.both,
+      TaskOwner.either,
+    ];
+  }
+
+  String resolvedOwner({
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
+  }) {
+    final vId = viewerUserId ?? this.viewerUserId;
+    final pId = partnerUserId ?? this.partnerUserId;
+    final partnerExists = hasPartner ?? this.hasPartner;
+    if (!partnerExists) return vId;
+    switch (owner) {
+      case TaskOwner.you:
+        return vId;
+      case TaskOwner.partner:
+        return pId;
+      case TaskOwner.both:
+        return 'both';
+      case TaskOwner.either:
+        return 'either';
+    }
+  }
 
   TaskDraft copyWith({
     String? title,
@@ -838,7 +967,12 @@ class TaskDraft extends AddDraft {
     bool? noParticularDay,
     int? listCount,
     bool? openedFromList,
+    TaskOwner? owner,
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
   }) {
+    final nextHasPartner = hasPartner ?? this.hasPartner;
     final nextNoParticularDay = noParticularDay ?? this.noParticularDay;
     final DateTime? nextDueDate;
     if (nextNoParticularDay && identical(dueDate, _sentinel)) {
@@ -862,6 +996,10 @@ class TaskDraft extends AddDraft {
               : nextNoParticularDay,
       listCount: listCount ?? this.listCount,
       openedFromList: openedFromList ?? this.openedFromList,
+      owner: !nextHasPartner ? TaskOwner.you : (owner ?? this.owner),
+      viewerUserId: viewerUserId ?? this.viewerUserId,
+      partnerUserId: partnerUserId ?? this.partnerUserId,
+      hasPartner: nextHasPartner,
     );
   }
 
@@ -871,6 +1009,7 @@ class TaskDraft extends AddDraft {
       return const <AddStep>[
         AddStep.taskTitle,
         AddStep.taskByWhen,
+        AddStep.taskWhose,
         AddStep.review,
       ];
     }
@@ -879,6 +1018,7 @@ class TaskDraft extends AddDraft {
         AddStep.taskTitle,
         AddStep.taskNameTheList,
         AddStep.taskByWhen,
+        AddStep.taskWhose,
         AddStep.review,
       ];
     }
@@ -886,6 +1026,7 @@ class TaskDraft extends AddDraft {
       AddStep.taskTitle,
       AddStep.taskWhichList,
       AddStep.taskByWhen,
+      AddStep.taskWhose,
       AddStep.review,
     ];
   }
@@ -901,6 +1042,8 @@ class TaskDraft extends AddDraft {
         return newListName != null && newListName!.trim().isNotEmpty;
       case AddStep.taskByWhen:
         return dueDate != null || noParticularDay;
+      case AddStep.taskWhose:
+        return true;
       case AddStep.review:
         return isComplete;
       default:
@@ -912,6 +1055,7 @@ class TaskDraft extends AddDraft {
   bool get isComplete {
     if (!isAnswered(AddStep.taskTitle)) return false;
     if (!isAnswered(AddStep.taskByWhen)) return false;
+    if (!isAnswered(AddStep.taskWhose)) return false;
     if (openedFromList || listCount == 1) {
       return true;
     }
@@ -921,7 +1065,11 @@ class TaskDraft extends AddDraft {
     return isAnswered(AddStep.taskWhichList);
   }
 
-  TaskCreateArgs toCreateArgs({String? fallbackListId}) {
+  TaskCreateArgs toCreateArgs({
+    String? fallbackListId,
+    String? viewerUserId,
+    String? partnerUserId,
+  }) {
     if (!isComplete) {
       throw StateError('TaskDraft is incomplete and cannot build args.');
     }
@@ -935,6 +1083,10 @@ class TaskDraft extends AddDraft {
       title: title.trim(),
       notes: null,
       dueDate: noParticularDay ? null : dueDate,
+      owner: resolvedOwner(
+        viewerUserId: viewerUserId,
+        partnerUserId: partnerUserId,
+      ),
     );
   }
 }
@@ -1599,6 +1751,7 @@ class RoutineCreateArgs {
   final String title;
   final int startMinutes;
   final int endMinutes;
+  final String owner;
 
   const RoutineCreateArgs({
     required this.existingRoutineId,
@@ -1607,6 +1760,7 @@ class RoutineCreateArgs {
     required this.title,
     required this.startMinutes,
     required this.endMinutes,
+    this.owner = 'both',
   });
 
   @override
@@ -1618,7 +1772,8 @@ class RoutineCreateArgs {
           listEquals(days, other.days) &&
           title == other.title &&
           startMinutes == other.startMinutes &&
-          endMinutes == other.endMinutes;
+          endMinutes == other.endMinutes &&
+          owner == other.owner;
 
   @override
   int get hashCode => Object.hash(
@@ -1628,10 +1783,11 @@ class RoutineCreateArgs {
         title,
         startMinutes,
         endMinutes,
+        owner,
       );
 }
 
-/// Immutable draft for `AddKind.routine` (`design/specs/14-add-flow.md` §5).
+/// Immutable draft for `AddKind.routine` (`design/specs/14-add-flow.md` §5 & `19-owners-and-pets.md` §1, §3).
 @immutable
 class RoutineDraft extends AddDraft {
   static const List<int> allowedDurations = <int>[15, 30, 45, 60, 120];
@@ -1640,13 +1796,22 @@ class RoutineDraft extends AddDraft {
   final int? startMinutes; // 0..1439
   final int? durationMinutes; // 15 | 30 | 45 | 60 | 120
   final Set<int> days; // 1 = Mon .. 7 = Sun
+  final CommitmentOwner owner;
+  final String viewerUserId;
+  final String partnerUserId;
+  final bool hasPartner;
 
   RoutineDraft({
     this.title = '',
     this.startMinutes = 540, // 9:00 AM default
     this.durationMinutes,
     Set<int> days = const <int>{1, 2, 3, 4, 5},
-  }) : days = Set<int>.unmodifiable(
+    CommitmentOwner owner = CommitmentOwner.both,
+    this.viewerUserId = 'user_alex',
+    this.partnerUserId = 'partner_user',
+    this.hasPartner = true,
+  })  : owner = !hasPartner ? CommitmentOwner.you : owner,
+        days = Set<int>.unmodifiable(
           (days.where((d) => d >= 1 && d <= 7).toList()..sort()),
         );
 
@@ -1684,11 +1849,46 @@ class RoutineDraft extends AddDraft {
     return RoutineDraft(
       startMinutes: (context.startMinutes ?? 540).clamp(0, 1439),
       days: initialDays,
+      owner: context.hasPartner ? CommitmentOwner.both : CommitmentOwner.you,
+      viewerUserId: context.viewerUserId,
+      partnerUserId: context.partnerUserId,
+      hasPartner: context.hasPartner,
     );
   }
 
   @override
   AddKind get kind => AddKind.routine;
+
+  List<CommitmentOwner> availableOwners([AddFlowContext? context]) {
+    final partnerExists = context?.hasPartner ?? hasPartner;
+    if (!partnerExists) {
+      return const <CommitmentOwner>[CommitmentOwner.you];
+    }
+    return const <CommitmentOwner>[
+      CommitmentOwner.you,
+      CommitmentOwner.partner,
+      CommitmentOwner.both,
+    ];
+  }
+
+  String resolvedOwner({
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
+  }) {
+    final vId = viewerUserId ?? this.viewerUserId;
+    final pId = partnerUserId ?? this.partnerUserId;
+    final partnerExists = hasPartner ?? this.hasPartner;
+    if (!partnerExists) return vId;
+    switch (owner) {
+      case CommitmentOwner.you:
+        return vId;
+      case CommitmentOwner.partner:
+        return pId;
+      case CommitmentOwner.both:
+        return 'both';
+    }
+  }
 
   int get resolvedEndMinutes {
     final start = (startMinutes ?? 540).clamp(0, 1439);
@@ -1701,7 +1901,12 @@ class RoutineDraft extends AddDraft {
     Object? startMinutes = _sentinel,
     Object? durationMinutes = _sentinel,
     Set<int>? days,
+    CommitmentOwner? owner,
+    String? viewerUserId,
+    String? partnerUserId,
+    bool? hasPartner,
   }) {
+    final nextHasPartner = hasPartner ?? this.hasPartner;
     return RoutineDraft(
       title: title ?? this.title,
       startMinutes: identical(startMinutes, _sentinel)
@@ -1711,6 +1916,10 @@ class RoutineDraft extends AddDraft {
           ? this.durationMinutes
           : durationMinutes as int?,
       days: days ?? this.days,
+      owner: !nextHasPartner ? CommitmentOwner.you : (owner ?? this.owner),
+      viewerUserId: viewerUserId ?? this.viewerUserId,
+      partnerUserId: partnerUserId ?? this.partnerUserId,
+      hasPartner: nextHasPartner,
     );
   }
 
@@ -1719,6 +1928,7 @@ class RoutineDraft extends AddDraft {
     AddStep.routineWhen,
     AddStep.routineDuration,
     AddStep.routineDays,
+    AddStep.routineWhose,
     AddStep.review,
   ];
 
@@ -1738,6 +1948,8 @@ class RoutineDraft extends AddDraft {
         return durationMinutes != null && durationMinutes! > 0;
       case AddStep.routineDays:
         return days.isNotEmpty;
+      case AddStep.routineWhose:
+        return true;
       case AddStep.review:
         return isComplete;
       default:
@@ -1750,11 +1962,14 @@ class RoutineDraft extends AddDraft {
       isAnswered(AddStep.routineTitle) &&
       isAnswered(AddStep.routineWhen) &&
       isAnswered(AddStep.routineDuration) &&
-      isAnswered(AddStep.routineDays);
+      isAnswered(AddStep.routineDays) &&
+      isAnswered(AddStep.routineWhose);
 
   RoutineCreateArgs toCreateArgs({
     Iterable<Routine> existingRoutines = const <Routine>[],
     Iterable<LocalRoutine> existingLocalRoutines = const <LocalRoutine>[],
+    String? viewerUserId,
+    String? partnerUserId,
   }) {
     if (!isComplete) {
       throw StateError('RoutineDraft is incomplete and cannot build args.');
@@ -1774,6 +1989,10 @@ class RoutineDraft extends AddDraft {
       title: title.trim(),
       startMinutes: startMinutes!.clamp(0, 1439),
       endMinutes: resolvedEndMinutes,
+      owner: resolvedOwner(
+        viewerUserId: viewerUserId,
+        partnerUserId: partnerUserId,
+      ),
     );
   }
 }

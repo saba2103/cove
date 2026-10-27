@@ -74,6 +74,7 @@ class RoutineEvent {
   final int endMinutes;   // 0..1439
   final String? category;
   final String? notes;
+  final String owner;
   final DateTime createdAt;
 
   const RoutineEvent({
@@ -85,6 +86,7 @@ class RoutineEvent {
     required this.endMinutes,
     this.category,
     this.notes,
+    this.owner = 'both',
     required this.createdAt,
   });
 
@@ -98,6 +100,7 @@ class RoutineEvent {
       endMinutes: local.endMinutes,
       category: local.category,
       notes: local.notes,
+      owner: local.owner ?? 'both',
       createdAt: local.createdAt,
     );
   }

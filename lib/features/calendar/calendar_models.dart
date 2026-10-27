@@ -72,6 +72,7 @@ class CalendarEventEntry extends CalendarEntry {
   String? get description => event.description;
   String get createdBy => event.createdBy;
   String? get recurrence => event.recurrence;
+  String get owner => event.owner ?? 'both';
   bool get isRecurring =>
       event.recurrence != null &&
       event.recurrence!.isNotEmpty &&
@@ -205,6 +206,7 @@ class CalendarTaskEntry extends CalendarEntry {
   bool get isCompleted => item.isCompleted;
   String get listId => item.listId;
   String? get notes => item.notes;
+  String? get owner => item.owner;
 }
 
 /// A routine block occurring on this date.

@@ -756,6 +756,31 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         event.notes != null &&
         event.notes!.isNotEmpty;
 
+    final user = ref.watch(authProvider).value;
+    final currentUserId = user?.id ?? 'local_user';
+    final userProfile = ref.watch(userProfileProvider);
+    final myName = userProfile.displayName.trim().isNotEmpty
+        ? userProfile.displayName.trim()
+        : (user?.displayName?.trim().isNotEmpty == true
+              ? user!.displayName!.trim()
+              : 'You');
+    final partnerName = ref.watch(partnerProfileProvider).displayName;
+
+    final rawOwner = event.owner;
+    final String? ownerSuffix;
+    if (rawOwner.isEmpty || rawOwner == 'both') {
+      ownerSuffix = null;
+    } else if (rawOwner == currentUserId ||
+        rawOwner == 'local_user' ||
+        rawOwner == 'me') {
+      ownerSuffix = myName;
+    } else {
+      ownerSuffix = partnerName;
+    }
+    final timeLineText = ownerSuffix != null
+        ? '${event.formattedTimeRange} · $ownerSuffix'
+        : event.formattedTimeRange;
+
     return Positioned(
       top: top,
       left: _timeGutterWidth,
@@ -800,7 +825,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                event.formattedTimeRange,
+                                timeLineText,
                                 style: CoveType.rowSub.copyWith(
                                   color: cv.textTertiary,
                                 ),
@@ -832,7 +857,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                               ),
                               const SizedBox(width: CoveSpace.sm),
                               Text(
-                                event.formattedTimeRange,
+                                timeLineText,
                                 style: CoveType.rowSub.copyWith(
                                   color: cv.textTertiary,
                                 ),
