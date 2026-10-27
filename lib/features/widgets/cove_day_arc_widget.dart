@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/providers/cove_sync_providers.dart';
@@ -516,12 +517,10 @@ class CoveDayArcCard extends StatelessWidget {
             return Container(
               width: double.infinity,
               height: double.infinity,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.hero,
                 color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.hero),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: cv.lineStrong,
                   width: _kHairlineWidth,
                 ),

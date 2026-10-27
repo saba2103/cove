@@ -1,7 +1,6 @@
 # Raw shape budget per file. Delete a line when a file is converted to CoveShape.
 # Never increase a number.
 lib/features/activity/activity_detail_sheet.dart 13
-lib/features/activity/activity_screen.dart 21
 lib/features/add/add_flow.dart 12
 lib/features/add/widgets/add_choice_list.dart 3
 lib/features/add/widgets/add_clock_face.dart 9
@@ -14,11 +13,8 @@ lib/features/add/widgets/add_person_picker.dart 9
 lib/features/add/widgets/add_progress_segments.dart 3
 lib/features/add/widgets/add_step_foot.dart 6
 lib/features/add/widgets/add_week_toggles.dart 3
-lib/features/app_shell.dart 11
 lib/features/backup/drive_backup_sheets.dart 3
 lib/features/calendar/calendar_event_form_sheet.dart 9
-lib/features/calendar/views/calendar_agenda_view.dart 21
-lib/features/calendar/views/calendar_month_view.dart 6
 lib/features/changelog/changelog_screen.dart 18
 lib/features/changelog/whats_fresh_modal.dart 22
 lib/features/changelog/widgets/changelog_preview_mockup.dart 30
@@ -30,9 +26,6 @@ lib/features/expenses/monthly_budget_sheet.dart 15
 lib/features/habits/habit_detail_sheet.dart 4
 lib/features/habits/habit_form_sheet.dart 15
 lib/features/habits/habits_screen.dart 5
-lib/features/home/about_cove_screen.dart 9
-lib/features/home/home_settings_screen.dart 5
-lib/features/home/home_switcher_sheet.dart 12
 lib/features/home/join_home_screen.dart 16
 lib/features/lists/create_list_dialog.dart 7
 lib/features/lists/list_item_detail_sheet.dart 8
@@ -42,12 +35,9 @@ lib/features/profile/delete_data_dialog.dart 4
 lib/features/profile/edit_home_dialog.dart 6
 lib/features/profile/edit_partner_profile_dialog.dart 3
 lib/features/profile/edit_profile_dialog.dart 7
-lib/features/profile/profile_screen.dart 19
-lib/features/reminders/reminders_screen.dart 12
 lib/features/roadmap/roadmap_screen.dart 17
 lib/features/routines/routine_event_form_sheet.dart 20
 lib/features/routines/routine_form_sheet.dart 9
-lib/features/routines/routine_screen.dart 20
 lib/features/subscriptions/commitment_detail_sheet.dart 22
 lib/features/subscriptions/commitments_helicopter_screen.dart 9
 lib/features/subscriptions/emi_tracker_screen.dart 37
@@ -56,9 +46,5 @@ lib/features/subscriptions/subscription_form_sheet.dart 55
 lib/features/subscriptions/subscriptions_screen.dart 37
 lib/features/weather/widgets/dashboard_weather_badge.dart 9
 lib/features/weather/widgets/weather_detail_sheet.dart 9
-lib/features/widgets/cove_day_arc_widget.dart 3
-lib/features/widgets/cove_day_sheet_widget.dart 5
-lib/features/widgets/cove_ledger_widget.dart 7
-lib/features/widgets/cove_slip_widget.dart 6
 lib/sync/key_management/pairing_approval_sheet.dart 3
 lib/sync/key_management/pairing_qr_view.dart 6

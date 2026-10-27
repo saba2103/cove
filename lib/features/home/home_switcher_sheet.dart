@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -38,14 +39,10 @@ class HomeSwitcherSheet extends ConsumerWidget {
     final activeHomeId = ref.watch(activeHomeIdProvider);
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(
-          top: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
-        ),
+        side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: CoveSpace.gutter,
@@ -92,22 +89,18 @@ class HomeSwitcherSheet extends ConsumerWidget {
                               .setActiveHome(home.id);
                           Navigator.of(context).pop();
                         },
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.inline),
-                        ),
+                        customBorder: CoveShape.border(CoveRadius.inline),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: _kItemPaddingH,
                             vertical: CoveSpace.md,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.inline,
                             color: isActive
                                 ? cv.surfaceRow
                                 : Colors.transparent,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveRadius.inline),
-                            ),
-                            border: Border.all(
+                            side: BorderSide(
                               color: isActive
                                   ? cv.accentFill.withValues(alpha: 0.4)
                                   : cv.lineHairline,
@@ -244,7 +237,7 @@ class HomeSwitcherAppBarTitle extends ConsumerWidget {
           MaterialPageRoute(builder: (_) => const AboutCoveScreen()),
         );
       },
-      borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.sm)),
+      customBorder: CoveShape.border(CoveSpace.sm),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: CoveSpace.sm,

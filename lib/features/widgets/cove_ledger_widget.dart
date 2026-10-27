@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../sync/db/app_database.dart';
@@ -93,12 +94,10 @@ class CoveLedgerCard extends StatelessWidget {
               horizontal: CoveSpace.gutter,
               vertical: isShortHeight ? _kCompactVerticalPad : CoveSpace.gutter,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.hero,
               color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.hero),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineStrong,
                 width: _kHairlineWidth,
               ),
@@ -229,11 +228,9 @@ class CoveLedgerCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
-              child: SizedBox(
+            CoveShape.clip(
+              CoveRadius.pill,
+              SizedBox(
                 height: _kSplitBarHeight,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_max_width.dart';
@@ -466,11 +467,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             GestureDetector(
               onTap: _openRoutineForm,
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.accentFill,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -542,12 +541,10 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         curve: CoveMotion.easing,
         height: _chipHeight,
         padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: isSelected ? cv.accentFill : cv.lineStrong,
           ),
         ),
@@ -658,16 +655,12 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         ),
       ),
       data: (events) {
-        return ClipRRect(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.hero),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.hero),
-              ),
-              border: Border.all(color: cv.lineHairline),
+        return CoveShape.clip(
+          CoveRadius.hero,
+          DecoratedBox(
+            decoration: CoveShape.decoration(
+              CoveRadius.hero,
+              side: BorderSide(color: cv.lineHairline),
               gradient: _buildSkyGradient(cv),
             ),
             child: SizedBox(
@@ -771,18 +764,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       child: GestureDetector(
         onTap: () => _openEventForm(routineId, event: event),
         child: DecoratedBox(
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.inline,
             color: palette.fill,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.inline),
-            ),
-            border: Border.all(color: palette.border),
+            side: BorderSide(color: palette.border),
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.inline),
-            ),
-            child: Row(
+          child: CoveShape.clip(
+            CoveRadius.inline,
+            Row(
               children: [
                 SizedBox(
                   width: _eventAccentBarWidth,

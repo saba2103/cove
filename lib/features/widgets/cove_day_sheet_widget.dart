@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../sync/db/app_database.dart';
@@ -885,12 +886,10 @@ class CoveDaySheetCard extends StatelessWidget {
               horizontal: isCompactWidth ? _kCompactPadH : _kPadH,
               vertical: isShortHeight ? _kCompactPadV : _kPadV,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.hero,
               color: cv.surfaceCard.withValues(alpha: _kCardFillAlpha),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.hero),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineStrong,
                 width: _kBorderWidth,
               ),
@@ -1163,10 +1162,10 @@ class CoveDaySheetCard extends StatelessWidget {
     return Container(
       width: _kTaskCheckboxSize,
       height: _kTaskCheckboxSize,
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        _kTaskCheckboxRadius,
         color: isCompleted ? cv.accentFill : Colors.transparent,
-        borderRadius: BorderRadius.circular(_kTaskCheckboxRadius),
-        border: Border.all(
+        side: BorderSide(
           color: isCompleted ? cv.accentFill : cv.lineStrong,
           width: _kHabitDotStroke,
         ),

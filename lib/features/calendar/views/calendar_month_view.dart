@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
 import '../../../core/widgets/cove_card.dart';
@@ -256,14 +257,12 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                       child: Container(
                         width: _kDayCellSize,
                         height: _kDayCellSize,
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.decoration(
+                          CoveSpace.md,
                           color: isSelected
                               ? cv.accentFill
                               : (isToday ? cv.accentWash : cv.surfaceCard),
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(CoveSpace.md),
-                          ),
-                          border: Border.all(
+                          side: BorderSide(
                             color: isToday && !isSelected
                                 ? cv.accentFill
                                 : (isSelected
@@ -320,11 +319,9 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                       Container(
                         width: _kSummaryIconBoxSize,
                         height: _kSummaryIconBoxSize,
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.decoration(
+                          _kSummaryIconBoxRadius,
                           color: cv.accentWash,
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(_kSummaryIconBoxRadius),
-                          ),
                         ),
                         child: Icon(
                           Icons.calendar_today_outlined,

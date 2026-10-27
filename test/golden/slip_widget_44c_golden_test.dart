@@ -1,3 +1,4 @@
+import 'package:cove/core/shape/cove_shape.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
 import 'package:cove/core/widgets/cove_avatar.dart';
 import 'package:cove/features/widgets/cove_slip_widget.dart';
@@ -108,10 +109,14 @@ Future<void> _pumpSlipGolden(
         )
         .first,
   );
-  final boxDeco = cardContainer.decoration! as BoxDecoration;
+  final shapeDeco = cardContainer.decoration! as ShapeDecoration;
+  final border = shapeDeco.shape as SmoothRectangleBorder;
   expect(
-    boxDeco.borderRadius,
-    const BorderRadius.all(Radius.circular(CoveRadius.hero)),
+    border.borderRadius,
+    SmoothBorderRadius(
+      cornerRadius: CoveRadius.hero,
+      cornerSmoothing: CoveRadius.smoothing,
+    ),
   );
   expect(tester.getSize(find.byType(CoveSlipCard)), widgetSize);
   final headerText = tester.widget<Text>(find.text(summary.listName));

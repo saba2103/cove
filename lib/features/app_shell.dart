@@ -471,9 +471,7 @@ class _AppShellState extends ConsumerState<AppShell>
           horizontal: CoveSpace.lg,
           vertical: CoveSpace.md,
         ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
-        ),
+        shape: CoveShape.border(CoveRadius.card),
         backgroundColor: colors.surfaceCard,
         duration: const Duration(seconds: 4),
         content: Row(
@@ -481,11 +479,9 @@ class _AppShellState extends ConsumerState<AppShell>
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.inline,
                 color: colors.accentPrimary.withValues(alpha: 0.15),
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.inline),
-                ),
               ),
               child: Icon(icon, color: colors.accentPrimary, size: 20),
             ),
@@ -589,10 +585,8 @@ class _AppShellState extends ConsumerState<AppShell>
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(bottom: 76, left: 48, right: 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.card),
-                ),
+              shape: CoveShape.border(
+                CoveRadius.card,
                 side: BorderSide(color: colors.borderHairline),
               ),
               backgroundColor: colors.surfaceCard,

@@ -3,6 +3,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
 import '../../../core/widgets/cove_avatar.dart';
@@ -507,17 +508,15 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                       padding: const EdgeInsets.symmetric(
                         vertical: CoveSpace.sm,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveRadius.inline,
                         color: isSelected ? cv.accentFill : Colors.transparent,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.inline),
-                        ),
-                        border: isToday && !isSelected
-                            ? Border.all(
+                        side: isToday && !isSelected
+                            ? BorderSide(
                                 color: cv.lineStrong,
                                 width: _kHairline,
                               )
-                            : null,
+                            : BorderSide.none,
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -593,11 +592,9 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           for (var i = 0; i < visiblePips.length; i++) ...[
             if (i > 0) const SizedBox(width: _kPipSpacing),
             DecoratedBox(
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.pill,
                 color: pipColor,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.pill),
-                ),
               ),
               child: SizedBox(
                 width:
@@ -870,14 +867,12 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
         child: Container(
           width: _kTaskCheckboxSize,
           height: _kTaskCheckboxSize,
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveSpace.xs,
             color: isDone ? cv.accentFill : Colors.transparent,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveSpace.xs),
-            ),
-            border: isDone
-                ? null
-                : Border.all(
+            side: isDone
+                ? BorderSide.none
+                : BorderSide(
                     color: cv.accentFill,
                     width: _kCheckBorder,
                   ),
@@ -922,12 +917,10 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
     if (commitmentsDue.isNotEmpty) {
       return Container(
         padding: const EdgeInsets.all(CoveSpace.md),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.card,
           color: cv.surfaceCard,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.card),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: cv.lineStrong,
             width: _kHairline,
           ),
@@ -959,12 +952,10 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
                     leading: Container(
                       width: CoveSize.avatarRow,
                       height: CoveSize.avatarRow,
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveRadius.inline,
                         color: cv.surfaceRow,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.inline),
-                        ),
-                        border: Border.all(
+                        side: BorderSide(
                           color: cv.lineHairline,
                           width: _kHairline,
                         ),
@@ -1047,12 +1038,10 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineStrong,
           width: _kHairline,
         ),
@@ -1062,12 +1051,10 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           Container(
             width: CoveSize.avatarRow,
             height: CoveSize.avatarRow,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineHairline,
                 width: _kHairline,
               ),

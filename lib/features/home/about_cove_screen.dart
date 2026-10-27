@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -360,9 +361,7 @@ class AboutCoveScreen extends ConsumerWidget {
           // --- 3. SANCTUARY ACTIONS & SETTINGS ---
           Material(
             color: cv.surfaceCard,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
+            shape: CoveShape.border(CoveRadius.card),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: _kVerticalPadding,
@@ -453,12 +452,10 @@ class AboutCoveScreen extends ConsumerWidget {
           // --- 4. THE COVE PHILOSOPHY ---
           Container(
             padding: const EdgeInsets.all(CoveSpace.gutter),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.card,
               color: cv.surfaceCard,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.card),
-              ),
-              border: Border.all(color: cv.lineHairline),
+              side: BorderSide(color: cv.lineHairline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,12 +564,10 @@ class AboutCoveScreen extends ConsumerWidget {
         Container(
           width: CoveSize.avatarHeader,
           height: CoveSize.avatarHeader,
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            _kPillarIconBoxRadius,
             color: cv.surfaceRow,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(_kPillarIconBoxRadius),
-            ),
-            border: Border.all(color: cv.lineHairline),
+            side: BorderSide(color: cv.lineHairline),
           ),
           child: Icon(icon, size: _kPillarIconSize, color: cv.accentFill),
         ),

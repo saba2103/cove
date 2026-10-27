@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
@@ -138,9 +139,7 @@ class HomeSettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceSheet,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
-        ),
+        shape: CoveShape.border(CoveRadius.card),
         title: Text(
           'Leave $homeName?',
           style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
@@ -975,7 +974,7 @@ class _HomeArchPainter extends CustomPainter {
       ..lineTo(rect.left, rect.top + radius)
       ..arcToPoint(
         Offset(rect.right, rect.top + radius),
-        radius: Radius.circular(radius),
+        radius: Radius.elliptical(radius, radius),
       )
       ..lineTo(rect.right, rect.bottom);
   }

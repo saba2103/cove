@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_empty_state.dart';
@@ -313,12 +314,10 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.88,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(top: BorderSide(color: cv.lineHairline)),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -336,11 +335,9 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
                 child: Container(
                   width: _kHandleWidth,
                   height: CoveSpace.xs,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    _kHandleRadius,
                     color: cv.lineHairline,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(_kHandleRadius),
-                    ),
                   ),
                 ),
               ),
@@ -431,20 +428,16 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
                       padding: const EdgeInsets.only(bottom: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _selectedPreset = preset),
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveSpace.md),
-                        ),
+                        customBorder: CoveShape.border(CoveSpace.md),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: CoveSpace.md,
                             vertical: CoveSpace.md,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveSpace.md,
                             color: isSelected ? cv.accentWash : cv.surfaceRow,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveSpace.md),
-                            ),
-                            border: Border.all(
+                            side: BorderSide(
                               color: isSelected
                                   ? cv.accentFill
                                   : cv.lineHairline,

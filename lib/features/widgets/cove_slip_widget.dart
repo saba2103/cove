@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_checkbox.dart';
@@ -537,12 +538,10 @@ class CoveSlipCard extends StatelessWidget {
                   ? _kCompactVerticalPadding
                   : _kVerticalPaddingBottom,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.hero,
               color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.hero),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineStrong,
                 width: _kHairlineWidth,
               ),
@@ -715,14 +714,10 @@ class SlipListPickerSheet extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.xl),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(
-          top: BorderSide(color: cv.lineStrong, width: 1.0),
-        ),
+        side: BorderSide(color: cv.lineStrong, width: 1.0),
       ),
       child: SafeArea(
         top: false,

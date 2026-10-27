@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../core/utils/cove_currency_formatter.dart';
@@ -558,12 +559,10 @@ class ProfileScreen extends ConsumerWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => EditProfileDialog.show(context),
       child: DecoratedBox(
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.card,
           color: cv.surfaceCard,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.card),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: cv.lineHairline,
             width: _kBorderWidth,
           ),
@@ -611,12 +610,10 @@ class ProfileScreen extends ConsumerWidget {
     required List<Widget> children,
   }) {
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kBorderWidth,
         ),
@@ -648,12 +645,10 @@ class ProfileScreen extends ConsumerWidget {
     ];
 
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.pill,
         color: cv.surfaceCanvas,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kBorderWidth,
         ),
@@ -673,14 +668,12 @@ class ProfileScreen extends ConsumerWidget {
                     curve: CoveMotion.easing,
                     height: _kThemeBarHeight,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.pill,
                       color: mode == activeMode
                           ? cv.accentWash
                           : Colors.transparent,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.pill),
-                      ),
-                      border: Border.all(
+                      side: BorderSide(
                         color: mode == activeMode
                             ? cv.accentFill
                             : Colors.transparent,
@@ -912,12 +905,10 @@ class ProfileScreen extends ConsumerWidget {
                   ? null
                   : () => DriveBackupSection.runBackupFlow(context, ref),
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: cv.lineStrong,
                     width: _kBorderWidth,
                   ),
@@ -1094,11 +1085,7 @@ class ProfileScreen extends ConsumerWidget {
         final cv = ctx.cv;
         return AlertDialog(
           backgroundColor: cv.surfaceSheet,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
-          ),
+          shape: CoveShape.border(CoveRadius.card),
           title: Text(
             'Leave ${activeHome.name}?',
             style: CoveType.title.copyWith(color: cv.textPrimary),

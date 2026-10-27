@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
@@ -486,12 +487,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         height: _kFilterChipHeight,
         padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: isSelected ? cv.accentFill : cv.lineStrong,
           ),
         ),
@@ -572,12 +571,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     }
 
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(CoveSpace.lg),
@@ -896,12 +893,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         kindBody,
         const SizedBox(height: CoveSpace.xs),
         DecoratedBox(
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.pill,
             color: cv.surfaceRow,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
-            border: Border.all(color: cv.lineHairline),
+            side: BorderSide(color: cv.lineHairline),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -934,11 +929,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             children: [
               for (var i = 0; i < group.items.length; i++)
                 DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
-                    border: Border.all(color: cv.lineStrong),
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
+                    side: BorderSide(color: cv.lineStrong),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -984,11 +977,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
         ],
         Flexible(
           child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
-              border: Border.all(color: cv.lineStrong),
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
+              side: BorderSide(color: cv.lineStrong),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -1109,12 +1100,10 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     if (!hasSub) return const SizedBox.shrink();
 
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -1127,11 +1116,9 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
               width: _kTicketBarWidth,
               height: CoveSpace.lg,
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.accentFill,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
                 ),
               ),
             ),
