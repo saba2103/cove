@@ -24,6 +24,8 @@ final Clock kDefaultGoldenClock = Clock.fixed(DateTime(2026, 10, 15, 10, 30));
 class CoveWidth {
   static const cover = Size(320, 780);   // Fold 7 folded — the narrowest real case
   static const phone = Size(411, 914);   // Pixel 6 — the anchor
+  static const w432  = Size(432, 914);   // Phone at smaller display size (432dp)
+  static const w480  = Size(480, 914);   // Phone at smaller display size (480dp, e.g. Pixel 6 at 356dpi)
   static const wide  = Size(840, 900);   // Fold 7 open — proves the maxContent cap
 }
 
@@ -128,7 +130,13 @@ Future<void> goldenMatrix(
   await loadCoveFonts();
   await withClock(clock ?? kDefaultGoldenClock, () async {
     for (final size in widths) {
-      final w = size == CoveWidth.cover ? 'cover' : size == CoveWidth.wide ? 'wide' : 'phone';
+      final w = size == CoveWidth.cover
+          ? 'cover'
+          : size == CoveWidth.wide
+              ? 'wide'
+              : size == CoveWidth.phone
+                  ? 'phone'
+                  : '${size.width.toInt()}dp';
       final pairKey = '$name.$w';
       for (final mode in modes) {
         final originalOnError = FlutterError.onError;

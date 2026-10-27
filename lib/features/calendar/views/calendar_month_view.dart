@@ -66,17 +66,19 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   @override
   void initState() {
     super.initState();
-    _currentYear = widget.selectedDate.year;
-    _currentMonth = widget.selectedDate.month;
+    final sel = widget.selectedDate.toLocal();
+    _currentYear = sel.year;
+    _currentMonth = sel.month;
   }
 
   @override
   void didUpdateWidget(covariant CalendarMonthView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedDate.year != widget.selectedDate.year ||
-        oldWidget.selectedDate.month != widget.selectedDate.month) {
-      _currentYear = widget.selectedDate.year;
-      _currentMonth = widget.selectedDate.month;
+    final oldSel = oldWidget.selectedDate.toLocal();
+    final newSel = widget.selectedDate.toLocal();
+    if (oldSel.year != newSel.year || oldSel.month != newSel.month) {
+      _currentYear = newSel.year;
+      _currentMonth = newSel.month;
     }
   }
 

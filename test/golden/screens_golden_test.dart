@@ -1,6 +1,7 @@
 import 'package:clock/clock.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
 import 'package:cove/core/widgets/cove_floating_bar.dart';
+import 'package:cove/core/widgets/cove_metric_card.dart';
 import 'package:cove/core/widgets/cove_sync_tick.dart';
 import 'package:cove/features/activity/activity_detail_sheet.dart';
 import 'package:cove/features/activity/activity_models.dart';
@@ -656,6 +657,41 @@ void main() {
         allowedOverflows: _kKnownLegacyOverflows,
       );
     });
+
+    testWidgets(
+      'today_screen at 432dp and 480dp fills width with gutter and no extra side margin',
+      (tester) async {
+        for (final size in const [CoveWidth.w432, CoveWidth.w480]) {
+          await goldenMatrix(
+            tester,
+            'today_screen',
+            const TodayScreen(),
+            widths: [size],
+            overrides: _createGoldenOverrides(),
+            wrap: wrapInAppShellConstraint,
+            allowedOverflows: _kKnownLegacyOverflows,
+          );
+
+          final metricGridRect = tester.getRect(
+            find.byType(CoveMetricGrid),
+          );
+          expect(
+            metricGridRect.left,
+            equals(CoveSpace.gutter),
+            reason: 'At ${size.width}dp, left edge must be exactly CoveSpace.gutter (22dp)',
+          );
+          expect(
+            metricGridRect.right,
+            equals(size.width - CoveSpace.gutter),
+            reason: 'At ${size.width}dp, right edge must be ${size.width - CoveSpace.gutter}dp with no extra side margin',
+          );
+          expect(
+            metricGridRect.width,
+            equals(size.width - 2 * CoveSpace.gutter),
+          );
+        }
+      },
+    );
 
     testWidgets('calendar_screen', (tester) async {
       await goldenMatrix(

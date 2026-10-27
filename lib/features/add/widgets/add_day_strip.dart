@@ -86,11 +86,16 @@ class AddDayStrip extends StatefulWidget {
     'Dec',
   ];
 
-  static bool isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  static bool isSameDay(DateTime a, DateTime b) {
+    final al = a.toLocal();
+    final bl = b.toLocal();
+    return al.year == bl.year && al.month == bl.month && al.day == bl.day;
+  }
 
-  static String formatShortAnchor(DateTime d) =>
-      '${_weekdayShort[d.weekday - 1]} ${d.day} ${_monthShort[d.month - 1]}';
+  static String formatShortAnchor(DateTime d) {
+    final dl = d.toLocal();
+    return '${_weekdayShort[dl.weekday - 1]} ${dl.day} ${_monthShort[dl.month - 1]}';
+  }
 
   @override
   State<AddDayStrip> createState() => _AddDayStripState();

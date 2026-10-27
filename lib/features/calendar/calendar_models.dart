@@ -45,9 +45,10 @@ class CalendarEventEntry extends CalendarEntry {
     this.event, {
     DateTime? occurrenceStartTime,
     DateTime? occurrenceEndTime,
-  })  : occurrenceStartTime = occurrenceStartTime ?? event.startTime,
-        occurrenceEndTime = occurrenceEndTime ?? event.endTime,
-        super(occurrenceStartTime ?? event.startTime);
+  })  : occurrenceStartTime =
+            (occurrenceStartTime ?? event.startTime).toLocal(),
+        occurrenceEndTime = (occurrenceEndTime ?? event.endTime).toLocal(),
+        super((occurrenceStartTime ?? event.startTime).toLocal());
 
   @override
   String get id => occurrenceStartTime == event.startTime
@@ -131,7 +132,7 @@ class CalendarExpenseEntry extends CalendarEntry {
   bool get isAllDay => true;
 
   @override
-  DateTime get startTime => expense.expenseDate;
+  DateTime get startTime => expense.expenseDate.toLocal();
 
   double get amount => expense.amount;
   String? get category => expense.category;
@@ -282,20 +283,28 @@ class CalendarDateUtils {
   static final DateFormat _timeFormat = DateFormat('h:mm a');
   static final DateFormat _dateHeadingFormat = DateFormat('EEEE, MMM d');
 
-  static String formatDayOfWeek(DateTime date) => _dayOfWeekFormat.format(date);
-  static String formatMonth(DateTime date) => _monthFormat.format(date);
-  static String formatMonthYear(DateTime date) => _fullMonthYearFormat.format(date);
-  static String formatTime(DateTime date) => _timeFormat.format(date);
-  static String formatDateHeading(DateTime date) => _dateHeadingFormat.format(date);
+  static String formatDayOfWeek(DateTime date) =>
+      _dayOfWeekFormat.format(date.toLocal());
+  static String formatMonth(DateTime date) =>
+      _monthFormat.format(date.toLocal());
+  static String formatMonthYear(DateTime date) =>
+      _fullMonthYearFormat.format(date.toLocal());
+  static String formatTime(DateTime date) =>
+      _timeFormat.format(date.toLocal());
+  static String formatDateHeading(DateTime date) =>
+      _dateHeadingFormat.format(date.toLocal());
 
-  /// Strips time components for clean day comparisons.
+  /// Strips time components for clean day comparisons (in local time).
   static DateTime dateOnly(DateTime dt) {
-    return DateTime(dt.year, dt.month, dt.day);
+    final local = dt.toLocal();
+    return DateTime(local.year, local.month, local.day);
   }
 
-  /// Returns true if two dates represent the exact same calendar day.
+  /// Returns true if two dates represent the exact same calendar day (in local time).
   static bool isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final al = a.toLocal();
+    final bl = b.toLocal();
+    return al.year == bl.year && al.month == bl.month && al.day == bl.day;
   }
 
   /// Returns the start of the week (Monday) for the given date.
@@ -416,8 +425,10 @@ class CalendarDateUtils {
       }
 
       // Handle recurring event
-      final duration = event.endTime.difference(event.startTime);
-      DateTime cursor = event.startTime;
+      final startLocal = event.startTime.toLocal();
+      final endLocal = event.endTime.toLocal();
+      final duration = endLocal.difference(startLocal);
+      DateTime cursor = startLocal;
 
       // Advance cursor to on or near start if it starts before start
       int safety = 0;

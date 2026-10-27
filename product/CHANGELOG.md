@@ -6,6 +6,16 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ## [v2.0-alpha.1] — 2026-10-22
 
+### Fixed
+- **Today List Counts, Local-Day Timezone Comparisons & Wide-Screen-Only Max Content Width (`Oct 27, 2026`)**:
+  - *Outcome*:
+    1. **Honest Open List Item Counts on Today (`lib/features/today/today_models.dart`, `today_controller.dart`, `today_screen.dart`)**: Added `openTasksCount` (`uncompletedItems.length`) to [`TodayData`](../lib/features/today/today_models.dart) so "The list" metric tile (`"$openTasksCount still open"` and `"$tickedTodayCount/$totalListCount"`) and section header (`"$openTasksCount open"`) count all open items across active lists instead of being capped at 5 by `focusTasks` (`uncompletedItems.take(5)`), while keeping `take(5)` exclusively for the `CoveNote` preview.
+    2. **Local-Time Conversion (`.toLocal()`) on Every Calendar-Day Comparison Across `lib/`**: Converted both sides of every "is this today" / same-day / date-only check (`_isSameDay`, `_isSameCalendarDay`, `CalendarDateUtils.dateOnly`, `CalendarDateUtils.isSameDay`, `AddDayStrip.isSameDay`, `HabitStreakCalculator`, Today, the Letter, the Calendar day/agenda/month views, the Android home-screen widgets, Expenses, Commitments, Activity, Notifications, and Home Settings) to local time first via `.toLocal()`. Synced timestamps arrive from Supabase in UTC whereas locally created timestamps are in local time, which previously caused `.year`/`.month`/`.day` comparisons to flip the day between `00:00` and `05:30` IST.
+    3. **`CoveSize.maxContent` (`420dp`) Applied Only on Wide Screens (`>= 600dp`)**: Measured Ancy's Pixel 6 over ADB (`wm size: 1080x2400`, `Physical density: 420`, `Override density / display_density_forced: 356` -> `485.39dp` width), where an unconditional `420dp` cap added `32.7dp` of extra side margin per side outside the `22dp` gutter. Updated [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart), [`CoveMetricGrid`](../lib/core/widgets/cove_metric_card.dart), [`CoveFloatingBar`](../lib/core/widgets/cove_floating_bar.dart), [`CoveSheet`](../lib/core/widgets/cove_sheet.dart), and [`CoveToastHost`](../lib/core/widgets/cove_toast.dart) to cap at `CoveSize.maxContent` (`420dp`) only when `MediaQuery.sizeOf(context).width >= 600.0` (`CoveMaxWidth.kWideViewportThreshold`), filling the full viewport width with the normal `22dp` gutter below `600dp`.
+  - *Under the Hood*:
+    - Added tests in [`test/today_and_cove_page_test.dart`](../test/today_and_cove_page_test.dart) verifying `23` open items render `"23 still open"` while keeping 5 preview items, and verifying identical counts between UTC and local timestamps on both phones at `00:30` and `23:30` IST.
+    - Added `432dp` and `480dp` goldens and gutter-to-gutter geometry assertions in [`test/golden/cove_max_width_golden_test.dart`](../test/golden/cove_max_width_golden_test.dart) and [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart).
+
 ### Added
 - **Batch 4.5g — Squircle Paths Cached Per Size & Frame-Time Verification (`Oct 27, 2026`)**:
   - *Outcome*:

@@ -273,7 +273,7 @@ class SubscriptionController {
     if (sub == null) return;
 
     final cycleMonths = getBillingCycleMonths(sub.billingCycle);
-    final currentNext = sub.nextBillingDate;
+    final currentNext = sub.nextBillingDate.toLocal();
     final advancedNext = DateTime(
       currentNext.year,
       currentNext.month + cycleMonths,
@@ -503,12 +503,13 @@ bool isSavingsCommitment(LocalSubscription sub) {
 /// Formats the relative renewal date for a commitment (`Tomorrow` / weekday / date)
 /// per `design/specs/18-widgets.md` §3.
 String formatCommitmentRenewalWhen(DateTime nextBillingDate, {DateTime? now}) {
-  final current = now ?? clock.now();
+  final current = (now ?? clock.now()).toLocal();
+  final billingLocal = nextBillingDate.toLocal();
   final today = DateTime(current.year, current.month, current.day);
   final dueDay = DateTime(
-    nextBillingDate.year,
-    nextBillingDate.month,
-    nextBillingDate.day,
+    billingLocal.year,
+    billingLocal.month,
+    billingLocal.day,
   );
   final daysUntil = dueDay.difference(today).inDays;
   if (daysUntil == 0) return 'Today';

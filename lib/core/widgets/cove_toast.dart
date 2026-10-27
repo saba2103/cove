@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_max_width.dart';
 import 'cove_page_header.dart';
 
 /// Data model for a single active [CoveToast] in [CoveToastHost].
@@ -316,9 +317,7 @@ class CoveToastHostState extends State<CoveToastHost> {
             right: CoveSpace.gutter,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: CoveSize.maxContent,
-                ),
+                constraints: CoveMaxWidth.constraintsFor(context),
                 child: CoveToast(
                   key: ValueKey('active_toast_${entry.message}'),
                   message: entry.message,

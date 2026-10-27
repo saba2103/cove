@@ -413,11 +413,13 @@ NotificationCopy? composeNotification(
         final prevAllDay =
             (p['previous_is_all_day'] as bool?) ?? ctx.previousEventIsAllDay;
         if (prevStart != null) {
-          final sameInstant = startTime.year == prevStart.year &&
-              startTime.month == prevStart.month &&
-              startTime.day == prevStart.day &&
-              startTime.hour == prevStart.hour &&
-              startTime.minute == prevStart.minute;
+          final stLocal = startTime.toLocal();
+          final prevLocal = prevStart.toLocal();
+          final sameInstant = stLocal.year == prevLocal.year &&
+              stLocal.month == prevLocal.month &&
+              stLocal.day == prevLocal.day &&
+              stLocal.hour == prevLocal.hour &&
+              stLocal.minute == prevLocal.minute;
           final sameAllDay = prevAllDay == null || isAllDay == prevAllDay;
           dateOrTimeChanged = !(sameInstant && sameAllDay);
         } else {
@@ -758,13 +760,15 @@ String formatStreakCount(int n) {
 /// - Within the next six days (`0 <= diffDays <= 6`): full weekday (`Saturday`).
 /// - Further out: `EEE d MMM` (`Sat 14 Nov`).
 String formatCalendarDay(DateTime eventStart, {required DateTime today}) {
-  final todayDate = DateTime(today.year, today.month, today.day);
-  final eventDate = DateTime(eventStart.year, eventStart.month, eventStart.day);
+  final todayLocal = today.toLocal();
+  final eventLocal = eventStart.toLocal();
+  final todayDate = DateTime(todayLocal.year, todayLocal.month, todayLocal.day);
+  final eventDate = DateTime(eventLocal.year, eventLocal.month, eventLocal.day);
   final diffDays = eventDate.difference(todayDate).inDays;
   if (diffDays >= 0 && diffDays <= 6) {
-    return DateFormat('EEEE').format(eventStart);
+    return DateFormat('EEEE').format(eventLocal);
   }
-  return DateFormat('EEE d MMM').format(eventStart);
+  return DateFormat('EEE d MMM').format(eventLocal);
 }
 
 /// Formats `{when}` for calendar events (`design/specs/15-notifications.md` §2):
@@ -775,9 +779,10 @@ String formatCalendarWhen(
   required DateTime today,
   required bool isAllDay,
 }) {
-  final dayStr = formatCalendarDay(eventStart, today: today);
+  final eventLocal = eventStart.toLocal();
+  final dayStr = formatCalendarDay(eventLocal, today: today);
   if (isAllDay) return dayStr;
-  final timeStr = DateFormat('h:mm a').format(eventStart);
+  final timeStr = DateFormat('h:mm a').format(eventLocal);
   return '$dayStr, $timeStr';
 }
 

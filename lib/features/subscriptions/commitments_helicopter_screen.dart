@@ -41,7 +41,7 @@ class _CommitmentsHelicopterScreenState
   @override
   void initState() {
     super.initState();
-    _selectedYear = widget.initialYear ?? clock.now().year;
+    _selectedYear = widget.initialYear ?? clock.now().toLocal().year;
   }
 
   @override

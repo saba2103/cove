@@ -21,9 +21,9 @@ class HabitStreakResult {
 class HabitStreakCalculator {
   static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
-  /// Formats a [DateTime] into standard `YYYY-MM-DD` checkin key.
+  /// Formats a [DateTime] into standard `YYYY-MM-DD` checkin key (in local time).
   static String formatDate(DateTime date) {
-    return _dateFormat.format(date);
+    return _dateFormat.format(date.toLocal());
   }
 
   /// Builds the 21-day boolean check-in history (oldest first, last cell = today),
@@ -33,7 +33,7 @@ class HabitStreakCalculator {
     DateTime? referenceDate,
     int totalDays = 21,
   }) {
-    final now = referenceDate ?? clock.now();
+    final now = (referenceDate ?? clock.now()).toLocal();
     final checkedDates = checkins
         .where((c) => !c.memberId.startsWith('ack:'))
         .map((c) => c.checkinDate)
@@ -57,7 +57,7 @@ class HabitStreakCalculator {
     DateTime? referenceDate,
     String? currentUserId,
   }) {
-    final now = referenceDate ?? clock.now();
+    final now = (referenceDate ?? clock.now()).toLocal();
     final todayStr = formatDate(now);
     final yesterdayStr = formatDate(now.subtract(const Duration(days: 1)));
 

@@ -941,10 +941,11 @@ class CoveWidgetService {
         standingYear,
         standingMonthNum,
       );
+      final nowLocal = now.toLocal();
       final isSameMonth =
-          now.year == standingYear && now.month == standingMonthNum;
+          nowLocal.year == standingYear && nowLocal.month == standingMonthNum;
       final standingDay = isSameMonth
-          ? now.day.clamp(1, daysInStandingMonth)
+          ? nowLocal.day.clamp(1, daysInStandingMonth)
           : daysInStandingMonth;
       final daysRemaining = (daysInStandingMonth - standingDay).clamp(
         0,

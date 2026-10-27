@@ -75,7 +75,9 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
   void initState() {
     super.initState();
     _dateStripController = ScrollController(
-      initialScrollOffset: _computeStripOffset(widget.selectedDate.day),
+      initialScrollOffset: _computeStripOffset(
+        widget.selectedDate.toLocal().day,
+      ),
     );
   }
 
@@ -87,7 +89,9 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
           widget.selectedDate,
         ) &&
         _dateStripController.hasClients) {
-      final target = _computeStripOffset(widget.selectedDate.day).clamp(
+      final target = _computeStripOffset(
+        widget.selectedDate.toLocal().day,
+      ).clamp(
         0.0,
         _dateStripController.position.maxScrollExtent,
       );
@@ -108,14 +112,15 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
   }
 
   void _stepMonth(int deltaMonths) {
+    final selectedLocal = widget.selectedDate.toLocal();
     final targetFirst = DateTime(
-      widget.selectedDate.year,
-      widget.selectedDate.month + deltaMonths,
+      selectedLocal.year,
+      selectedLocal.month + deltaMonths,
       1,
     );
     final daysInTargetMonth =
         DateTime(targetFirst.year, targetFirst.month + 1, 0).day;
-    final clampedDay = math.min(widget.selectedDate.day, daysInTargetMonth);
+    final clampedDay = math.min(selectedLocal.day, daysInTargetMonth);
     widget.onSelectDate(
       DateTime(targetFirst.year, targetFirst.month, clampedDay),
     );
@@ -678,12 +683,13 @@ class _CalendarAgendaViewState extends ConsumerState<CalendarAgendaView> {
       hasPartner: widget.hasPartner,
     );
 
+    final startLocal = entry.startTime.toLocal();
     final String topTime = entry.isAllDay
         ? 'ALL'
-        : DateFormat('h').format(entry.startTime);
+        : DateFormat('h').format(startLocal);
     final String bottomTime = entry.isAllDay
         ? 'DAY'
-        : DateFormat('a').format(entry.startTime).toUpperCase();
+        : DateFormat('a').format(startLocal).toUpperCase();
 
     final subtitleParts = <String>[
       if (event.location != null && event.location!.trim().isNotEmpty)

@@ -140,7 +140,10 @@ class AddFlowContext {
   }
 }
 
-DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+DateTime _dateOnly(DateTime d) {
+  final l = d.toLocal();
+  return DateTime(l.year, l.month, l.day);
+}
 
 const List<String> _weekdaysFull = <String>[
   'Monday',
@@ -398,12 +401,14 @@ class ExpenseDraft extends AddDraft {
             (isPrivate || !hasPartner) ? false : splitHalfAndHalf;
 
   factory ExpenseDraft.initial(AddFlowContext context) {
-    final now = clock.now();
-    final isAnchorToday = context.anchor.year == context.today.year &&
-        context.anchor.month == context.today.month &&
-        context.anchor.day == context.today.day;
+    final now = clock.now().toLocal();
+    final anchorLocal = context.anchor.toLocal();
+    final todayLocal = context.today.toLocal();
+    final isAnchorToday = anchorLocal.year == todayLocal.year &&
+        anchorLocal.month == todayLocal.month &&
+        anchorLocal.day == todayLocal.day;
     return ExpenseDraft(
-      expenseDate: isAnchorToday ? now : context.anchor,
+      expenseDate: isAnchorToday ? now : anchorLocal,
       viewerUserId: context.viewerUserId,
       partnerUserId: context.partnerUserId,
       hasPartner: context.hasPartner,
@@ -557,8 +562,8 @@ class ExpenseDraft extends AddDraft {
     if (!isComplete) {
       throw StateError('ExpenseDraft is incomplete and cannot build args.');
     }
-    final rawDate = expenseDate!;
-    final now = clock.now();
+    final rawDate = expenseDate!.toLocal();
+    final now = clock.now().toLocal();
     final isChosenDayToday = rawDate.year == now.year &&
         rawDate.month == now.month &&
         rawDate.day == now.day;

@@ -265,7 +265,7 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
     final currency = ref.read(currencyPreferenceProvider);
     final isEmi = _sub.isEmi;
     final cycleMonths = getBillingCycleMonths(_sub.billingCycle);
-    final currentNext = _sessionNextBillingDate ?? _sub.nextBillingDate;
+    final currentNext = (_sessionNextBillingDate ?? _sub.nextBillingDate).toLocal();
     final advancedNext = DateTime(
       currentNext.year,
       currentNext.month + cycleMonths,
@@ -773,8 +773,11 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
     final isDone = isEmi &&
         (effectivePaidInstallments >= totalInstallments! || _sub.isEmiFinished);
 
-    final effectiveNextDate = _sessionNextBillingDate ?? _sub.nextBillingDate;
-    final voucherDate = _markedPaidInSession ? _sub.nextBillingDate : effectiveNextDate;
+    final effectiveNextDate =
+        (_sessionNextBillingDate ?? _sub.nextBillingDate).toLocal();
+    final voucherDate =
+        (_markedPaidInSession ? _sub.nextBillingDate : effectiveNextDate)
+            .toLocal();
     final contextCadence = _formatContextCadence(_sub.billingCycle);
     final cadencePhrase = isEmi ? 'a month' : _formatCadencePhrase(_sub.billingCycle);
     final formattedAmount =

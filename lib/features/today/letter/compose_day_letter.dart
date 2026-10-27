@@ -317,7 +317,7 @@ String formatLetterNumber(int value, {bool capitalize = false}) {
 /// - `17:00–20:59` → `"this evening"`
 /// - `21:00+` → `"tonight"`
 String formatLetterDayPart(DateTime time) {
-  final hour = time.hour;
+  final hour = time.toLocal().hour;
   if (hour < 12) return 'this morning';
   if (hour < 17) return 'this afternoon';
   if (hour < 21) return 'this evening';
@@ -327,12 +327,13 @@ String formatLetterDayPart(DateTime time) {
 /// Formats a time on the hour as words ("at seven this evening") and otherwise
 /// as digits ("at 7:30 this morning").
 String formatLetterTime(DateTime time) {
-  final hour12 = time.hour % 12 == 0 ? 12 : time.hour % 12;
-  final dayPart = formatLetterDayPart(time);
-  if (time.minute == 0) {
+  final local = time.toLocal();
+  final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+  final dayPart = formatLetterDayPart(local);
+  if (local.minute == 0) {
     return 'at ${_kHourWords[hour12]} $dayPart';
   }
-  final minutePadded = time.minute.toString().padLeft(2, '0');
+  final minutePadded = local.minute.toString().padLeft(2, '0');
   return 'at $hour12:$minutePadded $dayPart';
 }
 
@@ -407,7 +408,8 @@ List<LetterSpan> composeDayLetter(DayLetterInput input) {
 }
 
 List<LetterSpan> _composeDaySentence(DayLetterInput input) {
-  final weekday = _kWeekdayNames[(input.clock.weekday - 1).clamp(0, 6)];
+  final clockLocal = input.clock.toLocal();
+  final weekday = _kWeekdayNames[(clockLocal.weekday - 1).clamp(0, 6)];
   final positiveExpensesCount = input.expenses
       .where((e) => e.amount > 0)
       .length;
@@ -653,16 +655,24 @@ List<LetterSpan> _composeMoneySentence(
   return spans;
 }
 
-bool _isSameCalendarDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
+bool _isSameCalendarDay(DateTime a, DateTime b) {
+  final al = a.toLocal();
+  final bl = b.toLocal();
+  return al.year == bl.year && al.month == bl.month && al.day == bl.day;
+}
 
 List<LetterSpan> _composeCommitmentsSentence(
   List<DayLetterCommitment> commitmentsDue,
   DateTime clock,
   String currencySymbol,
 ) {
-  final todayDate = DateTime(clock.year, clock.month, clock.day);
-  final tomorrowDate = DateTime(clock.year, clock.month, clock.day + 1);
+  final clockLocal = clock.toLocal();
+  final todayDate = DateTime(clockLocal.year, clockLocal.month, clockLocal.day);
+  final tomorrowDate = DateTime(
+    clockLocal.year,
+    clockLocal.month,
+    clockLocal.day + 1,
+  );
 
   final dueToday = commitmentsDue
       .where((c) => c.amount > 0 && _isSameCalendarDay(c.dueDate, todayDate))

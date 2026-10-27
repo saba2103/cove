@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_max_width.dart';
 import 'cove_page_header.dart';
 
 /// High-level navigation mode for [CoveFloatingBar] (`design/specs/09-floating-bar.md`).
@@ -618,7 +619,7 @@ class CoveFloatingBar extends StatelessWidget {
           child: Center(
             heightFactor: 1.0,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
+              constraints: CoveMaxWidth.constraintsFor(context),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,

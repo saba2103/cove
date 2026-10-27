@@ -413,8 +413,9 @@ class DaySheetSummary {
     Set<String> optimisticallyCompletedTaskIds = const <String>{},
     Map<String, bool> optimisticHabitOverrides = const <String, bool>{},
   }) {
-    final dayOnly = CalendarDateUtils.dateOnly(now);
-    final nowMinutes = (now.hour * 60 + now.minute).clamp(0, 1439);
+    final nowLocal = now.toLocal();
+    final dayOnly = CalendarDateUtils.dateOnly(nowLocal);
+    final nowMinutes = (nowLocal.hour * 60 + nowLocal.minute).clamp(0, 1439);
     final viewerId = currentUserId ?? 'local_user';
     final cleanPartner =
         partnerName.trim().isNotEmpty ? partnerName.trim() : 'Partner';
@@ -479,8 +480,8 @@ class DaySheetSummary {
         end = 24 * 60;
         timeLabel = 'All day';
       } else {
-        final st = entry.startTime;
-        final et = entry.endTime;
+        final st = entry.startTime.toLocal();
+        final et = entry.endTime.toLocal();
         start = (st.hour * 60 + st.minute).clamp(0, 1439);
         final rawEnd = et.hour * 60 + et.minute;
         end = (rawEnd > start ? rawEnd : start + 60).clamp(start + 1, 1440);
@@ -534,7 +535,7 @@ class DaySheetSummary {
       if (!CalendarDateUtils.isSameDay(item.dueDate!, dayOnly)) continue;
       final isDone = item.isCompleted ||
           optimisticallyCompletedTaskIds.contains(item.id);
-      final due = item.dueDate!;
+      final due = item.dueDate!.toLocal();
       final hasExplicitTime = due.hour != 0 || due.minute != 0;
       final start = hasExplicitTime
           ? (due.hour * 60 + due.minute).clamp(0, 1439)
@@ -663,8 +664,9 @@ class DaySheetSummary {
 
   factory DaySheetSummary.fromJson(Map<String, dynamic> map) {
     final referenceDate =
-        DateTime.tryParse(map['referenceDate'] as String? ?? '') ??
-            clock.now();
+        (DateTime.tryParse(map['referenceDate'] as String? ?? '') ??
+                clock.now())
+            .toLocal();
     final currencyCode = map['currencyCode'] as String? ?? 'INR';
     final currency = supportedCurrencies.firstWhere(
       (c) => c.code == currencyCode,

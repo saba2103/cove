@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'golden_harness.dart';
 
 class _CoveMaxWidthDemo extends StatelessWidget {
-  const _CoveMaxWidthDemo();
+  final bool includeGutter;
+
+  const _CoveMaxWidthDemo({this.includeGutter = false});
 
   @override
   Widget build(BuildContext context) {
@@ -14,36 +16,41 @@ class _CoveMaxWidthDemo extends StatelessWidget {
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
       body: CoveMaxWidth(
-        child: Container(
-          key: const ValueKey('max_width_box'),
-          margin: const EdgeInsets.symmetric(vertical: CoveSpace.section),
-          padding: const EdgeInsets.all(CoveSpace.gutter),
-          decoration: BoxDecoration(
-            color: cv.surfaceCard,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
-            border: Border.all(color: cv.lineHairline),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: includeGutter ? CoveSpace.gutter : 0,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'MAX CONTENT COLUMN',
-                style: CoveType.capsPage.copyWith(color: cv.accentText),
+          child: Container(
+            key: const ValueKey('max_width_box'),
+            margin: const EdgeInsets.symmetric(vertical: CoveSpace.section),
+            padding: const EdgeInsets.all(CoveSpace.gutter),
+            decoration: BoxDecoration(
+              color: cv.surfaceCard,
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.card),
               ),
-              const SizedBox(height: CoveSpace.sm),
-              Text(
-                'Centred at 420 dp',
-                style: CoveType.title.copyWith(color: cv.textPrimary),
-              ),
-              const SizedBox(height: CoveSpace.sm),
-              Text(
-                'Page content never exceeds CoveSize.maxContent and sits centred on the Fold inner screen, tablets, and web.',
-                style: CoveType.body.copyWith(color: cv.textSecondary),
-              ),
-            ],
+              border: Border.all(color: cv.lineHairline),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MAX CONTENT COLUMN',
+                  style: CoveType.capsPage.copyWith(color: cv.accentText),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                Text(
+                  'Centred at 420 dp',
+                  style: CoveType.title.copyWith(color: cv.textPrimary),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                Text(
+                  'Page content never exceeds CoveSize.maxContent and sits centred on the Fold inner screen, tablets, and web.',
+                  style: CoveType.body.copyWith(color: cv.textSecondary),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -68,6 +75,25 @@ void main() {
         rect.left,
         equals((CoveWidth.wide.width - CoveSize.maxContent) / 2),
       );
+    },
+  );
+
+  testWidgets(
+    'CoveMaxWidth fills full width with gutter and no extra side margin at 432dp and 480dp',
+    (tester) async {
+      for (final size in const [CoveWidth.w432, CoveWidth.w480]) {
+        await goldenMatrix(
+          tester,
+          'cove_max_width',
+          const _CoveMaxWidthDemo(includeGutter: true),
+          widths: [size],
+        );
+
+        final rect = tester.getRect(find.byKey(const ValueKey('max_width_box')));
+        expect(rect.left, equals(CoveSpace.gutter));
+        expect(rect.right, equals(size.width - CoveSpace.gutter));
+        expect(rect.width, equals(size.width - 2 * CoveSpace.gutter));
+      }
     },
   );
 }

@@ -74,11 +74,12 @@ CoveReceipt buildExpenseReceipt({
   final partnerShareFormatted =
       '$currencySymbol${formatCoveAmount(share.partnerShareAmount)}';
 
+  final expDateLocal = expense.expenseDate.toLocal();
   final isMidnight =
-      expense.expenseDate.hour == 0 && expense.expenseDate.minute == 0;
+      expDateLocal.hour == 0 && expDateLocal.minute == 0;
   final timeFormatted = isMidnight
       ? null
-      : DateFormat('h:mm a').format(expense.expenseDate).toUpperCase();
+      : DateFormat('h:mm a').format(expDateLocal).toUpperCase();
   final String receiptSubtitle;
   if (notes != null && notes.isNotEmpty) {
     receiptSubtitle = timeFormatted != null
@@ -88,7 +89,7 @@ CoveReceipt buildExpenseReceipt({
     receiptSubtitle = timeFormatted ?? '';
   }
   final footerDate =
-      DateFormat('EEE d MMM').format(expense.expenseDate).toUpperCase();
+      DateFormat('EEE d MMM').format(expDateLocal).toUpperCase();
 
   return CoveReceipt(
     variant: CoveSlipVariant.paper,

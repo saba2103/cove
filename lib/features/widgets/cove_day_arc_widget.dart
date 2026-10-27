@@ -156,15 +156,16 @@ class DayArcSummary {
   /// background refresh so the `now` hairline and current/next centre readout
   /// advance without touching the database).
   DayArcSummary atTime(DateTime newReferenceDate) {
+    final refLocal = newReferenceDate.toLocal();
     final sameDay = CalendarDateUtils.isSameDay(
       referenceDate,
-      newReferenceDate,
+      refLocal,
     );
     final updatedNowMinutes =
-        (newReferenceDate.hour * 60 + newReferenceDate.minute).clamp(0, 1439);
+        (refLocal.hour * 60 + refLocal.minute).clamp(0, 1439);
     if (!sameDay) {
       return DayArcSummary(
-        referenceDate: newReferenceDate,
+        referenceDate: refLocal,
         nowMinutes: updatedNowMinutes,
         bands: const [],
         habitDots: const [],
@@ -172,7 +173,7 @@ class DayArcSummary {
       );
     }
     return DayArcSummary(
-      referenceDate: newReferenceDate,
+      referenceDate: refLocal,
       nowMinutes: updatedNowMinutes,
       bands: bands,
       habitDots: habitDots,
@@ -228,10 +229,11 @@ class DayArcSummary {
     String currentUserId = '',
     String partnerName = '',
   }) {
-    final today = CalendarDateUtils.dateOnly(referenceDate);
+    final refLocal = referenceDate.toLocal();
+    final today = CalendarDateUtils.dateOnly(refLocal);
     final todayString = DateFormat('yyyy-MM-dd').format(today);
     final nowMinutes =
-        (referenceDate.hour * 60 + referenceDate.minute).clamp(0, 1439);
+        (refLocal.hour * 60 + refLocal.minute).clamp(0, 1439);
 
     final bands = <DayArcBand>[];
 
@@ -270,10 +272,11 @@ class DayArcSummary {
     for (final entry in projectedEvents) {
       final ev = entry.event;
       if (ev.isAllDay) continue;
-      final startMin =
-          (entry.startTime.hour * 60 + entry.startTime.minute).clamp(0, 1439);
-      final rawEndMin = entry.endTime.hour * 60 + entry.endTime.minute;
-      final endMin = CalendarDateUtils.isSameDay(entry.startTime, entry.endTime)
+      final st = entry.startTime.toLocal();
+      final et = entry.endTime.toLocal();
+      final startMin = (st.hour * 60 + st.minute).clamp(0, 1439);
+      final rawEndMin = et.hour * 60 + et.minute;
+      final endMin = CalendarDateUtils.isSameDay(st, et)
           ? math.max(startMin + 15, rawEndMin).clamp(0, 1440)
           : 1440;
       final isFaint = _isFaintEvent(

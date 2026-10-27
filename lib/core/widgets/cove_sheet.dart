@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_max_width.dart';
 import 'cove_page_header.dart';
 import 'cove_round_button.dart';
 
@@ -63,7 +64,7 @@ class CoveSheet extends StatelessWidget {
         return Align(
           alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
+            constraints: CoveMaxWidth.constraintsFor(dialogContext),
             child: Material(
               type: MaterialType.transparency,
               child: builder(dialogContext),
@@ -226,7 +227,7 @@ class CoveSheetBackdrop extends StatelessWidget {
         Align(
           alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
+            constraints: CoveMaxWidth.constraintsFor(context),
             child: stackedSheet == null
                 ? sheet
                 : Column(

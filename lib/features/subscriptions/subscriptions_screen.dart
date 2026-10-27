@@ -362,10 +362,11 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     // Group active commitments by calendar day (year, month, day)
     final dateGroups = <_CommitmentDateGroup>[];
     for (final sub in sortedActive) {
+      final billingLocal = sub.nextBillingDate.toLocal();
       final dayKey = DateTime(
-        sub.nextBillingDate.year,
-        sub.nextBillingDate.month,
-        sub.nextBillingDate.day,
+        billingLocal.year,
+        billingLocal.month,
+        billingLocal.day,
       );
       if (dateGroups.isEmpty || dateGroups.last.date != dayKey) {
         dateGroups.add(_CommitmentDateGroup(date: dayKey, items: [sub]));
@@ -374,7 +375,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
       }
     }
 
-    final now = clock.now();
+    final now = clock.now().toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
@@ -1251,10 +1252,11 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     final kindTag = _kindTagFor(sub);
     final subParts = <String>[kindTag];
 
+    final billingLocal = sub.nextBillingDate.toLocal();
     final renDay = DateTime(
-      sub.nextBillingDate.year,
-      sub.nextBillingDate.month,
-      sub.nextBillingDate.day,
+      billingLocal.year,
+      billingLocal.month,
+      billingLocal.day,
     );
     final daysUntil = renDay.difference(today).inDays;
 
@@ -1335,7 +1337,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     required String partnerName,
   }) {
     final cv = context.cv;
-    final now = clock.now();
+    final now = clock.now().toLocal();
     final today = DateTime(now.year, now.month, now.day);
 
     return Container(

@@ -263,15 +263,16 @@ class HomeSettingsScreen extends ConsumerWidget {
         subscriptions.where((s) => s.isActive).length;
     final nonTransferExpenses =
         expenses.where((e) => !e.isTransfer).toList();
-    final refDate = nonTransferExpenses.isNotEmpty
-        ? nonTransferExpenses.first.expenseDate
-        : activeHome.createdAt;
+    final refDate = (nonTransferExpenses.isNotEmpty
+            ? nonTransferExpenses.first.expenseDate
+            : activeHome.createdAt)
+        .toLocal();
     final monthSpent = nonTransferExpenses
-        .where(
-          (e) =>
-              e.expenseDate.year == refDate.year &&
-              e.expenseDate.month == refDate.month,
-        )
+        .where((e) {
+          final expLocal = e.expenseDate.toLocal();
+          return expLocal.year == refDate.year &&
+              expLocal.month == refDate.month;
+        })
         .fold<double>(0.0, (sum, e) => sum + e.amount);
 
     final budgetValue = budget != null && budget > 0

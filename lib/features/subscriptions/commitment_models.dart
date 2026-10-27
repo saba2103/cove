@@ -71,11 +71,13 @@ EmiProgress calculateEmiProgress({
   required String billingCycle,
   DateTime? now,
 }) {
-  final current = now ?? clock.now();
+  final current = (now ?? clock.now()).toLocal();
+  final startLocal = startDate.toLocal();
+  final endLocal = endDate.toLocal();
   final monthsPerCycle = getBillingCycleMonths(billingCycle);
 
-  final start = DateTime(startDate.year, startDate.month, startDate.day);
-  final end = DateTime(endDate.year, endDate.month, endDate.day);
+  final start = DateTime(startLocal.year, startLocal.month, startLocal.day);
+  final end = DateTime(endLocal.year, endLocal.month, endLocal.day);
   final today = DateTime(current.year, current.month, current.day);
 
   int totalMonths = (end.year - start.year) * 12 + (end.month - start.month);
@@ -122,9 +124,11 @@ extension LocalSubscriptionCommitmentX on LocalSubscription {
         paid = paidInstallments!.clamp(0, total);
       } else if (endDate != null) {
         final monthsPerCycle = getBillingCycleMonths(billingCycle);
-        final today = clock.now();
-        int remainingMonths = (endDate!.year - today.year) * 12 + (endDate!.month - today.month);
-        if (endDate!.day >= today.day) remainingMonths += 1;
+        final today = clock.now().toLocal();
+        final endLocal = endDate!.toLocal();
+        int remainingMonths =
+            (endLocal.year - today.year) * 12 + (endLocal.month - today.month);
+        if (endLocal.day >= today.day) remainingMonths += 1;
         if (remainingMonths < 0) remainingMonths = 0;
         final remainingCycles = (remainingMonths / monthsPerCycle).ceil();
         paid = (total - remainingCycles).clamp(0, total);

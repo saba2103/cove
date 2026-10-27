@@ -922,9 +922,10 @@ class ActivityFormatter {
   }
 
   static String formatDateHeading(DateTime dt) {
-    final now = clock.now();
+    final now = clock.now().toLocal();
+    final dtLocal = dt.toLocal();
     final today = DateTime(now.year, now.month, now.day);
-    final date = DateTime(dt.year, dt.month, dt.day);
+    final date = DateTime(dtLocal.year, dtLocal.month, dtLocal.day);
     final diff = today.difference(date).inDays;
 
     if (diff == 0) {
@@ -934,7 +935,7 @@ class ActivityFormatter {
     } else if (diff > 1 && diff < 7) {
       return 'Earlier this week';
     } else {
-      return DateFormat('MMMM yyyy').format(dt);
+      return DateFormat('MMMM yyyy').format(dtLocal);
     }
   }
 }

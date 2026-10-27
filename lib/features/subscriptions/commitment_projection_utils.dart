@@ -153,10 +153,11 @@ class CommitmentProjectionUtils {
       final cycleMonths = getBillingCycleMonths(sub.billingCycle);
       final isAnnual = cycleMonths == 12;
       final isEmi = sub.isEmi;
+      final billingLocal = sub.nextBillingDate.toLocal();
 
       for (int m = 1; m <= 12; m++) {
         final daysInMonth = DateTime(year, m + 1, 0).day;
-        final renewalDay = min(sub.nextBillingDate.day, daysInMonth);
+        final renewalDay = min(billingLocal.day, daysInMonth);
         final projectedDate = DateTime(year, m, renewalDay);
 
         bool applies = false;
@@ -165,13 +166,13 @@ class CommitmentProjectionUtils {
           applies = _isEmiActiveInMonth(sub, year, m);
         } else if (isAnnual) {
           // Annual commitments apply exclusively to their specific renewal month
-          applies = (sub.nextBillingDate.month == m);
+          applies = (billingLocal.month == m);
         } else if (cycleMonths == 1) {
           // Monthly commitments apply every month
           applies = true;
         } else {
           // Custom cycle (e.g. quarterly every 3 months, biannual every 6 months)
-          final diff = (m - sub.nextBillingDate.month);
+          final diff = (m - billingLocal.month);
           applies = (diff % cycleMonths == 0);
         }
 
@@ -206,24 +207,27 @@ class CommitmentProjectionUtils {
   static bool _isEmiActiveInMonth(LocalSubscription sub, int year, int month) {
     final targetMonthStart = DateTime(year, month, 1);
     final targetMonthEnd = DateTime(year, month + 1, 0);
+    final billingLocal = sub.nextBillingDate.toLocal();
+    final endLocal = sub.endDate?.toLocal();
+    final createdLocal = sub.createdAt.toLocal();
 
     // 1. Determine the first installment month of this EMI loan
     final DateTime startMonth;
-    if (sub.endDate != null && sub.totalInstallments != null && sub.totalInstallments! > 0) {
+    if (endLocal != null && sub.totalInstallments != null && sub.totalInstallments! > 0) {
       startMonth = DateTime(
-        sub.endDate!.year,
-        sub.endDate!.month - (sub.totalInstallments! - 1),
+        endLocal.year,
+        endLocal.month - (sub.totalInstallments! - 1),
         1,
       );
     } else if (sub.totalInstallments != null && sub.totalInstallments! > 0) {
       final paid = (sub.paidInstallments ?? 0).clamp(0, sub.totalInstallments!);
       startMonth = DateTime(
-        sub.nextBillingDate.year,
-        sub.nextBillingDate.month - paid,
+        billingLocal.year,
+        billingLocal.month - paid,
         1,
       );
     } else {
-      startMonth = DateTime(sub.createdAt.year, sub.createdAt.month, 1);
+      startMonth = DateTime(createdLocal.year, createdLocal.month, 1);
     }
 
     if (targetMonthEnd.isBefore(startMonth)) {
@@ -235,13 +239,13 @@ class CommitmentProjectionUtils {
     // but no installments are calculated on or after the cutoff month.
     if (!sub.isActive) {
       DateTime cutoffMonth = DateTime(
-        sub.nextBillingDate.year,
-        sub.nextBillingDate.month,
+        billingLocal.year,
+        billingLocal.month,
         1,
       );
 
-      if (sub.endDate != null) {
-        final endMonthStart = DateTime(sub.endDate!.year, sub.endDate!.month, 1);
+      if (endLocal != null) {
+        final endMonthStart = DateTime(endLocal.year, endLocal.month, 1);
         final naturalCompletionCutoff = DateTime(
           endMonthStart.year,
           endMonthStart.month + 1,
@@ -263,8 +267,8 @@ class CommitmentProjectionUtils {
 
     // 3. Active EMIs:
     // Check end date
-    if (sub.endDate != null) {
-      final endMonthStart = DateTime(sub.endDate!.year, sub.endDate!.month, 1);
+    if (endLocal != null) {
+      final endMonthStart = DateTime(endLocal.year, endLocal.month, 1);
       if (targetMonthStart.isAfter(endMonthStart)) {
         return false;
       }
@@ -277,8 +281,8 @@ class CommitmentProjectionUtils {
       final remaining = total - paid;
 
       final lastInstallmentDate = DateTime(
-        sub.nextBillingDate.year,
-        sub.nextBillingDate.month + (remaining - 1),
+        billingLocal.year,
+        billingLocal.month + (remaining - 1),
         1,
       );
       if (targetMonthStart.isAfter(DateTime(lastInstallmentDate.year, lastInstallmentDate.month, 1))) {
@@ -286,8 +290,8 @@ class CommitmentProjectionUtils {
       }
 
       final firstInstallmentDate = DateTime(
-        sub.nextBillingDate.year,
-        sub.nextBillingDate.month - paid,
+        billingLocal.year,
+        billingLocal.month - paid,
         1,
       );
       if (targetMonthEnd.isBefore(firstInstallmentDate)) {

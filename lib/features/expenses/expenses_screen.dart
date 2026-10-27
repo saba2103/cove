@@ -81,15 +81,16 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   DateTime _resolveReferenceDate(List<LocalExpense> allExpenses) {
     if (widget.initialExpenses != null && widget.initialExpenses!.isNotEmpty) {
-      DateTime latest = widget.initialExpenses!.first.expenseDate;
+      DateTime latest = widget.initialExpenses!.first.expenseDate.toLocal();
       for (final exp in widget.initialExpenses!) {
-        if (exp.expenseDate.isAfter(latest)) {
-          latest = exp.expenseDate;
+        final expLocal = exp.expenseDate.toLocal();
+        if (expLocal.isAfter(latest)) {
+          latest = expLocal;
         }
       }
       return latest;
     }
-    return clock.now();
+    return clock.now().toLocal();
   }
 
   void _stepLedgerMonth(DateTime currentLedgerMonth, int deltaMonths) {
@@ -496,7 +497,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           _cleanCategoryName(exp.category) != _selectedCategory) {
         continue;
       }
-      final dayIdx = (exp.expenseDate.day - 1).clamp(0, daysInStandingMonth - 1);
+      final dayIdx =
+          (exp.expenseDate.toLocal().day - 1).clamp(0, daysInStandingMonth - 1);
       dailyTotals[dayIdx] += exp.amount;
     }
 
@@ -515,8 +517,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         ledgerMonth.year == standingMonth.year &&
             ledgerMonth.month == standingMonth.month;
     final ledgerMonthExpenses = allExpenses.where((e) {
-      return e.expenseDate.year == ledgerMonth.year &&
-          e.expenseDate.month == ledgerMonth.month;
+      final d = e.expenseDate.toLocal();
+      return d.year == ledgerMonth.year && d.month == ledgerMonth.month;
     }).toList();
 
     final ledgerFilteredExpenses = _selectedCategory == null
@@ -1467,10 +1469,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     final dayGroups = <DateTime, List<LocalExpense>>{};
     for (final exp in sortedExpenses) {
+      final expLocal = exp.expenseDate.toLocal();
       final dayKey = DateTime(
-        exp.expenseDate.year,
-        exp.expenseDate.month,
-        exp.expenseDate.day,
+        expLocal.year,
+        expLocal.month,
+        expLocal.day,
       );
       dayGroups.putIfAbsent(dayKey, () => <LocalExpense>[]).add(exp);
     }

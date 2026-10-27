@@ -226,13 +226,14 @@ class _AddFlowState extends ConsumerState<AddFlow> {
   }
 
   AddFlowContext _buildFlowContext() {
-    final now = clock.now();
+    final now = clock.now().toLocal();
     final today = DateTime(now.year, now.month, now.day);
-    final anchorDate = widget.anchor != null
+    final anchorLocal = widget.anchor?.toLocal();
+    final anchorDate = anchorLocal != null
         ? DateTime(
-            widget.anchor!.year,
-            widget.anchor!.month,
-            widget.anchor!.day,
+            anchorLocal.year,
+            anchorLocal.month,
+            anchorLocal.day,
           )
         : today;
 
@@ -1823,13 +1824,19 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           today: ctx.today,
           selectedDate: d.expenseDate,
           onSelected: (picked) {
-            final now = clock.now();
-            final isToday = picked.year == ctx.today.year &&
-                picked.month == ctx.today.month &&
-                picked.day == ctx.today.day;
+            final now = clock.now().toLocal();
+            final pickedLocal = picked.toLocal();
+            final todayLocal = ctx.today.toLocal();
+            final isToday = pickedLocal.year == todayLocal.year &&
+                pickedLocal.month == todayLocal.month &&
+                pickedLocal.day == todayLocal.day;
             final nextDate = isToday
                 ? now
-                : DateTime(picked.year, picked.month, picked.day);
+                : DateTime(
+                    pickedLocal.year,
+                    pickedLocal.month,
+                    pickedLocal.day,
+                  );
             setState(() {
               _draft = d.copyWith(expenseDate: nextDate);
             });

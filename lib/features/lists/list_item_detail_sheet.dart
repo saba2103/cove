@@ -203,7 +203,9 @@ class ListItemDetailSheet extends ConsumerWidget {
         ? 'You'
         : partnerProfile.displayName;
 
-    final formattedCreatedDate = DateFormat('d MMM y').format(item.createdAt);
+    final formattedCreatedDate = DateFormat('d MMM y').format(
+      item.createdAt.toLocal(),
+    );
 
     final noteAddedByLine = item.notes != null && item.notes!.trim().isNotEmpty
         ? '${item.notes!.trim()} · Added by $addedByName'

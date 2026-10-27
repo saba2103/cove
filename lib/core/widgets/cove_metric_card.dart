@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
+import 'cove_max_width.dart';
 import 'cove_section_label.dart';
 
 /// Semantic colour tone for a [CoveMetricCard] figure (`design/specs/06-metric-card.md`).
@@ -157,7 +158,7 @@ class CoveMetricGrid extends StatelessWidget {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
+        constraints: CoveMaxWidth.constraintsFor(context),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

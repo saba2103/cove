@@ -32,7 +32,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
   final hasPartner = ref.watch(activeHomeHasPartnerProvider);
   final currency = ref.watch(currencyPreferenceProvider);
 
-  final now = clock.now();
+  final now = clock.now().toLocal();
   final startOfToday = DateTime(now.year, now.month, now.day);
   final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
   final todayString = DateFormat('yyyy-MM-dd').format(now);
@@ -49,8 +49,8 @@ final todayDataProvider = Provider<TodayData>((ref) {
   final events = <TodayEventItem>[];
 
   for (final ev in calendarEvents) {
-    final evStart = ev.startTime;
-    final evEnd = ev.endTime;
+    final evStart = ev.startTime.toLocal();
+    final evEnd = ev.endTime.toLocal();
     final fallsOnToday = (evStart.isAfter(startOfToday.subtract(const Duration(seconds: 1))) &&
             evStart.isBefore(endOfToday.add(const Duration(seconds: 1)))) ||
         (evStart.isBefore(startOfToday) && evEnd.isAfter(startOfToday));
@@ -72,7 +72,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
 
   for (final sub in subscriptions) {
     if (sub.isActive && !sub.isPrivate) {
-      final billing = sub.nextBillingDate;
+      final billing = sub.nextBillingDate.toLocal();
       if (billing.year == now.year && billing.month == now.month && billing.day == now.day) {
         final amt = '${currency.symbol}${formatCoveAmount(sub.amount)}';
         events.add(TodayEventItem(
@@ -169,7 +169,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
   double monthSpendTotal = 0.0;
 
   for (final exp in expenses) {
-    final expDate = exp.expenseDate;
+    final expDate = exp.expenseDate.toLocal();
     if (expDate.year == now.year && expDate.month == now.month) {
       monthSpendTotal += exp.amount;
     }
@@ -212,6 +212,7 @@ final todayDataProvider = Provider<TodayData>((ref) {
     eventsOnlyCount: eventsOnlyCount,
     habits: todayHabits,
     focusTasks: focusTasks,
+    openTasksCount: uncompletedItems.length,
     listsSummary: listsSummary,
     todayExpenses: todayExpensesList,
     todaySpendTotal: spendTotal,

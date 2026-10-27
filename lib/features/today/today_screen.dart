@@ -91,8 +91,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     return 'Good evening';
   }
 
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDay(DateTime a, DateTime b) {
+    final al = a.toLocal();
+    final bl = b.toLocal();
+    return al.year == bl.year && al.month == bl.month && al.day == bl.day;
+  }
 
   List<bool>? _resolveHabitHistory21({
     required String habitId,
@@ -105,11 +108,12 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (habitCheckins.isEmpty) {
       return null;
     }
+    final nowLocal = now.toLocal();
     final checkedDates = habitCheckins.map((c) => c.checkinDate).toSet();
     final fmt = DateFormat('yyyy-MM-dd');
     return List<bool>.generate(CoveHabitCard.kTotalCells, (index) {
       final daysAgo = (CoveHabitCard.kTotalCells - 1) - index;
-      final date = DateTime(now.year, now.month, now.day - daysAgo);
+      final date = DateTime(nowLocal.year, nowLocal.month, nowLocal.day - daysAgo);
       return checkedDates.contains(fmt.format(date));
     });
   }
@@ -173,11 +177,13 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     final allListItems =
         ref.watch(activeHomeAllListItemsProvider).value ??
         const <LocalListItem>[];
+    final activeLists =
+        ref.watch(activeHomeListsProvider).value ?? const <LocalList>[];
     final allSubscriptions =
         ref.watch(activeHomeSubscriptionsProvider).value ??
         const <LocalSubscription>[];
 
-    final now = clock.now();
+    final now = clock.now().toLocal();
     final todayDate = DateTime(now.year, now.month, now.day);
     final tomorrowDate = DateTime(now.year, now.month, now.day + 1);
 
@@ -225,10 +231,11 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     LocalSubscription? nextUpcomingCommitment;
     if (dueSoonCommitments.isEmpty) {
       for (final s in activeCommitments) {
+        final billingLocal = s.nextBillingDate.toLocal();
         final dueDay = DateTime(
-          s.nextBillingDate.year,
-          s.nextBillingDate.month,
-          s.nextBillingDate.day,
+          billingLocal.year,
+          billingLocal.month,
+          billingLocal.day,
         );
         if (dueDay.isAfter(tomorrowDate)) {
           nextUpcomingCommitment = s;
@@ -238,17 +245,20 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     }
 
     // Count tasks ticked today for the Letter and metric tile
+    final validListIds = activeLists
+        .where((l) => !l.isArchived)
+        .map((l) => l.id)
+        .toSet();
     final tickedTodayCount = allListItems
         .where(
           (i) =>
               i.isCompleted &&
+              (validListIds.isEmpty || validListIds.contains(i.listId)) &&
               ((i.completedAt != null && _isSameDay(i.completedAt!, now)) ||
                   _isSameDay(i.createdAt, now)),
         )
         .length;
-    final openTasksCount = todayData.focusTasks
-        .where((t) => !t.isCompleted)
-        .length;
+    final openTasksCount = todayData.openTasksCount;
     final totalListCount = openTasksCount + tickedTodayCount;
 
     // Calendar events (non-subscription events, or all today events)
@@ -612,6 +622,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                   _buildListSection(
                     context,
                     tasks: todayData.focusTasks,
+                    openTasksCount: openTasksCount,
                     listsSummary: todayData.listsSummary,
                     currentUserId: currentUserId,
                     partnerName: todayData.partnerName,
@@ -670,13 +681,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     if (first.isAllDay) {
       return first.title;
     }
-    final hour12 = first.startTime.hour % 12 == 0
+    final startLocal = first.startTime.toLocal();
+    final hour12 = startLocal.hour % 12 == 0
         ? 12
-        : first.startTime.hour % 12;
-    if (first.startTime.minute == 0) {
+        : startLocal.hour % 12;
+    if (startLocal.minute == 0) {
       return '${first.title} at ${formatLetterNumber(hour12)}';
     }
-    final minStr = first.startTime.minute.toString().padLeft(2, '0');
+    final minStr = startLocal.minute.toString().padLeft(2, '0');
     return '${first.title} at $hour12:$minStr';
   }
 
@@ -768,7 +780,8 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     }
 
     final tickets = events.map((ev) {
-      final datePart = DateFormat('EEEE, MMM d').format(ev.startTime);
+      final startLocal = ev.startTime.toLocal();
+      final datePart = DateFormat('EEEE, MMM d').format(startLocal);
       final String? locationStr =
           (ev.location != null && ev.location!.trim().isNotEmpty)
           ? ev.location!.trim()
@@ -779,17 +792,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
           (locationStr != null && locationStr.isNotEmpty)
           ? '$datePart · $locationStr'
           : datePart;
-      final hour12 = ev.startTime.hour % 12 == 0
+      final hour12 = startLocal.hour % 12 == 0
           ? 12
-          : ev.startTime.hour % 12;
+          : startLocal.hour % 12;
       final hourStr = ev.isAllDay
           ? 'ALL'
-          : (ev.startTime.minute == 0
+          : (startLocal.minute == 0
                 ? '$hour12'
-                : DateFormat('h:mm').format(ev.startTime));
+                : DateFormat('h:mm').format(startLocal));
       final meridiemStr = ev.isAllDay
           ? 'DAY'
-          : DateFormat('a').format(ev.startTime).toUpperCase();
+          : DateFormat('a').format(startLocal).toUpperCase();
 
       return CoveTicket(
         key: ValueKey('today_ticket_${ev.id}'),
@@ -1059,6 +1072,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   Widget _buildListSection(
     BuildContext context, {
     required List<TodayListItem> tasks,
+    required int openTasksCount,
     required List<TodayListSummary> listsSummary,
     required String currentUserId,
     required String partnerName,
@@ -1066,8 +1080,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
     required DateTime now,
   }) {
     final cv = context.cv;
-    final openCount = tasks.where((t) => !t.isCompleted).length;
-    final readout = openCount == 0 ? 'all clear' : '$openCount open';
+    final readout = openTasksCount == 0 ? 'all clear' : '$openTasksCount open';
 
     void openLists() {
       _openDestination(context, 'todo', () => const ListsScreen());
@@ -1212,7 +1225,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     if (commitments.isEmpty) {
       final emptyText = nextUpcomingCommitment != null
-          ? 'Nothing due tomorrow. Next: ${nextUpcomingCommitment.name} on ${DateFormat('MMM d').format(nextUpcomingCommitment.nextBillingDate)}.'
+          ? 'Nothing due tomorrow. Next: ${nextUpcomingCommitment.name} on ${DateFormat('MMM d').format(nextUpcomingCommitment.nextBillingDate.toLocal())}.'
           : 'Nothing due.';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1246,16 +1259,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
 
     final vouchers = commitments.map((sub) {
       final isYearly = sub.billingCycle.toLowerCase() == 'yearly';
+      final billingLocal = sub.nextBillingDate.toLocal();
       return CoveVoucher(
         key: ValueKey('today_voucher_${sub.id}'),
         variant: slipVariant,
         title: sub.name,
         amount: formatCoveCurrency(sub.amount, currencySymbol),
-        dueDay: '${sub.nextBillingDate.day}',
+        dueDay: '${billingLocal.day}',
         dueMonth: DateFormat('MMM')
-            .format(sub.nextBillingDate)
+            .format(billingLocal)
             .toUpperCase(),
-        dueMonthSemantic: DateFormat('MMMM').format(sub.nextBillingDate),
+        dueMonthSemantic: DateFormat('MMMM').format(billingLocal),
         capsLabel: isYearly ? 'COVE · EVERY YEAR' : 'COVE · EVERY MONTH',
         cadenceSuffix: isYearly ? 'a year' : 'a month',
         state: CoveVoucherState.due,

@@ -19,12 +19,13 @@ class HomeMetadataState {
 
   static String? formatDuration(DateTime? anniversaryDate) {
     if (anniversaryDate == null) return null;
-    final now = clock.now();
-    if (anniversaryDate.isAfter(now)) return null;
+    final now = clock.now().toLocal();
+    final annivLocal = anniversaryDate.toLocal();
+    if (annivLocal.isAfter(now)) return null;
 
-    int years = now.year - anniversaryDate.year;
-    int months = now.month - anniversaryDate.month;
-    if (now.day < anniversaryDate.day) {
+    int years = now.year - annivLocal.year;
+    int months = now.month - annivLocal.month;
+    if (now.day < annivLocal.day) {
       months -= 1;
     }
     if (months < 0) {

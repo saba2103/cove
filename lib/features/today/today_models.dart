@@ -121,11 +121,18 @@ class TodayData {
   final bool hasPartner;
   final String morningQuote;
 
-  const TodayData({
+  /// Total open (uncompleted) list items across all active lists.
+  ///
+  /// [focusTasks] is capped at 5 for the preview card, whereas [openTasksCount]
+  /// reflects the true open count for the "The list" metric tile and readout.
+  final int openTasksCount;
+
+  TodayData({
     required this.events,
     required this.eventsOnlyCount,
     required this.habits,
     required this.focusTasks,
+    int? openTasksCount,
     required this.listsSummary,
     required this.todayExpenses,
     required this.todaySpendTotal,
@@ -134,16 +141,21 @@ class TodayData {
     required this.partnerName,
     required this.hasPartner,
     required this.morningQuote,
-  });
+  }) : openTasksCount =
+           openTasksCount ??
+           (listsSummary.isNotEmpty
+               ? listsSummary.fold<int>(0, (sum, l) => sum + l.openCount)
+               : focusTasks.where((t) => !t.isCompleted).length);
 
   factory TodayData.empty() {
-    return const TodayData(
-      events: [],
+    return TodayData(
+      events: const [],
       eventsOnlyCount: 0,
-      habits: [],
-      focusTasks: [],
-      listsSummary: [],
-      todayExpenses: [],
+      habits: const [],
+      focusTasks: const [],
+      openTasksCount: 0,
+      listsSummary: const [],
+      todayExpenses: const [],
       todaySpendTotal: 0.0,
       sharedMonthExpensesTotal: 0.0,
       userName: '',

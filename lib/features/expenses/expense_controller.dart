@@ -619,7 +619,7 @@ class ExpensesStandingSummary {
     required double? monthlyBudget,
     DateTime? referenceDate,
   }) {
-    final resolvedDate = referenceDate ?? clock.now();
+    final resolvedDate = (referenceDate ?? clock.now()).toLocal();
     final standingMonth = DateTime(resolvedDate.year, resolvedDate.month, 1);
     final standingMonthName = DateFormat('MMMM').format(standingMonth);
     final daysInStandingMonth = DateUtils.getDaysInMonth(
@@ -630,8 +630,8 @@ class ExpensesStandingSummary {
     final daysRemaining = math.max(0, daysInStandingMonth - standingDay);
 
     final standingMonthExpenses = allExpenses.where((e) {
-      return e.expenseDate.year == standingMonth.year &&
-          e.expenseDate.month == standingMonth.month;
+      final d = e.expenseDate.toLocal();
+      return d.year == standingMonth.year && d.month == standingMonth.month;
     }).toList();
 
     final standingActualExpenses =
@@ -682,10 +682,11 @@ class ExpensesStandingSummary {
       prevMonth.month,
     );
     final prevMonthActualExpenses = allExpenses.where((e) {
+      final d = e.expenseDate.toLocal();
       return !e.isTransfer &&
           e.splitRatio > 0.0 &&
-          e.expenseDate.year == prevMonth.year &&
-          e.expenseDate.month == prevMonth.month;
+          d.year == prevMonth.year &&
+          d.month == prevMonth.month;
     }).toList();
 
     final double prevMonthTotal = prevMonthActualExpenses.fold<double>(
@@ -693,7 +694,7 @@ class ExpensesStandingSummary {
       (acc, e) => acc + e.amount,
     );
     final double prevMonthByThisDay = prevMonthActualExpenses
-        .where((e) => e.expenseDate.day <= standingDay)
+        .where((e) => e.expenseDate.toLocal().day <= standingDay)
         .fold<double>(0.0, (acc, e) => acc + e.amount);
 
     final bool hasPrevComparison = prevMonthByThisDay > 0;

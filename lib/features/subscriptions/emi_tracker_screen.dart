@@ -119,13 +119,14 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
   DateTime _endDateOf(LocalSubscription emi) {
     if (emi.endDate != null) {
-      return emi.endDate!;
+      return emi.endDate!.toLocal();
     }
     final rem = math.max(1, _remainingInstallmentsOf(emi));
+    final billingLocal = emi.nextBillingDate.toLocal();
     return DateTime(
-      emi.nextBillingDate.year,
-      emi.nextBillingDate.month + rem - 1,
-      emi.nextBillingDate.day,
+      billingLocal.year,
+      billingLocal.month + rem - 1,
+      billingLocal.day,
     );
   }
 
