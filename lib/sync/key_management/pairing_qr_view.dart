@@ -231,10 +231,10 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                 // QR Code container
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    16,
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+                    side: BorderSide(
                       color: colors.accentPrimary.withValues(alpha: 0.3),
                       width: 2,
                     ),
@@ -262,10 +262,10 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                     horizontal: 16,
                     vertical: 14,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    12,
                     color: colors.surfaceRow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
+                    side: BorderSide(
                       color: colors.borderHairline,
                       width: 1,
                     ),
@@ -309,7 +309,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                         const SizedBox(height: 10),
                         InkWell(
                           onTap: _copyCode,
-                          borderRadius: BorderRadius.circular(20),
+                          customBorder: CoveShape.border(20),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,

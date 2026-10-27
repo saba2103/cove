@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../weather_controller.dart';
 import '../weather_model.dart';
@@ -30,12 +31,10 @@ class DashboardWeatherBadge extends ConsumerWidget {
           horizontal: CoveSpace.sm,
           vertical: CoveSpace.sm,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: cv.surfaceRow.withValues(alpha: 0.6),
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
-          border: Border.all(color: cv.lineHairline),
+          side: BorderSide(color: cv.lineHairline),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -67,20 +66,16 @@ class DashboardWeatherBadge extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => WeatherDetailSheet.show(context, weather),
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
+        customBorder: CoveShape.border(CoveRadius.inline),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: CoveSpace.md,
             vertical: CoveSpace.sm,
           ),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.inline,
             color: cv.surfaceRow,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.inline),
-            ),
-            border: Border.all(color: cv.lineHairline, width: _kBorderWidth),
+            side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

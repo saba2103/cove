@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_checkbox.dart';
@@ -160,12 +161,10 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                 // Tab Switcher (Active vs Shipped)
                 Container(
                   height: CoveSize.buttonRound,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.card,
                     color: cv.surfaceCard,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.card),
-                    ),
-                    border: Border.all(color: cv.lineHairline),
+                    side: BorderSide(color: cv.lineHairline),
                   ),
                   padding: const EdgeInsets.all(CoveSpace.xs),
                   child: Row(
@@ -211,12 +210,10 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                   // Reorderable Active Items Card
                   CoveCard(
                     padding: EdgeInsets.zero,
-                    borderRadius: CoveRadius.card,
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.card),
-                      ),
-                      child: ReorderableListView.builder(
+                    radius: CoveRadius.card,
+                    child: CoveShape.clip(
+                      CoveRadius.card,
+                      ReorderableListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         buildDefaultDragHandles: false,
@@ -375,11 +372,9 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
         ),
         child: Text(
           label,
@@ -530,12 +525,10 @@ class _WishFormSheetState extends ConsumerState<_WishFormSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(top: BorderSide(color: cv.lineHairline)),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -553,11 +546,9 @@ class _WishFormSheetState extends ConsumerState<_WishFormSheet> {
                 child: Container(
                   width: _kHandleWidth,
                   height: CoveSpace.xs,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    _kHandleRadius,
                     color: cv.lineHairline,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(_kHandleRadius),
-                    ),
                   ),
                 ),
               ),

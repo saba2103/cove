@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/shape/cove_shape.dart';
 import '../../../../core/theme/cove_tokens.dart';
 import '../changelog_models.dart';
 
@@ -47,12 +48,10 @@ class _HelicopterPreview extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -83,11 +82,9 @@ class _HelicopterPreview extends StatelessWidget {
                   horizontal: CoveSpace.sm,
                   vertical: CoveSpace.xs,
                 ),
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  _kBadgeRadius,
                   color: cv.accentWash,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(_kBadgeRadius),
-                  ),
                 ),
                 child: Text(
                   '50/50 ON',
@@ -139,10 +136,10 @@ class _HelicopterPreview extends StatelessWidget {
           vertical: CoveSpace.sm,
           horizontal: CoveSpace.sm,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveSpace.sm,
           color: cv.surfaceRow,
-          borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.sm)),
-          border: Border.all(
+          side: BorderSide(
             color: isCurrent
                 ? cv.accentFill.withValues(alpha: 0.6)
                 : cv.lineHairline,
@@ -187,11 +184,9 @@ class _HelicopterPreview extends StatelessWidget {
                 Expanded(
                   child: Container(
                     height: _kBarHeight,
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      _kBarRadius,
                       color: cv.accentFill,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(_kBarRadius),
-                      ),
                     ),
                   ),
                 ),
@@ -199,11 +194,9 @@ class _HelicopterPreview extends StatelessWidget {
                 Expanded(
                   child: Container(
                     height: _kBarHeight,
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      _kBarRadius,
                       color: cv.statusAlert,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(_kBarRadius),
-                      ),
                     ),
                   ),
                 ),
@@ -236,12 +229,10 @@ class _SmartDecimalsPreview extends StatelessWidget {
         horizontal: CoveSpace.md,
         vertical: CoveSpace.md,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -328,12 +319,10 @@ class _SmartDecimalsPreview extends StatelessWidget {
                 horizontal: CoveSpace.sm,
                 vertical: CoveSpace.xs,
               ),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveSpace.xs,
                 color: isClean ? cv.accentWash : cv.surfaceRow,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveSpace.xs),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: isClean
                       ? cv.accentFill.withValues(alpha: 0.3)
                       : cv.lineHairline,
@@ -378,12 +367,10 @@ class _ProfileStudioPreview extends StatelessWidget {
         horizontal: _kHorizontalPadding,
         vertical: CoveSpace.md,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Row(
         children: [
@@ -490,10 +477,10 @@ class _ProfileStudioPreview extends StatelessWidget {
         horizontal: CoveSpace.sm,
         vertical: CoveSpace.xs,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveSpace.md,
         color: cv.surfaceRow,
-        borderRadius: const BorderRadius.all(Radius.circular(CoveSpace.md)),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -528,12 +515,10 @@ class _GenericPreview extends StatelessWidget {
 
     return Container(
       height: _kFallbackHeight,
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(color: cv.lineHairline),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Center(
         child: Icon(

@@ -2,11 +2,10 @@
 // or uses raw non-squircle shape primitives outside lib/core/shape/.
 // Run from the repo root:  dart run tool/style_gate.dart
 //
-// Files listed in tool/style_allowlist.txt or tool/shape_allowlist.txt are exempt
-// WITH A BUDGET: the number is how many raw literals/shapes that file is still
-// allowed. Converting a screen means deleting its line. The budget may only ever
-// go DOWN — the gate fails if a file comes in under its budget without the budget
-// being updated (or its line deleted), so the ratchet holds.
+// Files listed in tool/style_allowlist.txt are exempt WITH A BUDGET: the number
+// is how many raw literals that file is still allowed. Converting a screen means
+// deleting its line. The shape gate is a hard rule: zero raw shapes are allowed
+// anywhere outside lib/core/shape/.
 import 'dart:io';
 
 final _stylePatterns = <String, RegExp>{
@@ -46,14 +45,15 @@ Map<String, int> _readAllowlist(String path) {
 
 bool _runGate({
   required String name,
-  required String allowlistPath,
+  String? allowlistPath,
   required List<String> roots,
   required Map<String, RegExp> patterns,
   required String unitLabel,
   required String convertedHint,
   List<String> excludedPrefixes = const [],
 }) {
-  final budgets = _readAllowlist(allowlistPath);
+  final budgets =
+      allowlistPath != null ? _readAllowlist(allowlistPath) : <String, int>{};
   final seenFiles = <String>{};
   final failures = <String>[];
   final under = <String>[];
@@ -141,12 +141,11 @@ void main() {
 
   final shapeOk = _runGate(
     name: 'shape gate',
-    allowlistPath: 'tool/shape_allowlist.txt',
     roots: _shapeRoots,
     patterns: _shapePatterns,
     unitLabel: 'raw shapes',
     convertedHint:
-        'this file is converted, so every rounded shape must come from CoveShape / smoothCornerPath.',
+        'every rounded shape outside lib/core/shape/ must come from CoveShape / smoothCornerPath.',
     excludedPrefixes: _shapeExcludedPrefixes,
   );
 

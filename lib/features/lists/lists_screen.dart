@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../core/widgets/cove_empty_state.dart';
@@ -151,8 +152,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
@@ -206,8 +207,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
@@ -277,8 +278,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
@@ -347,8 +348,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(color: cv.lineHairline, width: 1),
         ),
         title: Text(
@@ -601,23 +602,23 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                   _selectedListId = list.id;
                                 });
                               },
-                              borderRadius: BorderRadius.circular(_kNavItemRadius),
+                              customBorder: CoveShape.border(_kNavItemRadius),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: CoveSpace.md,
                                   vertical: 10,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: CoveShape.decoration(
+                                  _kNavItemRadius,
                                   color: isSelected
                                       ? cv.accentWash
                                       : cv.surfaceCard.withValues(alpha: 0),
-                                  borderRadius: BorderRadius.circular(_kNavItemRadius),
-                                  border: isSelected
-                                      ? Border.all(
+                                  side: isSelected
+                                      ? BorderSide(
                                           color: cv.accentFill.withValues(alpha: 0.3),
                                           width: 1,
                                         )
-                                      : null,
+                                      : BorderSide.none,
                                 ),
                                 child: Row(
                                   children: [
@@ -646,8 +647,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                                         minHeight: CoveSize.avatarInline,
                                       ),
                                       color: cv.surfaceCard,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(CoveSpace.md),
+                                      shape: CoveShape.border(
+                                        CoveSpace.md,
                                         side: BorderSide(color: cv.lineHairline, width: 1),
                                       ),
                                       onSelected: (action) {
@@ -847,8 +848,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                         minHeight: CoveSize.avatarRow,
                       ),
                       color: cv.surfaceCard,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(CoveSpace.md),
+                      shape: CoveShape.border(
+                        CoveSpace.md,
                         side: BorderSide(color: cv.lineHairline, width: 1),
                       ),
                       onSelected: (action) {
@@ -1019,10 +1020,9 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             if (activeItems.isNotEmpty)
               CoveCard(
                 padding: EdgeInsets.zero,
-                borderRadius: CoveRadius.card,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(CoveRadius.card),
-                  child: ReorderableListView.builder(
+                child: CoveShape.clip(
+                  CoveRadius.card,
+                  ReorderableListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     buildDefaultDragHandles: false,
@@ -1069,7 +1069,6 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
               const SizedBox(height: CoveSpace.sm),
               CoveCard(
                 padding: EdgeInsets.zero,
-                borderRadius: CoveRadius.card,
                 child: Column(
                   children: completedItems.asMap().entries.map((entry) {
                     final index = entry.key;
@@ -1190,8 +1189,8 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                 minHeight: CoveSize.avatarInline,
               ),
               color: cv.surfaceCard,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(CoveSpace.md),
+              shape: CoveShape.border(
+                CoveSpace.md,
                 side: BorderSide(color: cv.lineHairline, width: 1),
               ),
               onSelected: (action) {
@@ -1294,7 +1293,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           prefixIcon: Icon(Icons.add, size: 18, color: cv.textSecondary),
           suffix: InkWell(
             onTap: () => _handleAddItem(activeList.id),
-            borderRadius: BorderRadius.circular(CoveRadius.pill),
+            customBorder: CoveShape.border(CoveRadius.pill),
             child: Container(
               width: CoveSize.avatarRow,
               height: CoveSize.avatarRow,

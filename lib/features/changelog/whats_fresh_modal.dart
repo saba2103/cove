@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/widgets/cove_pill_button.dart';
 import 'changelog_models.dart';
@@ -118,16 +119,14 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
         child: Container(
           width: isCompact ? size.width * 0.92 : _kWideMaxWidth,
           constraints: BoxConstraints(maxHeight: size.height * 0.88),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.hero,
             color: cv.surfaceCard,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.hero),
-            ),
-            border: Border.all(
+            side: BorderSide(
               color: cv.lineHairline.withValues(alpha: 0.8),
               width: _kBorderWidth,
             ),
-            boxShadow: [
+            shadows: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: CoveSpace.section,
@@ -135,11 +134,9 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.hero),
-            ),
-            child: Column(
+          child: CoveShape.clip(
+            CoveRadius.hero,
+            Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // -------------------------------------------------------------
@@ -160,12 +157,10 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                             horizontal: CoveSpace.sm,
                             vertical: CoveSpace.xs,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: cv.accentWash,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveRadius.pill),
-                            ),
-                            border: Border.all(
+                            side: BorderSide(
                               color: cv.accentFill.withValues(alpha: 0.25),
                             ),
                           ),
@@ -246,11 +241,9 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                                     horizontal: CoveSpace.sm,
                                     vertical: CoveSpace.xs,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: CoveShape.decoration(
+                                    _kChipRadius,
                                     color: cv.accentWash,
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(_kChipRadius),
-                                    ),
                                   ),
                                   child: Text(
                                     item.version,
@@ -265,12 +258,10 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                                     horizontal: CoveSpace.sm,
                                     vertical: CoveSpace.xs,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: CoveShape.decoration(
+                                    _kChipRadius,
                                     color: cv.surfaceRow,
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(_kChipRadius),
-                                    ),
-                                    border: Border.all(color: cv.lineHairline),
+                                    side: BorderSide(color: cv.lineHairline),
                                   ),
                                   child: Text(
                                     item.category.toUpperCase(),
@@ -338,12 +329,10 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(CoveSpace.md),
-                              decoration: BoxDecoration(
+                              decoration: CoveShape.decoration(
+                                CoveSpace.md,
                                 color: cv.surfaceRow,
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(CoveSpace.md),
-                                ),
-                                border: Border.all(color: cv.lineHairline),
+                                side: BorderSide(color: cv.lineHairline),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,13 +395,11 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                             margin: const EdgeInsets.only(right: _kDotSize),
                             width: isActive ? CoveSpace.gutter : _kDotSize,
                             height: _kDotSize,
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.pill,
                               color: isActive
                                   ? cv.accentFill
                                   : cv.lineHairline.withValues(alpha: 0.8),
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(CoveRadius.pill),
-                              ),
                             ),
                           );
                         }),

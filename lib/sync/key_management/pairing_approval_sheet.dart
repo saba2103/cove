@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -68,12 +69,10 @@ class PairingApprovalSheet extends StatelessWidget {
                 horizontal: CoveSpace.lg,
                 vertical: CoveSpace.md,
               ),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.inline,
                 color: cv.surfaceRow,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.inline),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: cv.lineHairline,
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_page_header.dart';
 import 'routine_controller.dart';
@@ -210,11 +211,9 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
     final cv = context.cv;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       padding: EdgeInsets.only(
         left: CoveSpace.gutter,
@@ -262,10 +261,8 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Event Title',
                   hintText: 'e.g. Morning Workout, Deep Work, Lunch',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(CoveRadius.inline),
-                    ),
+                  border: CoveInputBorder(
+                    radius: CoveRadius.inline,
                   ),
                 ),
                 validator: (val) {
@@ -282,15 +279,15 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                   Expanded(
                     child: InkWell(
                       onTap: _pickStartTime,
-                      borderRadius: BorderRadius.circular(CoveRadius.inline),
+                      customBorder: CoveShape.border(CoveRadius.inline),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: CoveSpace.md,
                         ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cv.lineHairline),
-                          borderRadius: BorderRadius.circular(CoveRadius.inline),
+                        decoration: CoveShape.decoration(
+                          CoveRadius.inline,
+                          side: BorderSide(color: cv.lineHairline),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,15 +315,15 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                   Expanded(
                     child: InkWell(
                       onTap: _pickEndTime,
-                      borderRadius: BorderRadius.circular(CoveRadius.inline),
+                      customBorder: CoveShape.border(CoveRadius.inline),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: CoveSpace.md,
                         ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: cv.lineHairline),
-                          borderRadius: BorderRadius.circular(CoveRadius.inline),
+                        decoration: CoveShape.decoration(
+                          CoveRadius.inline,
+                          side: BorderSide(color: cv.lineHairline),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,10 +387,8 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Notes (optional)',
                   hintText: 'e.g. Focus blocks, items to prepare',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(CoveRadius.inline),
-                    ),
+                  border: CoveInputBorder(
+                    radius: CoveRadius.inline,
                   ),
                 ),
               ),
@@ -403,9 +398,7 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                   backgroundColor: cv.accentFill,
                   foregroundColor: cv.textOnAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                  ),
+                  shape: CoveShape.border(CoveRadius.inline),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting

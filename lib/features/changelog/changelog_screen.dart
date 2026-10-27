@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'changelog_models.dart';
@@ -62,12 +63,10 @@ class ChangelogScreen extends StatelessWidget {
             // Intro Header Card
             Container(
               padding: const EdgeInsets.all(CoveSpace.gutter),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.card,
                 color: cv.surfaceCard,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.card),
-                ),
-                border: Border.all(color: cv.lineHairline),
+                side: BorderSide(color: cv.lineHairline),
               ),
               child: Row(
                 children: [
@@ -105,11 +104,9 @@ class ChangelogScreen extends StatelessWidget {
                                 horizontal: CoveSpace.sm,
                                 vertical: CoveSpace.xs,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: CoveShape.decoration(
+                                _kChipRadius,
                                 color: cv.accentWash,
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(_kChipRadius),
-                                ),
                               ),
                               child: Text(
                                 'LATEST v$kCoveCurrentAppVersion',
@@ -265,12 +262,10 @@ class _TimelineItemRow extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: CoveSpace.gutter),
               child: Container(
                 padding: const EdgeInsets.all(_kCardPadding),
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.card,
                   color: cv.surfaceCard,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.card),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: item.isFeatured
                         ? cv.accentFill.withValues(alpha: 0.3)
                         : cv.lineHairline,
@@ -301,11 +296,9 @@ class _TimelineItemRow extends StatelessWidget {
                                   horizontal: CoveSpace.sm,
                                   vertical: CoveSpace.xs,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: CoveShape.decoration(
+                                  _kChipRadius,
                                   color: cv.accentWash,
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(_kChipRadius),
-                                  ),
                                 ),
                                 child: Text(
                                   item.version,
@@ -320,12 +313,10 @@ class _TimelineItemRow extends StatelessWidget {
                                   horizontal: CoveSpace.sm,
                                   vertical: CoveSpace.xs,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: CoveShape.decoration(
+                                  _kChipRadius,
                                   color: cv.surfaceRow,
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(_kChipRadius),
-                                  ),
-                                  border: Border.all(color: cv.lineHairline),
+                                  side: BorderSide(color: cv.lineHairline),
                                 ),
                                 child: Text(
                                   item.category.toUpperCase(),
@@ -395,12 +386,10 @@ class _TimelineItemRow extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(CoveSpace.md),
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        _kUnderTheHoodRadius,
                         color: cv.surfaceRow,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(_kUnderTheHoodRadius),
-                        ),
-                        border: Border.all(
+                        side: BorderSide(
                           color: cv.lineHairline.withValues(alpha: 0.7),
                         ),
                       ),

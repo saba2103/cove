@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -44,9 +45,7 @@ class _DeleteDataDialogState extends ConsumerState<DeleteDataDialog> {
 
     return AlertDialog(
       backgroundColor: cv.surfaceCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(CoveRadius.card)),
-      ),
+      shape: CoveShape.border(CoveRadius.card),
       title: Row(
         children: [
           Container(

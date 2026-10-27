@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -392,14 +393,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     }).toList();
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(
-          top: BorderSide(color: cv.lineHairline, width: 1),
-        ),
+        side: BorderSide(color: cv.lineHairline, width: 1),
       ),
       padding: EdgeInsets.only(
         left: CoveSpace.gutter,
@@ -477,10 +474,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               Container(
                 height: CoveSize.hit,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -577,15 +574,15 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         );
                         setState(() {});
                       },
-                      borderRadius: BorderRadius.circular(CoveRadius.pill),
+                      customBorder: CoveShape.border(CoveRadius.pill),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.decoration(
+                          CoveRadius.pill,
                           color: isExact
                               ? cv.accentWash
                               : cv.surfaceRow,
-                          borderRadius: BorderRadius.circular(CoveRadius.pill),
-                          border: Border.all(
+                          side: BorderSide(
                             color: isExact
                                 ? cv.accentFill
                                 : cv.lineHairline,
@@ -640,10 +637,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             horizontal: CoveSpace.sm,
                             vertical: 2,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: cv.accentWash,
-                            borderRadius: BorderRadius.circular(CoveRadius.pill),
-                            border: Border.all(
+                            side: BorderSide(
                               color: cv.accentFill.withValues(alpha: 0.4),
                               width: 1,
                             ),
@@ -662,10 +659,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 const SizedBox(height: CoveSpace.sm),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                    border: Border.all(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,10 +694,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             ),
                           ),
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.pill,
                               color: cv.surfaceCard,
-                              borderRadius: BorderRadius.circular(CoveRadius.pill),
-                              border: Border.all(color: cv.lineHairline, width: 1),
+                              side: BorderSide(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -747,12 +744,12 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             onTap: () => _updateTenure(months),
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
+                              decoration: CoveShape.decoration(
+                                CoveRadius.pill,
                                 color: isSelected
                                     ? cv.accentWash
                                     : cv.surfaceCard,
-                                borderRadius: BorderRadius.circular(CoveRadius.pill),
-                                border: Border.all(
+                                side: BorderSide(
                                   color: isSelected ? cv.accentFill : cv.lineHairline,
                                   width: 1,
                                 ),
@@ -794,11 +791,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                       horizontal: 6,
                                       vertical: 1.5,
                                     ),
-                                    decoration: BoxDecoration(
+                                    decoration: CoveShape.decoration(
+                                      CoveRadius.pill,
                                       color: cv.accentWash,
-                                      borderRadius: BorderRadius.circular(
-                                        CoveRadius.pill,
-                                      ),
                                     ),
                                     child: Text(
                                       'Syncs with Last Due',
@@ -820,10 +815,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             ],
                           );
                           final paidStepper = Container(
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.pill,
                               color: cv.surfaceCard,
-                              borderRadius: BorderRadius.circular(CoveRadius.pill),
-                              border: Border.all(color: cv.lineHairline, width: 1),
+                              side: BorderSide(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -968,16 +963,16 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 const SizedBox(height: CoveSpace.sm),
                 InkWell(
                   onTap: _pickEndDate,
-                  borderRadius: BorderRadius.circular(CoveRadius.inline),
+                  customBorder: CoveShape.border(CoveRadius.inline),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: CoveSpace.md,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.inline,
                       color: cv.surfaceRow,
-                      borderRadius: BorderRadius.circular(CoveRadius.inline),
-                      border: Border.all(
+                      side: BorderSide(
                         color: cv.accentFill.withValues(alpha: 0.5),
                         width: 1,
                       ),
@@ -1035,10 +1030,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               Container(
                 height: CoveSize.hit,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -1075,10 +1070,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                    border: Border.all(
+                    side: BorderSide(
                       color: cv.accentFill.withValues(alpha: 0.35),
                       width: 1,
                     ),
@@ -1113,10 +1108,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                           ),
                           // Stepper controls
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.pill,
                               color: cv.surfaceCard,
-                              borderRadius: BorderRadius.circular(CoveRadius.pill),
-                              border: Border.all(color: cv.lineHairline, width: 1),
+                              side: BorderSide(color: cv.lineHairline, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1178,13 +1173,13 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               InkWell(
                 onTap: _pickDate,
-                borderRadius: BorderRadius.circular(CoveRadius.pill),
+                customBorder: CoveShape.border(CoveRadius.pill),
                 child: Container(
                   height: CoveSize.hit,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.pill),
-                    border: Border.all(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
@@ -1227,18 +1222,18 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       padding: const EdgeInsets.only(right: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _category = cat),
-                        borderRadius: BorderRadius.circular(CoveRadius.pill),
+                        customBorder: CoveShape.border(CoveRadius.pill),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: CoveSpace.sm,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: isSelected
                                 ? cv.accentWash
                                 : cv.surfaceRow,
-                            borderRadius: BorderRadius.circular(CoveRadius.pill),
-                            border: Border.all(
+                            side: BorderSide(
                               color: isSelected
                                   ? cv.accentFill
                                   : cv.lineHairline,
@@ -1268,10 +1263,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               Container(
                 height: CoveSize.hit,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -1315,10 +1310,10 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.inline,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.inline),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
@@ -1429,9 +1424,9 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Text(
           label,
@@ -1462,15 +1457,15 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
           horizontal: CoveSpace.sm,
         ),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: isSelected ? cv.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
-          border: isSelected
-              ? Border.all(
+          side: isSelected
+              ? BorderSide(
                   color: cv.accentFill.withValues(alpha: 0.5),
                   width: 1,
                 )
-              : null,
+              : BorderSide.none,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1502,14 +1497,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     final isSelected = _customMonths == months;
     return InkWell(
       onTap: () => setState(() => _customMonths = months),
-      borderRadius: BorderRadius.circular(CoveRadius.pill),
+      customBorder: CoveShape.border(CoveRadius.pill),
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentWash : cv.surfaceCard,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
-          border: Border.all(
+          side: BorderSide(
             color: isSelected ? cv.accentFill : cv.lineHairline,
             width: 1,
           ),
@@ -1534,17 +1529,17 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(CoveRadius.pill),
+      customBorder: CoveShape.border(CoveRadius.pill),
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
-          border: isSelected
-              ? Border.all(color: cv.lineHairline, width: 1)
-              : null,
-          boxShadow: isSelected
+          side: isSelected
+              ? BorderSide(color: cv.lineHairline, width: 1)
+              : BorderSide.none,
+          shadows: isSelected
               ? [
                   BoxShadow(
                     color: cv.surfaceScrim.withValues(alpha: 0.04),

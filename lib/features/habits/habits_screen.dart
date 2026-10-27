@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_checkbox.dart';
 import '../../core/widgets/cove_empty_state.dart';
@@ -533,9 +534,9 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                                 horizontal: 6,
                                 vertical: 1,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: CoveShape.decoration(
+                                CoveRadius.pill,
                                 color: cv.accentWash,
-                                borderRadius: BorderRadius.circular(CoveRadius.pill),
                               ),
                               child: Text(
                                 'Acknowledged',
@@ -597,8 +598,8 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   minHeight: CoveSize.hit,
                 ),
                 color: cv.surfaceCard,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(CoveRadius.inline),
+                shape: CoveShape.border(
+                  CoveRadius.inline,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 onSelected: (action) async {

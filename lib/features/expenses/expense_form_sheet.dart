@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -249,14 +250,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     final partnerName = partnerProfile.displayName;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(
-          top: BorderSide(color: cv.lineHairline, width: 1),
-        ),
+        side: BorderSide(color: cv.lineHairline, width: 1),
       ),
       padding: EdgeInsets.only(
         left: CoveSpace.gutter,
@@ -291,10 +288,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               // Entry Type Segment Switcher (Expense vs Transfer)
               Container(
                 height: 44,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -394,13 +391,13 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                         const SizedBox(height: CoveSpace.sm),
                         InkWell(
                           onTap: _pickDate,
-                          borderRadius: BorderRadius.circular(CoveRadius.pill),
+                          customBorder: CoveShape.border(CoveRadius.pill),
                           child: Container(
                             height: CoveSize.hit,
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.pill,
                               color: cv.surfaceRow,
-                              borderRadius: BorderRadius.circular(CoveRadius.pill),
-                              border: Border.all(
+                              side: BorderSide(
                                 color: cv.lineHairline,
                                 width: 1,
                               ),
@@ -447,10 +444,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               Container(
                 height: CoveSize.hit,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -507,10 +504,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.inline,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.inline),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Row(
@@ -553,10 +550,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 // Transfer Notice Banner
                 Container(
                   padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                    border: Border.all(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
                   child: Row(
                     children: [
@@ -656,18 +653,18 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                                   _selectedCategory = cat;
                                   _isCustomCategory = false;
                                 }),
-                                borderRadius: BorderRadius.circular(CoveRadius.pill),
+                                customBorder: CoveShape.border(CoveRadius.pill),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: CoveSpace.sm,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: CoveShape.decoration(
+                                    CoveRadius.pill,
                                     color: isSelected
                                         ? cv.accentWash
                                         : cv.surfaceRow,
-                                    borderRadius: BorderRadius.circular(CoveRadius.pill),
-                                    border: Border.all(
+                                    side: BorderSide(
                                       color: isSelected
                                           ? cv.accentFill
                                           : cv.lineHairline,
@@ -719,10 +716,10 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                 ),
                 const SizedBox(height: CoveSpace.sm),
                 Container(
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                    border: Border.all(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
                   padding: const EdgeInsets.all(CoveSpace.xs),
                   child: Column(
@@ -833,9 +830,9 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Text(
           label,
@@ -863,15 +860,15 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
         duration: CoveMotion.q(context),
         padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: isSelected ? cv.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
-          border: isSelected
-              ? Border.all(
+          side: isSelected
+              ? BorderSide(
                   color: cv.accentFill.withValues(alpha: 0.5),
                   width: 1,
                 )
-              : null,
+              : BorderSide.none,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -911,15 +908,15 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
         duration: CoveMotion.q(context),
         padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: isSelected ? cv.surfaceCard : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
-          border: isSelected
-              ? Border.all(
+          side: isSelected
+              ? BorderSide(
                   color: cv.accentFill.withValues(alpha: 0.5),
                   width: 1,
                 )
-              : null,
+              : BorderSide.none,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -955,9 +952,9 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.accentFill : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -198,11 +199,9 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
 
                   if (!_showManualInput && _scannerController != null) ...[
                     // Camera Scanner Viewfinder (Mobile Default)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.card),
-                      ),
-                      child: Container(
+                    CoveShape.clip(
+                      CoveRadius.card,
+                      Container(
                         width: _kScannerSize,
                         height: _kScannerSize,
                         color: Colors.black,
@@ -263,11 +262,9 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                             Container(
                               width: _kViewfinderSize,
                               height: _kViewfinderSize,
-                              decoration: BoxDecoration(
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(CoveRadius.inline),
-                                ),
-                                border: Border.all(
+                              decoration: CoveShape.decoration(
+                                CoveRadius.inline,
+                                side: BorderSide(
                                   color: cv.accentFill.withValues(alpha: 0.6),
                                   width: _kViewfinderBorderWidth,
                                 ),
@@ -299,12 +296,10 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
 
                           // Large Centered 6-Digit PIN Input Field
                           Container(
-                            decoration: BoxDecoration(
+                            decoration: CoveShape.decoration(
+                              _kPinInputRadius,
                               color: cv.surfaceRow,
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(_kPinInputRadius),
-                              ),
-                              border: Border.all(
+                              side: BorderSide(
                                 color: cv.lineHairline,
                                 width: _kPinBorderWidth,
                               ),
@@ -368,12 +363,10 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                                 horizontal: CoveSpace.lg,
                                 vertical: CoveSpace.md,
                               ),
-                              decoration: BoxDecoration(
+                              decoration: CoveShape.decoration(
+                                CoveRadius.inline,
                                 color: cv.surfaceRow,
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(CoveRadius.inline),
-                                ),
-                                border: Border.all(color: cv.lineHairline),
+                                side: BorderSide(color: cv.lineHairline),
                               ),
                               child: Column(
                                 children: [
@@ -424,12 +417,10 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                         horizontal: CoveSpace.md,
                         vertical: CoveSpace.sm,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        _kErrorRadius,
                         color: cv.statusAlert.withValues(alpha: 0.12),
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(_kErrorRadius),
-                        ),
-                        border: Border.all(
+                        side: BorderSide(
                           color: cv.statusAlert.withValues(alpha: 0.3),
                         ),
                       ),

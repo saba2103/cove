@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import 'list_controller.dart';
@@ -69,8 +70,8 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
 
     return Dialog(
       backgroundColor: cv.surfaceCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.card)),
+      shape: CoveShape.border(
+        CoveRadius.card,
         side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
       ),
       insetPadding: const EdgeInsets.symmetric(
@@ -94,12 +95,10 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
             ),
             const SizedBox(height: _kTitleBottomGap),
             Container(
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveSpace.md,
                 color: cv.surfaceRow,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveSpace.md),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: cv.lineHairline,
                   width: _kBorderWidth,
                 ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_page_header.dart';
 import 'routine_controller.dart';
@@ -174,11 +175,9 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
     final cv = context.cv;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       padding: EdgeInsets.only(
         left: CoveSpace.gutter,
@@ -224,10 +223,8 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
                 decoration: const InputDecoration(
                   labelText: 'Routine Name',
                   hintText: 'e.g. Weekday, Weekend, Saturday',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(CoveRadius.inline),
-                    ),
+                  border: CoveInputBorder(
+                    radius: CoveRadius.inline,
                   ),
                 ),
                 validator: (val) {
@@ -313,9 +310,7 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
                   backgroundColor: cv.accentFill,
                   foregroundColor: cv.textOnAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                  ),
+                  shape: CoveShape.border(CoveRadius.inline),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
                 child: _isSubmitting

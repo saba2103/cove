@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_grouped_list.dart';
 import '../../core/widgets/cove_page_header.dart';
@@ -36,11 +37,9 @@ class CurrencySelectorSheet extends ConsumerWidget {
         right: CoveSpace.gutter,
         top: CoveSpace.lg,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -72,11 +71,9 @@ class CurrencySelectorSheet extends ConsumerWidget {
                   width: _kBadgeSize,
                   height: _kBadgeSize,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveSpace.sm,
                     color: cv.surfaceRow,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveSpace.sm),
-                    ),
                   ),
                   child: Text(
                     currency.symbol,

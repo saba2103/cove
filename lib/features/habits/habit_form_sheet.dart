@@ -1,6 +1,7 @@
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
@@ -155,14 +156,10 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
     final partnerName = ref.watch(partnerProfileProvider).displayName;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(
-          top: BorderSide(color: cv.lineHairline, width: 1),
-        ),
+        side: BorderSide(color: cv.lineHairline, width: 1),
       ),
       padding: EdgeInsets.only(
         left: CoveSpace.gutter,
@@ -216,10 +213,10 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.pill),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
                 child: Row(
@@ -286,16 +283,16 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               InkWell(
                 onTap: _pickTime,
-                borderRadius: BorderRadius.circular(CoveRadius.inline),
+                customBorder: CoveShape.border(CoveRadius.inline),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: CoveSpace.md,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: BorderRadius.circular(CoveRadius.inline),
-                    border: Border.all(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
                   child: Row(
                     children: [
@@ -356,10 +353,10 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.inline,
                   color: cv.surfaceRow,
-                  borderRadius: BorderRadius.circular(CoveRadius.inline),
-                  border: Border.all(color: cv.lineHairline, width: 1),
+                  side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
@@ -448,62 +445,67 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
       (7, 'S', 'Sun'),
     ];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: days.map((day) {
-        final dayNum = day.$1;
-        final letter = day.$2;
-        final isSelected = _selectedDays.contains(dayNum);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final chipSize = ((constraints.maxWidth - 6 * CoveSpace.xs) / 7)
+            .clamp(32.0, CoveSize.buttonRound);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: days.map((day) {
+            final dayNum = day.$1;
+            final letter = day.$2;
+            final isSelected = _selectedDays.contains(dayNum);
 
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              if (_cadence == 'weekly') {
-                // Weekly is single day selection
-                _selectedDays = {dayNum};
-              } else {
-                // Custom allows multi-selection
-                if (isSelected) {
-                  if (_selectedDays.length > 1) {
-                    _selectedDays.remove(dayNum);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (_cadence == 'weekly') {
+                    // Weekly is single day selection
+                    _selectedDays = {dayNum};
+                  } else {
+                    // Custom allows multi-selection
+                    if (isSelected) {
+                      if (_selectedDays.length > 1) {
+                        _selectedDays.remove(dayNum);
+                      }
+                    } else {
+                      _selectedDays.add(dayNum);
+                    }
+                    _targetDays = _selectedDays.length;
                   }
-                } else {
-                  _selectedDays.add(dayNum);
-                }
-                _targetDays = _selectedDays.length;
-              }
-            });
-          },
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: CoveMotion.q(context),
-            width: CoveSize.buttonRound,
-            height: CoveSize.buttonRound,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? cv.accentFill
-                  : cv.surfaceRow,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected
-                    ? cv.accentFill
-                    : cv.lineHairline,
-                width: 1,
+                });
+              },
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: chipSize,
+                height: chipSize,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? cv.accentFill
+                      : cv.surfaceRow,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? cv.accentFill
+                        : cv.lineHairline,
+                    width: 1,
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  letter,
+                  style: CoveType.readout.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? cv.textOnAccent
+                        : cv.textPrimary,
+                  ),
+                ),
               ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              letter,
-              style: CoveType.readout.copyWith(
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? cv.textOnAccent
-                    : cv.textPrimary,
-              ),
-            ),
-          ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 
@@ -522,11 +524,11 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(vertical: 9),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected
               ? (isDark ? cv.accentFill : cv.surfaceCard)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.pill),
         ),
         child: Text(
           label,
@@ -558,14 +560,14 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
           vertical: 10,
           horizontal: CoveSpace.sm,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: isSelected
               ? cv.surfaceCard
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(CoveRadius.inline),
-          border: isSelected
-              ? Border.all(color: cv.accentFill.withValues(alpha: 0.3), width: 1)
-              : null,
+          side: isSelected
+              ? BorderSide(color: cv.accentFill.withValues(alpha: 0.3), width: 1)
+              : BorderSide.none,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

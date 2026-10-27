@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
@@ -251,12 +252,10 @@ class _CalendarEventFormSheetState
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
-        border: Border(top: BorderSide(color: cv.lineHairline)),
+        side: BorderSide(color: cv.lineHairline),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -275,9 +274,9 @@ class _CalendarEventFormSheetState
                 child: Container(
                   width: 36,
                   height: CoveSpace.xs,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
                     color: cv.lineHairline,
-                    borderRadius: BorderRadius.circular(CoveRadius.pill),
                   ),
                 ),
               ),
@@ -539,18 +538,18 @@ class _CalendarEventFormSheetState
                       padding: const EdgeInsets.only(right: CoveSpace.sm),
                       child: InkWell(
                         onTap: () => setState(() => _recurrence = rule.$1),
-                        borderRadius: BorderRadius.circular(CoveRadius.pill),
+                        customBorder: CoveShape.border(CoveRadius.pill),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: CoveSpace.sm,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: isSelected
                                 ? cv.accentWash
                                 : cv.surfaceRow,
-                            borderRadius: BorderRadius.circular(CoveRadius.pill),
-                            border: Border.all(
+                            side: BorderSide(
                               color: isSelected
                                   ? cv.accentFill
                                   : cv.lineHairline,
