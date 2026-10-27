@@ -1682,13 +1682,18 @@ class _TestSubscriptionController extends SubscriptionController {
   }
 
   @override
-  Future<void> renewOrPaySubscription(
+  Future<String?> renewOrPaySubscription(
     String id, {
     required bool isPrivate,
     bool logExpense = false,
   }) async {
-    await super.renewOrPaySubscription(id, isPrivate: isPrivate, logExpense: logExpense);
+    final createdExpenseId = await super.renewOrPaySubscription(
+      id,
+      isPrivate: isPrivate,
+      logExpense: logExpense,
+    );
     await onMutate();
+    return createdExpenseId;
   }
 }
 

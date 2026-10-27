@@ -174,6 +174,7 @@ class SubscriptionController {
           billingCycle: Value(billingCycle),
           nextBillingDate: Value(nextBillingDate),
           category: Value(category),
+          isActive: const Value(true),
           isPrivate: const Value(true),
           endDate: Value(endDate),
           paidBy: Value(resolvedPaidBy),
@@ -261,7 +262,8 @@ class SubscriptionController {
 
   /// Advances next billing date by 1 billing cycle, increments paid installments if EMI,
   /// completes EMI if reached total installments, and optionally records payment to Expenses.
-  Future<void> renewOrPaySubscription(
+  /// Returns the created expense ID when [logExpense] is true, or `null` otherwise.
+  Future<String?> renewOrPaySubscription(
     String id, {
     required bool isPrivate,
     bool logExpense = false,
@@ -270,7 +272,7 @@ class SubscriptionController {
     if (homeId == null) throw StateError('No active home selected.');
 
     final sub = await (_db.select(_db.localSubscriptions)..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (sub == null) return;
+    if (sub == null) return null;
 
     final cycleMonths = getBillingCycleMonths(sub.billingCycle);
     final currentNext = sub.nextBillingDate.toLocal();
@@ -339,7 +341,7 @@ class SubscriptionController {
           ? '${sub.name} (EMI Installment $newPaid/${sub.totalInstallments ?? 12})'
           : '${sub.name} (Renewal)';
 
-      await expenseCtrl.logExpense(
+      return await expenseCtrl.logExpense(
         title: title,
         amount: sub.amount,
         currency: sub.currency,
@@ -352,11 +354,14 @@ class SubscriptionController {
         visibility: visibility,
       );
     }
+
+    return null;
   }
 
   /// Forecloses/precloses an EMI: marks all remaining installments as paid and marks isActive = false.
   /// Optionally logs the full payoff amount as an expense.
-  Future<void> forecloseEmi(
+  /// Returns the created expense ID when [logExpense] is true, or `null` otherwise.
+  Future<String?> forecloseEmi(
     String id, {
     required bool isPrivate,
     bool logExpense = false,
@@ -365,7 +370,7 @@ class SubscriptionController {
     if (homeId == null) throw StateError('No active home selected.');
 
     final sub = await (_db.select(_db.localSubscriptions)..where((t) => t.id.equals(id))).getSingleOrNull();
-    if (sub == null) return;
+    if (sub == null) return null;
 
     final total = sub.totalInstallments ?? 12;
     final currentPaid = sub.paidInstallments ?? 0;
@@ -412,7 +417,7 @@ class SubscriptionController {
           ? ExpenseVisibility.privateToMe
           : ExpenseVisibility.shared;
 
-      await expenseCtrl.logExpense(
+      return await expenseCtrl.logExpense(
         title: '${sub.name} (EMI Foreclosure Payoff)',
         amount: payoffAmount,
         currency: sub.currency,
@@ -423,6 +428,8 @@ class SubscriptionController {
         visibility: visibility,
       );
     }
+
+    return null;
   }
 
   /// Permanently deletes a subscription.

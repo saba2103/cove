@@ -7,6 +7,12 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Fixed
+- **Task 4.6b — Undoing "Mark paid" Deletes Logged Expense & Restores Commitment (`Oct 27, 2026`)**:
+  - *Outcome*:
+    1. **`renewOrPaySubscription` & `forecloseEmi` Return Logged Expense ID (`lib/features/subscriptions/subscription_controller.dart`)**: Both methods now return `Future<String?>` with the created expense ID when `logExpense` is ticked (`true`), or `null` when unticked, and `updateSubscription` restores `isActive: true` for private commitments as well as shared ones.
+    2. **Undo Deletes Logged Expense via `expenseController` (`lib/features/subscriptions/commitment_detail_sheet.dart`)**: In `_handleMarkPaid` and `_handleForecloseEmi`, when `createdExpenseId != null`, tapping Undo deletes that expense through `expenseControllerProvider.deleteExpense(...)` (so `expense_deleted` syncs to the partner device) in addition to restoring the commitment's fields. When `logExpense` was not ticked, no expense is touched.
+  - *Under the Hood*:
+    - Added [`test/mark_paid_undo_46b_test.dart`](../test/mark_paid_undo_46b_test.dart) verifying mark-paid with logging → undo (commitment restored as before and the logged expense deleted via `expenseController`) and mark-paid without logging → undo (commitment restored and no expense touched).
 - **Task 4.6a — Deferred Delete via `PendingDeleteService` Across All Undoable Deletes (`Oct 27, 2026`)**:
   - *Outcome*:
     1. **Single `PendingDeleteService` (`lib/sync/pending_delete_service.dart`)**: Deleting an undoable record now hides it locally at once via `pendingDeleteRecordsProvider` / `pendingDeleteIdsProvider` (filtering providers and screens with zero database writes or tombstones) and persists `{kind, id, at}` in `SharedPreferences` (`cove_pending_deletes_v1`).

@@ -13,6 +13,7 @@ import '../../core/widgets/slips/cove_voucher.dart';
 import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../auth/auth_controller.dart';
+import '../expenses/expense_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -443,11 +444,13 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(subscriptionControllerProvider).renewOrPaySubscription(
-            _sub.id,
-            isPrivate: _sub.isPrivate,
-            logExpense: logExpense,
-          );
+      final subController = ref.read(subscriptionControllerProvider);
+      final expenseController = ref.read(expenseControllerProvider);
+      final createdExpenseId = await subController.renewOrPaySubscription(
+        _sub.id,
+        isPrivate: _sub.isPrivate,
+        logExpense: logExpense,
+      );
       if (mounted) {
         setState(() {
           _markedPaidInSession = true;
@@ -467,21 +470,29 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
               : 'Renewed "${_sub.name}" for another cycle',
           icon: Icons.check_circle_outline_rounded,
           onUndo: () async {
-            await ref.read(subscriptionControllerProvider).updateSubscription(
-                  id: _sub.id,
-                  name: _sub.name,
-                  amount: _sub.amount,
-                  currency: _sub.currency,
-                  billingCycle: _sub.billingCycle,
-                  nextBillingDate: _sub.nextBillingDate,
-                  category: _sub.category,
-                  isPrivate: _sub.isPrivate,
-                  endDate: _sub.endDate,
-                  paidBy: _sub.paidBy,
-                  financedThrough: _sub.financedThrough,
-                  totalInstallments: _sub.totalInstallments,
-                  paidInstallments: _sub.paidInstallments,
-                );
+            if (createdExpenseId != null) {
+              await expenseController.deleteExpense(
+                createdExpenseId,
+                visibility: _sub.isPrivate
+                    ? ExpenseVisibility.privateToMe
+                    : ExpenseVisibility.shared,
+              );
+            }
+            await subController.updateSubscription(
+              id: _sub.id,
+              name: _sub.name,
+              amount: _sub.amount,
+              currency: _sub.currency,
+              billingCycle: _sub.billingCycle,
+              nextBillingDate: _sub.nextBillingDate,
+              category: _sub.category,
+              isPrivate: _sub.isPrivate,
+              endDate: _sub.endDate,
+              paidBy: _sub.paidBy,
+              financedThrough: _sub.financedThrough,
+              totalInstallments: _sub.totalInstallments,
+              paidInstallments: _sub.paidInstallments,
+            );
             if (mounted) {
               setState(() {
                 _markedPaidInSession = false;
@@ -710,11 +721,13 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(subscriptionControllerProvider).forecloseEmi(
-            _sub.id,
-            isPrivate: _sub.isPrivate,
-            logExpense: logExpense,
-          );
+      final subController = ref.read(subscriptionControllerProvider);
+      final expenseController = ref.read(expenseControllerProvider);
+      final createdExpenseId = await subController.forecloseEmi(
+        _sub.id,
+        isPrivate: _sub.isPrivate,
+        logExpense: logExpense,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
@@ -722,21 +735,29 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
           message: 'Foreclosed "${_sub.name}" · Loan closed',
           icon: Icons.task_alt_rounded,
           onUndo: () async {
-            await ref.read(subscriptionControllerProvider).updateSubscription(
-                  id: _sub.id,
-                  name: _sub.name,
-                  amount: _sub.amount,
-                  currency: _sub.currency,
-                  billingCycle: _sub.billingCycle,
-                  nextBillingDate: _sub.nextBillingDate,
-                  category: _sub.category,
-                  isPrivate: _sub.isPrivate,
-                  endDate: _sub.endDate,
-                  paidBy: _sub.paidBy,
-                  financedThrough: _sub.financedThrough,
-                  totalInstallments: _sub.totalInstallments,
-                  paidInstallments: _sub.paidInstallments,
-                );
+            if (createdExpenseId != null) {
+              await expenseController.deleteExpense(
+                createdExpenseId,
+                visibility: _sub.isPrivate
+                    ? ExpenseVisibility.privateToMe
+                    : ExpenseVisibility.shared,
+              );
+            }
+            await subController.updateSubscription(
+              id: _sub.id,
+              name: _sub.name,
+              amount: _sub.amount,
+              currency: _sub.currency,
+              billingCycle: _sub.billingCycle,
+              nextBillingDate: _sub.nextBillingDate,
+              category: _sub.category,
+              isPrivate: _sub.isPrivate,
+              endDate: _sub.endDate,
+              paidBy: _sub.paidBy,
+              financedThrough: _sub.financedThrough,
+              totalInstallments: _sub.totalInstallments,
+              paidInstallments: _sub.paidInstallments,
+            );
           },
         );
       }
