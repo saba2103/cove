@@ -7,6 +7,7 @@ import '../db/app_database.dart';
 import '../db/local_state_store_impl.dart';
 import '../event_store_impl.dart';
 import '../key_management/home_key_store.dart';
+import '../pending_delete_service.dart';
 import '../sync_engine_impl.dart';
 import 'active_home_provider.dart';
 
@@ -115,14 +116,24 @@ final activeHomeListItemsProvider =
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchListItems(activeId, listId);
+  return watchWithoutPendingDeletes<LocalListItem>(
+    ref: ref,
+    kind: PendingDeleteKind.listItem,
+    source: db.watchListItems(activeId, listId),
+    idOf: (i) => i.id,
+  );
 });
 
 final activeHomeAllListItemsProvider = StreamProvider<List<LocalListItem>>((ref) {
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchAllHomeListItems(activeId);
+  return watchWithoutPendingDeletes<LocalListItem>(
+    ref: ref,
+    kind: PendingDeleteKind.listItem,
+    source: db.watchAllHomeListItems(activeId),
+    idOf: (i) => i.id,
+  );
 });
 
 
@@ -132,7 +143,12 @@ final activeHomeSubscriptionsProvider =
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
   final user = ref.watch(authProvider).value;
-  return db.watchSubscriptions(activeId, currentUserId: user?.id);
+  return watchWithoutPendingDeletes<LocalSubscription>(
+    ref: ref,
+    kind: PendingDeleteKind.commitment,
+    source: db.watchSubscriptions(activeId, currentUserId: user?.id),
+    idOf: (s) => s.id,
+  );
 });
 
 final activeHomeExpensesProvider = StreamProvider<List<LocalExpense>>((ref) {
@@ -140,7 +156,12 @@ final activeHomeExpensesProvider = StreamProvider<List<LocalExpense>>((ref) {
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
   final user = ref.watch(authProvider).value;
-  return db.watchExpenses(activeId, currentUserId: user?.id);
+  return watchWithoutPendingDeletes<LocalExpense>(
+    ref: ref,
+    kind: PendingDeleteKind.expense,
+    source: db.watchExpenses(activeId, currentUserId: user?.id),
+    idOf: (e) => e.id,
+  );
 });
 
 final activeHomeHabitsProvider = StreamProvider<List<LocalHabit>>((ref) {
@@ -148,7 +169,12 @@ final activeHomeHabitsProvider = StreamProvider<List<LocalHabit>>((ref) {
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
   final user = ref.watch(authProvider).value;
-  return db.watchHabits(activeId, currentUserId: user?.id);
+  return watchWithoutPendingDeletes<LocalHabit>(
+    ref: ref,
+    kind: PendingDeleteKind.habit,
+    source: db.watchHabits(activeId, currentUserId: user?.id),
+    idOf: (h) => h.id,
+  );
 });
 
 final activeHomeHabitCheckinsProvider =
@@ -172,7 +198,12 @@ final activeHomeCalendarEventsProvider =
   final activeId = ref.watch(activeHomeIdProvider);
   if (activeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchCalendarEvents(activeId);
+  return watchWithoutPendingDeletes<LocalCalendarEvent>(
+    ref: ref,
+    kind: PendingDeleteKind.event,
+    source: db.watchCalendarEvents(activeId),
+    idOf: (e) => e.id,
+  );
 });
 
 final activeHomeOutboxProvider = StreamProvider<List<LocalOutboxEvent>>((ref) {

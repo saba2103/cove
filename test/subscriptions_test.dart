@@ -1120,7 +1120,18 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      // Verify delete sync event was dispatched
+      // Immediately hidden locally while pending, with zero delete events during the undo window
+      expect(find.text('Gym Membership'), findsNothing);
+      expect(
+        fakeEngine.dispatchedEvents.any((e) => e['eventType'] == 'subscription_deleted'),
+        isFalse,
+      );
+
+      // Advance past the 5-second undo toast window so the deferred delete commits
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      // Verify delete sync event was dispatched after timeout
       expect(
         fakeEngine.dispatchedEvents.any((e) => e['eventType'] == 'subscription_deleted'),
         isTrue,

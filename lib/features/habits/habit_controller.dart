@@ -257,6 +257,7 @@ class HabitController {
     final emitAction = ref.read(coveEmitActionProvider);
     await emitAction(
       eventType: 'habit_deleted',
+      targetHomeId: habit.homeId,
       payload: {
         'id': habit.id,
         'habit_id': habit.id,

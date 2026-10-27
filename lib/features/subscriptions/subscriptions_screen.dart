@@ -21,6 +21,7 @@ import '../../core/widgets/cove_section_label.dart';
 import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_starter_row.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../../sync/providers/first_run_provider.dart';
@@ -187,8 +188,15 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
   Widget _buildContent(
     BuildContext context,
-    List<LocalSubscription> subscriptions,
+    List<LocalSubscription> rawSubscriptions,
   ) {
+    final pendingCommitmentIds =
+        ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.commitment));
+    final subscriptions = pendingCommitmentIds.isEmpty
+        ? rawSubscriptions
+        : rawSubscriptions
+            .where((s) => !pendingCommitmentIds.contains(s.id))
+            .toList(growable: false);
     final cv = context.cv;
     final bottomPadding =
         CoveSpace.barClearance + CovePageInsets.bottomOf(context);

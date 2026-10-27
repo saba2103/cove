@@ -11,6 +11,7 @@ import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../core/widgets/slips/cove_voucher.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
@@ -231,30 +232,21 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(subscriptionControllerProvider).deleteSubscription(
-            _sub.id,
-            isPrivate: _sub.isPrivate,
-          );
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.commitment,
+        id: _sub.id,
+        commitmentIsPrivate: _sub.isPrivate,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
           message: 'Deleted "${_sub.name}"',
-          onUndo: () =>
-              ref.read(subscriptionControllerProvider).createSubscription(
-                    name: _sub.name,
-                    amount: _sub.amount,
-                    currency: _sub.currency,
-                    billingCycle: _sub.billingCycle,
-                    nextBillingDate: _sub.nextBillingDate,
-                    category: _sub.category,
-                    isPrivate: _sub.isPrivate,
-                    endDate: _sub.endDate,
-                    paidBy: _sub.paidBy,
-                    financedThrough: _sub.financedThrough,
-                    totalInstallments: _sub.totalInstallments,
-                    paidInstallments: _sub.paidInstallments,
-                  ),
+          onUndo: () => pendingDelete.undoDelete(
+            kind: PendingDeleteKind.commitment,
+            id: _sub.id,
+          ),
         );
       }
     }

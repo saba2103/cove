@@ -39,6 +39,7 @@ import 'features/widgets/cove_widget_tick_service.dart';
 import 'firebase_options.dart';
 import 'sync/db/app_database.dart';
 import 'sync/key_management/pairing_crypto.dart';
+import 'sync/pending_delete_service.dart';
 import 'sync/providers/active_home_provider.dart';
 import 'sync/providers/cove_sync_providers.dart';
 
@@ -73,6 +74,7 @@ Future<void> _ensureSupabaseInitialized() async {
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  PendingDeleteService.markAsBackgroundIsolate();
   try {
     WidgetsFlutterBinding.ensureInitialized();
     // Rule 4: While old messages carrying a notification block are still arriving,
@@ -186,6 +188,9 @@ Future<void> main() async {
   final widgetTickService = container.read(coveWidgetTickServiceProvider);
   widgetTickService.registerMainIsolatePort();
   unawaited(widgetTickService.replayUnappliedIntentsOnAppStart());
+  unawaited(
+    container.read(pendingDeleteServiceProvider).flushExpiredOnAppStart(),
+  );
 
   runApp(
     UncontrolledProviderScope(

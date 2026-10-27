@@ -270,14 +270,19 @@ class ExpenseController {
 
   /// Deletes an expense.
   Future<void> deleteExpense(String id, {required ExpenseVisibility visibility}) async {
-    final homeId = _activeHomeId;
+    LocalExpense? expense;
+    try {
+      expense = await (_db.select(_db.localExpenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+    } catch (_) {}
+
+    final homeId = _activeHomeId ?? expense?.homeId;
     if (homeId == null) throw StateError('No active home selected.');
 
-    final expense = await (_db.select(_db.localExpenses)..where((t) => t.id.equals(id))).getSingleOrNull();
-
     // 1. Immediately delete from local database and record tombstone to prevent resurrection on pull-to-refresh
-    await _db.deleteExpense(id);
-    await _db.recordTombstone(id, 'expense');
+    try {
+      await _db.deleteExpense(id);
+      await _db.recordTombstone(id, 'expense');
+    } catch (_) {}
 
     // 2. Broadcast deletion to partner if not private
     if (visibility != ExpenseVisibility.privateToMe) {
@@ -285,6 +290,7 @@ class ExpenseController {
         final emit = ref.read(coveEmitActionProvider);
         await emit(
           eventType: 'expense_deleted',
+          targetHomeId: homeId,
           payload: {
             'id': id,
             'home_id': homeId,

@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/cove_currency_formatter.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../activity/activity_formatter.dart';
@@ -37,13 +38,36 @@ final todayDataProvider = Provider<TodayData>((ref) {
   final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
   final todayString = DateFormat('yyyy-MM-dd').format(now);
 
-  final calendarEvents = ref.watch(activeHomeCalendarEventsProvider).value ?? [];
-  final subscriptions = ref.watch(activeHomeSubscriptionsProvider).value ?? [];
-  final habits = ref.watch(activeHomeHabitsProvider).value ?? [];
+  final pendingEventIds =
+      ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.event));
+  final pendingCommitmentIds =
+      ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.commitment));
+  final pendingHabitIds =
+      ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.habit));
+  final pendingListItemIds =
+      ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.listItem));
+  final pendingExpenseIds =
+      ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.expense));
+
+  final calendarEvents =
+      (ref.watch(activeHomeCalendarEventsProvider).value ?? [])
+          .where((e) => !pendingEventIds.contains(e.id))
+          .toList(growable: false);
+  final subscriptions =
+      (ref.watch(activeHomeSubscriptionsProvider).value ?? [])
+          .where((s) => !pendingCommitmentIds.contains(s.id))
+          .toList(growable: false);
+  final habits = (ref.watch(activeHomeHabitsProvider).value ?? [])
+      .where((h) => !pendingHabitIds.contains(h.id))
+      .toList(growable: false);
   final allCheckins = ref.watch(activeHomeAllHabitCheckinsProvider).value ?? [];
   final lists = ref.watch(activeHomeListsProvider).value ?? [];
-  final allListItems = ref.watch(activeHomeAllListItemsProvider).value ?? [];
-  final expenses = ref.watch(activeHomeExpensesProvider).value ?? [];
+  final allListItems = (ref.watch(activeHomeAllListItemsProvider).value ?? [])
+      .where((i) => !pendingListItemIds.contains(i.id))
+      .toList(growable: false);
+  final expenses = (ref.watch(activeHomeExpensesProvider).value ?? [])
+      .where((e) => !pendingExpenseIds.contains(e.id))
+      .toList(growable: false);
 
   // --- 1. Today's Events & Renewals ---
   final events = <TodayEventItem>[];

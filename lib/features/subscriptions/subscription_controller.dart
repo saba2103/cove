@@ -427,18 +427,26 @@ class SubscriptionController {
 
   /// Permanently deletes a subscription.
   Future<void> deleteSubscription(String id, {required bool isPrivate}) async {
-    final homeId = _activeHomeId;
+    LocalSubscription? sub;
+    try {
+      sub = await (_db.select(_db.localSubscriptions)..where((t) => t.id.equals(id))).getSingleOrNull();
+    } catch (_) {}
+
+    final homeId = _activeHomeId ?? sub?.homeId;
     if (homeId == null) throw StateError('No active home selected.');
 
     // 1. Immediately record tombstone and delete locally
-    await _db.recordTombstone(id, 'subscription');
-    await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
+    try {
+      await _db.recordTombstone(id, 'subscription');
+      await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
+    } catch (_) {}
 
     if (!isPrivate) {
       try {
         final emit = ref.read(coveEmitActionProvider);
         await emit(
           eventType: 'subscription_deleted',
+          targetHomeId: homeId,
           payload: {
             'id': id,
             'home_id': homeId,

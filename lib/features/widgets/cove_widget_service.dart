@@ -12,6 +12,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../core/theme/cove_theme.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../backup/backup_scheduler.dart';
 import '../expenses/expense_controller.dart';
@@ -1334,6 +1335,7 @@ class CoveWidgetService {
 /// (`design/specs/18-widgets.md` § Ticking & § Sizes).
 @pragma('vm:entry-point')
 Future<void> coveWidgetBackgroundCallback(Uri? uri) async {
+  PendingDeleteService.markAsBackgroundIsolate();
   if (uri == null || uri.scheme != 'cove' || uri.host != 'widget') return;
   WidgetsFlutterBinding.ensureInitialized();
 

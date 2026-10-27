@@ -7,7 +7,9 @@ import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../core/widgets/cove_pill_input.dart';
+import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import 'calendar_controller.dart';
 
 class CalendarEventFormSheet extends ConsumerStatefulWidget {
@@ -337,10 +339,25 @@ class _CalendarEventFormSheetState
                           ),
                         );
                         if (confirm == true && mounted) {
-                          await ref
-                              .read(calendarControllerProvider)
-                              .deleteEvent(widget.existing!.id);
-                          if (context.mounted) Navigator.of(context).pop();
+                          final existing = widget.existing!;
+                          final pendingDelete = ref.read(pendingDeleteServiceProvider);
+                          await pendingDelete.scheduleDelete(
+                            kind: PendingDeleteKind.event,
+                            id: existing.id,
+                          );
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            CoveUndoToast.show(
+                              context,
+                              message: 'Deleted "${existing.title}"',
+                              onUndo: () async {
+                                await pendingDelete.undoDelete(
+                                  kind: PendingDeleteKind.event,
+                                  id: existing.id,
+                                );
+                              },
+                            );
+                          }
                         }
                       },
                     ),

@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_detail_sheet.dart';
+import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_habit_card.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
@@ -89,9 +91,24 @@ class HabitDetailSheet extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(habitControllerProvider).deleteHabit(habit);
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.habit,
+        id: habit.id,
+        habit: habit,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
+        CoveUndoToast.show(
+          context,
+          message: 'Deleted "${habit.name}"',
+          onUndo: () async {
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.habit,
+              id: habit.id,
+            );
+          },
+        );
       }
     }
   }

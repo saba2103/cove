@@ -7,6 +7,7 @@ import '../../core/widgets/cove_loading.dart';
 import '../../core/widgets/cove_max_width.dart';
 import '../../core/widgets/cove_page_header.dart' show CovePageInsets;
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../add/add_flow.dart';
@@ -70,12 +71,20 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final cv = context.cv;
     final outboxEvents = ref.watch(activeHomeOutboxProvider).value ?? [];
     final hasPartner = ref.watch(activeHomeHasPartnerProvider);
+    final pendingEventIds =
+        ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.event));
+    final pendingCommitmentIds =
+        ref.watch(pendingDeleteIdsProvider(PendingDeleteKind.commitment));
 
     if (widget.initialEvents != null) {
       return _buildScaffold(
         context,
-        events: widget.initialEvents!,
-        subscriptions: widget.initialSubscriptions ?? [],
+        events: widget.initialEvents!
+            .where((e) => !pendingEventIds.contains(e.id))
+            .toList(growable: false),
+        subscriptions: (widget.initialSubscriptions ?? [])
+            .where((s) => !pendingCommitmentIds.contains(s.id))
+            .toList(growable: false),
         outboxEvents: outboxEvents,
         hasPartner: hasPartner,
       );
@@ -109,8 +118,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       );
     }
 
-    final events = eventsAsync.value ?? [];
-    final subs = subsAsync.value ?? [];
+    final events = (eventsAsync.value ?? [])
+        .where((e) => !pendingEventIds.contains(e.id))
+        .toList(growable: false);
+    final subs = (subsAsync.value ?? [])
+        .where((s) => !pendingCommitmentIds.contains(s.id))
+        .toList(growable: false);
 
     return _buildScaffold(
       context,

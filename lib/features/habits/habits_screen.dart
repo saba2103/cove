@@ -14,6 +14,7 @@ import '../../core/widgets/cove_streak_badge.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../add/add_draft.dart';
@@ -97,12 +98,20 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
   Widget _buildContent(
     BuildContext context,
-    List<LocalHabit> habits,
+    List<LocalHabit> rawHabits,
     List<LocalHabitCheckin> allCheckins,
     List<LocalOutboxEvent> outboxEvents,
     CoveUser? currentUser, {
     bool hasPartner = true,
   }) {
+    final pendingHabitIds = ref.watch(
+      pendingDeleteIdsProvider(PendingDeleteKind.habit),
+    );
+    final habits = pendingHabitIds.isEmpty
+        ? rawHabits
+        : rawHabits
+            .where((h) => !pendingHabitIds.contains(h.id))
+            .toList(growable: false);
     final cv = context.cv;
     final userId = currentUser?.id ?? 'local_user';
 
@@ -448,19 +457,20 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
       ),
       confirmDismiss: (_) => _showDeleteConfirmation(context, habit),
       onDismissed: (_) {
-        ref.read(habitControllerProvider).deleteHabit(habit);
+        final pendingDelete = ref.read(pendingDeleteServiceProvider);
+        pendingDelete.scheduleDelete(
+          kind: PendingDeleteKind.habit,
+          id: habit.id,
+          habit: habit,
+        );
         CoveUndoToast.show(
           context,
           message: 'Deleted "${habit.name}"',
           onUndo: () async {
-            await ref.read(habitControllerProvider).createHabit(
-                  name: habit.name,
-                  cadence: habit.cadence,
-                  targetDaysPerWeek: habit.targetDaysPerWeek.abs(),
-                  visibility: habit.targetDaysPerWeek < 0
-                      ? HabitVisibility.privateToMe
-                      : HabitVisibility.shared,
-                );
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.habit,
+              id: habit.id,
+            );
           },
         );
       },
@@ -608,7 +618,24 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   } else if (action == 'delete') {
                     final confirmed = await _showDeleteConfirmation(context, habit);
                     if (confirmed == true) {
-                      await ref.read(habitControllerProvider).deleteHabit(habit);
+                      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+                      await pendingDelete.scheduleDelete(
+                        kind: PendingDeleteKind.habit,
+                        id: habit.id,
+                        habit: habit,
+                      );
+                      if (context.mounted) {
+                        CoveUndoToast.show(
+                          context,
+                          message: 'Deleted "${habit.name}"',
+                          onUndo: () async {
+                            await pendingDelete.undoDelete(
+                              kind: PendingDeleteKind.habit,
+                              id: habit.id,
+                            );
+                          },
+                        );
+                      }
                     }
                   }
                 },

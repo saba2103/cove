@@ -13,6 +13,7 @@ import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_receipt.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
@@ -194,18 +195,22 @@ class ExpenseDetailSheet extends ConsumerWidget {
     if (confirmed == true && context.mounted) {
       final visibility =
           ExpenseVisibilityExtension.fromSplitRatio(expense.splitRatio);
-      await ref
-          .read(expenseControllerProvider)
-          .deleteExpense(expense.id, visibility: visibility);
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.expense,
+        id: expense.id,
+        expenseVisibility: visibility,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
         CoveUndoToast.show(
           context,
           message: 'Deleted "${expense.title}"',
           onUndo: () async {
-            await ref
-                .read(expenseControllerProvider)
-                .restoreExpense(expense);
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.expense,
+              id: expense.id,
+            );
           },
         );
       }

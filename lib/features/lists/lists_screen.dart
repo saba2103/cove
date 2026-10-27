@@ -15,6 +15,7 @@ import '../../core/widgets/cove_sync_tick.dart';
 import '../../core/widgets/cove_tab_row.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -414,16 +415,20 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   }
 
   Future<void> _handleDeleteItem(LocalListItem item) async {
-    await ref.read(listControllerProvider).deleteItem(itemId: item.id);
+    final pendingDelete = ref.read(pendingDeleteServiceProvider);
+    await pendingDelete.scheduleDelete(
+      kind: PendingDeleteKind.listItem,
+      id: item.id,
+    );
     if (mounted) {
       CoveUndoToast.show(
         context,
         message: 'Deleted "${item.title}"',
         onUndo: () async {
-          await ref.read(listControllerProvider).addItem(
-                listId: item.listId,
-                title: item.title,
-              );
+          await pendingDelete.undoDelete(
+            kind: PendingDeleteKind.listItem,
+            id: item.id,
+          );
         },
       );
     }
@@ -936,8 +941,16 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
   Widget _buildItemsList(
     BuildContext context,
     LocalList activeList,
-    List<LocalListItem> items,
+    List<LocalListItem> rawItems,
   ) {
+    final pendingItemIds = ref.watch(
+      pendingDeleteIdsProvider(PendingDeleteKind.listItem),
+    );
+    final items = pendingItemIds.isEmpty
+        ? rawItems
+        : rawItems
+            .where((i) => !pendingItemIds.contains(i.id))
+            .toList(growable: false);
     final cv = context.cv;
     final currentUser = ref.watch(authProvider).value;
     final outbox = ref.watch(activeHomeOutboxProvider).value ?? [];
@@ -1136,15 +1149,19 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
         child: Icon(Icons.delete_outline, color: cv.statusAlertText, size: 20),
       ),
       onDismissed: (_) {
-        ref.read(listControllerProvider).deleteItem(itemId: item.id);
+        final pendingDelete = ref.read(pendingDeleteServiceProvider);
+        pendingDelete.scheduleDelete(
+          kind: PendingDeleteKind.listItem,
+          id: item.id,
+        );
         CoveUndoToast.show(
           context,
           message: 'Deleted "${item.title}"',
           onUndo: () async {
-            await ref.read(listControllerProvider).addItem(
-                  listId: item.listId,
-                  title: item.title,
-                );
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.listItem,
+              id: item.id,
+            );
           },
         );
       },

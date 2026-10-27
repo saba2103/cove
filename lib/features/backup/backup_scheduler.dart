@@ -5,6 +5,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../sync/db/app_database.dart';
 import '../../sync/key_management/home_key_store.dart';
+import '../../sync/pending_delete_service.dart';
 import '../widgets/cove_widget_service.dart';
 import 'backup_service.dart';
 import 'backup_snapshot_service.dart';
@@ -116,6 +117,7 @@ class BackgroundBackupRunner {
 /// WorkManager entry point. Must be a top-level function.
 @pragma('vm:entry-point')
 void coveBackgroundDispatcher() {
+  PendingDeleteService.markAsBackgroundIsolate();
   Workmanager().executeTask((task, inputData) async {
     if (task == WorkmanagerBackupScheduler.taskName) {
       return BackgroundBackupRunner.run();

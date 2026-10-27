@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_detail_sheet.dart';
+import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_note.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../auth/auth_controller.dart';
 import '../profile/partner_profile_controller.dart';
 import 'list_controller.dart';
@@ -174,9 +176,23 @@ class ListItemDetailSheet extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(listControllerProvider).deleteItem(itemId: item.id);
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.listItem,
+        id: item.id,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
+        CoveUndoToast.show(
+          context,
+          message: 'Deleted "${item.title}"',
+          onUndo: () async {
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.listItem,
+              id: item.id,
+            );
+          },
+        );
       }
     }
   }

@@ -21,6 +21,7 @@ import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sync_tick.dart';
 import '../../core/widgets/cove_undo_toast.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../../sync/providers/first_run_provider.dart';
@@ -213,10 +214,18 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   Widget _buildContent(
     BuildContext context,
-    List<LocalExpense> allExpenses,
+    List<LocalExpense> rawExpenses,
     List<LocalOutboxEvent> outboxEvents, {
     bool hasPartner = true,
   }) {
+    final pendingExpenseIds = ref.watch(
+      pendingDeleteIdsProvider(PendingDeleteKind.expense),
+    );
+    final allExpenses = pendingExpenseIds.isEmpty
+        ? rawExpenses
+        : rawExpenses
+            .where((e) => !pendingExpenseIds.contains(e.id))
+            .toList(growable: false);
     final cv = context.cv;
     final currency = ref.watch(currencyPreferenceProvider);
     final currentUser = ref.watch(authProvider).value;
@@ -1726,11 +1735,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         ),
       ),
       onDismissed: (_) async {
+        final pendingDelete = ref.read(pendingDeleteServiceProvider);
         try {
-          await ref.read(expenseControllerProvider).deleteExpense(
-                expense.id,
-                visibility: visibility,
-              );
+          await pendingDelete.scheduleDelete(
+            kind: PendingDeleteKind.expense,
+            id: expense.id,
+            expenseVisibility: visibility,
+          );
         } catch (e) {
           debugPrint('[ExpensesScreen] Error deleting expense: $e');
         }
@@ -1739,9 +1750,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             context,
             message: 'Deleted "${expense.title}"',
             onUndo: () async {
-              await ref
-                  .read(expenseControllerProvider)
-                  .restoreExpense(expense);
+              await pendingDelete.undoDelete(
+                kind: PendingDeleteKind.expense,
+                id: expense.id,
+              );
             },
           );
         }

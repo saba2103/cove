@@ -170,31 +170,36 @@ class ListController {
     String? itemTitle,
     String? listName,
   }) async {
-    final homeId = _activeHomeId;
+    LocalListItem? item;
+    try {
+      item = await (_db.select(_db.localListItems)..where((t) => t.id.equals(itemId))).getSingleOrNull();
+    } catch (_) {}
+
+    final homeId = _activeHomeId ?? item?.homeId;
     if (homeId == null) throw StateError('No active home selected.');
 
-    String? resolvedTitle = itemTitle;
+    String? resolvedTitle = itemTitle ?? item?.title;
     String? resolvedListName = listName;
-    String? resolvedListId;
-    if (resolvedTitle == null || resolvedListName == null) {
-      final item = await (_db.select(_db.localListItems)..where((t) => t.id.equals(itemId))).getSingleOrNull();
-      resolvedTitle ??= item?.title;
-      resolvedListId = item?.listId;
-      if (resolvedListId != null) {
-        final list = await (_db.select(_db.localLists)..where((t) => t.id.equals(resolvedListId!))).getSingleOrNull();
+    final String? resolvedListId = item?.listId;
+    if (resolvedListName == null && resolvedListId != null) {
+      try {
+        final list = await (_db.select(_db.localLists)..where((t) => t.id.equals(resolvedListId))).getSingleOrNull();
         resolvedListName ??= list?.name;
-      }
+      } catch (_) {}
     }
 
     // 1. Immediately record tombstone and delete from SQLite
-    await _db.recordTombstone(itemId, 'list_item');
-    await (_db.delete(_db.localListItems)..where((t) => t.id.equals(itemId))).go();
+    try {
+      await _db.recordTombstone(itemId, 'list_item');
+      await (_db.delete(_db.localListItems)..where((t) => t.id.equals(itemId))).go();
+    } catch (_) {}
 
     // 2. Emit list_item_deleted
     try {
       final emit = ref.read(coveEmitActionProvider);
       await emit(
         eventType: 'list_item_deleted',
+        targetHomeId: homeId,
         payload: {
           'id': itemId,
           'home_id': homeId,

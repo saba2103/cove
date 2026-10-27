@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/uuid_generator.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -26,14 +27,28 @@ final selectedRoutineIdProvider =
 final routineEventsProvider = StreamProvider.family<List<RoutineEvent>, String>((ref, routineId) {
   if (routineId.isEmpty) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchRoutineEvents(routineId).map((list) => list.map(RoutineEvent.fromLocal).toList());
+  return watchWithoutPendingDeletes<RoutineEvent>(
+    ref: ref,
+    kind: PendingDeleteKind.routineEvent,
+    source: db
+        .watchRoutineEvents(routineId)
+        .map((list) => list.map(RoutineEvent.fromLocal).toList()),
+    idOf: (e) => e.id,
+  );
 });
 
 final activeHomeAllRoutineEventsProvider = StreamProvider<List<RoutineEvent>>((ref) {
   final homeId = ref.watch(activeHomeIdProvider);
   if (homeId == null) return Stream.value([]);
   final db = ref.watch(appDatabaseProvider);
-  return db.watchAllRoutineEvents(homeId).map((list) => list.map(RoutineEvent.fromLocal).toList());
+  return watchWithoutPendingDeletes<RoutineEvent>(
+    ref: ref,
+    kind: PendingDeleteKind.routineEvent,
+    source: db
+        .watchAllRoutineEvents(homeId)
+        .map((list) => list.map(RoutineEvent.fromLocal).toList()),
+    idOf: (e) => e.id,
+  );
 });
 
 final routineControllerProvider = Provider<RoutineController>((ref) => RoutineController(ref));
@@ -195,12 +210,22 @@ class RoutineController {
   }
 
   Future<void> deleteRoutineEvent(String id) async {
-    final homeId = _activeHomeId;
+    String? homeId = _activeHomeId;
+    if (homeId == null) {
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final ev = await (db.select(db.localRoutineEvents)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        homeId = ev?.homeId;
+      } catch (_) {}
+    }
     if (homeId == null) throw StateError('No active home selected.');
 
     final emitAction = ref.read(coveEmitActionProvider);
     await emitAction(
       eventType: 'routine_event_deleted',
+      targetHomeId: homeId,
       payload: {
         'id': id,
         'home_id': homeId,

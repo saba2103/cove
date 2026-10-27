@@ -14,6 +14,7 @@ import '../../core/widgets/cove_undo_toast.dart';
 import '../../core/widgets/slips/cove_slip.dart';
 import '../../core/widgets/slips/cove_ticket.dart';
 import '../../sync/db/app_database.dart';
+import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -252,9 +253,23 @@ class CalendarEventDetailSheet extends ConsumerWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await ref.read(calendarControllerProvider).deleteEvent(event.id);
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.event,
+        id: event.id,
+      );
       if (context.mounted) {
         Navigator.of(context).pop();
+        CoveUndoToast.show(
+          context,
+          message: 'Deleted "${event.title}"',
+          onUndo: () async {
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.event,
+              id: event.id,
+            );
+          },
+        );
       }
     }
   }

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/cove_theme.dart';
 import '../core/widgets/cove_floating_bar.dart';
 import '../core/widgets/cove_web_sidebar.dart';
+import '../sync/pending_delete_service.dart';
 import '../sync/providers/active_home_provider.dart';
 import '../sync/providers/cove_sync_providers.dart';
 import 'activity/activity_screen.dart';
@@ -72,6 +73,9 @@ class _AppShellState extends ConsumerState<AppShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        ref.read(pendingDeleteServiceProvider).flushExpiredOnAppStart(),
+      );
       final notifService = ref.read(notificationServiceProvider);
       notifService.initializeLocalNotifications();
       notifService.initializeFcm();

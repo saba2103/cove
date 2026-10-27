@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_page_header.dart';
+import '../../core/widgets/cove_undo_toast.dart';
+import '../../sync/pending_delete_service.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
 
@@ -190,9 +192,23 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ref.read(routineControllerProvider).deleteRoutineEvent(ev.id);
+      final pendingDelete = ref.read(pendingDeleteServiceProvider);
+      await pendingDelete.scheduleDelete(
+        kind: PendingDeleteKind.routineEvent,
+        id: ev.id,
+      );
       if (mounted) {
         Navigator.of(context).pop();
+        CoveUndoToast.show(
+          context,
+          message: 'Deleted "${ev.title}"',
+          onUndo: () async {
+            await pendingDelete.undoDelete(
+              kind: PendingDeleteKind.routineEvent,
+              id: ev.id,
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -1,5 +1,6 @@
 import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../auth/auth_controller.dart';
@@ -213,15 +214,19 @@ class CalendarController {
 
   /// Deletes a calendar event and emits `calendar_event_deleted`.
   Future<void> deleteEvent(String id) async {
-    final homeId = _activeHomeId;
-    if (homeId == null) throw StateError('No active home selected.');
-
     final db = ref.read(appDatabaseProvider);
-    final event = await (db.select(db.localCalendarEvents)..where((t) => t.id.equals(id))).getSingleOrNull();
+    LocalCalendarEvent? event;
+    try {
+      event = await (db.select(db.localCalendarEvents)..where((t) => t.id.equals(id))).getSingleOrNull();
+    } catch (_) {}
+
+    final homeId = _activeHomeId ?? event?.homeId;
+    if (homeId == null) throw StateError('No active home selected.');
 
     final emitAction = ref.read(coveEmitActionProvider);
     await emitAction(
       eventType: 'calendar_event_deleted',
+      targetHomeId: homeId,
       payload: {
         'id': id,
         'home_id': homeId,
