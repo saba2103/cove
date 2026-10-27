@@ -371,6 +371,7 @@ class NotificationService {
     Future<File> Function()? resolveDatabaseFile,
     AppDatabase? databaseOverride,
     void Function()? onReadOnlyDatabaseOpened,
+    void Function()? onReadOnlyDatabaseRefusedSchemaMismatch,
     SupabaseClient? supabaseClientOverride,
     HomeKeyStore? keyStoreOverride,
     LocalNotificationSink? sinkOverride,
@@ -418,12 +419,16 @@ class NotificationService {
       }
     }
 
-    onReadOnlyDatabaseOpened?.call();
     final db = databaseOverride ??
-        AppDatabase.readOnly(
+        await AppDatabase.openBackgroundReadOnlyIfSchemaMatches(
           file: databaseFile,
           resolveFile: resolveDatabaseFile,
         );
+    if (db != null) {
+      onReadOnlyDatabaseOpened?.call();
+    } else {
+      onReadOnlyDatabaseRefusedSchemaMismatch?.call();
+    }
     try {
       final plugin = FlutterLocalNotificationsPlugin();
       final sink = sinkOverride ??
@@ -464,7 +469,7 @@ class NotificationService {
 
       return await bgPipeline.handleRemoteMessage(message);
     } finally {
-      if (databaseOverride == null) {
+      if (databaseOverride == null && db != null) {
         await db.close();
       }
     }

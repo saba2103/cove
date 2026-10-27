@@ -1109,6 +1109,15 @@ class $LocalListItemsTable extends LocalListItems
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1122,6 +1131,7 @@ class $LocalListItemsTable extends LocalListItems
     completedBy,
     createdAt,
     createdBy,
+    owner,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1219,6 +1229,12 @@ class $LocalListItemsTable extends LocalListItems
     } else if (isInserting) {
       context.missing(_createdByMeta);
     }
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    }
     return context;
   }
 
@@ -1272,6 +1288,10 @@ class $LocalListItemsTable extends LocalListItems
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      ),
     );
   }
 
@@ -1293,6 +1313,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
   final String? completedBy;
   final DateTime createdAt;
   final String createdBy;
+  final String? owner;
   const LocalListItem({
     required this.id,
     required this.homeId,
@@ -1305,6 +1326,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     this.completedBy,
     required this.createdAt,
     required this.createdBy,
+    this.owner,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1328,6 +1350,9 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['created_by'] = Variable<String>(createdBy);
+    if (!nullToAbsent || owner != null) {
+      map['owner'] = Variable<String>(owner);
+    }
     return map;
   }
 
@@ -1352,6 +1377,9 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           : Value(completedBy),
       createdAt: Value(createdAt),
       createdBy: Value(createdBy),
+      owner: owner == null && nullToAbsent
+          ? const Value.absent()
+          : Value(owner),
     );
   }
 
@@ -1372,6 +1400,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       completedBy: serializer.fromJson<String?>(json['completedBy']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      owner: serializer.fromJson<String?>(json['owner']),
     );
   }
   @override
@@ -1389,6 +1418,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
       'completedBy': serializer.toJson<String?>(completedBy),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'createdBy': serializer.toJson<String>(createdBy),
+      'owner': serializer.toJson<String?>(owner),
     };
   }
 
@@ -1404,6 +1434,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     Value<String?> completedBy = const Value.absent(),
     DateTime? createdAt,
     String? createdBy,
+    Value<String?> owner = const Value.absent(),
   }) => LocalListItem(
     id: id ?? this.id,
     homeId: homeId ?? this.homeId,
@@ -1416,6 +1447,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     completedBy: completedBy.present ? completedBy.value : this.completedBy,
     createdAt: createdAt ?? this.createdAt,
     createdBy: createdBy ?? this.createdBy,
+    owner: owner.present ? owner.value : this.owner,
   );
   LocalListItem copyWithCompanion(LocalListItemsCompanion data) {
     return LocalListItem(
@@ -1436,6 +1468,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           : this.completedBy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      owner: data.owner.present ? data.owner.value : this.owner,
     );
   }
 
@@ -1452,7 +1485,8 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           ..write('completedAt: $completedAt, ')
           ..write('completedBy: $completedBy, ')
           ..write('createdAt: $createdAt, ')
-          ..write('createdBy: $createdBy')
+          ..write('createdBy: $createdBy, ')
+          ..write('owner: $owner')
           ..write(')'))
         .toString();
   }
@@ -1470,6 +1504,7 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
     completedBy,
     createdAt,
     createdBy,
+    owner,
   );
   @override
   bool operator ==(Object other) =>
@@ -1485,7 +1520,8 @@ class LocalListItem extends DataClass implements Insertable<LocalListItem> {
           other.completedAt == this.completedAt &&
           other.completedBy == this.completedBy &&
           other.createdAt == this.createdAt &&
-          other.createdBy == this.createdBy);
+          other.createdBy == this.createdBy &&
+          other.owner == this.owner);
 }
 
 class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
@@ -1500,6 +1536,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
   final Value<String?> completedBy;
   final Value<DateTime> createdAt;
   final Value<String> createdBy;
+  final Value<String?> owner;
   final Value<int> rowid;
   const LocalListItemsCompanion({
     this.id = const Value.absent(),
@@ -1513,6 +1550,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     this.completedBy = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalListItemsCompanion.insert({
@@ -1527,6 +1565,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     this.completedBy = const Value.absent(),
     required DateTime createdAt,
     required String createdBy,
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        homeId = Value(homeId),
@@ -1546,6 +1585,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     Expression<String>? completedBy,
     Expression<DateTime>? createdAt,
     Expression<String>? createdBy,
+    Expression<String>? owner,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1560,6 +1600,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
       if (completedBy != null) 'completed_by': completedBy,
       if (createdAt != null) 'created_at': createdAt,
       if (createdBy != null) 'created_by': createdBy,
+      if (owner != null) 'owner': owner,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1576,6 +1617,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     Value<String?>? completedBy,
     Value<DateTime>? createdAt,
     Value<String>? createdBy,
+    Value<String?>? owner,
     Value<int>? rowid,
   }) {
     return LocalListItemsCompanion(
@@ -1590,6 +1632,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
       completedBy: completedBy ?? this.completedBy,
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
+      owner: owner ?? this.owner,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1630,6 +1673,9 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1650,6 +1696,7 @@ class LocalListItemsCompanion extends UpdateCompanion<LocalListItem> {
           ..write('completedBy: $completedBy, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
+          ..write('owner: $owner, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4392,6 +4439,16 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('both'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4405,6 +4462,7 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
     createdAt,
     createdBy,
     recurrence,
+    owner,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4498,6 +4556,12 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
         recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
       );
     }
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    }
     return context;
   }
 
@@ -4551,6 +4615,10 @@ class $LocalCalendarEventsTable extends LocalCalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}recurrence'],
       ),
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      ),
     );
   }
 
@@ -4573,6 +4641,7 @@ class LocalCalendarEvent extends DataClass
   final DateTime createdAt;
   final String createdBy;
   final String? recurrence;
+  final String? owner;
   const LocalCalendarEvent({
     required this.id,
     required this.homeId,
@@ -4585,6 +4654,7 @@ class LocalCalendarEvent extends DataClass
     required this.createdAt,
     required this.createdBy,
     this.recurrence,
+    this.owner,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4605,6 +4675,9 @@ class LocalCalendarEvent extends DataClass
     map['created_by'] = Variable<String>(createdBy);
     if (!nullToAbsent || recurrence != null) {
       map['recurrence'] = Variable<String>(recurrence);
+    }
+    if (!nullToAbsent || owner != null) {
+      map['owner'] = Variable<String>(owner);
     }
     return map;
   }
@@ -4628,6 +4701,9 @@ class LocalCalendarEvent extends DataClass
       recurrence: recurrence == null && nullToAbsent
           ? const Value.absent()
           : Value(recurrence),
+      owner: owner == null && nullToAbsent
+          ? const Value.absent()
+          : Value(owner),
     );
   }
 
@@ -4648,6 +4724,7 @@ class LocalCalendarEvent extends DataClass
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
       recurrence: serializer.fromJson<String?>(json['recurrence']),
+      owner: serializer.fromJson<String?>(json['owner']),
     );
   }
   @override
@@ -4665,6 +4742,7 @@ class LocalCalendarEvent extends DataClass
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'createdBy': serializer.toJson<String>(createdBy),
       'recurrence': serializer.toJson<String?>(recurrence),
+      'owner': serializer.toJson<String?>(owner),
     };
   }
 
@@ -4680,6 +4758,7 @@ class LocalCalendarEvent extends DataClass
     DateTime? createdAt,
     String? createdBy,
     Value<String?> recurrence = const Value.absent(),
+    Value<String?> owner = const Value.absent(),
   }) => LocalCalendarEvent(
     id: id ?? this.id,
     homeId: homeId ?? this.homeId,
@@ -4692,6 +4771,7 @@ class LocalCalendarEvent extends DataClass
     createdAt: createdAt ?? this.createdAt,
     createdBy: createdBy ?? this.createdBy,
     recurrence: recurrence.present ? recurrence.value : this.recurrence,
+    owner: owner.present ? owner.value : this.owner,
   );
   LocalCalendarEvent copyWithCompanion(LocalCalendarEventsCompanion data) {
     return LocalCalendarEvent(
@@ -4710,6 +4790,7 @@ class LocalCalendarEvent extends DataClass
       recurrence: data.recurrence.present
           ? data.recurrence.value
           : this.recurrence,
+      owner: data.owner.present ? data.owner.value : this.owner,
     );
   }
 
@@ -4726,7 +4807,8 @@ class LocalCalendarEvent extends DataClass
           ..write('location: $location, ')
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
-          ..write('recurrence: $recurrence')
+          ..write('recurrence: $recurrence, ')
+          ..write('owner: $owner')
           ..write(')'))
         .toString();
   }
@@ -4744,6 +4826,7 @@ class LocalCalendarEvent extends DataClass
     createdAt,
     createdBy,
     recurrence,
+    owner,
   );
   @override
   bool operator ==(Object other) =>
@@ -4759,7 +4842,8 @@ class LocalCalendarEvent extends DataClass
           other.location == this.location &&
           other.createdAt == this.createdAt &&
           other.createdBy == this.createdBy &&
-          other.recurrence == this.recurrence);
+          other.recurrence == this.recurrence &&
+          other.owner == this.owner);
 }
 
 class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
@@ -4774,6 +4858,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
   final Value<DateTime> createdAt;
   final Value<String> createdBy;
   final Value<String?> recurrence;
+  final Value<String?> owner;
   final Value<int> rowid;
   const LocalCalendarEventsCompanion({
     this.id = const Value.absent(),
@@ -4787,6 +4872,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     this.createdAt = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.recurrence = const Value.absent(),
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalCalendarEventsCompanion.insert({
@@ -4801,6 +4887,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     required DateTime createdAt,
     required String createdBy,
     this.recurrence = const Value.absent(),
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        homeId = Value(homeId),
@@ -4821,6 +4908,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     Expression<DateTime>? createdAt,
     Expression<String>? createdBy,
     Expression<String>? recurrence,
+    Expression<String>? owner,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4835,6 +4923,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
       if (createdAt != null) 'created_at': createdAt,
       if (createdBy != null) 'created_by': createdBy,
       if (recurrence != null) 'recurrence': recurrence,
+      if (owner != null) 'owner': owner,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4851,6 +4940,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     Value<DateTime>? createdAt,
     Value<String>? createdBy,
     Value<String?>? recurrence,
+    Value<String?>? owner,
     Value<int>? rowid,
   }) {
     return LocalCalendarEventsCompanion(
@@ -4865,6 +4955,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
       createdAt: createdAt ?? this.createdAt,
       createdBy: createdBy ?? this.createdBy,
       recurrence: recurrence ?? this.recurrence,
+      owner: owner ?? this.owner,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4905,6 +4996,9 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
     if (recurrence.present) {
       map['recurrence'] = Variable<String>(recurrence.value);
     }
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4925,6 +5019,7 @@ class LocalCalendarEventsCompanion extends UpdateCompanion<LocalCalendarEvent> {
           ..write('createdAt: $createdAt, ')
           ..write('createdBy: $createdBy, ')
           ..write('recurrence: $recurrence, ')
+          ..write('owner: $owner, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7545,6 +7640,16 @@ class $LocalRoutineEventsTable extends LocalRoutineEvents
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _ownerMeta = const VerificationMeta('owner');
+  @override
+  late final GeneratedColumn<String> owner = GeneratedColumn<String>(
+    'owner',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('both'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7556,6 +7661,7 @@ class $LocalRoutineEventsTable extends LocalRoutineEvents
     category,
     notes,
     createdAt,
+    owner,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7637,6 +7743,12 @@ class $LocalRoutineEventsTable extends LocalRoutineEvents
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('owner')) {
+      context.handle(
+        _ownerMeta,
+        owner.isAcceptableOrUnknown(data['owner']!, _ownerMeta),
+      );
+    }
     return context;
   }
 
@@ -7682,6 +7794,10 @@ class $LocalRoutineEventsTable extends LocalRoutineEvents
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      owner: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner'],
+      ),
     );
   }
 
@@ -7702,6 +7818,7 @@ class LocalRoutineEvent extends DataClass
   final String? category;
   final String? notes;
   final DateTime createdAt;
+  final String? owner;
   const LocalRoutineEvent({
     required this.id,
     required this.routineId,
@@ -7712,6 +7829,7 @@ class LocalRoutineEvent extends DataClass
     this.category,
     this.notes,
     required this.createdAt,
+    this.owner,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7729,6 +7847,9 @@ class LocalRoutineEvent extends DataClass
       map['notes'] = Variable<String>(notes);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || owner != null) {
+      map['owner'] = Variable<String>(owner);
+    }
     return map;
   }
 
@@ -7747,6 +7868,9 @@ class LocalRoutineEvent extends DataClass
           ? const Value.absent()
           : Value(notes),
       createdAt: Value(createdAt),
+      owner: owner == null && nullToAbsent
+          ? const Value.absent()
+          : Value(owner),
     );
   }
 
@@ -7765,6 +7889,7 @@ class LocalRoutineEvent extends DataClass
       category: serializer.fromJson<String?>(json['category']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      owner: serializer.fromJson<String?>(json['owner']),
     );
   }
   @override
@@ -7780,6 +7905,7 @@ class LocalRoutineEvent extends DataClass
       'category': serializer.toJson<String?>(category),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'owner': serializer.toJson<String?>(owner),
     };
   }
 
@@ -7793,6 +7919,7 @@ class LocalRoutineEvent extends DataClass
     Value<String?> category = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
+    Value<String?> owner = const Value.absent(),
   }) => LocalRoutineEvent(
     id: id ?? this.id,
     routineId: routineId ?? this.routineId,
@@ -7803,6 +7930,7 @@ class LocalRoutineEvent extends DataClass
     category: category.present ? category.value : this.category,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
+    owner: owner.present ? owner.value : this.owner,
   );
   LocalRoutineEvent copyWithCompanion(LocalRoutineEventsCompanion data) {
     return LocalRoutineEvent(
@@ -7819,6 +7947,7 @@ class LocalRoutineEvent extends DataClass
       category: data.category.present ? data.category.value : this.category,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      owner: data.owner.present ? data.owner.value : this.owner,
     );
   }
 
@@ -7833,7 +7962,8 @@ class LocalRoutineEvent extends DataClass
           ..write('endMinutes: $endMinutes, ')
           ..write('category: $category, ')
           ..write('notes: $notes, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('owner: $owner')
           ..write(')'))
         .toString();
   }
@@ -7849,6 +7979,7 @@ class LocalRoutineEvent extends DataClass
     category,
     notes,
     createdAt,
+    owner,
   );
   @override
   bool operator ==(Object other) =>
@@ -7862,7 +7993,8 @@ class LocalRoutineEvent extends DataClass
           other.endMinutes == this.endMinutes &&
           other.category == this.category &&
           other.notes == this.notes &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.owner == this.owner);
 }
 
 class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
@@ -7875,6 +8007,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
   final Value<String?> category;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
+  final Value<String?> owner;
   final Value<int> rowid;
   const LocalRoutineEventsCompanion({
     this.id = const Value.absent(),
@@ -7886,6 +8019,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
     this.category = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalRoutineEventsCompanion.insert({
@@ -7898,6 +8032,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
     this.category = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
+    this.owner = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        routineId = Value(routineId),
@@ -7916,6 +8051,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
     Expression<String>? category,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
+    Expression<String>? owner,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7928,6 +8064,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
       if (category != null) 'category': category,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
+      if (owner != null) 'owner': owner,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7942,6 +8079,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
     Value<String?>? category,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
+    Value<String?>? owner,
     Value<int>? rowid,
   }) {
     return LocalRoutineEventsCompanion(
@@ -7954,6 +8092,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
       category: category ?? this.category,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
+      owner: owner ?? this.owner,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7988,6 +8127,9 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (owner.present) {
+      map['owner'] = Variable<String>(owner.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8006,6 +8148,7 @@ class LocalRoutineEventsCompanion extends UpdateCompanion<LocalRoutineEvent> {
           ..write('category: $category, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
+          ..write('owner: $owner, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8950,6 +9093,823 @@ class LocalCheckinRemindersCompanion
   }
 }
 
+class $LocalPetsTable extends LocalPets
+    with TableInfo<$LocalPetsTable, LocalPet> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalPetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+    'created_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    homeId,
+    name,
+    createdAt,
+    createdBy,
+    isArchived,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_pets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalPet> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdByMeta);
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalPet map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalPet(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_by'],
+      )!,
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalPetsTable createAlias(String alias) {
+    return $LocalPetsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalPet extends DataClass implements Insertable<LocalPet> {
+  final String id;
+  final String homeId;
+  final String name;
+  final DateTime createdAt;
+  final String createdBy;
+  final bool isArchived;
+  const LocalPet({
+    required this.id,
+    required this.homeId,
+    required this.name,
+    required this.createdAt,
+    required this.createdBy,
+    required this.isArchived,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['created_by'] = Variable<String>(createdBy);
+    map['is_archived'] = Variable<bool>(isArchived);
+    return map;
+  }
+
+  LocalPetsCompanion toCompanion(bool nullToAbsent) {
+    return LocalPetsCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      name: Value(name),
+      createdAt: Value(createdAt),
+      createdBy: Value(createdBy),
+      isArchived: Value(isArchived),
+    );
+  }
+
+  factory LocalPet.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalPet(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      createdBy: serializer.fromJson<String>(json['createdBy']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'createdBy': serializer.toJson<String>(createdBy),
+      'isArchived': serializer.toJson<bool>(isArchived),
+    };
+  }
+
+  LocalPet copyWith({
+    String? id,
+    String? homeId,
+    String? name,
+    DateTime? createdAt,
+    String? createdBy,
+    bool? isArchived,
+  }) => LocalPet(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    name: name ?? this.name,
+    createdAt: createdAt ?? this.createdAt,
+    createdBy: createdBy ?? this.createdBy,
+    isArchived: isArchived ?? this.isArchived,
+  );
+  LocalPet copyWithCompanion(LocalPetsCompanion data) {
+    return LocalPet(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPet(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('isArchived: $isArchived')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, homeId, name, createdAt, createdBy, isArchived);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalPet &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt &&
+          other.createdBy == this.createdBy &&
+          other.isArchived == this.isArchived);
+}
+
+class LocalPetsCompanion extends UpdateCompanion<LocalPet> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  final Value<String> createdBy;
+  final Value<bool> isArchived;
+  final Value<int> rowid;
+  const LocalPetsCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalPetsCompanion.insert({
+    required String id,
+    required String homeId,
+    required String name,
+    required DateTime createdAt,
+    required String createdBy,
+    this.isArchived = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       name = Value(name),
+       createdAt = Value(createdAt),
+       createdBy = Value(createdBy);
+  static Insertable<LocalPet> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+    Expression<String>? createdBy,
+    Expression<bool>? isArchived,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (createdBy != null) 'created_by': createdBy,
+      if (isArchived != null) 'is_archived': isArchived,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalPetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+    Value<String>? createdBy,
+    Value<bool>? isArchived,
+    Value<int>? rowid,
+  }) {
+    return LocalPetsCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      createdBy: createdBy ?? this.createdBy,
+      isArchived: isArchived ?? this.isArchived,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPetsCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalPetTagsTable extends LocalPetTags
+    with TableInfo<$LocalPetTagsTable, LocalPetTag> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalPetTagsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _homeIdMeta = const VerificationMeta('homeId');
+  @override
+  late final GeneratedColumn<String> homeId = GeneratedColumn<String>(
+    'home_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _petIdMeta = const VerificationMeta('petId');
+  @override
+  late final GeneratedColumn<String> petId = GeneratedColumn<String>(
+    'pet_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recordKindMeta = const VerificationMeta(
+    'recordKind',
+  );
+  @override
+  late final GeneratedColumn<String> recordKind = GeneratedColumn<String>(
+    'record_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recordIdMeta = const VerificationMeta(
+    'recordId',
+  );
+  @override
+  late final GeneratedColumn<String> recordId = GeneratedColumn<String>(
+    'record_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    homeId,
+    petId,
+    recordKind,
+    recordId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_pet_tags';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalPetTag> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('home_id')) {
+      context.handle(
+        _homeIdMeta,
+        homeId.isAcceptableOrUnknown(data['home_id']!, _homeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_homeIdMeta);
+    }
+    if (data.containsKey('pet_id')) {
+      context.handle(
+        _petIdMeta,
+        petId.isAcceptableOrUnknown(data['pet_id']!, _petIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_petIdMeta);
+    }
+    if (data.containsKey('record_kind')) {
+      context.handle(
+        _recordKindMeta,
+        recordKind.isAcceptableOrUnknown(data['record_kind']!, _recordKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordKindMeta);
+    }
+    if (data.containsKey('record_id')) {
+      context.handle(
+        _recordIdMeta,
+        recordId.isAcceptableOrUnknown(data['record_id']!, _recordIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalPetTag map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalPetTag(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      homeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}home_id'],
+      )!,
+      petId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pet_id'],
+      )!,
+      recordKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_kind'],
+      )!,
+      recordId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalPetTagsTable createAlias(String alias) {
+    return $LocalPetTagsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalPetTag extends DataClass implements Insertable<LocalPetTag> {
+  final String id;
+  final String homeId;
+  final String petId;
+  final String recordKind;
+  final String recordId;
+  final DateTime createdAt;
+  const LocalPetTag({
+    required this.id,
+    required this.homeId,
+    required this.petId,
+    required this.recordKind,
+    required this.recordId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['home_id'] = Variable<String>(homeId);
+    map['pet_id'] = Variable<String>(petId);
+    map['record_kind'] = Variable<String>(recordKind);
+    map['record_id'] = Variable<String>(recordId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalPetTagsCompanion toCompanion(bool nullToAbsent) {
+    return LocalPetTagsCompanion(
+      id: Value(id),
+      homeId: Value(homeId),
+      petId: Value(petId),
+      recordKind: Value(recordKind),
+      recordId: Value(recordId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalPetTag.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalPetTag(
+      id: serializer.fromJson<String>(json['id']),
+      homeId: serializer.fromJson<String>(json['homeId']),
+      petId: serializer.fromJson<String>(json['petId']),
+      recordKind: serializer.fromJson<String>(json['recordKind']),
+      recordId: serializer.fromJson<String>(json['recordId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'homeId': serializer.toJson<String>(homeId),
+      'petId': serializer.toJson<String>(petId),
+      'recordKind': serializer.toJson<String>(recordKind),
+      'recordId': serializer.toJson<String>(recordId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalPetTag copyWith({
+    String? id,
+    String? homeId,
+    String? petId,
+    String? recordKind,
+    String? recordId,
+    DateTime? createdAt,
+  }) => LocalPetTag(
+    id: id ?? this.id,
+    homeId: homeId ?? this.homeId,
+    petId: petId ?? this.petId,
+    recordKind: recordKind ?? this.recordKind,
+    recordId: recordId ?? this.recordId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  LocalPetTag copyWithCompanion(LocalPetTagsCompanion data) {
+    return LocalPetTag(
+      id: data.id.present ? data.id.value : this.id,
+      homeId: data.homeId.present ? data.homeId.value : this.homeId,
+      petId: data.petId.present ? data.petId.value : this.petId,
+      recordKind: data.recordKind.present
+          ? data.recordKind.value
+          : this.recordKind,
+      recordId: data.recordId.present ? data.recordId.value : this.recordId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPetTag(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('petId: $petId, ')
+          ..write('recordKind: $recordKind, ')
+          ..write('recordId: $recordId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, homeId, petId, recordKind, recordId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalPetTag &&
+          other.id == this.id &&
+          other.homeId == this.homeId &&
+          other.petId == this.petId &&
+          other.recordKind == this.recordKind &&
+          other.recordId == this.recordId &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalPetTagsCompanion extends UpdateCompanion<LocalPetTag> {
+  final Value<String> id;
+  final Value<String> homeId;
+  final Value<String> petId;
+  final Value<String> recordKind;
+  final Value<String> recordId;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const LocalPetTagsCompanion({
+    this.id = const Value.absent(),
+    this.homeId = const Value.absent(),
+    this.petId = const Value.absent(),
+    this.recordKind = const Value.absent(),
+    this.recordId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalPetTagsCompanion.insert({
+    required String id,
+    required String homeId,
+    required String petId,
+    required String recordKind,
+    required String recordId,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       homeId = Value(homeId),
+       petId = Value(petId),
+       recordKind = Value(recordKind),
+       recordId = Value(recordId),
+       createdAt = Value(createdAt);
+  static Insertable<LocalPetTag> custom({
+    Expression<String>? id,
+    Expression<String>? homeId,
+    Expression<String>? petId,
+    Expression<String>? recordKind,
+    Expression<String>? recordId,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (homeId != null) 'home_id': homeId,
+      if (petId != null) 'pet_id': petId,
+      if (recordKind != null) 'record_kind': recordKind,
+      if (recordId != null) 'record_id': recordId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalPetTagsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? homeId,
+    Value<String>? petId,
+    Value<String>? recordKind,
+    Value<String>? recordId,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return LocalPetTagsCompanion(
+      id: id ?? this.id,
+      homeId: homeId ?? this.homeId,
+      petId: petId ?? this.petId,
+      recordKind: recordKind ?? this.recordKind,
+      recordId: recordId ?? this.recordId,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (homeId.present) {
+      map['home_id'] = Variable<String>(homeId.value);
+    }
+    if (petId.present) {
+      map['pet_id'] = Variable<String>(petId.value);
+    }
+    if (recordKind.present) {
+      map['record_kind'] = Variable<String>(recordKind.value);
+    }
+    if (recordId.present) {
+      map['record_id'] = Variable<String>(recordId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPetTagsCompanion(')
+          ..write('id: $id, ')
+          ..write('homeId: $homeId, ')
+          ..write('petId: $petId, ')
+          ..write('recordKind: $recordKind, ')
+          ..write('recordId: $recordId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8981,6 +9941,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalDeletedTombstonesTable(this);
   late final $LocalCheckinRemindersTable localCheckinReminders =
       $LocalCheckinRemindersTable(this);
+  late final $LocalPetsTable localPets = $LocalPetsTable(this);
+  late final $LocalPetTagsTable localPetTags = $LocalPetTagsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9003,6 +9965,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     localAppliedEvents,
     localDeletedTombstones,
     localCheckinReminders,
+    localPets,
+    localPetTags,
   ];
 }
 
@@ -9534,6 +10498,7 @@ typedef $$LocalListItemsTableCreateCompanionBuilder =
       Value<String?> completedBy,
       required DateTime createdAt,
       required String createdBy,
+      Value<String?> owner,
       Value<int> rowid,
     });
 typedef $$LocalListItemsTableUpdateCompanionBuilder =
@@ -9549,6 +10514,7 @@ typedef $$LocalListItemsTableUpdateCompanionBuilder =
       Value<String?> completedBy,
       Value<DateTime> createdAt,
       Value<String> createdBy,
+      Value<String?> owner,
       Value<int> rowid,
     });
 
@@ -9613,6 +10579,11 @@ class $$LocalListItemsTableFilterComposer
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9680,6 +10651,11 @@ class $$LocalListItemsTableOrderingComposer
     column: $table.createdBy,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalListItemsTableAnnotationComposer
@@ -9729,6 +10705,9 @@ class $$LocalListItemsTableAnnotationComposer
 
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
 }
 
 class $$LocalListItemsTableTableManager
@@ -9775,6 +10754,7 @@ class $$LocalListItemsTableTableManager
                 Value<String?> completedBy = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalListItemsCompanion(
                 id: id,
@@ -9788,6 +10768,7 @@ class $$LocalListItemsTableTableManager
                 completedBy: completedBy,
                 createdAt: createdAt,
                 createdBy: createdBy,
+                owner: owner,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9803,6 +10784,7 @@ class $$LocalListItemsTableTableManager
                 Value<String?> completedBy = const Value.absent(),
                 required DateTime createdAt,
                 required String createdBy,
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalListItemsCompanion.insert(
                 id: id,
@@ -9816,6 +10798,7 @@ class $$LocalListItemsTableTableManager
                 completedBy: completedBy,
                 createdAt: createdAt,
                 createdBy: createdBy,
+                owner: owner,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11192,6 +12175,7 @@ typedef $$LocalCalendarEventsTableCreateCompanionBuilder =
       required DateTime createdAt,
       required String createdBy,
       Value<String?> recurrence,
+      Value<String?> owner,
       Value<int> rowid,
     });
 typedef $$LocalCalendarEventsTableUpdateCompanionBuilder =
@@ -11207,6 +12191,7 @@ typedef $$LocalCalendarEventsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String> createdBy,
       Value<String?> recurrence,
+      Value<String?> owner,
       Value<int> rowid,
     });
 
@@ -11271,6 +12256,11 @@ class $$LocalCalendarEventsTableFilterComposer
 
   ColumnFilters<String> get recurrence => $composableBuilder(
     column: $table.recurrence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11338,6 +12328,11 @@ class $$LocalCalendarEventsTableOrderingComposer
     column: $table.recurrence,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalCalendarEventsTableAnnotationComposer
@@ -11385,6 +12380,9 @@ class $$LocalCalendarEventsTableAnnotationComposer
     column: $table.recurrence,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
 }
 
 class $$LocalCalendarEventsTableTableManager
@@ -11441,6 +12439,7 @@ class $$LocalCalendarEventsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
                 Value<String?> recurrence = const Value.absent(),
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCalendarEventsCompanion(
                 id: id,
@@ -11454,6 +12453,7 @@ class $$LocalCalendarEventsTableTableManager
                 createdAt: createdAt,
                 createdBy: createdBy,
                 recurrence: recurrence,
+                owner: owner,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11469,6 +12469,7 @@ class $$LocalCalendarEventsTableTableManager
                 required DateTime createdAt,
                 required String createdBy,
                 Value<String?> recurrence = const Value.absent(),
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalCalendarEventsCompanion.insert(
                 id: id,
@@ -11482,6 +12483,7 @@ class $$LocalCalendarEventsTableTableManager
                 createdAt: createdAt,
                 createdBy: createdBy,
                 recurrence: recurrence,
+                owner: owner,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -12921,6 +13923,7 @@ typedef $$LocalRoutineEventsTableCreateCompanionBuilder =
       Value<String?> category,
       Value<String?> notes,
       required DateTime createdAt,
+      Value<String?> owner,
       Value<int> rowid,
     });
 typedef $$LocalRoutineEventsTableUpdateCompanionBuilder =
@@ -12934,6 +13937,7 @@ typedef $$LocalRoutineEventsTableUpdateCompanionBuilder =
       Value<String?> category,
       Value<String?> notes,
       Value<DateTime> createdAt,
+      Value<String?> owner,
       Value<int> rowid,
     });
 
@@ -12988,6 +13992,11 @@ class $$LocalRoutineEventsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get owner => $composableBuilder(
+    column: $table.owner,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -13045,6 +14054,11 @@ class $$LocalRoutineEventsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get owner => $composableBuilder(
+    column: $table.owner,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalRoutineEventsTableAnnotationComposer
@@ -13086,6 +14100,9 @@ class $$LocalRoutineEventsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get owner =>
+      $composableBuilder(column: $table.owner, builder: (column) => column);
 }
 
 class $$LocalRoutineEventsTableTableManager
@@ -13137,6 +14154,7 @@ class $$LocalRoutineEventsTableTableManager
                 Value<String?> category = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalRoutineEventsCompanion(
                 id: id,
@@ -13148,6 +14166,7 @@ class $$LocalRoutineEventsTableTableManager
                 category: category,
                 notes: notes,
                 createdAt: createdAt,
+                owner: owner,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13161,6 +14180,7 @@ class $$LocalRoutineEventsTableTableManager
                 Value<String?> category = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime createdAt,
+                Value<String?> owner = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalRoutineEventsCompanion.insert(
                 id: id,
@@ -13172,6 +14192,7 @@ class $$LocalRoutineEventsTableTableManager
                 category: category,
                 notes: notes,
                 createdAt: createdAt,
+                owner: owner,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -13845,6 +14866,460 @@ typedef $$LocalCheckinRemindersTableProcessedTableManager =
       LocalCheckinReminder,
       PrefetchHooks Function()
     >;
+typedef $$LocalPetsTableCreateCompanionBuilder =
+    LocalPetsCompanion Function({
+      required String id,
+      required String homeId,
+      required String name,
+      required DateTime createdAt,
+      required String createdBy,
+      Value<bool> isArchived,
+      Value<int> rowid,
+    });
+typedef $$LocalPetsTableUpdateCompanionBuilder =
+    LocalPetsCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<String> name,
+      Value<DateTime> createdAt,
+      Value<String> createdBy,
+      Value<bool> isArchived,
+      Value<int> rowid,
+    });
+
+class $$LocalPetsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalPetsTable> {
+  $$LocalPetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalPetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalPetsTable> {
+  $$LocalPetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalPetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalPetsTable> {
+  $$LocalPetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
+}
+
+class $$LocalPetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalPetsTable,
+          LocalPet,
+          $$LocalPetsTableFilterComposer,
+          $$LocalPetsTableOrderingComposer,
+          $$LocalPetsTableAnnotationComposer,
+          $$LocalPetsTableCreateCompanionBuilder,
+          $$LocalPetsTableUpdateCompanionBuilder,
+          (LocalPet, BaseReferences<_$AppDatabase, $LocalPetsTable, LocalPet>),
+          LocalPet,
+          PrefetchHooks Function()
+        > {
+  $$LocalPetsTableTableManager(_$AppDatabase db, $LocalPetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalPetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalPetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalPetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String> createdBy = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPetsCompanion(
+                id: id,
+                homeId: homeId,
+                name: name,
+                createdAt: createdAt,
+                createdBy: createdBy,
+                isArchived: isArchived,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required String name,
+                required DateTime createdAt,
+                required String createdBy,
+                Value<bool> isArchived = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPetsCompanion.insert(
+                id: id,
+                homeId: homeId,
+                name: name,
+                createdAt: createdAt,
+                createdBy: createdBy,
+                isArchived: isArchived,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalPetsTable, LocalPet>(table),
+                  BaseReferences<_$AppDatabase, $LocalPetsTable, LocalPet>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalPetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalPetsTable,
+      LocalPet,
+      $$LocalPetsTableFilterComposer,
+      $$LocalPetsTableOrderingComposer,
+      $$LocalPetsTableAnnotationComposer,
+      $$LocalPetsTableCreateCompanionBuilder,
+      $$LocalPetsTableUpdateCompanionBuilder,
+      (LocalPet, BaseReferences<_$AppDatabase, $LocalPetsTable, LocalPet>),
+      LocalPet,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalPetTagsTableCreateCompanionBuilder =
+    LocalPetTagsCompanion Function({
+      required String id,
+      required String homeId,
+      required String petId,
+      required String recordKind,
+      required String recordId,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$LocalPetTagsTableUpdateCompanionBuilder =
+    LocalPetTagsCompanion Function({
+      Value<String> id,
+      Value<String> homeId,
+      Value<String> petId,
+      Value<String> recordKind,
+      Value<String> recordId,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$LocalPetTagsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalPetTagsTable> {
+  $$LocalPetTagsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get petId => $composableBuilder(
+    column: $table.petId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordKind => $composableBuilder(
+    column: $table.recordKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordId => $composableBuilder(
+    column: $table.recordId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalPetTagsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalPetTagsTable> {
+  $$LocalPetTagsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get homeId => $composableBuilder(
+    column: $table.homeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get petId => $composableBuilder(
+    column: $table.petId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordKind => $composableBuilder(
+    column: $table.recordKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordId => $composableBuilder(
+    column: $table.recordId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalPetTagsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalPetTagsTable> {
+  $$LocalPetTagsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get homeId =>
+      $composableBuilder(column: $table.homeId, builder: (column) => column);
+
+  GeneratedColumn<String> get petId =>
+      $composableBuilder(column: $table.petId, builder: (column) => column);
+
+  GeneratedColumn<String> get recordKind => $composableBuilder(
+    column: $table.recordKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recordId =>
+      $composableBuilder(column: $table.recordId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalPetTagsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalPetTagsTable,
+          LocalPetTag,
+          $$LocalPetTagsTableFilterComposer,
+          $$LocalPetTagsTableOrderingComposer,
+          $$LocalPetTagsTableAnnotationComposer,
+          $$LocalPetTagsTableCreateCompanionBuilder,
+          $$LocalPetTagsTableUpdateCompanionBuilder,
+          (
+            LocalPetTag,
+            BaseReferences<_$AppDatabase, $LocalPetTagsTable, LocalPetTag>,
+          ),
+          LocalPetTag,
+          PrefetchHooks Function()
+        > {
+  $$LocalPetTagsTableTableManager(_$AppDatabase db, $LocalPetTagsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalPetTagsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalPetTagsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalPetTagsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> homeId = const Value.absent(),
+                Value<String> petId = const Value.absent(),
+                Value<String> recordKind = const Value.absent(),
+                Value<String> recordId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPetTagsCompanion(
+                id: id,
+                homeId: homeId,
+                petId: petId,
+                recordKind: recordKind,
+                recordId: recordId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String homeId,
+                required String petId,
+                required String recordKind,
+                required String recordId,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalPetTagsCompanion.insert(
+                id: id,
+                homeId: homeId,
+                petId: petId,
+                recordKind: recordKind,
+                recordId: recordId,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalPetTagsTable, LocalPetTag>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalPetTagsTable,
+                    LocalPetTag
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalPetTagsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalPetTagsTable,
+      LocalPetTag,
+      $$LocalPetTagsTableFilterComposer,
+      $$LocalPetTagsTableOrderingComposer,
+      $$LocalPetTagsTableAnnotationComposer,
+      $$LocalPetTagsTableCreateCompanionBuilder,
+      $$LocalPetTagsTableUpdateCompanionBuilder,
+      (
+        LocalPetTag,
+        BaseReferences<_$AppDatabase, $LocalPetTagsTable, LocalPetTag>,
+      ),
+      LocalPetTag,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -13890,4 +15365,8 @@ class $AppDatabaseManager {
       );
   $$LocalCheckinRemindersTableTableManager get localCheckinReminders =>
       $$LocalCheckinRemindersTableTableManager(_db, _db.localCheckinReminders);
+  $$LocalPetsTableTableManager get localPets =>
+      $$LocalPetsTableTableManager(_db, _db.localPets);
+  $$LocalPetTagsTableTableManager get localPetTags =>
+      $$LocalPetTagsTableTableManager(_db, _db.localPetTags);
 }

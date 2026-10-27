@@ -52,6 +52,7 @@ class LocalListItems extends Table {
   TextColumn get completedBy => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get createdBy => text()();
+  TextColumn get owner => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -137,6 +138,8 @@ class LocalCalendarEvents extends Table {
   DateTimeColumn get createdAt => dateTime()();
   TextColumn get createdBy => text()();
   TextColumn get recurrence => text().nullable()(); // 'daily', 'weekly', 'biweekly', 'monthly', 'yearly'
+  TextColumn get owner =>
+      text().nullable().withDefault(const Constant('both'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -225,6 +228,8 @@ class LocalRoutineEvents extends Table {
   TextColumn get category => text().nullable()();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
+  TextColumn get owner =>
+      text().nullable().withDefault(const Constant('both'))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -254,6 +259,31 @@ class LocalCheckinReminders extends Table {
   IntColumn get minute => integer()();
   TextColumn get message => text()();
   BoolColumn get isEnabled => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class LocalPets extends Table {
+  TextColumn get id => text()();
+  TextColumn get homeId => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  TextColumn get createdBy => text()();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class LocalPetTags extends Table {
+  TextColumn get id => text()();
+  TextColumn get homeId => text()();
+  TextColumn get petId => text()();
+  TextColumn get recordKind =>
+      text()(); // 'expense', 'event', 'task', 'habit', 'commitment', 'routine_event'
+  TextColumn get recordId => text()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -331,6 +361,8 @@ class FirstRunCounts {
   LocalAppliedEvents,
   LocalDeletedTombstones,
   LocalCheckinReminders,
+  LocalPets,
+  LocalPetTags,
 ])
 class AppDatabase extends _$AppDatabase {
   bool _isClosed = false;
@@ -412,7 +444,58 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Current Drift schema version (`PRAGMA user_version`).
-  static const int currentSchemaVersion = 11;
+  static const int currentSchemaVersion = 12;
+
+  /// Opens an unshared, strictly read-only SQLite connection (`OpenMode.readOnly` +
+  /// `PRAGMA busy_timeout = 5000`, `enableMigrations: false`) for a background
+  /// notification isolate (`design/specs/15-notifications.md` / 4.7a).
+  ///
+  /// Refuses to run (closes the handle and returns `null`) if the database file
+  /// does not exist or its `PRAGMA user_version` does not match
+  /// [currentSchemaVersion]. Never creates tables or runs migrations from the
+  /// background.
+  static Future<AppDatabase?> openBackgroundReadOnlyIfSchemaMatches({
+    File? file,
+    Future<File> Function()? resolveFile,
+  }) async {
+    final targetFile = file ??
+        (resolveFile != null
+            ? await resolveFile()
+            : File(
+                '${(await getApplicationDocumentsDirectory()).path}${Platform.pathSeparator}cove_db.sqlite',
+              ));
+    if (!targetFile.existsSync()) {
+      return null;
+    }
+
+    final rawDb = sqlite3.open(
+      targetFile.path,
+      mode: OpenMode.readOnly,
+    );
+    try {
+      rawDb.execute('PRAGMA busy_timeout = 5000;');
+      final rows = rawDb.select('PRAGMA user_version;');
+      final userVersion =
+          rows.isNotEmpty ? (rows.first['user_version'] as int? ?? 0) : 0;
+      if (userVersion != currentSchemaVersion) {
+        rawDb.close();
+        return null;
+      }
+    } catch (_) {
+      rawDb.close();
+      return null;
+    }
+
+    final executor = NativeDatabase.opened(
+      rawDb,
+      enableMigrations: false,
+      closeUnderlyingOnClose: true,
+      setup: (db) {
+        db.execute('PRAGMA busy_timeout = 5000;');
+      },
+    );
+    return AppDatabase(ReadOnlyQueryExecutor(executor));
+  }
 
   /// Opens an unshared, writable SQLite connection (`OpenMode.readWrite` +
   /// `PRAGMA busy_timeout = 5000`, `enableMigrations: false`) for a background
@@ -511,6 +594,22 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(localHomes, localHomes.monthlyBudget);
             await m.addColumn(localHomes, localHomes.anniversaryDate);
             await m.createTable(localCheckinReminders);
+          }
+          if (from < 12) {
+            await m.addColumn(localCalendarEvents, localCalendarEvents.owner);
+            await m.addColumn(localListItems, localListItems.owner);
+            await m.addColumn(localRoutineEvents, localRoutineEvents.owner);
+            await customStatement(
+              "UPDATE local_calendar_events SET owner = 'both' WHERE owner IS NULL;",
+            );
+            await customStatement(
+              "UPDATE local_routine_events SET owner = 'both' WHERE owner IS NULL;",
+            );
+            await customStatement(
+              'UPDATE local_list_items SET owner = NULL WHERE owner IS NOT NULL;',
+            );
+            await m.createTable(localPets);
+            await m.createTable(localPetTags);
           }
         },
       );

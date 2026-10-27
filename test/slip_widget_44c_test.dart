@@ -89,6 +89,21 @@ AppDatabase _openWriterDatabaseOnFile(File file) {
 
 Future<void> _downgradeDatabaseToSchemaVersion10(AppDatabase db) async {
   await db.customStatement(
+    'ALTER TABLE local_calendar_events DROP COLUMN owner;',
+  );
+  await db.customStatement(
+    'ALTER TABLE local_list_items DROP COLUMN owner;',
+  );
+  await db.customStatement(
+    'ALTER TABLE local_routine_events DROP COLUMN owner;',
+  );
+  await db.customStatement(
+    'DROP TABLE IF EXISTS local_pets;',
+  );
+  await db.customStatement(
+    'DROP TABLE IF EXISTS local_pet_tags;',
+  );
+  await db.customStatement(
     'ALTER TABLE local_homes DROP COLUMN monthly_budget;',
   );
   await db.customStatement(
