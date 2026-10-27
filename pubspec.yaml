@@ -58,6 +58,7 @@ dependencies:
   shared_preferences: ^2.5.5
   workmanager: ^0.10.10
   home_widget: ^0.10.0
+  figma_squircle: 0.6.3
 
 dev_dependencies:
   flutter_test:

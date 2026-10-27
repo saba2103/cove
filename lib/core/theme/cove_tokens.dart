@@ -39,14 +39,16 @@ abstract final class CoveSize {
 
 /// Mode-independent. Authored at device scale in design/tokens.json.
 abstract final class CoveRadius {
-  static const double inline = 16.0;
-  static const double card = 20.0;
-  static const double hero = 28.0;
+  static const double inline = 20.0;
+  static const double card = 24.0;
+  static const double hero = 32.0;
   /// Top corners of every bottom sheet.
-  static const double sheet = 32.0;
+  static const double sheet = 40.0;
   /// Bottom corners of a sheet reaching the screen edge. A stand-in for the hardware corner - read it from the OS where you can.
-  static const double device = 40.0;
+  static const double device = 48.0;
   static const double pill = 999.0;
+  /// Figma corner smoothing (100% squircle).
+  static const double smoothing = 1.0;
 }
 
 /// Text styles without colour. Pair with a CoveTokens colour at the use site.

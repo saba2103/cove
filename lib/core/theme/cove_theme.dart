@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../shape/cove_shape.dart';
 import 'cove_colors.dart';
 import 'cove_tokens.dart';
 import 'cove_typography.dart';
 
+export '../shape/cove_shape.dart';
 export 'cove_colors.dart';
 export 'cove_tokens.dart';
 export 'cove_typography.dart';
@@ -72,13 +74,21 @@ class CoveTheme {
       cardTheme: CardThemeData(
         color: colors.surfaceCard,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+        shape: CoveShape.border(
+          CoveRadius.card,
           side: isDark
               ? BorderSide.none
               : BorderSide(color: colors.borderHairline, width: 1),
         ),
         margin: EdgeInsets.zero,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: tokens.surfaceSheet,
+        surfaceTintColor: Colors.transparent,
+        shape: CoveShape.border(
+          CoveRadius.hero,
+          side: BorderSide(color: tokens.lineHairline, width: 1),
+        ),
       ),
       dividerTheme: DividerThemeData(
         color: colors.borderHairline,
@@ -100,8 +110,70 @@ class CoveTheme {
         backgroundColor: colors.surfaceCard,
         surfaceTintColor: Colors.transparent,
         constraints: const BoxConstraints(maxWidth: 580),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        shape: CoveShape.topBorder(CoveRadius.sheet),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: tokens.surfaceSheet,
+        surfaceTintColor: Colors.transparent,
+        shape: CoveShape.border(
+          CoveRadius.card,
+          side: BorderSide(color: tokens.lineHairline, width: 1),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: tokens.surfaceSheet,
+        contentTextStyle: CoveType.readout.copyWith(color: tokens.textPrimary),
+        shape: CoveShape.border(
+          CoveRadius.inline,
+          side: BorderSide(color: tokens.lineStrong, width: 1),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: tokens.surfaceCard,
+        selectedColor: tokens.accentTint,
+        side: BorderSide(color: tokens.lineStrong, width: 1),
+        shape: CoveShape.border(CoveRadius.inline),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(CoveShape.border(CoveRadius.inline)),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(CoveShape.border(CoveRadius.inline)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(CoveShape.border(CoveRadius.inline)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStatePropertyAll(CoveShape.border(CoveRadius.inline)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: CoveInputBorder(
+          radius: CoveRadius.inline,
+          borderSide: BorderSide(color: tokens.lineStrong),
+        ),
+        enabledBorder: CoveInputBorder(
+          radius: CoveRadius.inline,
+          borderSide: BorderSide(color: tokens.lineStrong),
+        ),
+        focusedBorder: CoveInputBorder(
+          radius: CoveRadius.inline,
+          borderSide: BorderSide(color: tokens.accentFill, width: 1.5),
+        ),
+        errorBorder: CoveInputBorder(
+          radius: CoveRadius.inline,
+          borderSide: BorderSide(color: tokens.statusAlert),
+        ),
+        focusedErrorBorder: CoveInputBorder(
+          radius: CoveRadius.inline,
+          borderSide: BorderSide(color: tokens.statusAlert, width: 1.5),
         ),
       ),
       scrollbarTheme: ScrollbarThemeData(
@@ -109,7 +181,7 @@ class CoveTheme {
         trackVisibility: const WidgetStatePropertyAll(false),
         interactive: true,
         thickness: const WidgetStatePropertyAll(6),
-        radius: const Radius.circular(3),
+        radius: CoveShape.radius(3),
         thumbColor: WidgetStatePropertyAll(
           colors.textSubtle.withValues(alpha: 0.3),
         ),
