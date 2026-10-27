@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_detail_sheet.dart';
 import '../../core/widgets/slips/cove_habit_card.dart';
@@ -53,10 +54,8 @@ class HabitDetailSheet extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(
             color: cv.lineHairline,
             width: _kDialogBorderWidth,

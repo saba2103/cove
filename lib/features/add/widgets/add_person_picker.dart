@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/widgets/cove_avatar.dart';
 import '../../../core/widgets/cove_toggle_switch.dart';
@@ -145,12 +146,10 @@ class _IndividualPersonTile<T> extends StatelessWidget {
           horizontal: CoveSpace.md,
           vertical: CoveSpace.lg,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.card,
           color: selected ? cv.accentWash : cv.surfaceRow,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.card),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: selected ? cv.accentFill : cv.lineStrong,
             width: selected
                 ? AddPersonPicker._kSelectedBorder
@@ -221,12 +220,10 @@ class _BothPersonTile<T> extends StatelessWidget {
           horizontal: CoveSpace.gutter,
           vertical: CoveSpace.md,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.card,
           color: selected ? cv.accentWash : cv.surfaceRow,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.card),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: selected ? cv.accentFill : cv.lineStrong,
             width: selected
                 ? AddPersonPicker._kSelectedBorder
@@ -300,12 +297,10 @@ class _PersonToggleRow extends StatelessWidget {
               horizontal: CoveSpace.gutter,
               vertical: CoveSpace.md,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.card,
               color: cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.card),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineStrong,
                 width: AddPersonPicker._kNormalBorder,
               ),

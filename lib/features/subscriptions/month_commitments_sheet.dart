@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_empty_state.dart';
@@ -88,11 +89,9 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
 
     return Container(
       constraints: BoxConstraints(maxHeight: screenHeight * 0.85),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -107,11 +106,9 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
               ),
               width: _kHandleWidth,
               height: CoveSpace.xs,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                _kHandleRadius,
                 color: cv.lineHairline,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(_kHandleRadius),
-                ),
               ),
             ),
           ),
@@ -254,9 +251,9 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
     final partnerRatio = (partnerAmount / total).clamp(0.0, 1.0);
     final splitRatio = (splitAmount / total).clamp(0.0, 1.0);
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.pill)),
-      child: SizedBox(
+    return CoveShape.clip(
+      CoveRadius.pill,
+      SizedBox(
         height: _kAttributionBarHeight,
         child: Row(
           children: [
@@ -313,15 +310,13 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
       onTap: () {
         CommitmentDetailSheet.show(context, item.subscription);
       },
-      borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.inline)),
+      customBorder: CoveShape.border(CoveRadius.inline),
       child: Container(
         padding: const EdgeInsets.all(CoveSpace.md),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: cv.surfaceRow,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
-          border: Border.all(color: cv.lineHairline),
+          side: BorderSide(color: cv.lineHairline),
         ),
         child: Row(
           children: [
@@ -329,12 +324,10 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
             Container(
               width: CoveSize.buttonRound,
               height: CoveSize.buttonRound,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveSpace.md,
                 color: cv.surfaceCard,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveSpace.md),
-                ),
-                border: Border.all(color: cv.lineHairline),
+                side: BorderSide(color: cv.lineHairline),
               ),
               child: Icon(
                 _getCategoryIcon(item.category),
@@ -368,13 +361,11 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                           horizontal: CoveSpace.sm,
                           vertical: CoveSpace.xs,
                         ),
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.decoration(
+                          _kBadgeRadius,
                           color: item.isEmi
                               ? cv.statusAlert.withValues(alpha: 0.15)
                               : cv.accentWash,
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(_kBadgeRadius),
-                          ),
                         ),
                         child: Text(
                           item.isEmi ? 'EMI' : 'Sub',
@@ -393,11 +384,9 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
                             horizontal: CoveSpace.sm,
                             vertical: CoveSpace.xs,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            _kBadgeRadius,
                             color: cv.lineHairline,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(_kBadgeRadius),
-                            ),
                           ),
                           child: Text(
                             'Annual',

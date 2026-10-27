@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_checkbox.dart';
@@ -195,10 +196,8 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(
             color: cv.lineHairline,
             width: CommitmentDetailSheet._kDialogBorderWidth,
@@ -290,10 +289,8 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: cv.surfaceCard,
-            shape: RoundedRectangleBorder(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
+            shape: CoveShape.border(
+              CoveRadius.inline,
               side: BorderSide(
                 color: cv.lineHairline,
                 width: CommitmentDetailSheet._kDialogBorderWidth,
@@ -328,12 +325,10 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
                 const SizedBox(height: CoveSpace.md),
                 Container(
                   padding: const EdgeInsets.all(CoveSpace.md),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.card,
                     color: cv.surfaceRow,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.card),
-                    ),
-                    border: Border.all(
+                    side: BorderSide(
                       color: cv.lineHairline,
                       width: CommitmentDetailSheet._kDialogBorderWidth,
                     ),
@@ -442,11 +437,7 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: cv.accentFill,
                   foregroundColor: cv.textOnAccent,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
-                  ),
+                  shape: CoveShape.border(CoveRadius.pill),
                 ),
                 child: Text(
                   isEmi ? 'Confirm Payment' : 'Confirm Renewal',
@@ -533,10 +524,8 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: cv.surfaceCard,
-            shape: RoundedRectangleBorder(
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
+            shape: CoveShape.border(
+              CoveRadius.inline,
               side: BorderSide(
                 color: cv.lineHairline,
                 width: CommitmentDetailSheet._kDialogBorderWidth,
@@ -569,12 +558,10 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
                 const SizedBox(height: CoveSpace.md),
                 Container(
                   padding: const EdgeInsets.all(CoveSpace.md),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.card,
                     color: cv.surfaceRow,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.card),
-                    ),
-                    border: Border.all(
+                    side: BorderSide(
                       color: cv.lineHairline,
                       width: CommitmentDetailSheet._kDialogBorderWidth,
                     ),

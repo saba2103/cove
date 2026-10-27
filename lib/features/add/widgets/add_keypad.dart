@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/utils/cove_currency_formatter.dart';
 
@@ -155,11 +156,9 @@ class _AddKeypadState extends State<AddKeypad> {
               horizontal: CoveSpace.md,
               vertical: CoveSpace.md,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: cv.surfaceCard,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
             ),
             child: Row(
               children: [
@@ -293,11 +292,9 @@ class _KeypadKey extends StatelessWidget {
             ),
             height: CoveSize.row,
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: filled ? cv.surfaceRow : Colors.transparent,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
             ),
             child: icon != null
                 ? Icon(

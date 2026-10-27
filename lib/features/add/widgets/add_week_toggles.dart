@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// Seven weekday toggles (`M T W T F S S`, Monday first) for routines and
@@ -180,12 +181,10 @@ class _AddWeekTogglesState extends State<AddWeekToggles> {
               minHeight: CoveSize.hit,
             ),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: isSelected ? cv.accentWash : cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: isSelected ? cv.accentFill : cv.lineHairline,
                 width: isSelected
                     ? AddWeekToggles._kSelectedBorder

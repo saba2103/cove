@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_page_header.dart';
@@ -85,11 +86,9 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
         right: CoveSpace.gutter,
         top: CoveSpace.gutter,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -102,11 +101,9 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                 width: _kHandleWidth,
                 height: CoveSpace.xs,
                 margin: const EdgeInsets.only(bottom: _kHandleBottomGap),
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  _kHandleRadius,
                   color: cv.lineHairline,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(_kHandleRadius),
-                  ),
                 ),
               ),
             ),
@@ -156,12 +153,10 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                 horizontal: _kInputHorizontalPadding,
                 vertical: CoveSpace.md,
               ),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.inline,
                 color: cv.surfaceRow,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.inline),
-                ),
-                border: Border.all(color: cv.lineHairline),
+                side: BorderSide(color: cv.lineHairline),
               ),
               child: Row(
                 children: [
@@ -211,20 +206,16 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                       _amountController.text = val.toInt().toString();
                     });
                   },
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
+                  customBorder: CoveShape.border(CoveRadius.pill),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: CoveSpace.md,
                       vertical: CoveSpace.sm,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.pill,
                       color: cv.surfaceRow,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.pill),
-                      ),
-                      border: Border.all(color: cv.lineHairline),
+                      side: BorderSide(color: cv.lineHairline),
                     ),
                     child: Text(
                       '${currency.symbol}$formatted',

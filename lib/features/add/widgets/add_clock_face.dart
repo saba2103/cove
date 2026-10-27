@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// Active selection mode of [AddClockFace] (`design/specs/14-add-flow.md` §3 **time**).
@@ -272,12 +273,10 @@ class _AddClockFaceState extends State<AddClockFace> {
                     horizontal: CoveSpace.gutter,
                     vertical: CoveSpace.sm,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
                     color: widget.isAllDay ? cv.accentWash : cv.surfaceRow,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
-                    border: Border.all(
+                    side: BorderSide(
                       color: widget.isAllDay ? cv.accentFill : cv.lineStrong,
                       width: widget.isAllDay
                           ? AddClockFace._kSelectedBorder
@@ -399,17 +398,15 @@ class _DigitalBox extends StatelessWidget {
               vertical: CoveSpace.xs,
             ),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: active ? cv.accentWash : cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: active
-                  ? Border.all(
+              side: active
+                  ? BorderSide(
                       color: cv.accentFill,
                       width: AddClockFace._kSelectedBorder,
                     )
-                  : null,
+                  : BorderSide.none,
             ),
             child: Text(
               label,
@@ -461,12 +458,10 @@ class _MeridiemButton extends StatelessWidget {
                   horizontal: CoveSpace.md,
                 ),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.inline,
                   color: selected ? cv.accentWash : cv.surfaceRow,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.inline),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: selected ? cv.accentFill : cv.lineStrong,
                     width: selected
                         ? AddClockFace._kSelectedBorder

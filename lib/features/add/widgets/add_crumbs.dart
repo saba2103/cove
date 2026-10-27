@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// A single answered-step crumb in [AddCrumbs] (`design/specs/14-add-flow.md` §2.3).
@@ -91,12 +92,10 @@ class _CrumbPill extends StatelessWidget {
         horizontal: CoveSpace.md,
         vertical: CoveSpace.xs,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.pill,
         color: cv.surfaceRow,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineStrong,
           width: AddCrumbs._kBorderWidth,
         ),

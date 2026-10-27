@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// A single option in [AddChoiceList] (`design/specs/14-add-flow.md` §3 **choice**).
@@ -100,12 +101,10 @@ class _ChoiceOptionRow<T> extends StatelessWidget {
               horizontal: CoveSpace.gutter,
               vertical: CoveSpace.md,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: selected ? cv.accentWash : cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: selected ? cv.accentFill : cv.lineStrong,
                 width: selected
                     ? AddChoiceList._kSelectedBorder

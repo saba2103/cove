@@ -3,6 +3,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_max_width.dart';
@@ -363,14 +364,9 @@ class _MonthChangeChart extends StatelessWidget {
                                       const SizedBox(height: 2.0), // (literal)
                                       Container(
                                         height: barHeight,
-                                        decoration: BoxDecoration(
+                                        decoration: CoveShape.topDecoration(
+                                          _kBarCornerRadius,
                                           color: cv.accentFill,
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                            top: Radius.circular(
-                                              _kBarCornerRadius,
-                                            ),
-                                          ),
                                         ),
                                       ),
                                     ],
@@ -406,17 +402,13 @@ class _MonthChangeChart extends StatelessWidget {
                                     children: [
                                       Container(
                                         height: barHeight,
-                                        decoration: BoxDecoration(
+                                        decoration: CoveShape.onlyDecoration(
+                                          bottomLeft: _kBarCornerRadius,
+                                          bottomRight: _kBarCornerRadius,
                                           color: Colors.transparent,
-                                          border: Border.all(
+                                          side: BorderSide(
                                             color: cv.accentFill,
                                             width: _kBorderWidth,
-                                          ),
-                                          borderRadius:
-                                              const BorderRadius.vertical(
-                                            bottom: Radius.circular(
-                                              _kBarCornerRadius,
-                                            ),
                                           ),
                                         ),
                                       ),
@@ -459,12 +451,10 @@ class _MonthChangeChart extends StatelessWidget {
               horizontal: CoveSpace.md,
               vertical: CoveSpace.xs,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
               color: cv.surfaceCard,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.accentFill,
                 width: _kBorderWidth,
               ),

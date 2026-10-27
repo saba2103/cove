@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/widgets/cove_card.dart';
 import '../../../core/widgets/cove_pill_button.dart';
@@ -46,11 +47,9 @@ class WeatherDetailSheet extends ConsumerWidget {
     final updatedTimeStr = timeFormat.format(liveWeather.updatedAt);
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.hero,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.hero),
-        ),
       ),
       padding: EdgeInsets.fromLTRB(
         CoveSpace.lg,
@@ -67,11 +66,9 @@ class WeatherDetailSheet extends ConsumerWidget {
             child: Container(
               width: _kHandleWidth,
               height: CoveSpace.xs,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                _kHandleRadius,
                 color: cv.textSecondary.withValues(alpha: 0.3),
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(_kHandleRadius),
-                ),
               ),
             ),
           ),
@@ -108,12 +105,10 @@ class WeatherDetailSheet extends ConsumerWidget {
                   horizontal: CoveSpace.sm,
                   vertical: CoveSpace.xs,
                 ),
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: liveWeather.isLiveGps ? cv.accentWash : cv.surfaceRow,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: liveWeather.isLiveGps
                         ? cv.accentFill.withValues(alpha: 0.3)
                         : cv.lineHairline,

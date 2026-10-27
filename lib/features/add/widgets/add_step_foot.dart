@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../../../core/widgets/slips/cove_slip.dart';
 
@@ -68,12 +69,10 @@ class AddStepFoot extends StatelessWidget {
                 horizontal: CoveSpace.gutter,
               ),
               alignment: Alignment.center,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.pill,
                 color: Colors.transparent,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.pill),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: cv.lineStrong,
                   width: _kBorderWidth,
                 ),
@@ -176,11 +175,9 @@ class AddStepFoot extends StatelessWidget {
               horizontal: CoveSpace.lg,
             ),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
               color: fillColor,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

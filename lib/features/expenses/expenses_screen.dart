@@ -3,6 +3,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
@@ -724,12 +725,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.gutter),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.hero,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.hero),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kBorderWidth,
         ),
@@ -761,12 +760,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
           // Expenditure | Transfers segmented pill
           Container(
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
               color: cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineHairline,
                 width: _kBorderWidth,
               ),
@@ -881,11 +878,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             // Person A / Person B split bar at foot of hero card
             if (sharedMonthlyTotal > 0) ...[
               const SizedBox(height: CoveSpace.md),
-              ClipRRect(
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.pill),
-                ),
-                child: SizedBox(
+              CoveShape.clip(
+                CoveRadius.pill,
+                SizedBox(
                   height: _kBarHeight,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1010,12 +1005,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       onTap: () => MonthlyBudgetSheet.show(context),
       child: Container(
         padding: const EdgeInsets.all(CoveSpace.md),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.inline,
           color: cv.surfaceRow,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: isOverBudget ? cv.statusAlert : cv.lineHairline,
             width: _kBorderWidth,
           ),
@@ -1093,11 +1086,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     clipBehavior: Clip.none,
                     alignment: Alignment.centerLeft,
                     children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.pill),
-                        ),
-                        child: SizedBox(
+                      CoveShape.clip(
+                        CoveRadius.pill,
+                        SizedBox(
                           height: _kBarHeight,
                           width: double.infinity,
                           child: ColoredBox(
@@ -1330,11 +1321,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
         // Proportional category split bar
         if (totalSpendAll > 0) ...[
-          ClipRRect(
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
-            child: SizedBox(
+          CoveShape.clip(
+            CoveRadius.pill,
+            SizedBox(
               height: _kCategoryBarHeight,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1406,12 +1395,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     horizontal: CoveSpace.md,
                     vertical: CoveSpace.xs,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
                     color: isSelected ? cv.accentWash : cv.surfaceCard,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
-                    border: Border.all(
+                    side: BorderSide(
                       color: isSelected ? cv.accentFill : cv.lineHairline,
                       width: _kBorderWidth,
                     ),
@@ -1505,12 +1492,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             horizontal: CoveSpace.md,
             vertical: CoveSpace.sm,
           ),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.card,
             color: cv.surfaceCard,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
-            border: Border.all(
+            side: BorderSide(
               color: cv.lineHairline,
               width: _kBorderWidth,
             ),
@@ -1776,12 +1761,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   horizontal: _kBadgeHorizPad,
                   vertical: _kBadgeVertPad,
                 ),
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.accentWash,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: cv.lineStrong,
                     width: _kBorderWidth,
                   ),
@@ -1821,14 +1804,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           horizontal: CoveSpace.md,
           vertical: CoveSpace.xs,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: isSelected ? cv.surfaceCard : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          border: isSelected
-              ? Border.all(color: cv.accentFill, width: _kBorderWidth)
-              : null,
+          side: isSelected
+              ? BorderSide(color: cv.accentFill, width: _kBorderWidth)
+              : BorderSide.none,
         ),
         child: Text(
           label,
@@ -1960,19 +1941,17 @@ class _DailySpendBarChart extends StatelessWidget {
                       ),
                       child: Container(
                         height: barHeight,
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.topDecoration(
+                          _kBarRadius,
                           color: isFuture
                               ? Colors.transparent
                               : (value > 0 ? activeBarColor : cv.lineStrong),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(_kBarRadius),
-                          ),
-                          border: isFuture
-                              ? Border.all(
+                          side: isFuture
+                              ? BorderSide(
                                   color: cv.lineStrong,
                                   width: _kBorderWidth,
                                 )
-                              : null,
+                              : BorderSide.none,
                         ),
                       ),
                     ),

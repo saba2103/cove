@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 import '../add_draft.dart';
 import 'add_month_day_grid.dart';
@@ -156,12 +157,10 @@ class _MonthChip extends StatelessWidget {
               horizontal: CoveSpace.md,
             ),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: selected ? cv.accentWash : cv.surfaceRow,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: selected ? cv.accentFill : cv.lineStrong,
                 width: selected
                     ? AddNextDatePicker._kSelectedBorder

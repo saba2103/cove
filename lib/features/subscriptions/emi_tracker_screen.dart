@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
@@ -526,12 +527,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.inline,
         color: cv.surfaceRow,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.inline),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.accentFill,
           width: _kHairline,
         ),
@@ -627,12 +626,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.gutter),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -763,12 +760,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -784,11 +779,9 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
             style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
           ),
           const SizedBox(height: CoveSpace.sm),
-          ClipRRect(
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
-            child: SizedBox(
+          CoveShape.clip(
+            CoveRadius.pill,
+            SizedBox(
               height: _kBarHeight,
               child: hasAny
                   ? Row(
@@ -851,12 +844,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -872,11 +863,9 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
             style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
           ),
           const SizedBox(height: CoveSpace.sm),
-          ClipRRect(
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
-            child: SizedBox(
+          CoveShape.clip(
+            CoveRadius.pill,
+            SizedBox(
               height: _kBarHeight,
               child: LinearProgressIndicator(
                 value: overallPayoffPercent,
@@ -983,12 +972,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
               horizontal: CoveSpace.md,
               vertical: CoveSpace.sm,
             ),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: cv.surfaceCard,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineHairline,
                 width: _kHairline,
               ),
@@ -1037,12 +1024,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: CoveSpace.md,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.pill,
                       color: isSelected ? cv.accentWash : Colors.transparent,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.pill),
-                      ),
-                      border: Border.all(
+                      side: BorderSide(
                         color: isSelected ? cv.accentFill : cv.lineStrong,
                         width: _kHairline,
                       ),
@@ -1221,12 +1206,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     final cv = context.cv;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -1300,12 +1283,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
         child: Container(
           padding: const EdgeInsets.all(CoveSpace.md),
           decoration: isSelected
-              ? BoxDecoration(
+              ? CoveShape.decoration(
+                  CoveRadius.inline,
                   color: cv.accentWash,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.inline),
-                  ),
-                  border: Border.all(
+                  side: BorderSide(
                     color: cv.accentFill,
                     width: _kSelectedBorder,
                   ),
@@ -1394,12 +1375,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     final cv = context.cv;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -1747,7 +1726,7 @@ class _PunchedInstallmentTicksPainter extends CustomPainter {
     final totalGaps = (count - 1) * gap;
     final tickWidth = math.max(2.0, (size.width - totalGaps) / count);
     final tickHeight = size.height;
-    final radius = Radius.circular(tickHeight / 2);
+    final cornerRadius = tickHeight / 2;
 
     final punchedPaint = Paint()
       ..color = punchedColor
@@ -1759,17 +1738,17 @@ class _PunchedInstallmentTicksPainter extends CustomPainter {
     for (var i = 0; i < count; i++) {
       final x = i * (tickWidth + gap);
       if (x > size.width) break;
-      final rrect = RRect.fromRectAndRadius(
+      final path = smoothCornerPath(
         Rect.fromLTWH(
           x,
           0,
           math.min(tickWidth, size.width - x),
           tickHeight,
         ),
-        radius,
+        radius: cornerRadius,
       );
-      canvas.drawRRect(
-        rrect,
+      canvas.drawPath(
+        path,
         i < paidInstallments ? punchedPaint : unpunchedPaint,
       );
     }

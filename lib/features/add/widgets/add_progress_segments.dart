@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// Segmented step progress bar (`design/specs/14-add-flow.md` §2.2).
@@ -38,11 +39,9 @@ class AddProgressSegments extends StatelessWidget {
               Expanded(
                 child: Container(
                   height: kSegmentHeight,
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.pill,
                     color: i < clampedCurrent ? cv.accentFill : cv.lineStrong,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
                   ),
                 ),
               ),

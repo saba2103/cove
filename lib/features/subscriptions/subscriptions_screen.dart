@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_avatar.dart';
@@ -545,15 +546,13 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             ? 'per month · combined monthly & annual'
             : 'per month · monthly commitments only');
 
-    return ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(CoveRadius.card)),
-      child: Container(
-        decoration: BoxDecoration(
+    return CoveShape.clip(
+      CoveRadius.card,
+      Container(
+        decoration: CoveShape.decoration(
+          CoveRadius.card,
           color: cv.surfaceCard,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.card),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: cv.lineHairline,
             width: _kHairline,
           ),
@@ -584,12 +583,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     children: [
                       // Monthly / Annually segmented pill
                       Container(
-                        decoration: BoxDecoration(
+                        decoration: CoveShape.decoration(
+                          CoveRadius.pill,
                           color: cv.surfaceRow,
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(CoveRadius.pill),
-                          ),
-                          border: Border.all(
+                          side: BorderSide(
                             color: cv.lineHairline,
                             width: _kHairline,
                           ),
@@ -630,12 +627,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                           padding: const EdgeInsets.symmetric(
                             horizontal: CoveSpace.sm,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: cv.surfaceRow,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveRadius.pill),
-                            ),
-                            border: Border.all(
+                            side: BorderSide(
                               color: cv.lineHairline,
                               width: _kHairline,
                             ),
@@ -721,11 +716,9 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                   const SizedBox(height: CoveSpace.md),
 
                   // Split bar (EMIs / Subs / Savings)
-                  ClipRRect(
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.pill),
-                    ),
-                    child: SizedBox(
+                  CoveShape.clip(
+                    CoveRadius.pill,
+                    SizedBox(
                       height: _kSplitBarHeight,
                       child: hasAnyBar
                           ? Row(
@@ -880,12 +873,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         curve: CoveMotion.easing,
         height: _kPillHeight,
         padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: selected ? cv.accentWash : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: selected ? cv.accentFill : Colors.transparent,
             width: _kHairline,
           ),
@@ -919,11 +910,9 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         Container(
           width: _kSwatchSize,
           height: _kSwatchSize,
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveSpace.xs,
             color: swatchColor,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveSpace.xs),
-            ),
           ),
         ),
         const SizedBox(width: CoveSpace.xs),
@@ -1064,12 +1053,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: CoveSpace.md,
                     ),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.pill,
                       color: isSelected ? cv.accentWash : Colors.transparent,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.pill),
-                      ),
-                      border: Border.all(
+                      side: BorderSide(
                         color: isSelected ? cv.accentFill : cv.lineStrong,
                         width: _kHairline,
                       ),
@@ -1202,12 +1189,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
         // Date group card containing CoveRow items
         Container(
           padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.card,
             color: cv.surfaceCard,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
-            border: Border.all(
+            side: BorderSide(
               color: cv.lineHairline,
               width: _kHairline,
             ),
@@ -1355,12 +1340,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -1395,12 +1378,10 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.gutter),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kHairline,
         ),
@@ -1707,12 +1688,12 @@ class _RunwayMiniChartPainter extends CustomPainter {
       text: TextSpan(text: 'TODAY', style: pillTextStyle),
       textDirection: TextDirection.ltr,
     )..layout();
-    final pillRect = RRect.fromRectAndRadius(
+    final pillPath = smoothCornerPath(
       Rect.fromLTWH(0, 0, todayTp.width + 12.0, todayTp.height + 4.0),
-      const Radius.circular(CoveRadius.pill),
+      radius: CoveRadius.pill,
     );
-    canvas.drawRRect(
-      pillRect,
+    canvas.drawPath(
+      pillPath,
       Paint()..color = pillFillColor,
     );
     todayTp.paint(canvas, const Offset(6.0, 2.0));

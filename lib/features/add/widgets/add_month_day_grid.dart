@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/shape/cove_shape.dart';
 import '../../../core/theme/cove_tokens.dart';
 
 /// 7-column grid of days `1–28` for monthly commitments (`design/specs/14-add-flow.md` §3 **month-day**).
@@ -134,12 +135,10 @@ class AddMonthDayGrid extends StatelessWidget {
               minHeight: CoveSize.hit,
             ),
             alignment: Alignment.center,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: fillColor,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: borderColor,
                 width: isSelected ? _kSelectedBorder : _kNormalBorder,
               ),

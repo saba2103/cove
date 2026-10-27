@@ -2,6 +2,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../core/shape/cove_shape.dart';
 import '../../core/theme/cove_tokens.dart';
 import '../../core/utils/cove_currency_formatter.dart';
 import '../../core/widgets/cove_actor_avatar.dart';
@@ -216,10 +217,8 @@ class CalendarEventDetailSheet extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cv.surfaceCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(
             color: cv.lineHairline,
             width: _kDialogBorderWidth,
@@ -589,11 +588,9 @@ class ActivityEventDetailSheet extends ConsumerWidget {
         : preferredCurrency.symbol;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: CoveShape.topDecoration(
+        CoveRadius.sheet,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(CoveRadius.sheet),
-        ),
       ),
       padding: EdgeInsets.fromLTRB(
         CoveSpace.xl,
@@ -611,11 +608,9 @@ class ActivityEventDetailSheet extends ConsumerWidget {
               child: Container(
                 width: _kGrabHandleWidth,
                 height: _kGrabHandleHeight,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  _kGrabHandleRadius,
                   color: cv.textTertiary.withValues(alpha: 0.3),
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(_kGrabHandleRadius),
-                  ),
                 ),
               ),
             ),
@@ -630,11 +625,9 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                     horizontal: CoveSpace.sm,
                     vertical: CoveSpace.xs,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: CoveShape.decoration(
+                    CoveRadius.inline,
                     color: cv.surfaceRow,
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(CoveRadius.inline),
-                    ),
                   ),
                   child: Text(
                     item.module.label.toUpperCase(),
