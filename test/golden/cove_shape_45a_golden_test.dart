@@ -147,24 +147,31 @@ void main() {
       await _pumpGolden(
         tester,
         'cove_shape_45a.zoomed_corner',
-        const Size(360, 360),
+        const Size(760, 560),
         (context, cv) {
-          // Zoom 8x into the top-left corner of a clipped card with an inside hairline.
-          return ClipRect(
-            child: Transform.scale(
-              scale: 8.0,
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: CoveShape.clip(
-                  CoveRadius.card,
-                  DecoratedBox(
-                    decoration: CoveShape.decoration(
+          // Zoom 10x into the top-left corner of a 200x200dp clipped card with an inside hairline.
+          // At radius 24dp and smoothing 1.0, the corner curve spans (1 + 1.0) * 24 = 48dp (480px at 10x)
+          // from (40, 40) to 520 along both edges; x = 520..760 shows the truly flat top edge in the same frame.
+          return SizedBox.expand(
+            child: ClipRect(
+              child: Transform.scale(
+                scale: 10.0,
+                alignment: Alignment.topLeft,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: CoveShape.clip(
                       CoveRadius.card,
-                      color: cv.surfaceCard,
-                      side: BorderSide(color: cv.accentFill, width: 1),
+                      DecoratedBox(
+                        decoration: CoveShape.decoration(
+                          CoveRadius.card,
+                          color: cv.surfaceCard,
+                          side: BorderSide(color: cv.accentFill, width: 1),
+                        ),
+                        child: const SizedBox(width: 200, height: 200),
+                      ),
                     ),
-                    child: const SizedBox(width: 120, height: 120),
                   ),
                 ),
               ),
@@ -174,11 +181,12 @@ void main() {
       );
 
       // Programmatically verify that at high magnification (10x, 1dp stroke = 10px),
-      // the stroke thickness inside the clip on the straight top edge matches the
-      // stroke thickness through the 45-degree corner diagonal.
+      // the stroke thickness inside the clip on the straight top edge (at x = 650, well past
+      // the ~480px corner smoothing zone ending at x = 520) matches the stroke thickness
+      // through the 45-degree corner diagonal.
       final boundaryKey = GlobalKey();
       tester.view
-        ..physicalSize = const Size(400, 400)
+        ..physicalSize = const Size(800, 600)
         ..devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
@@ -193,21 +201,29 @@ void main() {
             textDirection: TextDirection.ltr,
             child: ColoredBox(
               color: bgColor,
-              child: ClipRect(
-                child: Transform.scale(
-                  scale: 10.0,
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: CoveShape.clip(
-                      CoveRadius.card,
-                      DecoratedBox(
-                        decoration: CoveShape.decoration(
+              child: SizedBox.expand(
+                child: ClipRect(
+                  child: Transform.scale(
+                    scale: 10.0,
+                    alignment: Alignment.topLeft,
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: CoveShape.clip(
                           CoveRadius.card,
-                          color: fillColor,
-                          side: const BorderSide(color: strokeColor, width: 1),
+                          DecoratedBox(
+                            decoration: CoveShape.decoration(
+                              CoveRadius.card,
+                              color: fillColor,
+                              side: const BorderSide(
+                                color: strokeColor,
+                                width: 1,
+                              ),
+                            ),
+                            child: const SizedBox(width: 200, height: 200),
+                          ),
                         ),
-                        child: const SizedBox(width: 80, height: 80),
                       ),
                     ),
                   ),
@@ -228,16 +244,17 @@ void main() {
       expect(bytes, isNotNull);
 
       bool isStrokePixel(int x, int y) {
-        final offset = (y * 400 + x) * 4;
+        final offset = (y * 800 + x) * 4;
         final r = bytes!.getUint8(offset);
         return r > 120; // strokeColor has R=255, fill has R=26, bg has R=0
       }
 
-      // Measure vertical thickness along the straight top edge at x = 350
-      // (at 10x scale with 4dp padding, the top edge starts at y = 40px and x = 350 is on the flat top).
+      // Measure vertical thickness along the truly straight top edge at x = 650
+      // (at 10x scale with 4dp padding and 24dp radius at 1.0 smoothing, the corner smoothing
+      // zone runs from x = 40 to ~520px, so x = 650px is well onto the flat top edge).
       var straightEdgeStrokePx = 0;
       for (var y = 0; y < 120; y++) {
-        if (isStrokePixel(350, y)) straightEdgeStrokePx++;
+        if (isStrokePixel(650, y)) straightEdgeStrokePx++;
       }
 
       // Measure diagonal thickness along x == y through the top-left corner curve,
