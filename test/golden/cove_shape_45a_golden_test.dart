@@ -329,5 +329,36 @@ void main() {
         ),
       );
     });
+
+    test('4.5g — SquirclePathCache caches paths per (Size, SmoothBorderRadius) and shifts for offset Rects', () {
+      SquirclePathCache.clear();
+      final border = CoveShape.border(
+        CoveRadius.card,
+        side: const BorderSide(color: Color(0xFFFFFFFF), width: 1.0),
+      );
+
+      final rectA = const Rect.fromLTWH(20, 40, 340, 52);
+      final rectB = const Rect.fromLTWH(20, 100, 340, 52);
+
+      final outerA = border.getOuterPath(rectA);
+      expect(SquirclePathCache.misses, 1);
+      expect(SquirclePathCache.hits, 0);
+
+      final outerB = border.getOuterPath(rectB);
+      expect(SquirclePathCache.misses, 1);
+      expect(SquirclePathCache.hits, 1);
+      expect(outerA.getBounds(), equals(rectA));
+      expect(outerB.getBounds(), equals(rectB));
+
+      // Repeating 50 rows of identical size hits the cache every time after the first
+      for (var i = 0; i < 50; i++) {
+        smoothCornerPath(
+          Rect.fromLTWH(16, i * 60.0, 379, 52),
+          radius: CoveRadius.inline,
+        );
+      }
+      expect(SquirclePathCache.misses, 2);
+      expect(SquirclePathCache.hits, 50);
+    });
   });
 }
