@@ -119,12 +119,10 @@ class CoveHeaderPill extends StatelessWidget {
           height: kHeight,
           padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
           alignment: Alignment.center,
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.pill,
             color: isActive ? cv.accentWash : Colors.transparent,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
-            border: Border.all(
+            side: BorderSide(
               color: isActive ? cv.accentFill : cv.lineStrong,
               width: _kBorderWidth,
             ),

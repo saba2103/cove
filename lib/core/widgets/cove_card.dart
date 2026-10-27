@@ -6,7 +6,8 @@ class CoveCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
-  final double borderRadius;
+  final double radius;
+  final double? borderRadius;
   final Color? backgroundColor;
   final Border? border;
 
@@ -16,7 +17,8 @@ class CoveCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(18),
     this.margin,
     this.onTap,
-    this.borderRadius = 18,
+    this.radius = CoveRadius.card,
+    this.borderRadius,
     this.backgroundColor,
     this.border,
   });
@@ -25,18 +27,20 @@ class CoveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final isDark = context.isDark;
+    final effectiveRadius = borderRadius ?? radius;
 
-    final effectiveBorder = border ??
-        (isDark
-            ? null
-            : Border.all(color: colors.borderHairline, width: 1.0));
+    final BorderSide effectiveSide = border != null
+        ? border!.top
+        : (isDark
+            ? BorderSide.none
+            : BorderSide(color: colors.borderHairline, width: 1.0));
 
     final cardContent = Container(
       padding: padding,
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        effectiveRadius,
         color: backgroundColor ?? colors.surfaceCard,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: effectiveBorder,
+        side: effectiveSide,
       ),
       child: child,
     );
@@ -46,10 +50,10 @@ class CoveCard extends StatelessWidget {
         padding: margin ?? EdgeInsets.zero,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(borderRadius),
+          shape: CoveShape.border(effectiveRadius),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(borderRadius),
+            customBorder: CoveShape.border(effectiveRadius),
             highlightColor: colors.accentPrimary.withValues(alpha: 0.05),
             splashColor: colors.accentPrimary.withValues(alpha: 0.08),
             child: cardContent,

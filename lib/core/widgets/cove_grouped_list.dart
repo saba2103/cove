@@ -5,13 +5,13 @@ import 'cove_card.dart';
 class CoveGroupedCard extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry? margin;
-  final double borderRadius;
+  final double radius;
 
   const CoveGroupedCard({
     super.key,
     required this.children,
     this.margin,
-    this.borderRadius = 18,
+    this.radius = CoveRadius.card,
   });
 
   @override
@@ -35,10 +35,10 @@ class CoveGroupedCard extends StatelessWidget {
     return CoveCard(
       padding: EdgeInsets.zero,
       margin: margin,
-      borderRadius: borderRadius,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Column(
+      radius: radius,
+      child: CoveShape.clip(
+        radius,
+        Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: separatedChildren,

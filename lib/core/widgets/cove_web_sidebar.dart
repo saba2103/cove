@@ -76,9 +76,9 @@ class CoveWebSidebar extends ConsumerWidget {
                     Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveSpace.sm,
                         color: colors.accentPrimary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -130,13 +130,13 @@ class CoveWebSidebar extends ConsumerWidget {
                       );
                     }
                   },
-                  borderRadius: BorderRadius.circular(10),
+                  customBorder: CoveShape.border(CoveSpace.md),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveSpace.md,
                       color: colors.surfaceRow,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: colors.borderHairline),
+                      side: BorderSide(color: colors.borderHairline),
                     ),
                     child: Row(
                       children: [
@@ -344,7 +344,7 @@ class CoveWebSidebar extends ConsumerWidget {
                       MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     );
                   },
-                  borderRadius: BorderRadius.circular(10),
+                  customBorder: CoveShape.border(CoveSpace.md),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
@@ -441,20 +441,20 @@ class CoveWebSidebar extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => onSelectIndex(index),
-          borderRadius: BorderRadius.circular(10),
+          customBorder: CoveShape.border(CoveSpace.md),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveSpace.md,
               color: isSelected
                   ? colors.accentPrimary.withValues(alpha: 0.12)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-              border: isSelected
-                  ? Border.all(
+              side: isSelected
+                  ? BorderSide(
                       color: colors.accentPrimary.withValues(alpha: 0.3),
                       width: 1,
                     )
-                  : null,
+                  : BorderSide.none,
             ),
             child: Row(
               children: [
@@ -497,7 +497,7 @@ class CoveWebSidebar extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
+          customBorder: CoveShape.border(CoveSpace.md),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
@@ -517,9 +517,9 @@ class CoveWebSidebar extends ConsumerWidget {
                 if (badgeCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveSpace.md,
                       color: colors.accentSecondary,
-                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       badgeCount > 99 ? '99+' : '$badgeCount',

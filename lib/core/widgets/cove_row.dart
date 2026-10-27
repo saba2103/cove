@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_avatar.dart';
 
@@ -158,11 +159,9 @@ class _CoveRowState extends State<CoveRow> {
                       padding: const EdgeInsets.symmetric(
                         horizontal: CoveSpace.hitPlate,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveRadius.inline,
                         color: showPlate ? cv.surfaceRow : Colors.transparent,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.inline),
-                        ),
                       ),
                     ),
                   ),

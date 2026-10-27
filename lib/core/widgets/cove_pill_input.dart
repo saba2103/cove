@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 class CovePillInput extends StatelessWidget {
@@ -46,12 +47,10 @@ class CovePillInput extends StatelessWidget {
 
     return Container(
       height: CoveSize.hit,
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.pill,
         color: cv.surfaceRow,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kBorderWidth,
         ),

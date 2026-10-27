@@ -7,4 +7,4 @@
 #
 # Not listed = converted = zero tolerance.
 
-lib/core/widgets/cove_web_sidebar.dart 22
+lib/core/widgets/cove_web_sidebar.dart 14

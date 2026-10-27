@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 /// Horizontal snapping carousel for paper slips (`design/specs/12-carousel.md`).
@@ -233,13 +234,11 @@ class _CoveCarouselState extends State<CoveCarousel> {
                               ? CoveCarousel.kActiveDotWidth
                               : CoveCarousel.kDotSize,
                           height: CoveCarousel.kDotSize,
-                          decoration: BoxDecoration(
+                          decoration: CoveShape.decoration(
+                            CoveRadius.pill,
                             color: i == _currentIndex
                                 ? cv.accentFill
                                 : cv.lineStrong,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(CoveRadius.pill),
-                            ),
                           ),
                         ),
                       ],

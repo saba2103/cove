@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 class CoveCheckbox extends StatelessWidget {
@@ -30,14 +31,12 @@ class CoveCheckbox extends StatelessWidget {
       curve: CoveMotion.easing,
       width: size,
       height: size,
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveSpace.xs,
         color: value ? cv.accentFill : Colors.transparent,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveSpace.xs),
-        ),
-        border: value
-            ? null
-            : Border.all(
+        side: value
+            ? BorderSide.none
+            : BorderSide(
                 color: cv.textTertiary,
                 width: _kBorderWidth,
               ),

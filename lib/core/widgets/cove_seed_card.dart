@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_pill_button.dart';
 
@@ -146,14 +147,10 @@ class _CoveSeedArtPainter extends CustomPainter {
     final paint = _strokePaint();
 
     // Outer rounded frame
-    final frame = RRect.fromLTRBR(
-      9,
-      12,
-      39,
-      39,
-      const Radius.circular(5.5),
+    canvas.drawPath(
+      smoothCornerPath(const Rect.fromLTRB(9, 12, 39, 39), radius: 5.5),
+      paint,
     );
-    canvas.drawRRect(frame, paint);
 
     // Binding pegs
     canvas.drawLine(const Offset(17, 8), const Offset(17, 15), paint);
@@ -184,16 +181,16 @@ class _CoveSeedArtPainter extends CustomPainter {
     }
 
     // Three staggered horizontal bands
-    canvas.drawRRect(
-      RRect.fromLTRBR(8, 12, 31, 18, const Radius.circular(3)),
+    canvas.drawPath(
+      smoothCornerPath(const Rect.fromLTRB(8, 12, 31, 18), radius: 3),
       primaryPaint,
     );
-    canvas.drawRRect(
-      RRect.fromLTRBR(17, 21, 40, 27, const Radius.circular(3)),
+    canvas.drawPath(
+      smoothCornerPath(const Rect.fromLTRB(17, 21, 40, 27), radius: 3),
       secondaryPaint,
     );
-    canvas.drawRRect(
-      RRect.fromLTRBR(11, 30, 35, 36, const Radius.circular(3)),
+    canvas.drawPath(
+      smoothCornerPath(const Rect.fromLTRB(11, 30, 35, 36), radius: 3),
       primaryPaint,
     );
   }
@@ -373,16 +370,12 @@ class CoveSeedCard extends StatelessWidget {
         color: cv.lineStrong,
         radius: CoveRadius.card,
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
+      child: CoveShape.clip(
+        CoveRadius.card,
+        DecoratedBox(
+          decoration: CoveShape.decoration(
+            CoveRadius.card,
             color: cv.surfaceCard.withValues(alpha: fillAlpha),
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.card),
-            ),
           ),
           child: Stack(
             children: [
@@ -475,11 +468,10 @@ class _DashedCardBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = _kStrokeWidth;
 
-    final rrect = RRect.fromRectAndRadius(
-       (Offset.zero & size).deflate(_kStrokeWidth / 2),
-      Radius.circular(radius),
+    final path = smoothCornerPath(
+      (Offset.zero & size).deflate(_kStrokeWidth / 2),
+      radius: radius - _kStrokeWidth / 2,
     );
-    final path = Path()..addRRect(rrect);
     final dashedPath = Path();
 
     for (final metric in path.computeMetrics()) {

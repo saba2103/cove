@@ -1,3 +1,4 @@
+import 'package:cove/core/shape/cove_shape.dart';
 import 'package:cove/core/theme/cove_tokens.dart';
 import 'package:cove/core/widgets/cove_avatar.dart';
 import 'package:cove/core/widgets/cove_metric_card.dart';
@@ -154,15 +155,16 @@ void main() {
           matching: find.byType(Container),
         );
         final sheetContainer = tester.widget<Container>(containerFinder.first);
-        final decoration = sheetContainer.decoration! as BoxDecoration;
+        final decoration = sheetContainer.decoration! as ShapeDecoration;
+        final shape = decoration.shape as SmoothRectangleBorder;
         expect(
-          decoration.borderRadius,
+          shape.borderRadius,
           equals(
-            const BorderRadius.only(
-              topLeft: Radius.circular(CoveRadius.sheet),
-              topRight: Radius.circular(CoveRadius.sheet),
-              bottomLeft: Radius.circular(CoveRadius.device),
-              bottomRight: Radius.circular(CoveRadius.device),
+            CoveShape.onlyBorderRadius(
+              topLeft: CoveRadius.sheet,
+              topRight: CoveRadius.sheet,
+              bottomLeft: CoveRadius.device,
+              bottomRight: CoveRadius.device,
             ),
           ),
         );

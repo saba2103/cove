@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 /// Full-width starter row below a [CoveSeedCard] on Today and Commitments
@@ -82,12 +83,10 @@ class _CoveStarterRowState extends State<CoveStarterRow> {
                 horizontal: CoveStarterRow._kHorizontalPadding,
                 vertical: CoveSpace.md,
               ),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.inline,
                 color: active ? cv.surfaceRow : cv.surfaceCard,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.inline),
-                ),
-                border: Border.all(
+                side: BorderSide(
                   color: active ? cv.lineStrong : cv.lineHairline,
                   width: CoveStarterRow._kBorderWidth,
                 ),
@@ -99,11 +98,9 @@ class _CoveStarterRowState extends State<CoveStarterRow> {
                     width: CoveStarterRow._kLeadingBoxSize,
                     height: CoveStarterRow._kLeadingBoxSize,
                     child: DecoratedBox(
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveStarterRow._kLeadingBoxRadius,
                         color: cv.accentWash,
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveStarterRow._kLeadingBoxRadius),
-                        ),
                       ),
                       child: Center(child: glyph),
                     ),

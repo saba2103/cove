@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_page_header.dart';
 
@@ -99,12 +100,10 @@ class _CoveToastState extends State<CoveToast> {
         vertical: CoveSpace.sm,
         horizontal: CoveSpace.gutter,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.pill,
         color: cv.surfaceRow,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.accentFill,
           width: CoveToast.kBorderWidth,
         ),

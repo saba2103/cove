@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_section_label.dart';
 
@@ -59,12 +60,10 @@ class CoveMetricCard extends StatelessWidget {
 
     final Widget card = Container(
       padding: const EdgeInsets.all(CoveSpace.md),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.card,
         color: cv.surfaceCard,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: kBorderWidth,
         ),

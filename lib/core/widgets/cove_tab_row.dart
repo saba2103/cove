@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 class CoveTabRow extends StatelessWidget {
@@ -51,21 +52,17 @@ class CoveTabRow extends StatelessWidget {
                   color: Colors.transparent,
                   shadowColor: cv.surfaceScrim,
                   elevation: 6 * animValue,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.inline),
-                  ),
+                  shape: CoveShape.border(CoveRadius.inline),
                   child: Transform.scale(
                     scale: scale,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: CoveSpace.xs,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: CoveShape.decoration(
+                        CoveRadius.inline,
                         color: cv.surfaceCard.withValues(alpha: 0.92),
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(CoveRadius.inline),
-                        ),
-                        border: Border.all(
+                        side: BorderSide(
                           color: cv.accentFill.withValues(
                             alpha: 0.4 * animValue,
                           ),
@@ -151,11 +148,9 @@ class CoveTabRow extends StatelessWidget {
               curve: CoveMotion.easing,
               height: _kIndicatorHeight,
               width: isSelected ? CoveSize.avatarRow : 0,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.pill,
                 color: isSelected ? cv.accentFill : Colors.transparent,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.pill),
-                ),
               ),
             ),
           ],

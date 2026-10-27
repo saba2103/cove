@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_page_header.dart';
 import 'cove_round_button.dart';
@@ -262,11 +263,9 @@ class CoveDetailSheet extends StatelessWidget {
                   child: Container(
                     key: const ValueKey('cove_detail_sheet_meaning_panel'),
                     padding: const EdgeInsets.all(CoveSpace.md),
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveRadius.card,
                       color: cv.surfaceRow,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveRadius.card),
-                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -389,12 +388,10 @@ class _CoveDetailVerbButtonState extends State<_CoveDetailVerbButton> {
             duration: duration,
             curve: CoveMotion.easing,
             padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
               color: _pressing ? cv.accentWash : Colors.transparent,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.pill),
-              ),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.lineStrong,
                 width: CoveDetailSheet.kVerbBorderWidth,
               ),
@@ -462,10 +459,8 @@ class _CoveDetailMenuButton extends StatelessWidget {
       context: context,
       position: position,
       color: cv.surfaceCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ),
+      shape: CoveShape.border(
+        CoveRadius.card,
         side: BorderSide(
           color: cv.lineStrong,
           width: CoveDetailSheet.kVerbBorderWidth,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 class CoveUndoToast {
@@ -34,10 +35,8 @@ class CoveUndoToast {
           horizontal: _kHorizontalInset,
           vertical: CoveSpace.sm,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.inline),
-          ),
+        shape: CoveShape.border(
+          CoveRadius.inline,
           side: BorderSide(color: cv.lineHairline, width: _kBorderWidth),
         ),
         backgroundColor: cv.surfaceCard,
@@ -48,11 +47,9 @@ class CoveUndoToast {
             Container(
               width: CoveSize.avatarHeader,
               height: CoveSize.avatarHeader,
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveSpace.sm,
                 color: cv.accentWash,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveSpace.sm),
-                ),
               ),
               child: Icon(icon, color: cv.accentFill, size: _kIconSize),
             ),

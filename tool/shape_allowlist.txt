@@ -1,24 +1,5 @@
 # Raw shape budget per file. Delete a line when a file is converted to CoveShape.
 # Never increase a number.
-lib/core/widgets/cove_card.dart 6
-lib/core/widgets/cove_carousel.dart 3
-lib/core/widgets/cove_checkbox.dart 3
-lib/core/widgets/cove_detail_sheet.dart 10
-lib/core/widgets/cove_floating_bar.dart 17
-lib/core/widgets/cove_grouped_list.dart 4
-lib/core/widgets/cove_metric_card.dart 3
-lib/core/widgets/cove_page_header.dart 3
-lib/core/widgets/cove_pill_button.dart 6
-lib/core/widgets/cove_pill_input.dart 3
-lib/core/widgets/cove_row.dart 3
-lib/core/widgets/cove_seed_card.dart 17
-lib/core/widgets/cove_sheet.dart 9
-lib/core/widgets/cove_starter_row.dart 6
-lib/core/widgets/cove_tab_row.dart 9
-lib/core/widgets/cove_toast.dart 3
-lib/core/widgets/cove_toggle_switch.dart 3
-lib/core/widgets/cove_undo_toast.dart 7
-lib/core/widgets/cove_web_sidebar.dart 16
 lib/core/widgets/slips/cove_add_mark.dart 47
 lib/core/widgets/slips/cove_band.dart 7
 lib/core/widgets/slips/cove_dial.dart 3

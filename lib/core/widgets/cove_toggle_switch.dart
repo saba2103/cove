@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 class CoveToggleSwitch extends StatelessWidget {
@@ -33,14 +34,12 @@ class CoveToggleSwitch extends StatelessWidget {
         width: CoveSize.hit,
         height: CoveSize.avatarRow,
         padding: const EdgeInsets.all(CoveSpace.xs),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          CoveRadius.pill,
           color: value ? cv.accentFill : Colors.transparent,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          border: value
-              ? null
-              : Border.all(
+          side: value
+              ? BorderSide.none
+              : BorderSide(
                   color: cv.lineStrong,
                   width: _kBorderWidth,
                 ),

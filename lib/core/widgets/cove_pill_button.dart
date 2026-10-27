@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 
 enum CoveButtonVariant {
@@ -52,18 +53,18 @@ class CovePillButton extends StatelessWidget {
 
     Color backgroundColor;
     Color textColor;
-    Border? border;
+    BorderSide side;
 
     switch (variant) {
       case CoveButtonVariant.primary:
         backgroundColor = cv.accentFill;
         textColor = cv.textOnAccent;
-        border = null;
+        side = BorderSide.none;
         break;
       case CoveButtonVariant.secondary:
         backgroundColor = Colors.transparent;
         textColor = cv.textPrimary;
-        border = Border.all(
+        side = BorderSide(
           color: cv.lineStrong,
           width: _kSecondaryBorderWidth,
         );
@@ -71,7 +72,7 @@ class CovePillButton extends StatelessWidget {
       case CoveButtonVariant.ghost:
         backgroundColor = Colors.transparent;
         textColor = cv.textPrimary;
-        border = null;
+        side = BorderSide.none;
         break;
     }
 
@@ -140,14 +141,12 @@ class CovePillButton extends StatelessWidget {
       duration: duration,
       height: height,
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      decoration: BoxDecoration(
+      decoration: CoveShape.decoration(
+        CoveRadius.pill,
         color: onPressed == null
             ? backgroundColor.withValues(alpha: 0.5)
             : backgroundColor,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
-        border: border,
+        side: side,
       ),
       child: content,
     );
@@ -173,9 +172,7 @@ class CovePillButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: isLoading ? null : onPressed,
-        borderRadius: const BorderRadius.all(
-          Radius.circular(CoveRadius.pill),
-        ),
+        customBorder: CoveShape.border(CoveRadius.pill),
         child: interactiveChild,
       ),
     );

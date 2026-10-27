@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_page_header.dart';
 
@@ -248,7 +249,7 @@ class CoveFloatingBar extends StatelessWidget {
   Widget _buildGlassPill({
     required BuildContext context,
     required Widget child,
-    double borderRadius = CoveRadius.pill,
+    double radius = CoveRadius.pill,
     EdgeInsetsGeometry padding = const EdgeInsets.symmetric(
       horizontal: CoveSpace.xs,
     ),
@@ -256,20 +257,20 @@ class CoveFloatingBar extends StatelessWidget {
     final cv = context.cv;
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
-        boxShadow: cv.elevationBar,
+      decoration: CoveShape.decoration(
+        radius,
+        shadows: cv.elevationBar,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
-        child: BackdropFilter(
+      child: CoveShape.clip(
+        radius,
+        BackdropFilter(
           filter: ImageFilter.blur(sigmaX: _kBlurSigma, sigmaY: _kBlurSigma),
           child: Container(
             padding: padding,
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              radius,
               color: cv.surfaceCard.withValues(alpha: _kSurfaceAlpha),
-              borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
-              border: Border.all(
+              side: BorderSide(
                 color: cv.accentFill.withValues(alpha: _kAccentBorderAlpha),
                 width: _kBorderWidth,
               ),
@@ -307,11 +308,9 @@ class CoveFloatingBar extends StatelessWidget {
             vertical: CoveSpace.sm,
             horizontal: CoveSpace.xs,
           ),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveRadius.pill,
             color: selected ? cv.accentWash : Colors.transparent,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveRadius.pill),
-            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.max,
@@ -411,7 +410,7 @@ class CoveFloatingBar extends StatelessWidget {
         width: double.infinity,
         child: _buildGlassPill(
           context: context,
-          borderRadius: CoveRadius.card,
+          radius: CoveRadius.card,
           padding: const EdgeInsets.symmetric(vertical: CoveSpace.xs),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -463,11 +462,9 @@ class CoveFloatingBar extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: CoveSize.hit),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-            decoration: BoxDecoration(
+            decoration: CoveShape.decoration(
+              CoveRadius.inline,
               color: selected ? cv.accentWash : Colors.transparent,
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.inline),
-              ),
             ),
             child: Row(
               children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_page_header.dart';
 import 'cove_round_button.dart';
@@ -104,15 +105,13 @@ class CoveSheet extends StatelessWidget {
         top: CoveSpace.md,
         bottom: CoveSpace.lg + bottomInset,
       ),
-      decoration: BoxDecoration(
+      decoration: CoveShape.onlyDecoration(
+        topLeft: CoveRadius.sheet,
+        topRight: CoveRadius.sheet,
+        bottomLeft: CoveRadius.device,
+        bottomRight: CoveRadius.device,
         color: cv.surfaceSheet,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(CoveRadius.sheet),
-          topRight: Radius.circular(CoveRadius.sheet),
-          bottomLeft: Radius.circular(CoveRadius.device),
-          bottomRight: Radius.circular(CoveRadius.device),
-        ),
-        border: Border.all(
+        side: BorderSide(
           color: cv.lineHairline,
           width: _kBorderWidth,
         ),
@@ -127,11 +126,9 @@ class CoveSheet extends StatelessWidget {
                 key: const ValueKey('cove_sheet_grab_handle'),
                 width: kGrabHandleWidth,
                 height: kGrabHandleHeight,
-                decoration: BoxDecoration(
+                decoration: CoveShape.decoration(
+                  CoveRadius.pill,
                   color: cv.lineStrong,
-                  borderRadius: const BorderRadius.all(
-                    Radius.circular(CoveRadius.pill),
-                  ),
                 ),
               ),
             ),
