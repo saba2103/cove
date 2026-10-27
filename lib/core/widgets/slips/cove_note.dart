@@ -84,10 +84,10 @@ class CoveNote extends StatelessWidget implements CoveSlipObject {
 
     return CoveSlip(
       variant: variant,
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(kTopCornerRadius),
-        bottom: Radius.circular(CoveRadius.card),
-      ),
+      topLeftRadius: kTopCornerRadius,
+      topRightRadius: kTopCornerRadius,
+      bottomLeftRadius: CoveRadius.card,
+      bottomRightRadius: CoveRadius.card,
       backgroundPainter: _CoveNoteRuledLinesPainter(
         ruleColor: palette.rule,
       ),

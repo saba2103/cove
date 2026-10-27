@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import 'cove_slip.dart';
 
@@ -87,12 +88,7 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
 
   static Path _buildTicketPath(Size size) {
     final rect = Offset.zero & size;
-    final cardPath = Path()
-      ..addRRect(
-        const BorderRadius.all(
-          Radius.circular(CoveRadius.card),
-        ).toRRect(rect),
-      );
+    final cardPath = smoothCornerPath(rect, radius: CoveRadius.card);
 
     final notchRadius = kNotchDiameter / 2.0;
     final perfX = math.max(notchRadius, size.width - kStubWidth);
@@ -282,10 +278,10 @@ class _CoveTicketDecorationPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
     final spineTop = math.min(CoveRadius.card, size.height / 2.0);
     final spineBottom = math.max(spineTop, size.height - CoveRadius.card);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTRB(0.0, spineTop, CoveTicket.kSpineWidth, spineBottom),
-        const Radius.circular(CoveTicket.kSpineWidth),
+        radius: CoveTicket.kSpineWidth,
       ),
       spinePaint,
     );

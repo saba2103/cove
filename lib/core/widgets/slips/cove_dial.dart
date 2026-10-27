@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import '../cove_avatar.dart';
 import 'cove_receipt.dart';
@@ -394,11 +395,9 @@ class _DialReceiptRowState extends State<_DialReceiptRow> {
             horizontal: CoveSpace.xs,
             vertical: CoveSpace.xs,
           ),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveDial.kRowHoverRadius,
             color: showPlate ? palette.hairline : Colors.transparent,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveDial.kRowHoverRadius),
-            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,

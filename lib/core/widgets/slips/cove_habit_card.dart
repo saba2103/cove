@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import '../cove_checkbox.dart';
 import 'cove_slip.dart';
@@ -278,7 +279,6 @@ class _HabitStreakGridPainter extends CustomPainter {
 
     const cellSize = CoveHabitCard.kCellSize;
     const gap = CoveSpace.xs;
-    const radius = Radius.circular(CoveHabitCard.kCellRadius);
 
     for (var i = 0; i < CoveHabitCard.kTotalCells; i++) {
       final row = i ~/ CoveHabitCard.kGridColumns;
@@ -290,23 +290,25 @@ class _HabitStreakGridPainter extends CustomPainter {
 
       final rect = Rect.fromLTWH(left, top, cellSize, cellSize);
       if (isDone) {
-        canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), donePaint);
+        canvas.drawPath(
+          smoothCornerPath(rect, radius: CoveHabitCard.kCellRadius),
+          donePaint,
+        );
       } else {
         final insetRect = rect.deflate(CoveHabitCard.kMissedOutlineWidth / 2.0);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(insetRect, radius),
+        canvas.drawPath(
+          smoothCornerPath(insetRect, radius: CoveHabitCard.kCellRadius),
           missedPaint,
         );
       }
 
       if (isToday) {
         final ringRect = rect.inflate(CoveHabitCard.kTodayRingOutset);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
+        canvas.drawPath(
+          smoothCornerPath(
             ringRect,
-            const Radius.circular(
-              CoveHabitCard.kCellRadius + CoveHabitCard.kTodayRingOutset,
-            ),
+            radius:
+                CoveHabitCard.kCellRadius + CoveHabitCard.kTodayRingOutset,
           ),
           todayRingPaint,
         );

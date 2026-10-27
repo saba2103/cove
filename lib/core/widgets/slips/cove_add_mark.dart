@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../features/add/add_draft.dart';
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 
 export '../../../features/add/add_draft.dart' show AddKind;
@@ -92,8 +93,7 @@ class _CoveAddMarkPainter extends CustomPainter {
       height: h * 0.56,
     );
 
-    final cardPath = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(4.0)));
+    final cardPath = smoothCornerPath(rect, radius: 4.0);
     final perfX = rect.left + rect.width * 0.70;
     const notchR = 3.0;
     final notches = Path()
@@ -137,52 +137,52 @@ class _CoveAddMarkPainter extends CustomPainter {
     }
 
     // Left body bars
-    final titleBar = RRect.fromRectAndRadius(
+    final titleBar = smoothCornerPath(
       Rect.fromLTWH(
         rect.left + 7.0,
         rect.top + rect.height * 0.34,
         (perfX - rect.left) * 0.56,
         2.6,
       ),
-      const Radius.circular(1.3),
+      radius: 1.3,
     );
-    canvas.drawRRect(titleBar, accentPaint);
+    canvas.drawPath(titleBar, accentPaint);
 
     final subPaint = Paint()
       ..color = tokens.paperInk3
       ..style = PaintingStyle.fill;
-    final subBar = RRect.fromRectAndRadius(
+    final subBar = smoothCornerPath(
       Rect.fromLTWH(
         rect.left + 7.0,
         rect.top + rect.height * 0.60,
         (perfX - rect.left) * 0.38,
         2.0,
       ),
-      const Radius.circular(1.0),
+      radius: 1.0,
     );
-    canvas.drawRRect(subBar, subPaint);
+    canvas.drawPath(subBar, subPaint);
 
     // Stub bars
     final stubCenterX = perfX + (rect.right - perfX) / 2.0;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromCenter(
           center: Offset(stubCenterX, rect.top + rect.height * 0.40),
           width: (rect.right - perfX) * 0.48,
           height: 2.0,
         ),
-        const Radius.circular(1.0),
+        radius: 1.0,
       ),
       subPaint,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromCenter(
           center: Offset(stubCenterX, rect.top + rect.height * 0.62),
           width: (rect.right - perfX) * 0.36,
           height: 2.0,
         ),
-        const Radius.circular(1.0),
+        radius: 1.0,
       ),
       subPaint,
     );
@@ -228,10 +228,10 @@ class _CoveAddMarkPainter extends CustomPainter {
 
     for (var i = 0; i < 2; i++) {
       final lineY = rect.top + 7.0 + i * 5.5;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
+      canvas.drawPath(
+        smoothCornerPath(
           Rect.fromLTWH(padX, lineY, innerW * (i == 0 ? 0.72 : 0.90), 1.8),
-          const Radius.circular(0.9),
+          radius: 0.9,
         ),
         linePaint,
       );
@@ -239,10 +239,10 @@ class _CoveAddMarkPainter extends CustomPainter {
 
     // Bottom total row: small label left, bold bronze figure right
     final totalY = rect.bottom - toothH - 7.5;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(padX, totalY + 0.5, innerW * 0.36, 1.8),
-        const Radius.circular(0.9),
+        radius: 0.9,
       ),
       linePaint,
     );
@@ -250,15 +250,15 @@ class _CoveAddMarkPainter extends CustomPainter {
     final accentPaint = Paint()
       ..color = tokens.paperAccent
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(
           rect.right - 5.0 - innerW * 0.42,
           totalY,
           innerW * 0.42,
           2.8,
         ),
-        const Radius.circular(1.4),
+        radius: 1.4,
       ),
       accentPaint,
     );
@@ -274,14 +274,14 @@ class _CoveAddMarkPainter extends CustomPainter {
       height: h * 0.76,
     );
 
-    final rrect = RRect.fromRectAndCorners(
+    final notePath = smoothCornerPath(
       rect,
-      topLeft: const Radius.circular(2.5),
-      topRight: const Radius.circular(2.5),
-      bottomLeft: const Radius.circular(5.0),
-      bottomRight: const Radius.circular(5.0),
+      topLeft: 2.5,
+      topRight: 2.5,
+      bottomLeft: 5.0,
+      bottomRight: 5.0,
     );
-    canvas.drawRRect(rrect, _paperFillPaint(rect));
+    canvas.drawPath(notePath, _paperFillPaint(rect));
 
     // Checkbox top-left
     final boxRect = Rect.fromLTWH(rect.left + 5.5, rect.top + 6.0, 9.0, 9.0);
@@ -291,8 +291,8 @@ class _CoveAddMarkPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(boxRect, const Radius.circular(2.0)),
+    canvas.drawPath(
+      smoothCornerPath(boxRect, radius: 2.0),
       accentStroke,
     );
 
@@ -308,37 +308,37 @@ class _CoveAddMarkPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // Line next to checkbox
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(
           boxRect.right + 3.5,
           boxRect.center.dy - 1.0,
           rect.right - boxRect.right - 9.0,
           2.0,
         ),
-        const Radius.circular(1.0),
+        radius: 1.0,
       ),
       linePaint,
     );
 
     // Two ruled lines below
     final fullW = rect.width - 11.0;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(rect.left + 5.5, boxRect.bottom + 5.0, fullW, 1.8),
-        const Radius.circular(0.9),
+        radius: 0.9,
       ),
       linePaint,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(
           rect.left + 5.5,
           boxRect.bottom + 10.5,
           fullW * 0.65,
           1.8,
         ),
-        const Radius.circular(0.9),
+        radius: 0.9,
       ),
       linePaint,
     );
@@ -354,8 +354,8 @@ class _CoveAddMarkPainter extends CustomPainter {
       height: h * 0.74,
     );
 
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(5.0));
-    canvas.drawRRect(rrect, _paperFillPaint(rect));
+    final cardPath = smoothCornerPath(rect, radius: 5.0);
+    canvas.drawPath(cardPath, _paperFillPaint(rect));
 
     // 7-segment bronze ring
     final ringCenter = Offset(rect.center.dx, rect.top + rect.height * 0.44);
@@ -379,14 +379,14 @@ class _CoveAddMarkPainter extends CustomPainter {
     final barPaint = Paint()
       ..color = tokens.paperInk3
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromCenter(
           center: Offset(rect.center.dx, rect.bottom - 5.5),
           width: rect.width * 0.48,
           height: 1.8,
         ),
-        const Radius.circular(0.9),
+        radius: 0.9,
       ),
       barPaint,
     );
@@ -402,8 +402,8 @@ class _CoveAddMarkPainter extends CustomPainter {
       height: h * 0.68,
     );
 
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(5.0));
-    canvas.drawRRect(rrect, _paperFillPaint(rect));
+    final cardPath = smoothCornerPath(rect, radius: 5.0);
+    canvas.drawPath(cardPath, _paperFillPaint(rect));
 
     // Left vertical dashed rail
     final railX = rect.left + 5.0;
@@ -439,15 +439,15 @@ class _CoveAddMarkPainter extends CustomPainter {
     final accentPaint = Paint()
       ..color = tokens.paperAccent
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(
           railX + 4.0,
           rect.bottom - 11.5,
           rect.width * 0.40,
           2.6,
         ),
-        const Radius.circular(1.3),
+        radius: 1.3,
       ),
       accentPaint,
     );
@@ -455,15 +455,15 @@ class _CoveAddMarkPainter extends CustomPainter {
     final subPaint = Paint()
       ..color = tokens.paperInk3
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
+    canvas.drawPath(
+      smoothCornerPath(
         Rect.fromLTWH(
           railX + 4.0,
           rect.bottom - 6.5,
           rect.width * 0.28,
           1.8,
         ),
-        const Radius.circular(0.9),
+        radius: 0.9,
       ),
       subPaint,
     );
@@ -479,8 +479,8 @@ class _CoveAddMarkPainter extends CustomPainter {
       height: h * 0.60,
     );
 
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(5.0));
-    canvas.drawRRect(rrect, _paperFillPaint(rect));
+    final cardPath = smoothCornerPath(rect, radius: 5.0);
+    canvas.drawPath(cardPath, _paperFillPaint(rect));
 
     // Inset 24-hour band track
     final trackRect = Rect.fromLTWH(
@@ -489,14 +489,11 @@ class _CoveAddMarkPainter extends CustomPainter {
       rect.width - 10.0,
       rect.height * 0.44,
     );
-    final trackRRect = RRect.fromRectAndRadius(
-      trackRect,
-      const Radius.circular(3.0),
-    );
+    final trackPath = smoothCornerPath(trackRect, radius: 3.0);
     final trackPaint = Paint()
       ..color = tokens.paperRule
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(trackRRect, trackPaint);
+    canvas.drawPath(trackPath, trackPaint);
 
     // Bronze routine block inside track
     final blockRect = Rect.fromCenter(
@@ -507,8 +504,8 @@ class _CoveAddMarkPainter extends CustomPainter {
     final accentPaint = Paint()
       ..color = tokens.paperAccent
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(blockRect, const Radius.circular(2.5)),
+    canvas.drawPath(
+      smoothCornerPath(blockRect, radius: 2.5),
       accentPaint,
     );
 
@@ -521,10 +518,10 @@ class _CoveAddMarkPainter extends CustomPainter {
     final tickW = (trackRect.width - 9.0) / tickCount;
     for (var i = 0; i < tickCount; i++) {
       final tickLeft = trackRect.left + i * (tickW + 3.0);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
+      canvas.drawPath(
+        smoothCornerPath(
           Rect.fromLTWH(tickLeft, tickY, tickW, 1.6),
-          const Radius.circular(0.8),
+          radius: 0.8,
         ),
         tickPaint,
       );

@@ -147,12 +147,10 @@ class CoveSlipStamp extends StatelessWidget {
           horizontal: CoveSpace.sm,
           vertical: CoveSpace.xs / 2,
         ),
-        decoration: BoxDecoration(
+        decoration: CoveShape.decoration(
+          kStampRadius,
           color: backgroundColor,
-          borderRadius: const BorderRadius.all(
-            Radius.circular(kStampRadius),
-          ),
-          border: Border.all(
+          side: BorderSide(
             color: color,
             width: kStampBorder,
           ),
@@ -435,7 +433,11 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
   final CoveSlipVariant variant;
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final BorderRadius borderRadius;
+  final double radius;
+  final double? topLeftRadius;
+  final double? topRightRadius;
+  final double? bottomLeftRadius;
+  final double? bottomRightRadius;
   final CoveSlipPathBuilder? pathBuilder;
   final CustomPainter? backgroundPainter;
   final CustomPainter? foregroundPainter;
@@ -456,9 +458,11 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
     required this.variant,
     required this.child,
     this.padding = const EdgeInsets.all(CoveSpace.gutter),
-    this.borderRadius = const BorderRadius.all(
-      Radius.circular(CoveRadius.card),
-    ),
+    this.radius = CoveRadius.card,
+    this.topLeftRadius,
+    this.topRightRadius,
+    this.bottomLeftRadius,
+    this.bottomRightRadius,
     this.pathBuilder,
     this.backgroundPainter,
     this.foregroundPainter,
@@ -508,7 +512,11 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
         ? CoveTheme.lightTheme
         : CoveTheme.darkTheme;
     final clipper = _CoveSlipClipper(
-      borderRadius: borderRadius,
+      radius: radius,
+      topLeftRadius: topLeftRadius,
+      topRightRadius: topRightRadius,
+      bottomLeftRadius: bottomLeftRadius,
+      bottomRightRadius: bottomRightRadius,
       pathBuilder: pathBuilder,
     );
 
@@ -570,7 +578,11 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
     Widget slipBody = CustomPaint(
       painter: _CoveSlipSurfacePainter(
         palette: palette,
-        borderRadius: borderRadius,
+        radius: radius,
+        topLeftRadius: topLeftRadius,
+        topRightRadius: topRightRadius,
+        bottomLeftRadius: bottomLeftRadius,
+        bottomRightRadius: bottomRightRadius,
         pathBuilder: pathBuilder,
       ),
       child: ClipPath(
@@ -622,11 +634,19 @@ class CoveSlip extends StatelessWidget implements CoveSlipObject {
 }
 
 class _CoveSlipClipper extends CustomClipper<Path> {
-  final BorderRadius borderRadius;
+  final double radius;
+  final double? topLeftRadius;
+  final double? topRightRadius;
+  final double? bottomLeftRadius;
+  final double? bottomRightRadius;
   final CoveSlipPathBuilder? pathBuilder;
 
   const _CoveSlipClipper({
-    required this.borderRadius,
+    required this.radius,
+    required this.topLeftRadius,
+    required this.topRightRadius,
+    required this.bottomLeftRadius,
+    required this.bottomRightRadius,
     required this.pathBuilder,
   });
 
@@ -635,23 +655,42 @@ class _CoveSlipClipper extends CustomClipper<Path> {
     if (pathBuilder != null) {
       return pathBuilder!(size);
     }
-    return Path()..addRRect(borderRadius.toRRect(Offset.zero & size));
+    return smoothCornerPath(
+      Offset.zero & size,
+      radius: radius,
+      topLeft: topLeftRadius,
+      topRight: topRightRadius,
+      bottomLeft: bottomLeftRadius,
+      bottomRight: bottomRightRadius,
+    );
   }
 
   @override
   bool shouldReclip(_CoveSlipClipper oldClipper) =>
-      oldClipper.borderRadius != borderRadius ||
+      oldClipper.radius != radius ||
+      oldClipper.topLeftRadius != topLeftRadius ||
+      oldClipper.topRightRadius != topRightRadius ||
+      oldClipper.bottomLeftRadius != bottomLeftRadius ||
+      oldClipper.bottomRightRadius != bottomRightRadius ||
       oldClipper.pathBuilder != pathBuilder;
 }
 
 class _CoveSlipSurfacePainter extends CustomPainter {
   final CoveSlipPalette palette;
-  final BorderRadius borderRadius;
+  final double radius;
+  final double? topLeftRadius;
+  final double? topRightRadius;
+  final double? bottomLeftRadius;
+  final double? bottomRightRadius;
   final CoveSlipPathBuilder? pathBuilder;
 
   const _CoveSlipSurfacePainter({
     required this.palette,
-    required this.borderRadius,
+    required this.radius,
+    required this.topLeftRadius,
+    required this.topRightRadius,
+    required this.bottomLeftRadius,
+    required this.bottomRightRadius,
     required this.pathBuilder,
   });
 
@@ -660,7 +699,14 @@ class _CoveSlipSurfacePainter extends CustomPainter {
     final rect = Offset.zero & size;
     final path = pathBuilder != null
         ? pathBuilder!(size)
-        : (Path()..addRRect(borderRadius.toRRect(rect)));
+        : smoothCornerPath(
+            rect,
+            radius: radius,
+            topLeft: topLeftRadius,
+            topRight: topRightRadius,
+            bottomLeft: bottomLeftRadius,
+            bottomRight: bottomRightRadius,
+          );
 
     for (final shadow in palette.shadows) {
       final shadowPaint = Paint()
@@ -693,6 +739,10 @@ class _CoveSlipSurfacePainter extends CustomPainter {
   bool shouldRepaint(_CoveSlipSurfacePainter oldDelegate) =>
       oldDelegate.palette.variant != palette.variant ||
       oldDelegate.palette.edgeColor != palette.edgeColor ||
-      oldDelegate.borderRadius != borderRadius ||
+      oldDelegate.radius != radius ||
+      oldDelegate.topLeftRadius != topLeftRadius ||
+      oldDelegate.topRightRadius != topRightRadius ||
+      oldDelegate.bottomLeftRadius != bottomLeftRadius ||
+      oldDelegate.bottomRightRadius != bottomRightRadius ||
       oldDelegate.pathBuilder != pathBuilder;
 }

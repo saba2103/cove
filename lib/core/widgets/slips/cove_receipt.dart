@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import '../cove_avatar.dart';
 import 'cove_slip.dart';
@@ -225,7 +226,7 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
 
     return CoveSlip(
       variant: variant,
-      borderRadius: const BorderRadius.all(Radius.circular(kZeroRadius)),
+      radius: kZeroRadius,
       pathBuilder: buildTornReceiptPath,
       padding: const EdgeInsets.fromLTRB(
         CoveSpace.gutter,
@@ -423,11 +424,9 @@ class _ReceiptItemRowState extends State<_ReceiptItemRow> {
             horizontal: CoveSpace.xs,
             vertical: CoveSpace.xs,
           ),
-          decoration: BoxDecoration(
+          decoration: CoveShape.decoration(
+            CoveReceipt.kRowHoverRadius,
             color: showPlate ? palette.hairline : Colors.transparent,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(CoveReceipt.kRowHoverRadius),
-            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -497,11 +496,9 @@ class _ReceiptSplitSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ClipRRect(
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.pill),
-          ),
-          child: SizedBox(
+        CoveShape.clip(
+          CoveRadius.pill,
+          SizedBox(
             height: CoveReceipt.kSplitBarHeight,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -530,11 +527,9 @@ class _ReceiptSplitSection extends StatelessWidget {
                   Container(
                     width: CoveSpace.sm,
                     height: CoveSpace.sm,
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveSpace.xs / 2,
                       color: palette.accentFill,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveSpace.xs / 2),
-                      ),
                     ),
                   ),
                   const SizedBox(width: CoveSpace.xs),
@@ -596,11 +591,9 @@ class _ReceiptSplitSection extends StatelessWidget {
                   Container(
                     width: CoveSpace.sm,
                     height: CoveSpace.sm,
-                    decoration: BoxDecoration(
+                    decoration: CoveShape.decoration(
+                      CoveSpace.xs / 2,
                       color: palette.rule,
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(CoveSpace.xs / 2),
-                      ),
                     ),
                   ),
                 ],

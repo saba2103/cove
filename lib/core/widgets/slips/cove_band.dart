@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import 'cove_slip.dart';
 
@@ -227,11 +228,9 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
                 horizontal: CoveSpace.sm,
                 vertical: CoveSpace.sm,
               ),
-              decoration: BoxDecoration(
+              decoration: CoveShape.decoration(
+                CoveRadius.inline,
                 color: palette.hairline,
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(CoveRadius.inline),
-                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -332,44 +331,44 @@ class _CoveBandTrackPainter extends CustomPainter {
     if (size.width <= 0 || size.height <= 0) return;
 
     final trackRect = Offset.zero & size;
-    final trackRRect = RRect.fromRectAndRadius(
-      trackRect,
-      const Radius.circular(CoveRadius.inline),
-    );
+    final trackPath = smoothCornerPath(trackRect, radius: CoveRadius.inline);
 
     // 1. Track background & hairline border
     final trackFillPaint = Paint()
       ..color = trackFillColor
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(trackRRect, trackFillPaint);
+    canvas.drawPath(trackPath, trackFillPaint);
 
     final trackBorderPaint = Paint()
       ..color = trackBorderColor
       ..strokeWidth = CoveBand.kBlockBorderWidth
       ..style = PaintingStyle.stroke;
-    canvas.drawRRect(
-      trackRRect.deflate(CoveBand.kBlockBorderWidth / 2.0),
+    canvas.drawPath(
+      smoothCornerPath(
+        trackRect.deflate(CoveBand.kBlockBorderWidth / 2.0),
+        radius: CoveRadius.inline - CoveBand.kBlockBorderWidth / 2.0,
+      ),
       trackBorderPaint,
     );
 
     // 2. Hatched routine block positioned by real minutes (min width 8dp)
     final blockRect = CoveBand.resolveBlockRect(size, startMinutes, endMinutes);
-    final blockRRect = RRect.fromRectAndRadius(
+    final blockPath = smoothCornerPath(
       blockRect,
-      const Radius.circular(CoveBand.kBlockRadius),
+      radius: CoveBand.kBlockRadius,
     );
 
     canvas.save();
-    canvas.clipRRect(trackRRect);
+    canvas.clipPath(trackPath);
 
     final blockFillPaint = Paint()
       ..color = blockFillColor
       ..style = PaintingStyle.fill;
-    canvas.drawRRect(blockRRect, blockFillPaint);
+    canvas.drawPath(blockPath, blockFillPaint);
 
     // Diagonal hatch lines inside the block
     canvas.save();
-    canvas.clipRRect(blockRRect);
+    canvas.clipPath(blockPath);
     final hatchPaint = Paint()
       ..color = hatchStripeColor
       ..strokeWidth = CoveBand.kHatchStrokeWidth
@@ -394,8 +393,11 @@ class _CoveBandTrackPainter extends CustomPainter {
       ..color = blockFillColor
       ..strokeWidth = CoveBand.kBlockBorderWidth
       ..style = PaintingStyle.stroke;
-    canvas.drawRRect(
-      blockRRect.deflate(CoveBand.kBlockBorderWidth / 2.0),
+    canvas.drawPath(
+      smoothCornerPath(
+        blockRect.deflate(CoveBand.kBlockBorderWidth / 2.0),
+        radius: CoveBand.kBlockRadius - CoveBand.kBlockBorderWidth / 2.0,
+      ),
       blockOutlinePaint,
     );
 
