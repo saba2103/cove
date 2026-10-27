@@ -235,5 +235,6 @@ class RoutineController {
         'home_id': homeId,
       },
     );
+    await ref.read(appDatabaseProvider).deletePetTagsForRecord('routine_event', id);
   }
 }

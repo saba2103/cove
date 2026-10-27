@@ -27,6 +27,8 @@ import '../expenses/expense_controller.dart';
 import '../expenses/expense_detail_sheet.dart';
 import '../habits/habit_controller.dart';
 import '../lists/list_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -538,6 +540,14 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           isTransfer: args.isTransfer,
           visibility: args.visibility,
         );
+        if (d.petIds.isNotEmpty) {
+          await ref.read(petControllerProvider).setRecordPetTags(
+                recordKind: PetRecordKind.expense,
+                recordId: createdId,
+                petIds: d.petIds,
+                isPrivate: args.visibility == ExpenseVisibility.privateToMe,
+              );
+        }
         await ref
             .read(addAgainPreferenceProvider.notifier)
             .setAgain(AddKind.expense, createdId);
@@ -557,6 +567,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           recurrence: args.recurrence,
           owner: args.owner,
         );
+        if (d.petIds.isNotEmpty) {
+          await ref.read(petControllerProvider).setRecordPetTags(
+                recordKind: PetRecordKind.event,
+                recordId: createdId,
+                petIds: d.petIds,
+              );
+        }
         await ref
             .read(addAgainPreferenceProvider.notifier)
             .setAgain(AddKind.event, createdId);
@@ -582,18 +599,33 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           listName: args.newListName,
           owner: args.owner,
         );
+        if (d.petIds.isNotEmpty) {
+          await ref.read(petControllerProvider).setRecordPetTags(
+                recordKind: PetRecordKind.task,
+                recordId: createdId,
+                petIds: d.petIds,
+              );
+        }
         await ref
             .read(addAgainPreferenceProvider.notifier)
             .setAgain(AddKind.task, createdId);
       } else if (d is HabitDraft) {
         final args = d.toCreateArgs();
         final controller = ref.read(habitControllerProvider);
-        await controller.createHabit(
+        final createdId = await controller.createHabit(
           name: args.name,
           cadence: args.cadence,
           targetDaysPerWeek: args.targetDaysPerWeek,
           visibility: args.visibility,
         );
+        if (d.petIds.isNotEmpty) {
+          await ref.read(petControllerProvider).setRecordPetTags(
+                recordKind: PetRecordKind.habit,
+                recordId: createdId,
+                petIds: d.petIds,
+                isPrivate: args.visibility == HabitVisibility.privateToMe,
+              );
+        }
       } else if (d is CommitmentDraft) {
         final currency = ref.read(currencyPreferenceProvider).code;
         final args = d.toCreateArgs(
@@ -603,7 +635,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           currency: currency,
         );
         final controller = ref.read(subscriptionControllerProvider);
-        await controller.createSubscription(
+        final createdId = await controller.createSubscription(
           name: args.name,
           amount: args.amount,
           currency: args.currency,
@@ -617,6 +649,14 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           totalInstallments: args.totalInstallments,
           paidInstallments: args.paidInstallments,
         );
+        if (d.petIds.isNotEmpty) {
+          await ref.read(petControllerProvider).setRecordPetTags(
+                recordKind: PetRecordKind.commitment,
+                recordId: createdId,
+                petIds: d.petIds,
+                isPrivate: args.isPrivate,
+              );
+        }
       } else if (d is RoutineDraft) {
         final existingRoutines =
             ref.read(activeHomeRoutinesProvider).value ?? const [];
@@ -647,13 +687,20 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           createdNewSet = true;
         }
         try {
-          await controller.createRoutineEvent(
+          final createdEventId = await controller.createRoutineEvent(
             routineId: targetRoutineId,
             title: args.title,
             startMinutes: args.startMinutes,
             endMinutes: args.endMinutes,
             owner: args.owner,
           );
+          if (d.petIds.isNotEmpty) {
+            await ref.read(petControllerProvider).setRecordPetTags(
+                  recordKind: PetRecordKind.routineEvent,
+                  recordId: createdEventId,
+                  petIds: d.petIds,
+                );
+          }
           _pendingCreatedRoutineId = null;
           _pendingCreatedRoutineDays = null;
         } catch (eventErr) {
@@ -1539,6 +1586,50 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     }
   }
 
+  void _toggleDraftPet(String petId) {
+    final d = _draft;
+    if (d == null) return;
+    final nextPets = Set<String>.from(d.petIds);
+    if (!nextPets.remove(petId)) {
+      nextPets.add(petId);
+    }
+    setState(() {
+      if (d is ExpenseDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      } else if (d is EventDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      } else if (d is TaskDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      } else if (d is HabitDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      } else if (d is CommitmentDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      } else if (d is RoutineDraft) {
+        _draft = d.copyWith(petIds: nextPets);
+      }
+    });
+  }
+
+  Widget _wrapWithAboutAPet(
+    Widget child, {
+    required List<LocalPet> activePets,
+    required Set<String> selectedPetIds,
+  }) {
+    if (activePets.isEmpty) return child;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        child,
+        AddAboutAPetRow(
+          pets: activePets,
+          selectedPetIds: selectedPetIds,
+          onTogglePet: _toggleDraftPet,
+        ),
+      ],
+    );
+  }
+
   List<AddCrumbItem> _buildCrumbsBeforeCurrent(
     AddFlowContext ctx,
     List<AddStep> steps,
@@ -2137,15 +2228,20 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       ),
     ];
 
-    return AddPersonPicker<ExpensePayer>(
-      people: people,
-      selectedValue: d.payer,
-      onSelected: (payer) {
-        setState(() {
-          _draft = d.copyWith(payer: payer);
-        });
-      },
-      toggles: toggles,
+    final activePets = ref.watch(activeHomeActivePetsProvider);
+    return _wrapWithAboutAPet(
+      AddPersonPicker<ExpensePayer>(
+        people: people,
+        selectedValue: d.payer,
+        onSelected: (payer) {
+          setState(() {
+            _draft = d.copyWith(payer: payer);
+          });
+        },
+        toggles: toggles,
+      ),
+      activePets: activePets,
+      selectedPetIds: d.petIds,
     );
   }
 
@@ -2394,15 +2490,22 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       ],
     ];
 
-    return AddPersonPicker<CommitmentOwner>(
-      people: people,
-      selectedValue: d.owner,
-      onSelected: (owner) {
-        setState(() {
-          _draft = d.copyWith(owner: owner);
-        });
-        _advanceStep(ctx);
-      },
+    final activePets = ref.watch(activeHomeActivePetsProvider);
+    return _wrapWithAboutAPet(
+      AddPersonPicker<CommitmentOwner>(
+        people: people,
+        selectedValue: d.owner,
+        onSelected: (owner) {
+          setState(() {
+            _draft = d.copyWith(owner: owner);
+          });
+          if (activePets.isEmpty) {
+            _advanceStep(ctx);
+          }
+        },
+      ),
+      activePets: activePets,
+      selectedPetIds: d.petIds,
     );
   }
 
@@ -2633,15 +2736,22 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       ],
     ];
 
-    return AddPersonPicker<TaskOwner>(
-      people: people,
-      selectedValue: d.owner,
-      onSelected: (owner) {
-        setState(() {
-          _draft = d.copyWith(owner: owner);
-        });
-        _advanceStep(ctx);
-      },
+    final activePets = ref.watch(activeHomeActivePetsProvider);
+    return _wrapWithAboutAPet(
+      AddPersonPicker<TaskOwner>(
+        people: people,
+        selectedValue: d.owner,
+        onSelected: (owner) {
+          setState(() {
+            _draft = d.copyWith(owner: owner);
+          });
+          if (activePets.isEmpty) {
+            _advanceStep(ctx);
+          }
+        },
+      ),
+      activePets: activePets,
+      selectedPetIds: d.petIds,
     );
   }
 
@@ -2799,6 +2909,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         );
 
       case AddStep.habitVisibility:
+        final activePets = ref.watch(activeHomeActivePetsProvider);
         final options = <AddChoiceOption<HabitVisibility>>[
           if (ctx.hasPartner)
             const AddChoiceOption<HabitVisibility>(
@@ -2810,15 +2921,21 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             label: 'Only you',
           ),
         ];
-        return AddChoiceList<HabitVisibility>(
-          selectedValue: d.visibility,
-          onSelected: (vis) {
-            setState(() {
-              _draft = d.copyWith(visibility: vis);
-            });
-            _advanceStep(ctx);
-          },
-          options: options,
+        return _wrapWithAboutAPet(
+          AddChoiceList<HabitVisibility>(
+            selectedValue: d.visibility,
+            onSelected: (vis) {
+              setState(() {
+                _draft = d.copyWith(visibility: vis);
+              });
+              if (activePets.isEmpty) {
+                _advanceStep(ctx);
+              }
+            },
+            options: options,
+          ),
+          activePets: activePets,
+          selectedPetIds: d.petIds,
         );
 
       case AddStep.review:
@@ -3130,15 +3247,20 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       ),
     ];
 
-    return AddPersonPicker<CommitmentOwner>(
-      people: people,
-      selectedValue: d.owner,
-      onSelected: (owner) {
-        setState(() {
-          _draft = d.copyWith(owner: owner);
-        });
-      },
-      toggles: toggles,
+    final activePets = ref.watch(activeHomeActivePetsProvider);
+    return _wrapWithAboutAPet(
+      AddPersonPicker<CommitmentOwner>(
+        people: people,
+        selectedValue: d.owner,
+        onSelected: (owner) {
+          setState(() {
+            _draft = d.copyWith(owner: owner);
+          });
+        },
+        toggles: toggles,
+      ),
+      activePets: activePets,
+      selectedPetIds: d.petIds,
     );
   }
 
@@ -3398,15 +3520,22 @@ class _AddFlowState extends ConsumerState<AddFlow> {
       ],
     ];
 
-    return AddPersonPicker<CommitmentOwner>(
-      people: people,
-      selectedValue: d.owner,
-      onSelected: (owner) {
-        setState(() {
-          _draft = d.copyWith(owner: owner);
-        });
-        _advanceStep(ctx);
-      },
+    final activePets = ref.watch(activeHomeActivePetsProvider);
+    return _wrapWithAboutAPet(
+      AddPersonPicker<CommitmentOwner>(
+        people: people,
+        selectedValue: d.owner,
+        onSelected: (owner) {
+          setState(() {
+            _draft = d.copyWith(owner: owner);
+          });
+          if (activePets.isEmpty) {
+            _advanceStep(ctx);
+          }
+        },
+      ),
+      activePets: activePets,
+      selectedPetIds: d.petIds,
     );
   }
 

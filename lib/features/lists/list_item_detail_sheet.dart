@@ -14,6 +14,8 @@ import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../add/widgets/add_person_picker.dart';
 import '../auth/auth_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import 'list_controller.dart';
 
@@ -310,6 +312,12 @@ class ListItemDetailSheet extends ConsumerWidget {
         ? '$ownerLabel · Added by $addedByName · $formattedCreatedDate'
         : 'Added by $addedByName · $formattedCreatedDate';
 
+    final taggedPets = ref.watch(
+      recordPetTagsProvider(
+        (recordKind: PetRecordKind.task, recordId: item.id),
+      ),
+    );
+
     return CoveDetailSheet(
       kindGlyph: const Icon(Icons.checklist_rounded),
       kindLabel: 'TASK',
@@ -335,6 +343,8 @@ class ListItemDetailSheet extends ConsumerWidget {
         title: meaningTitle,
         subtitle: meaningSubtitle,
       ),
+      belowMeaningPanel:
+          taggedPets.isEmpty ? null : RecordPetTagChips(pets: taggedPets),
       editVerb: CoveDetailVerb(
         label: 'Edit',
         icon: Icons.edit_outlined,
@@ -348,6 +358,15 @@ class ListItemDetailSheet extends ConsumerWidget {
         onPressed: () => _handleToggle(context, ref, !isCompleted),
       ),
       menuItems: [
+        CoveDetailMenuItem(
+          label: petTagMenuLabel(taggedPets),
+          icon: Icons.pets_outlined,
+          onSelected: () => PetTagPickerSheet.show(
+            context,
+            recordKind: PetRecordKind.task,
+            recordId: item.id,
+          ),
+        ),
         CoveDetailMenuItem(
           label: 'Delete this task',
           icon: Icons.delete_outline_rounded,

@@ -634,6 +634,133 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  // --- PETS & PET TAGS (`design/specs/19-owners-and-pets.md` §2) ---
+
+  Stream<List<LocalPet>> watchPets(String homeId) {
+    if (_isClosed || homeId.isEmpty) {
+      return const Stream<List<LocalPet>>.empty();
+    }
+    return Stream<List<LocalPet>>.multi((controller) {
+      var active = true;
+      Future<void> emit() async {
+        if (!active || _isClosed || controller.isClosed) return;
+        try {
+          final rows = await getPets(homeId);
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.add(rows);
+          }
+        } catch (e, st) {
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.addError(e, st);
+          }
+        }
+      }
+
+      unawaited(emit());
+      final sub = tableUpdates(TableUpdateQuery.onTable(localPets))
+          .listen((_) => unawaited(emit()));
+      controller.onCancel = () {
+        active = false;
+        return sub.cancel();
+      };
+    }, isBroadcast: true);
+  }
+
+  Future<List<LocalPet>> getPets(String homeId) {
+    return (select(localPets)
+          ..where((t) => t.homeId.equals(homeId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Stream<List<LocalPetTag>> watchPetTags(String homeId) {
+    if (_isClosed || homeId.isEmpty) {
+      return const Stream<List<LocalPetTag>>.empty();
+    }
+    return Stream<List<LocalPetTag>>.multi((controller) {
+      var active = true;
+      Future<void> emit() async {
+        if (!active || _isClosed || controller.isClosed) return;
+        try {
+          final rows = await getPetTags(homeId);
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.add(rows);
+          }
+        } catch (e, st) {
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.addError(e, st);
+          }
+        }
+      }
+
+      unawaited(emit());
+      final sub = tableUpdates(TableUpdateQuery.onTable(localPetTags))
+          .listen((_) => unawaited(emit()));
+      controller.onCancel = () {
+        active = false;
+        return sub.cancel();
+      };
+    }, isBroadcast: true);
+  }
+
+  Future<List<LocalPetTag>> getPetTags(String homeId) {
+    return (select(localPetTags)
+          ..where((t) => t.homeId.equals(homeId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Stream<List<LocalPetTag>> watchPetTagsForRecord(
+    String recordKind,
+    String recordId,
+  ) {
+    if (_isClosed || recordKind.isEmpty || recordId.isEmpty) {
+      return const Stream<List<LocalPetTag>>.empty();
+    }
+    return Stream<List<LocalPetTag>>.multi((controller) {
+      var active = true;
+      Future<void> emit() async {
+        if (!active || _isClosed || controller.isClosed) return;
+        try {
+          final rows = await getPetTagsForRecord(recordKind, recordId);
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.add(rows);
+          }
+        } catch (e, st) {
+          if (active && !_isClosed && !controller.isClosed) {
+            controller.addError(e, st);
+          }
+        }
+      }
+
+      unawaited(emit());
+      final sub = tableUpdates(TableUpdateQuery.onTable(localPetTags))
+          .listen((_) => unawaited(emit()));
+      controller.onCancel = () {
+        active = false;
+        return sub.cancel();
+      };
+    }, isBroadcast: true);
+  }
+
+  Future<List<LocalPetTag>> getPetTagsForRecord(
+    String recordKind,
+    String recordId,
+  ) {
+    return (select(localPetTags)
+          ..where((t) =>
+              t.recordKind.equals(recordKind) & t.recordId.equals(recordId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .get();
+  }
+
+  Future<int> deletePetTagsForRecord(String recordKind, String recordId) {
+    return (delete(localPetTags)
+          ..where((t) =>
+              t.recordKind.equals(recordKind) & t.recordId.equals(recordId)))
+        .go();
+  }
+
   // --- REACTION STREAMS FILTERED BY homeId ---
 
   Stream<List<LocalCheckinReminder>> watchCheckinReminders(String homeId) {
@@ -889,8 +1016,9 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<void> deleteExpense(String expenseId) {
-    return (delete(localExpenses)..where((t) => t.id.equals(expenseId))).go();
+  Future<void> deleteExpense(String expenseId) async {
+    await deletePetTagsForRecord('expense', expenseId);
+    await (delete(localExpenses)..where((t) => t.id.equals(expenseId))).go();
   }
 
   Stream<List<LocalHabit>> watchHabits(
@@ -932,6 +1060,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteHabit(String habitId) async {
+    await deletePetTagsForRecord('habit', habitId);
     await (delete(localHabitCheckins)..where((t) => t.habitId.equals(habitId))).go();
     await (delete(localHabits)..where((t) => t.id.equals(habitId))).go();
   }
@@ -972,8 +1101,9 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<void> deleteCalendarEvent(String eventId) {
-    return (delete(localCalendarEvents)..where((t) => t.id.equals(eventId))).go();
+  Future<void> deleteCalendarEvent(String eventId) async {
+    await deletePetTagsForRecord('event', eventId);
+    await (delete(localCalendarEvents)..where((t) => t.id.equals(eventId))).go();
   }
 
   Stream<List<LocalOutboxEvent>> watchOutbox(String homeId) {
@@ -1005,6 +1135,11 @@ class AppDatabase extends _$AppDatabase {
               'home_updated',
               'preferences_updated',
               'settings_updated',
+              'pet_created',
+              'pet_renamed',
+              'pet_archived',
+              'pet_tag_added',
+              'pet_tag_removed',
             ]);
         if (currentUserId != null) {
           predicate = predicate &
@@ -1045,6 +1180,11 @@ class AppDatabase extends _$AppDatabase {
               'home_updated',
               'preferences_updated',
               'settings_updated',
+              'pet_created',
+              'pet_renamed',
+              'pet_archived',
+              'pet_tag_added',
+              'pet_tag_removed',
             ]);
         if (currentUserId != null) {
           predicate = predicate &
@@ -1077,6 +1217,11 @@ class AppDatabase extends _$AppDatabase {
                 'home_updated',
                 'preferences_updated',
                 'settings_updated',
+                'pet_created',
+                'pet_renamed',
+                'pet_archived',
+                'pet_tag_added',
+                'pet_tag_removed',
               ])))
         .go();
   }
@@ -1250,7 +1395,12 @@ class AppDatabase extends _$AppDatabase {
           'home_currency_updated',
           'home_updated',
           'preferences_updated',
-          'settings_updated'
+          'settings_updated',
+          'pet_created',
+          'pet_renamed',
+          'pet_archived',
+          'pet_tag_added',
+          'pet_tag_removed'
         )) AS activity_count,
         (
           SELECT CASE WHEN (

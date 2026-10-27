@@ -16,6 +16,8 @@ import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -267,6 +269,13 @@ class ExpenseDetailSheet extends ConsumerWidget {
       );
     }
 
+    final taggedPets = ref.watch(
+      recordPetTagsProvider(
+        (recordKind: PetRecordKind.expense, recordId: expense.id),
+      ),
+    );
+    final isPrivate = share.visibility == ExpenseVisibility.privateToMe;
+
     return CoveDetailSheet(
       kindGlyph: Text(currency.symbol),
       kindLabel: expense.isTransfer ? 'TRANSFER' : 'EXPENSE',
@@ -281,12 +290,24 @@ class ExpenseDetailSheet extends ConsumerWidget {
         viewerDisplayName: viewerDisplayName,
       ),
       meaningPanel: meaningPanel,
+      belowMeaningPanel:
+          taggedPets.isEmpty ? null : RecordPetTagChips(pets: taggedPets),
       editVerb: CoveDetailVerb(
         label: 'Edit',
         icon: Icons.edit_outlined,
         onPressed: () => _handleEdit(context),
       ),
       menuItems: [
+        CoveDetailMenuItem(
+          label: petTagMenuLabel(taggedPets),
+          icon: Icons.pets_outlined,
+          onSelected: () => PetTagPickerSheet.show(
+            context,
+            recordKind: PetRecordKind.expense,
+            recordId: expense.id,
+            isPrivate: isPrivate,
+          ),
+        ),
         CoveDetailMenuItem(
           label: 'Delete this expense',
           icon: Icons.delete_outline_rounded,

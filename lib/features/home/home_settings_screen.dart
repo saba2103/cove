@@ -15,12 +15,14 @@ import '../../core/widgets/cove_row.dart';
 import '../../core/widgets/cove_section_label.dart';
 import '../../core/widgets/cove_seed_card.dart';
 import '../../core/widgets/cove_sheet.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/key_management/pairing_qr_view.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../../sync/providers/cove_sync_providers.dart';
 import '../../sync/providers/first_run_provider.dart';
 import '../auth/auth_controller.dart';
 import '../expenses/monthly_budget_controller.dart';
+import '../pets/pet_controller.dart';
 import '../profile/currency_selector_sheet.dart';
 import '../profile/edit_home_dialog.dart';
 import '../profile/home_metadata_controller.dart';
@@ -175,6 +177,43 @@ class HomeSettingsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _showAddPetDialog(BuildContext context, WidgetRef ref) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _PetNameDialog(
+        title: 'Add a pet',
+        confirmLabel: 'Add',
+        inputKey: ValueKey('our_home_pet_name_input'),
+        confirmKey: ValueKey('our_home_pet_add_confirm'),
+      ),
+    );
+    if (name != null && name.trim().isNotEmpty) {
+      await ref.read(petControllerProvider).createPet(name.trim());
+    }
+  }
+
+  Future<void> _showRenamePetDialog(
+    BuildContext context,
+    WidgetRef ref,
+    LocalPet pet,
+  ) async {
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _PetNameDialog(
+        title: 'Rename pet',
+        initialName: pet.name,
+        confirmLabel: 'Save',
+        inputKey: const ValueKey('our_home_pet_rename_input'),
+        confirmKey: const ValueKey('our_home_pet_rename_confirm'),
+      ),
+    );
+    if (newName != null &&
+        newName.trim().isNotEmpty &&
+        newName.trim() != pet.name) {
+      await ref.read(petControllerProvider).renamePet(pet.id, newName.trim());
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cv = context.cv;
@@ -193,6 +232,7 @@ class HomeSettingsScreen extends ConsumerWidget {
     final listItems =
         ref.watch(activeHomeAllListItemsProvider).value ?? const [];
     final habits = ref.watch(activeHomeHabitsProvider).value ?? const [];
+    final activePets = ref.watch(activeHomeActivePetsProvider);
     final homeController = ref.read(homeControllerProvider);
 
     if (activeHome == null) {
@@ -754,6 +794,75 @@ class HomeSettingsScreen extends ConsumerWidget {
 
                 const SizedBox(height: CoveSpace.section),
 
+                // 5. PETS — CoveRow per active pet + Add a pet row
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.gutter,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const CoveSectionLabel.page(label: 'Pets'),
+                      const SizedBox(height: CoveSpace.xs),
+                      for (final pet in activePets)
+                        CoveRow(
+                          key: ValueKey('our_home_pet_row_${pet.id}'),
+                          leading: _buildLeadingOrb(
+                            context,
+                            Icons.pets_outlined,
+                          ),
+                          title: pet.name,
+                          onTap: () => _showRenamePetDialog(context, ref, pet),
+                          trailing: PopupMenuButton<String>(
+                            key: ValueKey('our_home_pet_menu_${pet.id}'),
+                            tooltip: 'More options',
+                            padding: EdgeInsets.zero,
+                            color: cv.surfaceCard,
+                            shape: CoveShape.border(
+                              CoveRadius.card,
+                              side: BorderSide(color: cv.lineHairline),
+                            ),
+                            icon: Icon(
+                              Icons.more_horiz_rounded,
+                              size: CoveSpace.lg,
+                              color: cv.textTertiary,
+                            ),
+                            onSelected: (action) async {
+                              if (action == 'archive') {
+                                await ref
+                                    .read(petControllerProvider)
+                                    .archivePet(pet.id);
+                              } else if (action == 'rename') {
+                                await _showRenamePetDialog(context, ref, pet);
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem<String>(
+                                value: 'archive',
+                                child: Text(
+                                  'Archive ${pet.name}',
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.statusAlertText,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      CoveRow(
+                        key: const ValueKey('our_home_add_pet_row'),
+                        leading: _buildLeadingOrb(context, Icons.add_rounded),
+                        title: 'Add a pet',
+                        trailing: _buildChevron(context),
+                        isLast: true,
+                        onTap: () => _showAddPetDialog(context, ref),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: CoveSpace.section),
+
                 // Footer tagline & encryption reassurance
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -1036,5 +1145,88 @@ class _HomeArchPainter extends CustomPainter {
         oldDelegate.innerColor != innerColor ||
         oldDelegate.fillTop != fillTop ||
         oldDelegate.fillBottom != fillBottom;
+  }
+}
+
+class _PetNameDialog extends StatefulWidget {
+  final String title;
+  final String? initialName;
+  final String confirmLabel;
+  final Key inputKey;
+  final Key confirmKey;
+
+  const _PetNameDialog({
+    required this.title,
+    this.initialName,
+    required this.confirmLabel,
+    required this.inputKey,
+    required this.confirmKey,
+  });
+
+  @override
+  State<_PetNameDialog> createState() => _PetNameDialogState();
+}
+
+class _PetNameDialogState extends State<_PetNameDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName ?? '');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cv = context.cv;
+    return AlertDialog(
+      backgroundColor: cv.surfaceSheet,
+      shape: CoveShape.border(CoveRadius.card),
+      title: Text(
+        widget.title,
+        style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+      ),
+      content: TextField(
+        key: widget.inputKey,
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        style: CoveType.body.copyWith(color: cv.textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Pet name',
+          hintStyle: CoveType.body.copyWith(color: cv.textTertiary),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: cv.lineHairline),
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: cv.accentFill),
+          ),
+        ),
+        onSubmitted: (val) => Navigator.of(context).pop(val.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            'Cancel',
+            style: CoveType.readout.copyWith(color: cv.textSecondary),
+          ),
+        ),
+        TextButton(
+          key: widget.confirmKey,
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: Text(
+            widget.confirmLabel,
+            style: CoveType.readout.copyWith(color: cv.accentText),
+          ),
+        ),
+      ],
+    );
   }
 }

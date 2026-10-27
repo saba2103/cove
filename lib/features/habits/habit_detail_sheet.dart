@@ -11,6 +11,8 @@ import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../auth/auth_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import 'habit_controller.dart';
 import 'habit_form_sheet.dart';
@@ -173,6 +175,12 @@ class HabitDetailSheet extends ConsumerWidget {
       slipCadenceLine = '$cadenceLabel · ${partnerProfile.displayName}\'s habit';
     }
 
+    final taggedPets = ref.watch(
+      recordPetTagsProvider(
+        (recordKind: PetRecordKind.habit, recordId: habit.id),
+      ),
+    );
+
     final menuItems = <CoveDetailMenuItem>[
       if (isPartnerHabit)
         CoveDetailMenuItem(
@@ -182,6 +190,16 @@ class HabitDetailSheet extends ConsumerWidget {
           icon: Icons.celebration_outlined,
           onSelected: () => _handleAcknowledge(context, ref),
         ),
+      CoveDetailMenuItem(
+        label: petTagMenuLabel(taggedPets),
+        icon: Icons.pets_outlined,
+        onSelected: () => PetTagPickerSheet.show(
+          context,
+          recordKind: PetRecordKind.habit,
+          recordId: habit.id,
+          isPrivate: isPrivate,
+        ),
+      ),
       CoveDetailMenuItem(
         label: 'Delete this habit',
         icon: Icons.delete_outline_rounded,
@@ -211,6 +229,8 @@ class HabitDetailSheet extends ConsumerWidget {
         title: '${streak.currentStreak} days running',
         subtitle: 'Best ${streak.bestStreak} · $cadenceLabel',
       ),
+      belowMeaningPanel:
+          taggedPets.isEmpty ? null : RecordPetTagChips(pets: taggedPets),
       editVerb: CoveDetailVerb(
         label: 'Edit',
         icon: Icons.edit_outlined,

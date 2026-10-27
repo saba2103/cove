@@ -299,6 +299,9 @@ abstract class AddDraft {
 
   /// Whether all required answers for this draft are present and valid.
   bool get isComplete;
+
+  /// Selected pet IDs tagged on this draft (`design/specs/19-owners-and-pets.md` §3).
+  Set<String> get petIds => const <String>{};
 }
 
 // ============================================================================
@@ -385,6 +388,8 @@ class ExpenseDraft extends AddDraft {
   final String viewerUserId;
   final String partnerUserId;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   const ExpenseDraft({
     this.amount,
@@ -399,6 +404,7 @@ class ExpenseDraft extends AddDraft {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.hasPartner = true,
+    this.petIds = const <String>{},
   })  : payer = (isPrivate || !hasPartner) ? ExpensePayer.you : payer,
         splitHalfAndHalf =
             (isPrivate || !hasPartner) ? false : splitHalfAndHalf;
@@ -473,6 +479,7 @@ class ExpenseDraft extends AddDraft {
     String? viewerUserId,
     String? partnerUserId,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     final nextHasPartner = hasPartner ?? this.hasPartner;
     final nextIsPrivate = isPrivate ?? this.isPrivate;
@@ -511,6 +518,7 @@ class ExpenseDraft extends AddDraft {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       hasPartner: nextHasPartner,
+      petIds: petIds != null ? Set<String>.unmodifiable(petIds) : this.petIds,
     );
   }
 
@@ -659,6 +667,8 @@ class EventDraft extends AddDraft {
   final String viewerUserId;
   final String partnerUserId;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   const EventDraft({
     this.title = '',
@@ -672,6 +682,7 @@ class EventDraft extends AddDraft {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.hasPartner = true,
+    this.petIds = const <String>{},
   }) : owner = !hasPartner ? CommitmentOwner.you : owner;
 
   factory EventDraft.initial(AddFlowContext context) {
@@ -730,6 +741,7 @@ class EventDraft extends AddDraft {
     String? viewerUserId,
     String? partnerUserId,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     final nextHasPartner = hasPartner ?? this.hasPartner;
     final String? nextLocation = identical(location, _sentinel)
@@ -751,6 +763,7 @@ class EventDraft extends AddDraft {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       hasPartner: nextHasPartner,
+      petIds: petIds != null ? Set<String>.unmodifiable(petIds) : this.petIds,
     );
   }
 
@@ -894,6 +907,8 @@ class TaskDraft extends AddDraft {
   final String viewerUserId;
   final String partnerUserId;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   const TaskDraft({
     this.title = '',
@@ -907,6 +922,7 @@ class TaskDraft extends AddDraft {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.hasPartner = true,
+    this.petIds = const <String>{},
   }) : owner = !hasPartner ? TaskOwner.you : owner;
 
   factory TaskDraft.initial(AddFlowContext context) {
@@ -971,6 +987,7 @@ class TaskDraft extends AddDraft {
     String? viewerUserId,
     String? partnerUserId,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     final nextHasPartner = hasPartner ?? this.hasPartner;
     final nextNoParticularDay = noParticularDay ?? this.noParticularDay;
@@ -1000,6 +1017,7 @@ class TaskDraft extends AddDraft {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       hasPartner: nextHasPartner,
+      petIds: petIds != null ? Set<String>.unmodifiable(petIds) : this.petIds,
     );
   }
 
@@ -1140,6 +1158,8 @@ class HabitDraft extends AddDraft {
   final Set<int> customDays; // 1 = Mon .. 7 = Sun
   final HabitVisibility visibility;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   HabitDraft({
     this.name = '',
@@ -1147,9 +1167,11 @@ class HabitDraft extends AddDraft {
     Set<int> customDays = const <int>{1, 3, 5},
     this.visibility = HabitVisibility.shared,
     this.hasPartner = true,
-  }) : customDays = Set<int>.unmodifiable(
+    Set<String> petIds = const <String>{},
+  })  : customDays = Set<int>.unmodifiable(
           (customDays.where((d) => d >= 1 && d <= 7).toList()..sort()),
-        );
+        ),
+        petIds = Set<String>.unmodifiable(petIds);
 
   factory HabitDraft.initial(AddFlowContext context) {
     return HabitDraft(hasPartner: context.hasPartner);
@@ -1212,6 +1234,7 @@ class HabitDraft extends AddDraft {
     Set<int>? customDays,
     HabitVisibility? visibility,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     return HabitDraft(
       name: name ?? this.name,
@@ -1221,6 +1244,7 @@ class HabitDraft extends AddDraft {
       customDays: customDays ?? this.customDays,
       visibility: visibility ?? this.visibility,
       hasPartner: hasPartner ?? this.hasPartner,
+      petIds: petIds ?? this.petIds,
     );
   }
 
@@ -1377,6 +1401,8 @@ class CommitmentDraft extends AddDraft {
   final String viewerUserId;
   final String partnerUserId;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   const CommitmentDraft({
     this.name = '',
@@ -1395,6 +1421,7 @@ class CommitmentDraft extends AddDraft {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.hasPartner = true,
+    this.petIds = const <String>{},
   }) : owner = (isPrivate || !hasPartner) ? CommitmentOwner.you : owner;
 
   factory CommitmentDraft.initial(AddFlowContext context) {
@@ -1504,6 +1531,7 @@ class CommitmentDraft extends AddDraft {
     String? viewerUserId,
     String? partnerUserId,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     final nextHasPartner = hasPartner ?? this.hasPartner;
     final nextIsPrivate = isPrivate ?? this.isPrivate;
@@ -1550,6 +1578,7 @@ class CommitmentDraft extends AddDraft {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       hasPartner: nextHasPartner,
+      petIds: petIds != null ? Set<String>.unmodifiable(petIds) : this.petIds,
     );
   }
 
@@ -1800,6 +1829,8 @@ class RoutineDraft extends AddDraft {
   final String viewerUserId;
   final String partnerUserId;
   final bool hasPartner;
+  @override
+  final Set<String> petIds;
 
   RoutineDraft({
     this.title = '',
@@ -1810,10 +1841,12 @@ class RoutineDraft extends AddDraft {
     this.viewerUserId = 'user_alex',
     this.partnerUserId = 'partner_user',
     this.hasPartner = true,
+    Set<String> petIds = const <String>{},
   })  : owner = !hasPartner ? CommitmentOwner.you : owner,
         days = Set<int>.unmodifiable(
           (days.where((d) => d >= 1 && d <= 7).toList()..sort()),
-        );
+        ),
+        petIds = Set<String>.unmodifiable(petIds);
 
   factory RoutineDraft.initial(AddFlowContext context) {
     Set<int> initialDays = const <int>{1, 2, 3, 4, 5};
@@ -1905,6 +1938,7 @@ class RoutineDraft extends AddDraft {
     String? viewerUserId,
     String? partnerUserId,
     bool? hasPartner,
+    Set<String>? petIds,
   }) {
     final nextHasPartner = hasPartner ?? this.hasPartner;
     return RoutineDraft(
@@ -1920,6 +1954,7 @@ class RoutineDraft extends AddDraft {
       viewerUserId: viewerUserId ?? this.viewerUserId,
       partnerUserId: partnerUserId ?? this.partnerUserId,
       hasPartner: nextHasPartner,
+      petIds: petIds ?? this.petIds,
     );
   }
 

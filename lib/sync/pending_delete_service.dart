@@ -602,6 +602,18 @@ class PendingDeleteService {
         await ref.read(routineControllerProvider).deleteRoutineEvent(id);
         break;
     }
+
+    final recordKind = switch (kind) {
+      PendingDeleteKind.expense => 'expense',
+      PendingDeleteKind.listItem => 'task',
+      PendingDeleteKind.habit => 'habit',
+      PendingDeleteKind.event => 'event',
+      PendingDeleteKind.commitment => 'commitment',
+      PendingDeleteKind.routineEvent => 'routine_event',
+    };
+    try {
+      await db.deletePetTagsForRecord(recordKind, id);
+    } catch (_) {}
   }
 
   void dispose() {

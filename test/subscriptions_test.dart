@@ -1598,7 +1598,7 @@ class _TestSubscriptionController extends SubscriptionController {
   _TestSubscriptionController(super.ref, {required this.onMutate});
 
   @override
-  Future<void> createSubscription({
+  Future<String> createSubscription({
     required String name,
     required double amount,
     String? currency,
@@ -1612,7 +1612,7 @@ class _TestSubscriptionController extends SubscriptionController {
     int? totalInstallments,
     int? paidInstallments,
   }) async {
-    await super.createSubscription(
+    final id = await super.createSubscription(
       name: name,
       amount: amount,
       currency: currency,
@@ -1627,6 +1627,7 @@ class _TestSubscriptionController extends SubscriptionController {
       paidInstallments: paidInstallments,
     );
     await onMutate();
+    return id;
   }
 
   @override

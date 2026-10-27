@@ -26,6 +26,8 @@ import '../habits/habit_controller.dart';
 import '../habits/habit_detail_sheet.dart';
 import '../lists/list_controller.dart';
 import '../lists/list_item_detail_sheet.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/preferences_controller.dart';
 import '../roadmap/roadmap_controller.dart';
 import '../subscriptions/commitment_detail_sheet.dart';
@@ -309,6 +311,11 @@ class CalendarEventDetailSheet extends ConsumerWidget {
         : whoLabel;
 
     final contextLabel = _formatContextLabel(event);
+    final taggedPets = ref.watch(
+      recordPetTagsProvider(
+        (recordKind: PetRecordKind.event, recordId: event.id),
+      ),
+    );
 
     return CoveDetailSheet(
       kindGlyph: const Icon(Icons.calendar_today_rounded),
@@ -330,12 +337,23 @@ class CalendarEventDetailSheet extends ConsumerWidget {
         title: meaningTitle,
         subtitle: meaningSubtitle,
       ),
+      belowMeaningPanel:
+          taggedPets.isEmpty ? null : RecordPetTagChips(pets: taggedPets),
       editVerb: CoveDetailVerb(
         label: 'Edit',
         icon: Icons.edit_outlined,
         onPressed: () => _handleEdit(context),
       ),
       menuItems: [
+        CoveDetailMenuItem(
+          label: petTagMenuLabel(taggedPets),
+          icon: Icons.pets_outlined,
+          onSelected: () => PetTagPickerSheet.show(
+            context,
+            recordKind: PetRecordKind.event,
+            recordId: event.id,
+          ),
+        ),
         CoveDetailMenuItem(
           label: 'Delete this event',
           icon: Icons.delete_outline_rounded,

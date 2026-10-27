@@ -96,6 +96,7 @@ class CoveDetailSheet extends StatelessWidget {
   final String? contextLabel;
   final Widget slip;
   final CoveDetailMeaningPanel meaningPanel;
+  final Widget? belowMeaningPanel;
   final CoveDetailVerb? editVerb;
   final CoveDetailVerb? secondaryVerb;
   final List<CoveDetailMenuItem> menuItems;
@@ -116,6 +117,7 @@ class CoveDetailSheet extends StatelessWidget {
     this.contextLabel,
     required this.slip,
     required this.meaningPanel,
+    this.belowMeaningPanel,
     this.editVerb,
     this.secondaryVerb,
     this.menuItems = const <CoveDetailMenuItem>[],
@@ -318,6 +320,14 @@ class CoveDetailSheet extends StatelessWidget {
                   ),
                 ),
               ),
+
+              if (belowMeaningPanel != null) ...[
+                const SizedBox(height: CoveSpace.md),
+                Semantics(
+                  sortKey: const OrdinalSortKey(1.5),
+                  child: belowMeaningPanel!,
+                ),
+              ],
 
               // 4. Verbs (Edit, plus at most ONE kind action)
               if (verbs.isNotEmpty) ...[

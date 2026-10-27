@@ -14,6 +14,8 @@ import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../add/widgets/add_person_picker.dart';
 import '../auth/auth_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/user_profile_controller.dart';
 import 'calendar_controller.dart';
@@ -259,6 +261,17 @@ class _CalendarEventFormSheetState
     final bottomInset = MediaQuery.of(context).viewInsets.bottom +
         CovePageInsets.bottomOf(context);
     final isEditing = widget.existing != null;
+    final activePets = isEditing
+        ? ref.watch(activeHomeActivePetsProvider)
+        : const <LocalPet>[];
+    final taggedPets = isEditing
+        ? ref.watch(
+            recordPetTagsProvider(
+              (recordKind: PetRecordKind.event, recordId: widget.existing!.id),
+            ),
+          )
+        : const <LocalPet>[];
+    final showPetMenu = activePets.isNotEmpty || taggedPets.isNotEmpty;
 
     final dateFormat = DateFormat('MMM d, yyyy');
 
@@ -305,76 +318,115 @@ class _CalendarEventFormSheetState
                     style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                   ),
                   if (isEditing)
-                    IconButton(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        color: cv.statusAlertText,
-                        size: 20,
-                      ),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: cv.surfaceCard,
-                            title: Text(
-                              'Delete Event',
-                              style: CoveType.slipTitle.copyWith(
-                                color: cv.textPrimary,
-                              ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showPetMenu)
+                          PopupMenuButton<String>(
+                            key: const ValueKey('calendar_event_overflow_menu'),
+                            icon: Icon(
+                              Icons.more_horiz,
+                              color: cv.textSecondary,
+                              size: 20,
                             ),
-                            content: Text(
-                              'Remove this event from shared calendar?',
-                              style: CoveType.body.copyWith(
-                                color: cv.textSecondary,
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(false),
+                            color: cv.surfaceCard,
+                            onSelected: (val) {
+                              if (val == 'pet_tags') {
+                                PetTagPickerSheet.show(
+                                  context,
+                                  recordKind: PetRecordKind.event,
+                                  recordId: widget.existing!.id,
+                                );
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem<String>(
+                                value: 'pet_tags',
                                 child: Text(
-                                  'Cancel',
+                                  petTagMenuLabel(taggedPets),
                                   style: CoveType.rowTitle.copyWith(
-                                    color: cv.textSecondary,
-                                  ),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                                child: Text(
-                                  'Delete',
-                                  style: CoveType.rowTitle.copyWith(
-                                    color: cv.statusAlertText,
+                                    color: cv.textPrimary,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        );
-                        if (confirm == true && mounted) {
-                          final existing = widget.existing!;
-                          final pendingDelete = ref.read(pendingDeleteServiceProvider);
-                          await pendingDelete.scheduleDelete(
-                            kind: PendingDeleteKind.event,
-                            id: existing.id,
-                          );
-                          if (context.mounted) {
-                            Navigator.of(context).pop();
-                            CoveUndoToast.show(
-                              context,
-                              message: 'Deleted "${existing.title}"',
-                              onUndo: () async {
-                                await pendingDelete.undoDelete(
-                                  kind: PendingDeleteKind.event,
-                                  id: existing.id,
-                                );
-                              },
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: cv.statusAlertText,
+                            size: 20,
+                          ),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: cv.surfaceCard,
+                                title: Text(
+                                  'Delete Event',
+                                  style: CoveType.slipTitle.copyWith(
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                                content: Text(
+                                  'Remove this event from shared calendar?',
+                                  style: CoveType.body.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: CoveType.rowTitle.copyWith(
+                                        color: cv.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.of(ctx).pop(true),
+                                    child: Text(
+                                      'Delete',
+                                      style: CoveType.rowTitle.copyWith(
+                                        color: cv.statusAlertText,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             );
-                          }
-                        }
-                      },
+                            if (confirm == true && mounted) {
+                              final existing = widget.existing!;
+                              final pendingDelete = ref.read(pendingDeleteServiceProvider);
+                              await pendingDelete.scheduleDelete(
+                                kind: PendingDeleteKind.event,
+                                id: existing.id,
+                              );
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                                CoveUndoToast.show(
+                                  context,
+                                  message: 'Deleted "${existing.title}"',
+                                  onUndo: () async {
+                                    await pendingDelete.undoDelete(
+                                      kind: PendingDeleteKind.event,
+                                      id: existing.id,
+                                    );
+                                  },
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
                     ),
                 ],
               ),
+              if (taggedPets.isNotEmpty) ...[
+                const SizedBox(height: CoveSpace.sm),
+                RecordPetTagChips(pets: taggedPets),
+              ],
               const SizedBox(height: CoveSpace.gutter),
 
               // Event Title

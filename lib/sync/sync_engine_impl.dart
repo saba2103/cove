@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/utils/uuid_generator.dart';
 import '../features/notifications/notification_models.dart';
@@ -33,6 +34,23 @@ class SyncEngineImpl implements SyncEngine {
   /// Optional callback invoked when partner activity is received and decrypted
   void Function(CoveNotificationPayload payload)? onInboundActivityReceived;
 
+  /// Optional override for fetching remote `pet_*` events in
+  /// [reconcileUnprojectedPetEvents] (used in unit tests without a live
+  /// Supabase client).
+  final Future<List<Map<String, dynamic>>> Function(String homeId)?
+      fetchRemotePetEvents;
+
+  static const List<String> petEventTypes = <String>[
+    'pet_created',
+    'pet_renamed',
+    'pet_archived',
+    'pet_tag_added',
+    'pet_tag_removed',
+  ];
+
+  static String petReconciledPrefKey(String homeId) =>
+      'cove_v12_pet_events_reconciled_$homeId';
+
   final StreamController<SyncConnectionState> _connectionStateController =
       StreamController<SyncConnectionState>.broadcast();
 
@@ -55,6 +73,7 @@ class SyncEngineImpl implements SyncEngine {
     this.getCurrentUserId,
     this.getActiveHomeId,
     this.onInboundActivityReceived,
+    this.fetchRemotePetEvents,
   })  : encryptionService = encryptionService ?? SodiumCryptoService(),
         keyStore = keyStore ?? HomeKeyStore();
 
@@ -101,9 +120,10 @@ class SyncEngineImpl implements SyncEngine {
     _startOutboxTimer();
     _startForegroundPoller();
 
-    // Trigger immediate outbox flush and delivery reconciliation
+    // Trigger immediate outbox flush, delivery reconciliation, and v12 pet-event safety net
     unawaited(flushOutbox());
     unawaited(reconcileDeliveryConfirmations());
+    unawaited(reconcileUnprojectedPetEvents(homeId: resolvedHomeId));
   }
 
   void _subscribeToRealtime({String? homeId}) {
@@ -619,6 +639,91 @@ class SyncEngineImpl implements SyncEngine {
       await reconcileDeliveryConfirmations();
     } catch (_) {
       // Offline or temporary fetch failure; silent background wake falls back gracefully
+    }
+  }
+
+  /// First-launch v12 safety net (`design/specs/19-owners-and-pets.md` §4):
+  ///
+  /// Because an older (v11) app recorded incoming `pet_*` event IDs in
+  /// `local_applied_events` before hitting `default: break;`, normal
+  /// [pullLatestEvents] would skip those events after upgrading to v12.
+  /// On the first launch after migrating to v12, this queries the server for
+  /// all `pet_*` events in [homeId] and applies their projections in
+  /// chronological order even if their IDs are already in `local_applied_events`.
+  Future<int> reconcileUnprojectedPetEvents({String? homeId}) async {
+    final targetHomeId = homeId ?? getActiveHomeId?.call();
+    if (targetHomeId == null || targetHomeId.isEmpty) return 0;
+    if (fetchRemotePetEvents == null && supabaseClient == null) return 0;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefKey = petReconciledPrefKey(targetHomeId);
+      if (prefs.getBool(prefKey) == true) {
+        return 0;
+      }
+
+      final homeKey = await keyStore.getKey(targetHomeId);
+      if (homeKey == null) return 0;
+
+      final List<Map<String, dynamic>> rows;
+      if (fetchRemotePetEvents != null) {
+        rows = await fetchRemotePetEvents!(targetHomeId);
+      } else {
+        final rawRows = await supabaseClient!
+            .from('home_events')
+            .select()
+            .eq('home_id', targetHomeId)
+            .inFilter('event_type', petEventTypes)
+            .order('created_at', ascending: true);
+        rows = (rawRows as List)
+            .map((r) => Map<String, dynamic>.from(r as Map))
+            .toList(growable: false);
+      }
+
+      var appliedCount = 0;
+      for (final record in rows) {
+        final recordHomeId = record['home_id']?.toString() ?? targetHomeId;
+        final actorId = record['actor_id']?.toString() ?? 'partner';
+        final eventId = record['id']?.toString() ?? '';
+        final eventType = record['event_type']?.toString() ?? '';
+        final rawCiphertext = record['encrypted_payload']?.toString() ?? '';
+        final createdAt =
+            DateTime.tryParse(record['created_at']?.toString() ?? '') ??
+                DateTime.now().toUtc();
+
+        if (!petEventTypes.contains(eventType) || rawCiphertext.isEmpty) {
+          continue;
+        }
+
+        final encryptedPayload =
+            encryptionService.deserializeFromTransportString(rawCiphertext);
+        final plaintextJson = await encryptionService.decrypt(
+          payload: encryptedPayload,
+          homeKey: homeKey,
+        );
+        final payloadMap = jsonDecode(plaintextJson) as Map<String, dynamic>;
+
+        await localStateStore.applyEvent(
+          eventId: eventId.isEmpty ? null : eventId,
+          homeId: recordHomeId,
+          eventType: eventType,
+          payload: payloadMap,
+          timestamp: createdAt,
+          authorId: actorId,
+        );
+        if (eventId.isNotEmpty) {
+          _processedEventIds.add(eventId);
+        }
+        appliedCount++;
+      }
+
+      await prefs.setBool(prefKey, true);
+      return appliedCount;
+    } catch (e) {
+      debugPrint(
+        '[SyncEngine] Error reconciling unprojected pet_* events: $e',
+      );
+      return 0;
     }
   }
 

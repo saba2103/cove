@@ -5,10 +5,13 @@ import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_avatar.dart';
 import '../../core/widgets/cove_page_header.dart';
 import '../../core/widgets/cove_undo_toast.dart';
+import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../../sync/providers/active_home_provider.dart';
 import '../add/widgets/add_person_picker.dart';
 import '../auth/auth_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import 'routine_controller.dart';
 import 'routine_models.dart';
@@ -235,6 +238,20 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
   Widget build(BuildContext context) {
     final isEditing = widget.event != null;
     final cv = context.cv;
+    final activePets = isEditing
+        ? ref.watch(activeHomeActivePetsProvider)
+        : const <LocalPet>[];
+    final taggedPets = isEditing
+        ? ref.watch(
+            recordPetTagsProvider(
+              (
+                recordKind: PetRecordKind.routineEvent,
+                recordId: widget.event!.id,
+              ),
+            ),
+          )
+        : const <LocalPet>[];
+    final showPetMenu = activePets.isNotEmpty || taggedPets.isNotEmpty;
 
     return Container(
       decoration: CoveShape.topDecoration(
@@ -269,9 +286,46 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                     ),
                   ),
                   if (isEditing)
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, color: cv.statusAlertText),
-                      onPressed: _isSubmitting ? null : _delete,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showPetMenu)
+                          PopupMenuButton<String>(
+                            key: const ValueKey('routine_event_overflow_menu'),
+                            icon: Icon(
+                              Icons.more_horiz,
+                              color: cv.textSecondary,
+                            ),
+                            color: cv.surfaceCard,
+                            onSelected: (val) {
+                              if (val == 'pet_tags') {
+                                PetTagPickerSheet.show(
+                                  context,
+                                  recordKind: PetRecordKind.routineEvent,
+                                  recordId: widget.event!.id,
+                                );
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem<String>(
+                                value: 'pet_tags',
+                                child: Text(
+                                  petTagMenuLabel(taggedPets),
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: cv.statusAlertText,
+                          ),
+                          onPressed: _isSubmitting ? null : _delete,
+                        ),
+                      ],
                     )
                   else
                     IconButton(
@@ -280,6 +334,10 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                     ),
                 ],
               ),
+              if (taggedPets.isNotEmpty) ...[
+                const SizedBox(height: CoveSpace.sm),
+                RecordPetTagChips(pets: taggedPets),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleController,

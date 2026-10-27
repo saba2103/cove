@@ -199,7 +199,7 @@ class _SpySubscriptionController extends SubscriptionController {
   _SpySubscriptionController(super.ref);
 
   @override
-  Future<void> createSubscription({
+  Future<String> createSubscription({
     required String name,
     required double amount,
     String? currency,
@@ -229,6 +229,7 @@ class _SpySubscriptionController extends SubscriptionController {
         paidInstallments: paidInstallments,
       ),
     );
+    return 'sub_${calls.length}';
   }
 }
 

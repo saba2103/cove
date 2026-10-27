@@ -82,6 +82,11 @@ class LocalStateStoreImpl implements LocalStateStore {
         'home_updated',
         'preferences_updated',
         'settings_updated',
+        'pet_created',
+        'pet_renamed',
+        'pet_archived',
+        'pet_tag_added',
+        'pet_tag_removed',
       };
 
       if (!silentActivityEvents.contains(eventType)) {

@@ -14,6 +14,8 @@ import '../../sync/db/app_database.dart';
 import '../../sync/pending_delete_service.dart';
 import '../auth/auth_controller.dart';
 import '../expenses/expense_controller.dart';
+import '../pets/pet_controller.dart';
+import '../pets/pet_tag_widgets.dart';
 import '../profile/partner_profile_controller.dart';
 import '../profile/preferences_controller.dart';
 import '../profile/user_profile_controller.dart';
@@ -848,6 +850,12 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
       );
     }
 
+    final taggedPets = ref.watch(
+      recordPetTagsProvider(
+        (recordKind: PetRecordKind.commitment, recordId: _sub.id),
+      ),
+    );
+
     final menuItems = <CoveDetailMenuItem>[
       if (isEmi && !isDone)
         CoveDetailMenuItem(
@@ -855,6 +863,16 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
           icon: Icons.task_alt_rounded,
           onSelected: () => _handleForecloseEmi(context, ref),
         ),
+      CoveDetailMenuItem(
+        label: petTagMenuLabel(taggedPets),
+        icon: Icons.pets_outlined,
+        onSelected: () => PetTagPickerSheet.show(
+          context,
+          recordKind: PetRecordKind.commitment,
+          recordId: _sub.id,
+          isPrivate: _sub.isPrivate,
+        ),
+      ),
       CoveDetailMenuItem(
         label: isPaused
             ? (isEmi ? 'Resume this EMI' : 'Resume this commitment')
@@ -892,6 +910,8 @@ class _CommitmentDetailSheetState extends ConsumerState<CommitmentDetailSheet> {
         paidInstallments: effectivePaidInstallments,
       ),
       meaningPanel: meaningPanel,
+      belowMeaningPanel:
+          taggedPets.isEmpty ? null : RecordPetTagChips(pets: taggedPets),
       editVerb: CoveDetailVerb(
         label: 'Edit',
         icon: Icons.edit_outlined,

@@ -31,7 +31,7 @@ class SubscriptionController {
   ///   It writes DIRECTLY to local Drift SQLite only. It is NEVER passed to
   ///   [coveEmitActionProvider], NEVER encrypted with the Home key, and NEVER sent
   ///   over Supabase relay. The partner's device receives 0 bytes.
-  Future<void> createSubscription({
+  Future<String> createSubscription({
     required String name,
     required double amount,
     String? currency,
@@ -134,6 +134,7 @@ class SubscriptionController {
         },
       );
     }
+    return id;
   }
 
   /// Updates an existing subscription.
@@ -445,6 +446,7 @@ class SubscriptionController {
     // 1. Immediately record tombstone and delete locally
     try {
       await _db.recordTombstone(id, 'subscription');
+      await _db.deletePetTagsForRecord('commitment', id);
       await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
     } catch (_) {}
 

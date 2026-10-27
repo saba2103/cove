@@ -195,6 +195,7 @@ class ListController {
     // 1. Immediately record tombstone and delete from SQLite
     try {
       await _db.recordTombstone(itemId, 'list_item');
+      await _db.deletePetTagsForRecord('task', itemId);
       await (_db.delete(_db.localListItems)..where((t) => t.id.equals(itemId))).go();
     } catch (_) {}
 
