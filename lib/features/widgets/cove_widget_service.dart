@@ -54,7 +54,7 @@ class CoveWidgetProviderInfo {
     targetCellWidth: 2,
     targetCellHeight: 2,
     minSizeDp: Size(110, 110),
-    minResizeSizeDp: Size(110, 110),
+    minResizeSizeDp: Size(110, 85),
     renderLogicalSize: Size(176, 176),
   );
 
@@ -64,8 +64,8 @@ class CoveWidgetProviderInfo {
     qualifiedAndroidName: 'com.app.cove.widgets.CoveSlipWidgetProvider',
     targetCellWidth: 4,
     targetCellHeight: 2,
-    minSizeDp: Size(250, 110),
-    minResizeSizeDp: Size(180, 110),
+    minSizeDp: Size(260, 110),
+    minResizeSizeDp: Size(145, 85),
     renderLogicalSize: Size(360, 176),
   );
 
@@ -75,8 +75,8 @@ class CoveWidgetProviderInfo {
     qualifiedAndroidName: 'com.app.cove.widgets.CoveLedgerWidgetProvider',
     targetCellWidth: 4,
     targetCellHeight: 2,
-    minSizeDp: Size(250, 110),
-    minResizeSizeDp: Size(180, 110),
+    minSizeDp: Size(260, 110),
+    minResizeSizeDp: Size(145, 85),
     renderLogicalSize: Size(360, 176),
   );
 
@@ -86,8 +86,8 @@ class CoveWidgetProviderInfo {
     qualifiedAndroidName: 'com.app.cove.widgets.CoveDaySheetWidgetProvider',
     targetCellWidth: 4,
     targetCellHeight: 4,
-    minSizeDp: Size(250, 250),
-    minResizeSizeDp: Size(250, 250),
+    minSizeDp: Size(260, 360),
+    minResizeSizeDp: Size(145, 180),
     renderLogicalSize: Size(360, 360),
   );
 
@@ -108,6 +108,7 @@ abstract class CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   });
 
   Future<bool?> saveWidgetData<T>(String id, T? data);
@@ -134,11 +135,13 @@ class HomeWidgetPlatformBridge implements CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   }) {
     return HomeWidget.renderFlutterWidget(
       widget,
       key: key,
       logicalSize: logicalSize,
+      pixelRatio: pixelRatio,
     );
   }
 
@@ -399,6 +402,12 @@ class CoveWidgetService {
       );
       if (generation != _slipRenderGeneration) return;
 
+      await _renderActiveExactSizesForKind(
+        kind: 'slip',
+        childBuilder: () => CoveSlipCard(summary: summary),
+      );
+      if (generation != _slipRenderGeneration) return;
+
       await bridge.updateWidget(
         androidName: CoveWidgetProviderInfo.slip.androidName,
         qualifiedAndroidName: CoveWidgetProviderInfo.slip.qualifiedAndroidName,
@@ -486,6 +495,12 @@ class CoveWidgetService {
         lightArc,
         key: arcLightKey,
         logicalSize: arcLogicalSize,
+      );
+      if (generation != _arcRenderGeneration) return;
+
+      await _renderActiveExactSizesForKind(
+        kind: 'arc',
+        childBuilder: () => CoveDayArcCard(summary: summary),
       );
       if (generation != _arcRenderGeneration) return;
 
@@ -586,6 +601,13 @@ class CoveWidgetService {
         lightCompact,
         key: ledgerCompactLightKey,
         logicalSize: ledgerCompactLogicalSize,
+      );
+      if (generation != _renderGeneration) return;
+
+      await _renderActiveExactSizesForKind(
+        kind: 'ledger',
+        childBuilder: () =>
+            CoveLedgerCard(expenses: expenses, commitments: commitments),
       );
       if (generation != _renderGeneration) return;
 
@@ -705,6 +727,12 @@ class CoveWidgetService {
         lightSheet,
         key: sheetLightKey,
         logicalSize: sheetLogicalSize,
+      );
+      if (generation != _sheetRenderGeneration) return;
+
+      await _renderActiveExactSizesForKind(
+        kind: 'sheet',
+        childBuilder: () => CoveDaySheetCard(summary: summary),
       );
       if (generation != _sheetRenderGeneration) return;
 
@@ -1077,10 +1105,232 @@ class CoveWidgetService {
       );
     } catch (_) {}
   }
+
+  static String bitmapKeyForExactSize(
+    String kind,
+    Size sizeDp, {
+    required bool isDark,
+  }) {
+    final w = sizeDp.width.round();
+    final h = sizeDp.height.round();
+    final suffix = isDark ? 'dark' : 'light';
+    return 'cove_widget_${kind}_${w}x${h}_$suffix';
+  }
+
+  Future<double> _resolveDeviceDensity() async {
+    if (bridge is HomeWidgetPlatformBridge && bridge.isSupported) {
+      try {
+        final raw = await HomeWidget.getWidgetData<String>(
+          'cove_widget_device_density',
+        );
+        if (raw != null) {
+          final parsed = double.tryParse(raw);
+          if (parsed != null && parsed > 0) return parsed;
+        }
+      } catch (_) {}
+    }
+    final viewRatio =
+        WidgetsBinding.instance.platformDispatcher.implicitView?.devicePixelRatio;
+    if (viewRatio != null && viewRatio > 1.0) {
+      return viewRatio;
+    }
+    return 2.625;
+  }
+
+  Future<List<Size>> _resolveActiveSizesForKind(String kind) async {
+    if (bridge is! HomeWidgetPlatformBridge || !bridge.isSupported) {
+      return const <Size>[];
+    }
+    try {
+      final raw = await HomeWidget.getWidgetData<String>(
+        'cove_widget_active_sizes_$kind',
+      );
+      if (raw == null || raw.trim().isEmpty) return const <Size>[];
+      final sizes = <Size>[];
+      final seen = <String>{};
+      for (final token in raw.split(',')) {
+        final trimmed = token.trim();
+        if (trimmed.isEmpty || !seen.add(trimmed)) continue;
+        final parts = trimmed.split('x');
+        if (parts.length != 2) continue;
+        final w = int.tryParse(parts[0]);
+        final h = int.tryParse(parts[1]);
+        if (w != null && h != null && w > 0 && h > 0) {
+          sizes.add(Size(w.toDouble(), h.toDouble()));
+        }
+      }
+      return sizes;
+    } catch (_) {
+      return const <Size>[];
+    }
+  }
+
+  Future<void> _renderActiveExactSizesForKind({
+    required String kind,
+    required Widget Function() childBuilder,
+  }) async {
+    final activeSizes = await _resolveActiveSizesForKind(kind);
+    if (activeSizes.isEmpty) return;
+    final density = await _resolveDeviceDensity();
+    for (final sizeDp in activeSizes) {
+      await _renderPairAtExactSize(
+        kind: kind,
+        sizeDp: sizeDp,
+        density: density,
+        childBuilder: childBuilder,
+      );
+    }
+  }
+
+  Future<void> _renderPairAtExactSize({
+    required String kind,
+    required Size sizeDp,
+    required double density,
+    required Widget Function() childBuilder,
+  }) async {
+    final exactSize = Size(
+      sizeDp.width.roundToDouble(),
+      sizeDp.height.roundToDouble(),
+    );
+    final darkWidget = _wrapForOffscreenRender(
+      theme: CoveTheme.darkTheme,
+      size: exactSize,
+      child: childBuilder(),
+    );
+    final lightWidget = _wrapForOffscreenRender(
+      theme: CoveTheme.lightTheme,
+      size: exactSize,
+      child: childBuilder(),
+    );
+    await bridge.renderFlutterWidget(
+      darkWidget,
+      key: bitmapKeyForExactSize(kind, exactSize, isDark: true),
+      logicalSize: exactSize,
+      pixelRatio: density,
+    );
+    await bridge.renderFlutterWidget(
+      lightWidget,
+      key: bitmapKeyForExactSize(kind, exactSize, isDark: false),
+      logicalSize: exactSize,
+      pixelRatio: density,
+    );
+  }
+
+  /// Renders a specific widget [kind] (`arc`, `slip`, `ledger`, `sheet`) at
+  /// [sizeDp] (in dp) times [density] from its cached snapshot and triggers
+  /// an `AppWidgetManager` update.
+  Future<bool> renderWidgetAtExactSize({
+    required String kind,
+    required Size sizeDp,
+    double? density,
+    DateTime? nowOverride,
+    SharedPreferences? prefsOverride,
+  }) async {
+    if (!bridge.isSupported) return false;
+    final now = nowOverride ?? clock.now();
+    final prefs = prefsOverride ?? await SharedPreferences.getInstance();
+    final effectiveDensity = density ?? await _resolveDeviceDensity();
+
+    try {
+      switch (kind) {
+        case 'arc':
+          final raw = prefs.getString(cachedArcSnapshotPrefKey);
+          if (raw == null || raw.isEmpty) return false;
+          final summary = _restoreArcSnapshotFromJson(
+            jsonDecode(raw) as Map<String, dynamic>,
+            now: now,
+          );
+          if (summary == null) return false;
+          await _renderPairAtExactSize(
+            kind: 'arc',
+            sizeDp: sizeDp,
+            density: effectiveDensity,
+            childBuilder: () => CoveDayArcCard(summary: summary),
+          );
+          await bridge.updateWidget(
+            androidName: CoveWidgetProviderInfo.dayArc.androidName,
+            qualifiedAndroidName:
+                CoveWidgetProviderInfo.dayArc.qualifiedAndroidName,
+          );
+          return true;
+
+        case 'slip':
+          final raw = prefs.getString(cachedSlipSnapshotPrefKey);
+          if (raw == null || raw.isEmpty) return false;
+          final summary = SlipSummary.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>,
+          );
+          await _renderPairAtExactSize(
+            kind: 'slip',
+            sizeDp: sizeDp,
+            density: effectiveDensity,
+            childBuilder: () => CoveSlipCard(summary: summary),
+          );
+          await bridge.updateWidget(
+            androidName: CoveWidgetProviderInfo.slip.androidName,
+            qualifiedAndroidName:
+                CoveWidgetProviderInfo.slip.qualifiedAndroidName,
+          );
+          return true;
+
+        case 'ledger':
+          final raw = prefs.getString(cachedLedgerSnapshotPrefKey);
+          if (raw == null || raw.isEmpty) return false;
+          final restored = _restoreSnapshotFromJson(
+            jsonDecode(raw) as Map<String, dynamic>,
+            now: now,
+          );
+          if (restored == null) return false;
+          await _renderPairAtExactSize(
+            kind: 'ledger',
+            sizeDp: sizeDp,
+            density: effectiveDensity,
+            childBuilder: () => CoveLedgerCard(
+              expenses: restored.$1,
+              commitments: restored.$2,
+            ),
+          );
+          await bridge.updateWidget(
+            androidName: CoveWidgetProviderInfo.ledger.androidName,
+            qualifiedAndroidName:
+                CoveWidgetProviderInfo.ledger.qualifiedAndroidName,
+          );
+          return true;
+
+        case 'sheet':
+          final raw = prefs.getString(cachedSheetSnapshotPrefKey);
+          if (raw == null || raw.isEmpty) return false;
+          final summary = DaySheetSummary.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>,
+          ).atTime(now);
+          await _renderPairAtExactSize(
+            kind: 'sheet',
+            sizeDp: sizeDp,
+            density: effectiveDensity,
+            childBuilder: () => CoveDaySheetCard(summary: summary),
+          );
+          await bridge.updateWidget(
+            androidName: CoveWidgetProviderInfo.daySheet.androidName,
+            qualifiedAndroidName:
+                CoveWidgetProviderInfo.daySheet.qualifiedAndroidName,
+          );
+          return true;
+
+        default:
+          return false;
+      }
+    } catch (e) {
+      debugPrint(
+        '[CoveWidgetService] Failed to render $kind at exact size $sizeDp: $e',
+      );
+      return false;
+    }
+  }
 }
 
 /// Top-level background callback registered with `HomeWidget.registerInteractivityCallback`
-/// for home-screen widget ticks and list selection (`design/specs/18-widgets.md` § Ticking).
+/// for home-screen widget ticks, list selection, and exact-size resize renders
+/// (`design/specs/18-widgets.md` § Ticking & § Sizes).
 @pragma('vm:entry-point')
 Future<void> coveWidgetBackgroundCallback(Uri? uri) async {
   if (uri == null || uri.scheme != 'cove' || uri.host != 'widget') return;
@@ -1088,6 +1338,27 @@ Future<void> coveWidgetBackgroundCallback(Uri? uri) async {
 
   final segments = uri.pathSegments;
   if (segments.isEmpty) return;
+
+  if (segments.first == 'resize') {
+    final kind = uri.queryParameters['kind'];
+    final w = double.tryParse(uri.queryParameters['w'] ?? '');
+    final h = double.tryParse(uri.queryParameters['h'] ?? '');
+    final density = double.tryParse(uri.queryParameters['density'] ?? '');
+    if (kind != null &&
+        kind.isNotEmpty &&
+        w != null &&
+        h != null &&
+        w > 0 &&
+        h > 0) {
+      final widgetService = CoveWidgetService();
+      await widgetService.renderWidgetAtExactSize(
+        kind: kind,
+        sizeDp: Size(w, h),
+        density: density,
+      );
+    }
+    return;
+  }
 
   if (segments.first == 'tick') {
     final kind = WidgetTickKind.fromWire(uri.queryParameters['kind']) ??

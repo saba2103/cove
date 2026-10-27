@@ -182,9 +182,10 @@ Future<void> _pumpLedgerGolden(
   required Brightness brightness,
   required List<LocalExpense> expenses,
   required List<LocalSubscription> subscriptions,
+  Size surfaceSize = const Size(411, 208),
+  Size widgetSize = const Size(379, 176),
 }) async {
   await loadCoveFonts();
-  const surfaceSize = Size(411, 208);
 
   await withClock(_kLedgerClock, () async {
     final originalOnError = FlutterError.onError;
@@ -205,9 +206,9 @@ Future<void> _pumpLedgerGolden(
             subscriptions: subscriptions,
           ),
           child: MediaQuery(
-            data: const MediaQueryData(
+            data: MediaQueryData(
               size: surfaceSize,
-              textScaler: TextScaler.linear(1.0),
+              textScaler: const TextScaler.linear(1.0),
             ),
             child: MaterialApp(
               debugShowCheckedModeBanner: false,
@@ -215,12 +216,11 @@ Future<void> _pumpLedgerGolden(
               home: Builder(
                 builder: (context) => ColoredBox(
                   color: context.cv.surfaceCanvas,
-                  child: const Padding(
-                    padding: EdgeInsets.all(16),
+                  child: Center(
                     child: SizedBox(
-                      width: 379,
-                      height: 176,
-                      child: CoveLedgerWidget(),
+                      width: widgetSize.width,
+                      height: widgetSize.height,
+                      child: const CoveLedgerWidget(),
                     ),
                   ),
                 ),
@@ -230,6 +230,25 @@ Future<void> _pumpLedgerGolden(
         ),
       );
       await tester.pumpAndSettle();
+
+      // Verify circular corners and unshrunk typography at every size.
+      expect(find.byType(FittedBox), findsNothing);
+      final cardContainer = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(CoveLedgerCard),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final boxDeco = cardContainer.decoration! as BoxDecoration;
+      expect(
+        boxDeco.borderRadius,
+        const BorderRadius.all(Radius.circular(CoveRadius.hero)),
+      );
+      expect(tester.getSize(find.byType(CoveLedgerCard)), widgetSize);
+      final sharedLabel = tester.widget<Text>(find.text('SHARED THIS MONTH'));
+      expect(sharedLabel.style?.fontSize, CoveType.capsCard.fontSize);
 
       await expectLater(
         find.byType(MaterialApp),
@@ -292,5 +311,37 @@ void main() {
         subscriptions: const [],
       );
     });
+
+    for (final mode in const [
+      ('dark', Brightness.dark),
+      ('light', Brightness.light),
+    ]) {
+      final modeName = mode.$1;
+      final brightness = mode.$2;
+
+      testWidgets('ledger_widget.smallest.$modeName', (tester) async {
+        await _pumpLedgerGolden(
+          tester,
+          goldenName: 'ledger_widget.smallest.$modeName',
+          brightness: brightness,
+          expenses: [..._kOctoberExpenses, ..._kSeptemberExpenses],
+          subscriptions: _kSeedCommitments,
+          surfaceSize: const Size(232, 142),
+          widgetSize: const Size(200, 110),
+        );
+      });
+
+      testWidgets('ledger_widget.stretch_wide.$modeName', (tester) async {
+        await _pumpLedgerGolden(
+          tester,
+          goldenName: 'ledger_widget.stretch_wide.$modeName',
+          brightness: brightness,
+          expenses: [..._kOctoberExpenses, ..._kSeptemberExpenses],
+          subscriptions: _kSeedCommitments,
+          surfaceSize: const Size(467, 262),
+          widgetSize: const Size(435, 230),
+        );
+      });
+    }
   });
 }

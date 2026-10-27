@@ -60,6 +60,8 @@ class _MemorySecureStorage extends FlutterSecureStorage {
 
 class _RecordingWidgetBridge implements CoveWidgetPlatformBridge {
   final List<String> renderedKeys = <String>[];
+  final Map<String, Size> renderedSizes = <String, Size>{};
+  final Map<String, double?> renderedPixelRatios = <String, double?>{};
   final Map<String, Object?> savedData = <String, Object?>{};
   final List<String> updatedProviders = <String>[];
 
@@ -71,8 +73,11 @@ class _RecordingWidgetBridge implements CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   }) async {
     renderedKeys.add(key);
+    renderedSizes[key] = logicalSize;
+    renderedPixelRatios[key] = pixelRatio;
     return '/tmp/home_widget/$key.png';
   }
 
@@ -662,6 +667,84 @@ void main() {
         expect(providerKt, contains('kind=list_item'));
         expect(providerKt, contains('kind=habit_checkin'));
         expect(providerKt, contains('if (habitId.isNullOrEmpty() || !isOwned)'));
+      },
+    );
+
+    test(
+      '5. Widget resize plumbing: fitCenter in all XML layouts, onAppWidgetOptionsChanged + OPTION_APPWIDGET_SIZES in Kotlin, and exact-size render with device density',
+      () async {
+        for (final layoutPath in [
+          'android/app/src/main/res/layout/cove_widget_bitmap_container.xml',
+          'android/app/src/main/res/layout/cove_slip_widget.xml',
+          'android/app/src/main/res/layout/cove_ledger_widget.xml',
+          'android/app/src/main/res/layout/cove_day_sheet_widget.xml',
+        ]) {
+          final xml = File(layoutPath).readAsStringSync();
+          expect(xml, contains('android:scaleType="fitCenter"'));
+          expect(xml, isNot(contains('fitXY')));
+        }
+
+        final helperKt = File(
+          'android/app/src/main/kotlin/com/app/cove/widgets/CoveWidgetSizeHelper.kt',
+        ).readAsStringSync();
+        expect(helperKt, contains('OPTION_APPWIDGET_SIZES'));
+        expect(helperKt, contains('OPTION_APPWIDGET_MIN_WIDTH'));
+        expect(helperKt, contains('OPTION_APPWIDGET_MIN_HEIGHT'));
+        expect(helperKt, contains('cove://widget/resize'));
+
+        for (final providerPath in [
+          'android/app/src/main/kotlin/com/app/cove/widgets/CoveDayArcWidgetProvider.kt',
+          'android/app/src/main/kotlin/com/app/cove/widgets/CoveSlipWidgetProvider.kt',
+          'android/app/src/main/kotlin/com/app/cove/widgets/CoveLedgerWidgetProvider.kt',
+          'android/app/src/main/kotlin/com/app/cove/widgets/CoveDaySheetWidgetProvider.kt',
+        ]) {
+          final kt = File(providerPath).readAsStringSync();
+          expect(kt, contains('onAppWidgetOptionsChanged'));
+        }
+
+        // Exact-size render renders dark + light bitmaps at exact dp size and pixelRatio.
+        final bridge = _RecordingWidgetBridge();
+        final service = CoveWidgetService(bridge: bridge);
+        final summary = DaySheetSummary(
+          referenceDate: DateTime(2026, 10, 27, 12, 50),
+          nowMinutes: 12 * 60 + 50,
+          dayNumber: '27',
+          monthName: 'October',
+          weekdayCaps: 'TUESDAY',
+          weatherLine: '25° · mainly clear',
+          firstHabitDueToday: null,
+          lines: const [],
+          habitDots: const [],
+          todaySpend: 0.0,
+          currency: _kInr,
+          checkinDateStr: '2026-10-27',
+        );
+        await service.renderAndPushDaySheet(summary: summary, force: true);
+        bridge.renderedKeys.clear();
+        bridge.renderedSizes.clear();
+        bridge.renderedPixelRatios.clear();
+
+        final ok = await service.renderWidgetAtExactSize(
+          kind: 'sheet',
+          sizeDp: const Size(343, 482),
+          density: 2.625,
+        );
+        expect(ok, isTrue);
+        expect(
+          bridge.renderedKeys,
+          containsAll([
+            'cove_widget_sheet_343x482_dark',
+            'cove_widget_sheet_343x482_light',
+          ]),
+        );
+        expect(
+          bridge.renderedSizes['cove_widget_sheet_343x482_dark'],
+          const Size(343, 482),
+        );
+        expect(
+          bridge.renderedPixelRatios['cove_widget_sheet_343x482_dark'],
+          2.625,
+        );
       },
     );
   });

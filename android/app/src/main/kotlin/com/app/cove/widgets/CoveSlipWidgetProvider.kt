@@ -41,6 +41,20 @@ class CoveSlipWidgetProvider : HomeWidgetProvider() {
         bindWidget(context, appWidgetManager, appWidgetId, widgetData, newOptions)
     }
 
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val widgetData = HomeWidgetPlugin.getData(context)
+        CoveWidgetSizeHelper.removeCachedSize(
+            context = context,
+            appWidgetManager = appWidgetManager,
+            providerClass = CoveSlipWidgetProvider::class.java,
+            kind = "slip",
+            widgetIds = appWidgetIds,
+            widgetData = widgetData,
+        )
+    }
+
     companion object {
         fun bindWidget(
             context: Context,
@@ -49,10 +63,28 @@ class CoveSlipWidgetProvider : HomeWidgetProvider() {
             widgetData: SharedPreferences,
             options: Bundle?,
         ) {
+            val exactSize = CoveWidgetSizeHelper.resolveAndCacheSize(
+                context = context,
+                appWidgetManager = appWidgetManager,
+                providerClass = CoveSlipWidgetProvider::class.java,
+                kind = "slip",
+                widgetId = widgetId,
+                widgetData = widgetData,
+                options = options,
+                defaultWidthDp = 360,
+                defaultHeightDp = 176,
+            )
+
             val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
-            val minWidthDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250) ?: 250
-            val isCompact3Cell = minWidthDp in 1..219
+            val isCompact3Cell = exactSize.widthDp in 1..259
+            val widthMaxRows = if (isCompact3Cell) 2 else 3
+            val heightMaxRows = when {
+                exactSize.heightDp < 125 -> 1
+                exactSize.heightDp < 155 -> 2
+                else -> 3
+            }
+            val maxRows = minOf(widthMaxRows, heightMaxRows)
 
             val primaryKey = when {
                 isCompact3Cell && isDark -> "cove_widget_slip_compact_dark"
@@ -63,9 +95,15 @@ class CoveSlipWidgetProvider : HomeWidgetProvider() {
             val secondaryKey = if (isDark) "cove_widget_slip_dark" else "cove_widget_slip_light"
             val fallbackKey = if (isDark) "cove_widget_slip_light" else "cove_widget_slip_dark"
 
-            val path = widgetData.getString(primaryKey, null)
-                ?: widgetData.getString(secondaryKey, null)
-                ?: widgetData.getString(fallbackKey, null)
+            val path = CoveWidgetSizeHelper.resolveBitmapPathAndRequestRenderIfNeeded(
+                context = context,
+                kind = "slip",
+                widgetId = widgetId,
+                exactSize = exactSize,
+                isDark = isDark,
+                widgetData = widgetData,
+                fallbackKeys = listOf(primaryKey, secondaryKey, fallbackKey),
+            )
 
             val views = RemoteViews(context.packageName, R.layout.cove_slip_widget)
             if (path != null && File(path).exists()) {
@@ -92,6 +130,10 @@ class CoveSlipWidgetProvider : HomeWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_hit_header, openListIntent)
             views.setOnClickPendingIntent(R.id.widget_hit_footer, openListIntent)
+            views.setViewVisibility(
+                R.id.widget_hit_footer,
+                if (exactSize.heightDp < 96) View.GONE else View.VISIBLE,
+            )
 
             val rowViews = intArrayOf(
                 R.id.widget_hit_row_0,
@@ -106,7 +148,7 @@ class CoveSlipWidgetProvider : HomeWidgetProvider() {
 
             for (index in rowViews.indices) {
                 val viewId = rowViews[index]
-                if (index == 2 && isCompact3Cell) {
+                if (index >= maxRows) {
                     views.setViewVisibility(viewId, View.GONE)
                     continue
                 }

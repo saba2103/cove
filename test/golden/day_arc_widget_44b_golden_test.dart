@@ -231,9 +231,10 @@ Future<void> _pumpDayArcGolden(
   required List<LocalCalendarEvent> events,
   required List<LocalHabit> habits,
   required List<LocalHabitCheckin> checkins,
+  Size surfaceSize = const Size(208, 208),
+  Size widgetSize = const Size(176, 176),
 }) async {
   await loadCoveFonts();
-  const surfaceSize = Size(208, 208);
 
   await withClock(Clock.fixed(now), () async {
     final originalOnError = FlutterError.onError;
@@ -258,9 +259,9 @@ Future<void> _pumpDayArcGolden(
             checkins: checkins,
           ),
           child: MediaQuery(
-            data: const MediaQueryData(
+            data: MediaQueryData(
               size: surfaceSize,
-              textScaler: TextScaler.linear(1.0),
+              textScaler: const TextScaler.linear(1.0),
             ),
             child: MaterialApp(
               debugShowCheckedModeBanner: false,
@@ -268,12 +269,11 @@ Future<void> _pumpDayArcGolden(
               home: Builder(
                 builder: (context) => ColoredBox(
                   color: context.cv.surfaceCanvas,
-                  child: const Padding(
-                    padding: EdgeInsets.all(16),
+                  child: Center(
                     child: SizedBox(
-                      width: 176,
-                      height: 176,
-                      child: CoveDayArcWidget(),
+                      width: widgetSize.width,
+                      height: widgetSize.height,
+                      child: const CoveDayArcWidget(),
                     ),
                   ),
                 ),
@@ -283,6 +283,23 @@ Future<void> _pumpDayArcGolden(
         ),
       );
       await tester.pumpAndSettle();
+
+      // Verify corners stay circular (CoveRadius.hero) and text is never scaled.
+      expect(find.byType(FittedBox), findsNothing);
+      final cardContainer = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(CoveDayArcCard),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final boxDeco = cardContainer.decoration! as BoxDecoration;
+      expect(
+        boxDeco.borderRadius,
+        const BorderRadius.all(Radius.circular(CoveRadius.hero)),
+      );
+      expect(tester.getSize(find.byType(CoveDayArcCard)), widgetSize);
 
       await expectLater(
         find.byType(MaterialApp),
@@ -356,6 +373,38 @@ void main() {
           events: const [],
           habits: const [],
           checkins: const [],
+        );
+      });
+
+      testWidgets('day_arc_widget.smallest.$modeName', (tester) async {
+        await _pumpDayArcGolden(
+          tester,
+          goldenName: 'day_arc_widget.smallest.$modeName',
+          brightness: brightness,
+          now: DateTime(2026, 10, 5, 8, 10),
+          routines: _kSeedRoutines,
+          routineEvents: _kSeedRoutineEvents,
+          events: _kSeedCalendarEvents,
+          habits: _kSeedHabits,
+          checkins: _checkinsForIds(const ['h_7am']),
+          surfaceSize: const Size(142, 142),
+          widgetSize: const Size(110, 110),
+        );
+      });
+
+      testWidgets('day_arc_widget.stretch_wide.$modeName', (tester) async {
+        await _pumpDayArcGolden(
+          tester,
+          goldenName: 'day_arc_widget.stretch_wide.$modeName',
+          brightness: brightness,
+          now: DateTime(2026, 10, 5, 8, 10),
+          routines: _kSeedRoutines,
+          routineEvents: _kSeedRoutineEvents,
+          events: _kSeedCalendarEvents,
+          habits: _kSeedHabits,
+          checkins: _checkinsForIds(const ['h_7am']),
+          surfaceSize: const Size(375, 208),
+          widgetSize: const Size(343, 176),
         );
       });
     }

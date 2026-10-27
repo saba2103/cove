@@ -73,6 +73,14 @@ class DaySheetLine {
 
   bool get isTask => kind == DaySheetLineKind.task;
 
+  bool get hasClockTime =>
+      timeLabel.isNotEmpty && timeLabel != 'All day' && timeLabel != 'Today';
+
+  String? get meridiemLabel {
+    if (!hasClockTime) return null;
+    return startMinutes < 720 ? 'AM' : 'PM';
+  }
+
   DaySheetLine copyWith({
     bool? isOver,
     bool? isCompleted,
@@ -202,8 +210,23 @@ class DaySheetSummary {
 
   bool get isEmpty => lines.isEmpty;
 
+  bool get hasBothMorningAndEveningLines {
+    var hasMorning = false;
+    var hasEvening = false;
+    for (final line in lines) {
+      final m = line.meridiemLabel;
+      if (m == 'AM') hasMorning = true;
+      if (m == 'PM') hasEvening = true;
+      if (hasMorning && hasEvening) return true;
+    }
+    return false;
+  }
+
   List<DaySheetLine> get visibleLines =>
       lines.take(maxVisibleLines).toList(growable: false);
+
+  List<DaySheetLine> visibleLinesFor({int? maxLines}) =>
+      lines.take(maxLines ?? maxVisibleLines).toList(growable: false);
 
   List<DaySheetHabitDot> get visibleHabitDots =>
       habitDots.take(maxVisibleHabitDots).toList(growable: false);
@@ -304,6 +327,64 @@ class DaySheetSummary {
     return '$h12:$minStr';
   }
 
+  /// Normalizes and sorts lines in chronological order by actual `startMinutes`.
+  /// When a routine that starts before midnight (`startMinutes >= 18 * 60`) and
+  /// runs past it also has a `startMinutes == 0` midnight-to-morning segment
+  /// with the same title, coalesces them so the routine sits once at its
+  /// pre-midnight start time (`endMinutes = 1440`).
+  static List<DaySheetLine> normalizeAndSortLines(
+    List<DaySheetLine> rawLines, {
+    required int nowMinutes,
+  }) {
+    final preMidnightRoutineTitles = <String>{
+      for (final l in rawLines)
+        if (l.kind == DaySheetLineKind.routine && l.startMinutes >= 18 * 60)
+          l.title.trim().toLowerCase(),
+    };
+    final result = <DaySheetLine>[];
+    for (final l in rawLines) {
+      final normTitle = l.title.trim().toLowerCase();
+      if (l.kind == DaySheetLineKind.routine &&
+          l.startMinutes == 0 &&
+          preMidnightRoutineTitles.contains(normTitle)) {
+        // Post-midnight continuation of a routine that started before midnight.
+        continue;
+      }
+      if (l.kind == DaySheetLineKind.routine &&
+          l.startMinutes >= 18 * 60 &&
+          (l.endMinutes <= l.startMinutes + 1 ||
+              rawLines.any(
+                (other) =>
+                    other.kind == DaySheetLineKind.routine &&
+                    other.startMinutes == 0 &&
+                    other.title.trim().toLowerCase() == normTitle,
+              ))) {
+        result.add(
+          DaySheetLine(
+            id: l.id,
+            kind: l.kind,
+            startMinutes: l.startMinutes,
+            endMinutes: 1440,
+            timeLabel: l.timeLabel,
+            title: l.title,
+            subtitle: l.subtitle,
+            isOver: 1440 <= nowMinutes,
+            isCompleted: l.isCompleted,
+            listId: l.listId,
+          ),
+        );
+      } else {
+        result.add(l);
+      }
+    }
+    result.sort((a, b) {
+      final cmp = a.startMinutes.compareTo(b.startMinutes);
+      if (cmp != 0) return cmp;
+      return a.title.compareTo(b.title);
+    });
+    return result;
+  }
+
   static String? formatWeatherLine(WeatherData? weather) {
     if (weather == null) return null;
     final temp = weather.temperatureC.round();
@@ -357,7 +438,10 @@ class DaySheetSummary {
         ..sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
       for (final re in todayRoutineEvents) {
         final start = re.startMinutes.clamp(0, 1439);
-        final end = re.endMinutes.clamp(start + 1, 1440);
+        final runsPastMidnight = re.endMinutes <= start;
+        final end = runsPastMidnight
+            ? 1440
+            : re.endMinutes.clamp(start + 1, 1440);
         final note = re.notes?.trim();
         final subtitle = (note != null && note.isNotEmpty)
             ? note
@@ -483,12 +567,10 @@ class DaySheetSummary {
       );
     }
 
-    // Sort all lines in time order (`design/specs/18-widgets.md` §4).
-    lines.sort((a, b) {
-      final cmp = a.startMinutes.compareTo(b.startMinutes);
-      if (cmp != 0) return cmp;
-      return a.title.compareTo(b.title);
-    });
+    final sortedLines = normalizeAndSortLines(
+      lines,
+      nowMinutes: nowMinutes,
+    );
 
     // 4. Habits due today (never show another person's private habits)
     final visibleHabits = habits.where((h) {
@@ -554,7 +636,7 @@ class DaySheetSummary {
       weekdayCaps: weekdayCaps,
       weatherLine: weatherLine,
       firstHabitDueToday: firstHabitDueToday,
-      lines: lines,
+      lines: List<DaySheetLine>.unmodifiable(sortedLines),
       habitDots: habitDots,
       todaySpend: todaySpend,
       currency: currency,
@@ -589,9 +671,17 @@ class DaySheetSummary {
     );
     final rawLines = map['lines'] as List<dynamic>? ?? const [];
     final rawDots = map['habitDots'] as List<dynamic>? ?? const [];
+    final nowMinutes = (map['nowMinutes'] as num?)?.toInt() ?? 0;
+    final parsedLines = normalizeAndSortLines(
+      rawLines
+          .whereType<Map<String, dynamic>>()
+          .map(DaySheetLine.fromJson)
+          .toList(),
+      nowMinutes: nowMinutes,
+    );
     return DaySheetSummary(
       referenceDate: referenceDate,
-      nowMinutes: (map['nowMinutes'] as num?)?.toInt() ?? 0,
+      nowMinutes: nowMinutes,
       dayNumber: map['dayNumber'] as String? ?? '${referenceDate.day}',
       monthName: map['monthName'] as String? ??
           DateFormat('MMMM').format(referenceDate),
@@ -599,10 +689,7 @@ class DaySheetSummary {
           DateFormat('EEEE').format(referenceDate).toUpperCase(),
       weatherLine: map['weatherLine'] as String?,
       firstHabitDueToday: map['firstHabitDueToday'] as String?,
-      lines: rawLines
-          .whereType<Map<String, dynamic>>()
-          .map(DaySheetLine.fromJson)
-          .toList(growable: false),
+      lines: List<DaySheetLine>.unmodifiable(parsedLines),
       habitDots: rawDots
           .whereType<Map<String, dynamic>>()
           .map(DaySheetHabitDot.fromJson)
@@ -719,12 +806,16 @@ class CoveDaySheetCard extends StatelessWidget {
   static const double _kCardFillAlpha = 0.88; // (literal) 88% wallpaper card fill per 18-widgets.md
   static const double _kBorderWidth = 1.0; // (literal) 1dp hairline border
   static const double _kPadH = 22.0; // (literal) 22dp horizontal sheet padding
+  static const double _kCompactPadH = 16.0; // (literal) 16dp horizontal padding on narrow resize
   static const double _kPadV = 18.0; // (literal) 18dp vertical sheet padding
+  static const double _kCompactPadV = 12.0; // (literal) 12dp vertical padding on short resize
   static const double _kDayNumSize = 42.0; // (literal) 42sp Bodoni day numeral
   static const double _kMonthFontSize = 15.0; // (literal) 15sp italic month
   static const double _kMetaFontSize = 12.0; // (literal) 12sp weather/habit line
   static const double _kTimeColumnWidth = 54.0; // (literal) 54dp time column width
+  static const double _kTimeColumnWithMeridiemWidth = 72.0; // (literal) 72dp time column width when AM/PM shown
   static const double _kTimeFontSize = 13.0; // (literal) 13sp Bodoni line time
+  static const double _kMeridiemGap = 3.0; // (literal) 3dp gap between short time and AM/PM
   static const double _kLineTitleSize = 14.0; // (literal) 14sp line title
   static const double _kLineSubSize = 11.5; // (literal) 11.5sp line subtitle
   static const double _kDimmedTimeAlpha = 0.52; // (literal) dimmed time alpha when over
@@ -736,6 +827,12 @@ class CoveDaySheetCard extends StatelessWidget {
   static const double _kTaskCheckboxRadius = 4.5; // (literal) 4.5dp task checkbox corner radius
   static const double _kTaskCheckIconSize = 11.0; // (literal) 11dp checkmark icon
   static const double _kTinyGap = 2.0; // (literal) 2dp tight vertical line gap
+  static const double _kCompactWidthThreshold = 260.0; // (literal) 3-cell width threshold
+  static const double _kSixLinesHeightThreshold = 520.0; // (literal) height threshold for 6 lines on tall stretch
+  static const double _kFiveLinesHeightThreshold = 440.0; // (literal) height threshold for 5 lines on tall stretch
+  static const double _kThreeLinesHeightThreshold = 340.0; // (literal) height threshold for 3 vs 4 lines
+  static const double _kTwoLinesHeightThreshold = 290.0; // (literal) height threshold for 2 vs 3 lines
+  static const double _kOneLineHeightThreshold = 240.0; // (literal) height threshold for 1 vs 2 lines
 
   const CoveDaySheetCard({
     super.key,
@@ -750,96 +847,131 @@ class CoveDaySheetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
-    final visibleLines = summary.visibleLines;
+    final showMeridiem = summary.hasBothMorningAndEveningLines;
 
-    return DefaultTextStyle.merge(
-      style: const TextStyle(decoration: TextDecoration.none),
-      child: Container(
-        key: const ValueKey('cove_day_sheet_card'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: _kPadH,
-          vertical: _kPadV,
-        ),
-        decoration: BoxDecoration(
-          color: cv.surfaceCard.withValues(alpha: _kCardFillAlpha),
-          borderRadius: const BorderRadius.all(
-            Radius.circular(CoveRadius.hero),
-          ),
-          border: Border.all(
-            color: cv.lineStrong,
-            width: _kBorderWidth,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 1. Masthead
-            GestureDetector(
-              key: const ValueKey('day_sheet_masthead'),
-              behavior: HitTestBehavior.opaque,
-              onTap: onOpenSheet,
-              child: _buildMasthead(cv),
-            ),
-            const SizedBox(height: CoveSpace.md),
-            Container(
-              height: _kBorderWidth,
-              color: cv.lineHairline,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompactWidth = constraints.maxWidth.isFinite &&
+            constraints.maxWidth > 0 &&
+            constraints.maxWidth < _kCompactWidthThreshold;
+        final hasFiniteHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0;
+        final maxLinesForHeight = !hasFiniteHeight
+            ? DaySheetSummary.maxVisibleLines
+            : (constraints.maxHeight < _kOneLineHeightThreshold
+                ? 1
+                : (constraints.maxHeight < _kTwoLinesHeightThreshold
+                    ? 2
+                    : (constraints.maxHeight < _kThreeLinesHeightThreshold
+                        ? 3
+                        : (constraints.maxHeight < _kFiveLinesHeightThreshold
+                            ? DaySheetSummary.maxVisibleLines
+                            : (constraints.maxHeight < _kSixLinesHeightThreshold
+                                ? 5
+                                : 6)))));
+        final isShortHeight = hasFiniteHeight &&
+            constraints.maxHeight < _kTwoLinesHeightThreshold;
+        final visibleLines = summary.visibleLinesFor(
+          maxLines: maxLinesForHeight,
+        );
 
-            // 2. Today's lines in time order (or empty state)
-            Expanded(
-              child: visibleLines.isEmpty
-                  ? GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onOpenSheet,
-                      child: Center(
-                        child: Text(
-                          'Nothing booked today',
-                          key: const ValueKey('day_sheet_empty_line'),
-                          style: CoveType.slipTitle.copyWith(
-                            fontSize: _kMonthFontSize,
-                            fontStyle: FontStyle.italic,
-                            color: cv.textSecondary,
+        return DefaultTextStyle.merge(
+          style: const TextStyle(decoration: TextDecoration.none),
+          child: Container(
+            key: const ValueKey('cove_day_sheet_card'),
+            width: double.infinity,
+            height: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompactWidth ? _kCompactPadH : _kPadH,
+              vertical: isShortHeight ? _kCompactPadV : _kPadV,
+            ),
+            decoration: BoxDecoration(
+              color: cv.surfaceCard.withValues(alpha: _kCardFillAlpha),
+              borderRadius: const BorderRadius.all(
+                Radius.circular(CoveRadius.hero),
+              ),
+              border: Border.all(
+                color: cv.lineStrong,
+                width: _kBorderWidth,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 1. Masthead
+                GestureDetector(
+                  key: const ValueKey('day_sheet_masthead'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onOpenSheet,
+                  child: _buildMasthead(cv, isShortHeight: isShortHeight),
+                ),
+                SizedBox(
+                  height: isShortHeight ? CoveSpace.sm : CoveSpace.md,
+                ),
+                Container(
+                  height: _kBorderWidth,
+                  color: cv.lineHairline,
+                ),
+
+                // 2. Today's lines in time order (or empty state)
+                Expanded(
+                  child: visibleLines.isEmpty
+                      ? GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onOpenSheet,
+                          child: Center(
+                            child: Text(
+                              'Nothing booked today',
+                              key: const ValueKey('day_sheet_empty_line'),
+                              style: CoveType.slipTitle.copyWith(
+                                fontSize: _kMonthFontSize,
+                                fontStyle: FontStyle.italic,
+                                color: cv.textSecondary,
+                              ),
+                            ),
                           ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < visibleLines.length; i++) ...[
+                              Expanded(
+                                child: _buildLineRow(
+                                  cv,
+                                  visibleLines[i],
+                                  index: i,
+                                  showMeridiem: showMeridiem,
+                                ),
+                              ),
+                              if (i < visibleLines.length - 1)
+                                Container(
+                                  height: _kBorderWidth,
+                                  color: cv.lineHairline,
+                                ),
+                            ],
+                          ],
                         ),
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0; i < visibleLines.length; i++) ...[
-                          Expanded(
-                            child: _buildLineRow(
-                              cv,
-                              visibleLines[i],
-                              index: i,
-                            ),
-                          ),
-                          if (i < visibleLines.length - 1)
-                            Container(
-                              height: _kBorderWidth,
-                              color: cv.lineHairline,
-                            ),
-                        ],
-                      ],
-                    ),
-            ),
+                ),
 
-            Container(
-              height: _kBorderWidth,
-              color: cv.lineHairline,
-            ),
-            const SizedBox(height: CoveSpace.md),
+                Container(
+                  height: _kBorderWidth,
+                  color: cv.lineHairline,
+                ),
+                SizedBox(
+                  height: isShortHeight ? CoveSpace.sm : CoveSpace.md,
+                ),
 
-            // 3. Base: HABITS dots (left) and TODAY spend (right)
-            _buildBaseRow(cv),
-          ],
-        ),
-      ),
+                // 3. Base: HABITS dots (left) and TODAY spend (right)
+                _buildBaseRow(cv),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildMasthead(CoveTokens cv) {
+  Widget _buildMasthead(CoveTokens cv, {bool isShortHeight = false}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -878,6 +1010,8 @@ class CoveDaySheetCard extends StatelessWidget {
               Text(
                 summary.weekdayCaps,
                 key: const ValueKey('day_sheet_weekday_caps'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: CoveType.capsCard.copyWith(
                   color: cv.textTertiary,
                 ),
@@ -889,19 +1023,22 @@ class CoveDaySheetCard extends StatelessWidget {
                   summary.weatherLine!,
                   key: const ValueKey('day_sheet_weather_line'),
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: CoveType.rowSub.copyWith(
                     fontSize: _kMetaFontSize,
                     color: cv.textSecondary,
                   ),
                 ),
               ],
-              if (summary.firstHabitDueToday != null &&
+              if (!isShortHeight &&
+                  summary.firstHabitDueToday != null &&
                   summary.firstHabitDueToday!.isNotEmpty) ...[
                 const SizedBox(height: _kTinyGap),
                 Text(
                   summary.firstHabitDueToday!,
                   key: const ValueKey('day_sheet_first_habit_line'),
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
                   style: CoveType.rowSub.copyWith(
                     fontSize: _kMetaFontSize,
@@ -920,11 +1057,16 @@ class CoveDaySheetCard extends StatelessWidget {
     CoveTokens cv,
     DaySheetLine line, {
     required int index,
+    required bool showMeridiem,
   }) {
     final isDimmed = line.isOver;
+    final timeColor = isDimmed
+        ? cv.accentText.withValues(alpha: _kDimmedTimeAlpha)
+        : cv.accentText;
     final VoidCallback? onTap = line.isTask
         ? (onTickTask != null ? () => onTickTask!(line) : null)
         : (onOpenLine != null ? () => onOpenLine!(line) : onOpenSheet);
+    final meridiem = showMeridiem ? line.meridiemLabel : null;
 
     return GestureDetector(
       key: ValueKey('day_sheet_line_${line.kind.wireValue}_${line.id}'),
@@ -934,18 +1076,47 @@ class CoveDaySheetCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: _kTimeColumnWidth,
-            child: Text(
-              line.timeLabel,
-              maxLines: 1,
-              style: CoveType.slipTitle.copyWith(
-                fontStyle: FontStyle.normal,
-                fontSize: _kTimeFontSize,
-                color: isDimmed
-                    ? cv.accentText.withValues(alpha: _kDimmedTimeAlpha)
-                    : cv.accentText,
-              ),
-            ),
+            width: showMeridiem
+                ? _kTimeColumnWithMeridiemWidth
+                : _kTimeColumnWidth,
+            child: meridiem != null
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          line.timeLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.slipTitle.copyWith(
+                            fontStyle: FontStyle.normal,
+                            fontSize: _kTimeFontSize,
+                            color: timeColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: _kMeridiemGap),
+                      Text(
+                        meridiem,
+                        maxLines: 1,
+                        style: CoveType.capsCard.copyWith(
+                          color: timeColor,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    line.timeLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.slipTitle.copyWith(
+                      fontStyle: FontStyle.normal,
+                      fontSize: _kTimeFontSize,
+                      color: timeColor,
+                    ),
+                  ),
           ),
           Expanded(
             child: Column(
@@ -956,6 +1127,7 @@ class CoveDaySheetCard extends StatelessWidget {
                 Text(
                   line.title,
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: CoveType.rowTitle.copyWith(
                     fontSize: _kLineTitleSize,
                     color: isDimmed ? cv.textSecondary : cv.textPrimary,
@@ -968,6 +1140,7 @@ class CoveDaySheetCard extends StatelessWidget {
                 Text(
                   line.subtitle,
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: CoveType.rowSub.copyWith(
                     fontSize: _kLineSubSize,
                     color: cv.textTertiary,

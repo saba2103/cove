@@ -37,6 +37,7 @@ class _RecordingWidgetBridge implements CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   }) async {
     renderedKeys.add(key);
     renderedSizes[key] = logicalSize;
@@ -186,8 +187,8 @@ void main() {
         ).readAsStringSync();
         expect(slipXml, contains('android:targetCellWidth="4"'));
         expect(slipXml, contains('android:targetCellHeight="2"'));
-        expect(slipXml, contains('android:minWidth="250dp"'));
-        expect(slipXml, contains('android:minResizeWidth="180dp"'));
+        expect(slipXml, contains('android:minWidth="260dp"'));
+        expect(slipXml, contains('android:minResizeWidth="145dp"'));
         expect(slipXml, contains('@drawable/widget_preview_slip'));
 
         final ledgerXml = File(
@@ -195,8 +196,8 @@ void main() {
         ).readAsStringSync();
         expect(ledgerXml, contains('android:targetCellWidth="4"'));
         expect(ledgerXml, contains('android:targetCellHeight="2"'));
-        expect(ledgerXml, contains('android:minWidth="250dp"'));
-        expect(ledgerXml, contains('android:minResizeWidth="180dp"'));
+        expect(ledgerXml, contains('android:minWidth="260dp"'));
+        expect(ledgerXml, contains('android:minResizeWidth="145dp"'));
         expect(ledgerXml, contains('@drawable/widget_preview_ledger'));
 
         final sheetXml = File(
@@ -204,8 +205,8 @@ void main() {
         ).readAsStringSync();
         expect(sheetXml, contains('android:targetCellWidth="4"'));
         expect(sheetXml, contains('android:targetCellHeight="4"'));
-        expect(sheetXml, contains('android:minWidth="250dp"'));
-        expect(sheetXml, contains('android:minHeight="250dp"'));
+        expect(sheetXml, contains('android:minWidth="260dp"'));
+        expect(sheetXml, contains('android:minHeight="360dp"'));
         expect(sheetXml, contains('@drawable/widget_preview_day_sheet'));
 
         for (final preview in [

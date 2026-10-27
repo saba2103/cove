@@ -98,6 +98,25 @@ Future<void> _pumpSlipGolden(
   );
   await tester.pumpAndSettle();
 
+  // Verify circular corners and unshrunk typography at every size.
+  expect(find.byType(FittedBox), findsNothing);
+  final cardContainer = tester.widget<Container>(
+    find
+        .descendant(
+          of: find.byType(CoveSlipCard),
+          matching: find.byType(Container),
+        )
+        .first,
+  );
+  final boxDeco = cardContainer.decoration! as BoxDecoration;
+  expect(
+    boxDeco.borderRadius,
+    const BorderRadius.all(Radius.circular(CoveRadius.hero)),
+  );
+  expect(tester.getSize(find.byType(CoveSlipCard)), widgetSize);
+  final headerText = tester.widget<Text>(find.text(summary.listName));
+  expect(headerText.style?.fontSize, CoveType.slipTitle.fontSize);
+
   await expectLater(
     find.byType(MaterialApp),
     matchesGoldenFile('goldens/$goldenName.png'),
@@ -148,6 +167,28 @@ void main() {
           goldenName: 'slip_widget.empty.$modeName',
           brightness: brightness,
           summary: _kEmptySlipSummary,
+        );
+      });
+
+      testWidgets('slip_widget.smallest.$modeName', (tester) async {
+        await _pumpSlipGolden(
+          tester,
+          goldenName: 'slip_widget.smallest.$modeName',
+          brightness: brightness,
+          summary: _kGroceriesSlipSummary,
+          surfaceSize: const Size(212, 142),
+          widgetSize: const Size(180, 110),
+        );
+      });
+
+      testWidgets('slip_widget.stretch_tall_wide.$modeName', (tester) async {
+        await _pumpSlipGolden(
+          tester,
+          goldenName: 'slip_widget.stretch_tall_wide.$modeName',
+          brightness: brightness,
+          summary: _kGroceriesSlipSummary,
+          surfaceSize: const Size(467, 388),
+          widgetSize: const Size(435, 356),
         );
       });
     }

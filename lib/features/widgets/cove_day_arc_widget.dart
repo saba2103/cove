@@ -495,66 +495,89 @@ class CoveDayArcCard extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AspectRatio(
-          aspectRatio: 1.0,
-          child: Container(
-            decoration: BoxDecoration(
-              color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
-              borderRadius: const BorderRadius.all(
-                Radius.circular(CoveRadius.hero),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width =
+                constraints.maxWidth.isFinite ? constraints.maxWidth : 176.0;
+            final height =
+                constraints.maxHeight.isFinite ? constraints.maxHeight : 176.0;
+            final shortest = math.min(width, height);
+            final horizontalPad = math.max(
+              CoveSpace.md,
+              (width - shortest) / 2 +
+                  (_kCenterContentPadding * (shortest / 176.0)),
+            );
+            final verticalPad = math.max(
+              CoveSpace.sm,
+              (height - shortest) / 2 +
+                  (_kCenterContentPadding * (shortest / 176.0)),
+            );
+
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(CoveRadius.hero),
+                ),
+                border: Border.all(
+                  color: cv.lineStrong,
+                  width: _kHairlineWidth,
+                ),
               ),
-              border: Border.all(
-                color: cv.lineStrong,
-                width: _kHairlineWidth,
-              ),
-            ),
-            child: CustomPaint(
-              painter: _DayArcRingPainter(
-                cv: cv,
-                summary: summary,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(_kCenterContentPadding),
-                child: Center(
-                  child: timeLabel != null
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              timeLabel,
-                              maxLines: 1,
-                              textAlign: TextAlign.center,
-                              style: CoveType.slipTitle.copyWith(
-                                color: cv.textPrimary,
+              child: CustomPaint(
+                painter: _DayArcRingPainter(
+                  cv: cv,
+                  summary: summary,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPad,
+                    vertical: verticalPad,
+                  ),
+                  child: Center(
+                    child: timeLabel != null
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                timeLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: CoveType.slipTitle.copyWith(
+                                  color: cv.textPrimary,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              summary.centerTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: CoveType.rowSub.copyWith(
-                                color: cv.textSecondary,
-                              ),
-                            ),
-                          ],
-                        )
-                      : FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
+                              if (shortest >= 110.0) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  summary.centerTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: CoveType.rowSub.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )
+                        : Text(
                             summary.centerTitle,
-                            maxLines: 1,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: CoveType.rowSub.copyWith(
                               color: cv.textSecondary,
                             ),
                           ),
-                        ),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

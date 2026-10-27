@@ -21,6 +21,7 @@ class _RecordingWidgetBridge implements CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   }) async {
     renderedKeys.add(key);
     renderedSizes[key] = logicalSize;

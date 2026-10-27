@@ -45,7 +45,11 @@ class CoveLedgerCard extends StatelessWidget {
   static const double _kCardFillOpacity = 0.88; // (literal) ~88% card fill over wallpaper
   static const double _kHairlineWidth = 1.0; // (literal) 1dp border and divider
   static const double _kSplitBarHeight = 6.0; // (literal) 6dp person split bar
-  static const double _kCompactThreeCellThreshold = 240.0; // (literal) 3-cell width threshold
+  static const double _kCompactThreeCellThreshold = 260.0; // (literal) 3-cell width threshold (Fold Cover 3-cell is 252dp)
+  static const double _kShowComparisonHeightThreshold = 160.0; // (literal) height needed for 2-line month comparison
+  static const double _kShortHeightThreshold = 130.0; // (literal) height below which vertical padding tightens
+  static const double _kShowSplitLabelsHeightThreshold = 104.0; // (literal) height needed for You/Partner labels under split bar
+  static const double _kCompactVerticalPad = 10.0; // (literal) 10dp vertical padding on short resize
   static const int _kLeftColumnFlex = 62;
   static const int _kRightColumnFlex = 38;
 
@@ -71,11 +75,24 @@ class CoveLedgerCard extends StatelessWidget {
         final hideRightColumn = constraints.maxWidth.isFinite &&
             constraints.maxWidth > 0 &&
             constraints.maxWidth < _kCompactThreeCellThreshold;
+        final hasFiniteHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0;
+        final showComparison = !hasFiniteHeight ||
+            constraints.maxHeight >= _kShowComparisonHeightThreshold;
+        final isShortHeight =
+            hasFiniteHeight && constraints.maxHeight < _kShortHeightThreshold;
+        final showSplitLabels = !hasFiniteHeight ||
+            constraints.maxHeight >= _kShowSplitLabelsHeightThreshold;
 
         return DefaultTextStyle.merge(
           style: const TextStyle(decoration: TextDecoration.none),
           child: Container(
-            padding: const EdgeInsets.all(CoveSpace.gutter),
+            width: double.infinity,
+            height: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: CoveSpace.gutter,
+              vertical: isShortHeight ? _kCompactVerticalPad : CoveSpace.gutter,
+            ),
             decoration: BoxDecoration(
               color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
               borderRadius: const BorderRadius.all(
@@ -94,7 +111,11 @@ class CoveLedgerCard extends StatelessWidget {
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: onTapExpenses,
-                    child: _buildLeftColumn(cv),
+                    child: _buildLeftColumn(
+                      cv,
+                      showComparison: showComparison,
+                      showSplitLabels: showSplitLabels,
+                    ),
                   ),
                 ),
                 if (!hideRightColumn) ...[
@@ -113,7 +134,10 @@ class CoveLedgerCard extends StatelessWidget {
                                 commitments.nextSharedCommitment,
                               )
                           : null,
-                      child: _buildRightColumn(cv),
+                      child: _buildRightColumn(
+                        cv,
+                        isShortHeight: isShortHeight,
+                      ),
                     ),
                   ),
                 ],
@@ -125,7 +149,11 @@ class CoveLedgerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLeftColumn(CoveTokens cv) {
+  Widget _buildLeftColumn(
+    CoveTokens cv, {
+    required bool showComparison,
+    required bool showSplitLabels,
+  }) {
     final currency = expenses.currency;
     final sharedTotal = expenses.sharedMonthlyTotal;
     final hasSpend = sharedTotal > 0;
@@ -137,11 +165,15 @@ class CoveLedgerCard extends StatelessWidget {
         children: [
           Text(
             'SHARED THIS MONTH',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: CoveType.capsCard.copyWith(color: cv.textTertiary),
           ),
           const SizedBox(height: CoveSpace.xs),
           Text(
             'No money has moved this month',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: CoveType.rowSub.copyWith(color: cv.textSecondary),
           ),
         ],
@@ -170,18 +202,24 @@ class CoveLedgerCard extends StatelessWidget {
           children: [
             Text(
               'SHARED THIS MONTH',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: CoveType.capsCard.copyWith(color: cv.textTertiary),
             ),
             const SizedBox(height: CoveSpace.xs),
             Text(
               '${currency.symbol}${formatCoveAmount(sharedTotal)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: CoveType.slipFigure.copyWith(color: cv.accentTint),
             ),
-            if (expenses.hasPrevComparison) ...[
+            if (expenses.hasPrevComparison && showComparison) ...[
               const SizedBox(height: CoveSpace.xs),
               Text(
                 '$deltaFormatted $directionWord ${expenses.prevMonthName}\n'
                 'by this point · $daysLeftLabel',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: CoveType.rowSub.copyWith(color: cv.textSecondary),
               ),
             ],
@@ -220,36 +258,41 @@ class CoveLedgerCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: CoveSpace.xs),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    'You ${currency.symbol}${formatCoveAmount(myPaid)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+            if (showSplitLabels) ...[
+              const SizedBox(height: CoveSpace.xs),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'You ${currency.symbol}${formatCoveAmount(myPaid)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                    ),
                   ),
-                ),
-                const SizedBox(width: CoveSpace.xs),
-                Flexible(
-                  child: Text(
-                    '${expenses.partnerName} ${currency.symbol}${formatCoveAmount(partnerPaid)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                  const SizedBox(width: CoveSpace.xs),
+                  Flexible(
+                    child: Text(
+                      '${expenses.partnerName} ${currency.symbol}${formatCoveAmount(partnerPaid)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         ),
       ],
     );
   }
 
-  Widget _buildRightColumn(CoveTokens cv) {
+  Widget _buildRightColumn(
+    CoveTokens cv, {
+    required bool isShortHeight,
+  }) {
     final next = commitments.nextSharedCommitment;
     final whenLabel = commitments.nextSharedCommitmentWhen;
     final currency = expenses.currency;
@@ -260,6 +303,8 @@ class CoveLedgerCard extends StatelessWidget {
       children: [
         Text(
           'RENEWS',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: CoveType.capsCard.copyWith(color: cv.textTertiary),
         ),
         const SizedBox(height: CoveSpace.xs),
@@ -267,6 +312,7 @@ class CoveLedgerCard extends StatelessWidget {
           Text(
             'Nothing renews yet',
             maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: CoveType.rowSub.copyWith(color: cv.textTertiary),
           )
         else ...[
@@ -276,14 +322,14 @@ class CoveLedgerCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
           ),
-          if (whenLabel != null)
+          if (whenLabel != null && !isShortHeight)
             Text(
               whenLabel,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: CoveType.rowSub.copyWith(color: cv.textTertiary),
             ),
-          const SizedBox(height: CoveSpace.sm),
+          SizedBox(height: isShortHeight ? CoveSpace.xs : CoveSpace.sm),
           Text(
             '${currency.symbol}${formatCoveAmount(next.amount)}',
             maxLines: 1,

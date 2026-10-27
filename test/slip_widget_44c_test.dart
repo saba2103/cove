@@ -36,6 +36,7 @@ class _FakeWidgetBridge implements CoveWidgetPlatformBridge {
     Widget widget, {
     required String key,
     required Size logicalSize,
+    double? pixelRatio,
   }) async {
     renderedSizes[key] = logicalSize;
     renderedWidgets[key] = widget;

@@ -133,20 +133,36 @@ class SlipSummary {
 
   String get emptyStateLabel => '$listName is empty';
 
-  List<SlipItemRow> visibleRowsFor({bool isCompact3Cell = false}) {
-    final limit = isCompact3Cell ? maxRowsCompact3Cell : maxRowsFull4Cell;
+  List<SlipItemRow> visibleRowsFor({
+    bool isCompact3Cell = false,
+    int? maxRows,
+  }) {
+    final limit =
+        maxRows ?? (isCompact3Cell ? maxRowsCompact3Cell : maxRowsFull4Cell);
     if (openItems.length <= limit) return openItems;
     return openItems.sublist(0, limit);
   }
 
-  int remainingCountFor({bool isCompact3Cell = false}) {
-    final visible = visibleRowsFor(isCompact3Cell: isCompact3Cell).length;
+  int remainingCountFor({
+    bool isCompact3Cell = false,
+    int? maxRows,
+  }) {
+    final visible = visibleRowsFor(
+      isCompact3Cell: isCompact3Cell,
+      maxRows: maxRows,
+    ).length;
     final rem = openCount - visible;
     return rem > 0 ? rem : 0;
   }
 
-  String footerLabelFor({bool isCompact3Cell = false}) {
-    final rem = remainingCountFor(isCompact3Cell: isCompact3Cell);
+  String footerLabelFor({
+    bool isCompact3Cell = false,
+    int? maxRows,
+  }) {
+    final rem = remainingCountFor(
+      isCompact3Cell: isCompact3Cell,
+      maxRows: maxRows,
+    );
     if (rem > 0) {
       return '+$rem more · tap to tick';
     }
@@ -447,13 +463,21 @@ class CoveSlipCard extends StatelessWidget {
   static const double _kHairlineWidth =
       1.0; // (literal) 1dp card border & row divider
   static const double _kCompactThreeCellThreshold =
-      240.0; // (literal) 3-cell width threshold
+      260.0; // (literal) 3-cell width threshold (Fold Cover 3-cell is 252dp)
+  static const double _kTwoRowHeightThreshold =
+      155.0; // (literal) height below which at most 2 rows fit
+  static const double _kOneRowHeightThreshold =
+      125.0; // (literal) height below which at most 1 row fits
+  static const double _kHideFooterHeightThreshold =
+      96.0; // (literal) height below which footer is hidden
   static const double _kCheckboxSize =
       16.0; // (literal) 16dp widget row checkbox size
   static const double _kVerticalPaddingTop =
       14.0; // (literal) 14dp top padding for 4x2 widget height fit
   static const double _kVerticalPaddingBottom =
       10.0; // (literal) 10dp bottom padding for 4x2 widget height fit
+  static const double _kCompactVerticalPadding =
+      8.0; // (literal) 8dp vertical padding on short resize
 
   final SlipSummary summary;
   final ValueChanged<String?>? onTapOpenList;
@@ -475,18 +499,43 @@ class CoveSlipCard extends StatelessWidget {
         final isCompact3Cell = constraints.maxWidth.isFinite &&
             constraints.maxWidth > 0 &&
             constraints.maxWidth < _kCompactThreeCellThreshold;
+        final widthMaxRows = isCompact3Cell
+            ? SlipSummary.maxRowsCompact3Cell
+            : SlipSummary.maxRowsFull4Cell;
+        final hasFiniteHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0;
+        final heightMaxRows = !hasFiniteHeight
+            ? SlipSummary.maxRowsFull4Cell
+            : (constraints.maxHeight < _kOneRowHeightThreshold
+                ? 1
+                : (constraints.maxHeight < _kTwoRowHeightThreshold
+                    ? 2
+                    : SlipSummary.maxRowsFull4Cell));
+        final maxRows =
+            widthMaxRows < heightMaxRows ? widthMaxRows : heightMaxRows;
+        final isShortHeight =
+            hasFiniteHeight && constraints.maxHeight < _kOneRowHeightThreshold;
+        final showFooter = !hasFiniteHeight ||
+            constraints.maxHeight >= _kHideFooterHeightThreshold;
         final visibleRows = summary.visibleRowsFor(
           isCompact3Cell: isCompact3Cell,
+          maxRows: maxRows,
         );
 
         return DefaultTextStyle.merge(
           style: const TextStyle(decoration: TextDecoration.none),
           child: Container(
-            padding: const EdgeInsets.only(
+            width: double.infinity,
+            height: double.infinity,
+            padding: EdgeInsets.only(
               left: CoveSpace.lg,
               right: CoveSpace.lg,
-              top: _kVerticalPaddingTop,
-              bottom: _kVerticalPaddingBottom,
+              top: isShortHeight
+                  ? _kCompactVerticalPadding
+                  : _kVerticalPaddingTop,
+              bottom: isShortHeight
+                  ? _kCompactVerticalPadding
+                  : _kVerticalPaddingBottom,
             ),
             decoration: BoxDecoration(
               color: cv.surfaceCard.withValues(alpha: _kCardFillOpacity),
@@ -572,21 +621,25 @@ class CoveSlipCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    key: const ValueKey('cove_slip_footer'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onTapOpenList != null
-                        ? () => onTapOpenList!(summary.listId)
-                        : null,
-                    child: Text(
-                      summary.footerLabelFor(isCompact3Cell: isCompact3Cell),
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.textTertiary,
+                  if (showFooter)
+                    GestureDetector(
+                      key: const ValueKey('cove_slip_footer'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onTapOpenList != null
+                          ? () => onTapOpenList!(summary.listId)
+                          : null,
+                      child: Text(
+                        summary.footerLabelFor(
+                          isCompact3Cell: isCompact3Cell,
+                          maxRows: maxRows,
+                        ),
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
                 ],
               ],
             ),
