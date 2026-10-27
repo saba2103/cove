@@ -19,6 +19,7 @@ import '../profile/preferences_controller.dart';
 import '../subscriptions/subscription_controller.dart';
 import '../weather/weather_controller.dart';
 import 'cove_day_arc_widget.dart';
+import 'cove_day_sheet_widget.dart';
 import 'cove_ledger_widget.dart';
 import 'cove_slip_widget.dart';
 import 'cove_widget_tick_service.dart';
@@ -258,6 +259,13 @@ class CoveWidgetService {
   static const Size ledgerFullLogicalSize = Size(379, 176);
   static const Size ledgerCompactLogicalSize = Size(200, 176);
 
+  static const String sheetDarkKey = 'cove_widget_sheet_dark';
+  static const String sheetLightKey = 'cove_widget_sheet_light';
+  static const String sheetCheckinDateKey = 'cove_widget_sheet_checkin_date';
+  static const String cachedSheetSnapshotPrefKey =
+      'cove_widget_sheet_snapshot_v1';
+  static const Size sheetLogicalSize = Size(360, 360);
+
   final CoveWidgetPlatformBridge bridge;
   final WidgetRefreshScheduler scheduler;
 
@@ -267,6 +275,8 @@ class CoveWidgetService {
   int _arcRenderGeneration = 0;
   String? _lastRenderedSlipSignature;
   int _slipRenderGeneration = 0;
+  String? _lastRenderedSheetSignature;
+  int _sheetRenderGeneration = 0;
 
   CoveWidgetService({
     this.bridge = const HomeWidgetPlatformBridge(),
@@ -589,6 +599,154 @@ class CoveWidgetService {
     }
   }
 
+  /// Renders the Day Sheet widget (4×4, dark + light) into PNG bitmaps via
+  /// [bridge], saves interactive line and habit dot hit metadata, and triggers
+  /// an `AppWidgetManager` update (`design/specs/18-widgets.md` §4).
+  Future<void> renderAndPushDaySheet({
+    required DaySheetSummary summary,
+    bool force = false,
+  }) async {
+    final signature = [
+      summary.checkinDateStr,
+      summary.nowMinutes,
+      summary.dayNumber,
+      summary.monthName,
+      summary.weekdayCaps,
+      summary.weatherLine ?? '',
+      summary.firstHabitDueToday ?? '',
+      summary.todaySpend.toStringAsFixed(2),
+      summary.currency.code,
+      summary.lines
+          .map(
+            (l) =>
+                '${l.id}:${l.kind.wireValue}:${l.timeLabel}:${l.title}:${l.subtitle}:${l.isOver ? 1 : 0}:${l.isCompleted ? 1 : 0}',
+          )
+          .join(','),
+      summary.habitDots
+          .map(
+            (d) =>
+                '${d.habitId}:${d.habitName}:${d.isKeptToday ? 1 : 0}:${d.isOwnedByViewer ? 1 : 0}',
+          )
+          .join(','),
+    ].join('|');
+
+    if (!force && _lastRenderedSheetSignature == signature) {
+      return;
+    }
+    _lastRenderedSheetSignature = signature;
+    final generation = ++_sheetRenderGeneration;
+
+    await _saveSheetSnapshotToPrefs(summary);
+    if (generation != _sheetRenderGeneration) return;
+
+    if (!bridge.isSupported) return;
+
+    try {
+      final visibleLines = summary.visibleLines;
+      final visibleDots = summary.visibleHabitDots;
+
+      await bridge.saveWidgetData<String>(
+        sheetCheckinDateKey,
+        summary.checkinDateStr,
+      );
+
+      for (var i = 0; i < DaySheetSummary.maxVisibleLines; i++) {
+        final line = i < visibleLines.length ? visibleLines[i] : null;
+        await bridge.saveWidgetData<String>(
+          'cove_widget_sheet_row_${i}_id',
+          line?.id,
+        );
+        await bridge.saveWidgetData<String>(
+          'cove_widget_sheet_row_${i}_kind',
+          line?.kind.wireValue,
+        );
+        await bridge.saveWidgetData<bool>(
+          'cove_widget_sheet_row_${i}_done',
+          line?.isCompleted ?? false,
+        );
+      }
+
+      for (var i = 0; i < DaySheetSummary.maxVisibleHabitDots; i++) {
+        final dot = i < visibleDots.length ? visibleDots[i] : null;
+        await bridge.saveWidgetData<String>(
+          'cove_widget_sheet_habit_${i}_id',
+          dot?.habitId,
+        );
+        await bridge.saveWidgetData<bool>(
+          'cove_widget_sheet_habit_${i}_owned',
+          dot?.isOwnedByViewer ?? false,
+        );
+        await bridge.saveWidgetData<bool>(
+          'cove_widget_sheet_habit_${i}_kept',
+          dot?.isKeptToday ?? false,
+        );
+      }
+
+      if (generation != _sheetRenderGeneration) return;
+
+      final darkSheet = _wrapForOffscreenRender(
+        theme: CoveTheme.darkTheme,
+        size: sheetLogicalSize,
+        child: CoveDaySheetCard(summary: summary),
+      );
+      final lightSheet = _wrapForOffscreenRender(
+        theme: CoveTheme.lightTheme,
+        size: sheetLogicalSize,
+        child: CoveDaySheetCard(summary: summary),
+      );
+
+      await bridge.renderFlutterWidget(
+        darkSheet,
+        key: sheetDarkKey,
+        logicalSize: sheetLogicalSize,
+      );
+      if (generation != _sheetRenderGeneration) return;
+      await bridge.renderFlutterWidget(
+        lightSheet,
+        key: sheetLightKey,
+        logicalSize: sheetLogicalSize,
+      );
+      if (generation != _sheetRenderGeneration) return;
+
+      await bridge.updateWidget(
+        androidName: CoveWidgetProviderInfo.daySheet.androidName,
+        qualifiedAndroidName:
+            CoveWidgetProviderInfo.daySheet.qualifiedAndroidName,
+      );
+    } catch (e) {
+      debugPrint('[CoveWidgetService] Failed to render Day Sheet widget: $e');
+    }
+  }
+
+  /// Immediately re-renders the cached Day Sheet snapshot with an optimistic
+  /// task or viewer-owned habit tick (`design/specs/18-widgets.md` §4 & § Ticking).
+  Future<DaySheetSummary?> renderOptimisticDaySheetTick({
+    String? taskRecordId,
+    bool? taskToDone,
+    String? habitRecordId,
+    bool? habitToDone,
+    SharedPreferences? prefsOverride,
+  }) async {
+    try {
+      final prefs = prefsOverride ?? await SharedPreferences.getInstance();
+      final raw = prefs.getString(cachedSheetSnapshotPrefKey);
+      if (raw == null || raw.isEmpty) return null;
+      final current = DaySheetSummary.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      final updated = current.withOptimisticTick(
+        taskRecordId: taskRecordId,
+        taskToDone: taskToDone,
+        habitRecordId: habitRecordId,
+        habitToDone: habitToDone,
+      );
+      await renderAndPushDaySheet(summary: updated, force: true);
+      return updated;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Refreshes all registered Android widget providers in the background
   /// (invoked by the 30-minute WorkManager periodic job).
   ///
@@ -637,6 +795,19 @@ class CoveWidgetService {
           );
           await renderAndPushSlip(
             summary: restoredSlip,
+            force: true,
+          );
+        } catch (_) {}
+      }
+
+      final rawSheetSnapshot = prefs.getString(cachedSheetSnapshotPrefKey);
+      if (rawSheetSnapshot != null && rawSheetSnapshot.isNotEmpty) {
+        try {
+          final restoredSheet = DaySheetSummary.fromJson(
+            jsonDecode(rawSheetSnapshot) as Map<String, dynamic>,
+          ).atTime(now);
+          await renderAndPushDaySheet(
+            summary: restoredSheet,
             force: true,
           );
         } catch (_) {}
@@ -896,6 +1067,16 @@ class CoveWidgetService {
       );
     } catch (_) {}
   }
+
+  Future<void> _saveSheetSnapshotToPrefs(DaySheetSummary summary) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        cachedSheetSnapshotPrefKey,
+        jsonEncode(summary.toJson()),
+      );
+    } catch (_) {}
+  }
 }
 
 /// Top-level background callback registered with `HomeWidget.registerInteractivityCallback`
@@ -927,6 +1108,15 @@ Future<void> coveWidgetBackgroundCallback(Uri? uri) async {
           await widgetService.renderOptimisticSlipTick(
             intent.recordId,
             toDone: intent.toDone,
+          );
+          await widgetService.renderOptimisticDaySheetTick(
+            taskRecordId: intent.recordId,
+            taskToDone: intent.toDone,
+          );
+        } else if (intent.kind == WidgetTickKind.habitCheckin) {
+          await widgetService.renderOptimisticDaySheetTick(
+            habitRecordId: intent.recordId,
+            habitToDone: intent.toDone,
           );
         }
       },
@@ -962,6 +1152,7 @@ final coveWidgetAutoSyncProvider = Provider<void>((ref) {
   final service = ref.watch(coveWidgetServiceProvider);
   final dayArc = ref.watch(dayArcSummaryProvider);
   final slip = ref.watch(slipSummaryProvider);
+  final daySheet = ref.watch(daySheetSummaryProvider);
   final expenses = ref.watch(expensesStandingSummaryProvider);
   final commitments = ref.watch(commitmentsSummaryProvider);
 
@@ -976,6 +1167,9 @@ final coveWidgetAutoSyncProvider = Provider<void>((ref) {
   );
   unawaited(
     service.renderAndPushSlip(summary: slip),
+  );
+  unawaited(
+    service.renderAndPushDaySheet(summary: daySheet),
   );
   unawaited(
     service.renderAndPushLedger(

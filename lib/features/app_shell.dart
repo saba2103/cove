@@ -190,7 +190,17 @@ class _AppShellState extends ConsumerState<AppShell>
         }
         break;
       case 'sheet':
-        _handleSeatTap('home');
+        final kind = uri.queryParameters['kind'];
+        if (kind == 'event') {
+          _selectedCalendarDate = clock.now();
+          _handleSeatTap('day');
+        } else if (kind == 'routine') {
+          _handleSeatTap('routines');
+        } else if (kind == 'expenses') {
+          _handleSeatTap('expenses');
+        } else {
+          _handleSeatTap('home');
+        }
         break;
       case 'ledger':
         final target = segments.length > 1 ? segments[1] : 'expenses';
