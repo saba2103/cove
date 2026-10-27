@@ -70,18 +70,18 @@ class RoutineController {
     final existing = await db.getRoutines(homeId);
     if (existing.isNotEmpty) return;
 
-    // Seed default routines: Weekday, Saturday, Sunday
+    // Seed default routines: Everyday, Weekdays, Weekend
     await createRoutine(
-      name: 'Weekday (Mon – Fri)',
+      name: 'Everyday',
+      days: [1, 2, 3, 4, 5, 6, 7],
+    );
+    await createRoutine(
+      name: 'Weekdays',
       days: [1, 2, 3, 4, 5],
     );
     await createRoutine(
-      name: 'Saturday',
-      days: [6],
-    );
-    await createRoutine(
-      name: 'Sunday',
-      days: [7],
+      name: 'Weekend',
+      days: [6, 7],
     );
   }
 

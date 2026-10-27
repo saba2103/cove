@@ -227,6 +227,220 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));
     });
+
+    testWidgets(
+      '4.7d: Two lanes by owner (yours left, partner right, both solid gold spanning split) and legend tap fades the other lane while shared gold stays',
+      (tester) async {
+        final now = DateTime(2026, 10, 15, 10, 30);
+
+        await db.into(db.localHomes).insert(
+          LocalHomesCompanion.insert(
+            id: 'home_1',
+            name: 'Our Home',
+            createdBy: 'local_user',
+            createdAt: now,
+          ),
+        );
+
+        await db.into(db.localRoutines).insert(
+          LocalRoutinesCompanion.insert(
+            id: 'rot_weekdays',
+            homeId: 'home_1',
+            name: 'Weekdays',
+            daysJson: jsonEncode([1, 2, 3, 4, 5]),
+            createdAt: now,
+          ),
+        );
+
+        // Shared ('both') event
+        await db.into(db.localRoutineEvents).insert(
+          LocalRoutineEventsCompanion.insert(
+            id: 'rev_both',
+            routineId: 'rot_weekdays',
+            homeId: 'home_1',
+            title: 'Coffee together',
+            startMinutes: 390, // 6:30 AM
+            endMinutes: 420, // 7:00 AM
+            owner: const drift.Value('both'),
+            createdAt: now,
+          ),
+        );
+
+        // Yours ('local_user') event -> left lane
+        await db.into(db.localRoutineEvents).insert(
+          LocalRoutineEventsCompanion.insert(
+            id: 'rev_yours',
+            routineId: 'rot_weekdays',
+            homeId: 'home_1',
+            title: 'Morning run',
+            startMinutes: 420, // 7:00 AM
+            endMinutes: 480, // 8:00 AM
+            owner: const drift.Value('local_user'),
+            createdAt: now,
+          ),
+        );
+
+        // Partner ('user_partner') event -> right lane
+        await db.into(db.localRoutineEvents).insert(
+          LocalRoutineEventsCompanion.insert(
+            id: 'rev_partner',
+            routineId: 'rot_weekdays',
+            homeId: 'home_1',
+            title: 'Morning yoga',
+            startMinutes: 420, // 7:00 AM
+            endMinutes: 480, // 8:00 AM
+            owner: const drift.Value('user_partner'),
+            createdAt: now,
+          ),
+        );
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              activeHomeIdProvider.overrideWith(
+                () => FakeActiveHomeNotifier('home_1'),
+              ),
+              appDatabaseProvider.overrideWithValue(db),
+            ],
+            child: MaterialApp(
+              theme: CoveTheme.darkTheme,
+              home: const RoutineScreen(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final bothRect = tester.getRect(
+          find.byKey(const ValueKey('routine_band_rev_both')),
+        );
+        final yoursRect = tester.getRect(
+          find.byKey(const ValueKey('routine_band_rev_yours')),
+        );
+        final partnerRect = tester.getRect(
+          find.byKey(const ValueKey('routine_band_rev_partner')),
+        );
+        final splitRect = tester.getRect(
+          find.byKey(const ValueKey('routine_lane_split_line')),
+        );
+
+        // Yours is on the left of the split; partner's is on the right of the split
+        expect(yoursRect.right, lessThan(splitRect.left));
+        expect(partnerRect.left, greaterThan(splitRect.right));
+        expect(yoursRect.width, closeTo(partnerRect.width, 0.01));
+
+        // Shared ('both') spans both lanes across the split
+        expect(bothRect.left, closeTo(yoursRect.left, 0.01));
+        expect(bothRect.right, closeTo(partnerRect.right, 0.01));
+
+        // Initially all bands are at opacity 1.0
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_yours')),
+              )
+              .opacity,
+          1.0,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_partner')),
+              )
+              .opacity,
+          1.0,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_both')),
+              )
+              .opacity,
+          1.0,
+        );
+
+        // Tap your person in the legend -> fades partner's lane; your lane and shared gold stay 1.0
+        await tester.tap(find.byKey(const ValueKey('routine_legend_yours')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_yours')),
+              )
+              .opacity,
+          1.0,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_partner')),
+              )
+              .opacity,
+          lessThan(0.5),
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_both')),
+              )
+              .opacity,
+          1.0,
+        );
+
+        // Tap partner's person in the legend -> fades your lane; partner's lane and shared gold stay 1.0
+        await tester.tap(find.byKey(const ValueKey('routine_legend_partner')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_yours')),
+              )
+              .opacity,
+          lessThan(0.5),
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_partner')),
+              )
+              .opacity,
+          1.0,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_both')),
+              )
+              .opacity,
+          1.0,
+        );
+
+        // Tap partner's person again -> clears focus, both lanes back to 1.0
+        await tester.tap(find.byKey(const ValueKey('routine_legend_partner')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_yours')),
+              )
+              .opacity,
+          1.0,
+        );
+        expect(
+          tester
+              .widget<AnimatedOpacity>(
+                find.byKey(const ValueKey('routine_band_opacity_rev_partner')),
+              )
+              .opacity,
+          1.0,
+        );
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 100));
+      },
+    );
   });
 }
 

@@ -286,15 +286,22 @@ final _kSeedRoutines = <Routine>[
   Routine(
     id: 'routine_1',
     homeId: 'home_1',
-    name: 'Weekday (Mon – Fri)',
-    days: const [],
+    name: 'Weekdays',
+    days: const [1, 2, 3, 4, 5],
     createdAt: _kFixedCreatedAt,
   ),
   Routine(
     id: 'routine_2',
     homeId: 'home_1',
-    name: 'Weekend Slow Morning',
-    days: const [],
+    name: 'Everyday',
+    days: const [1, 2, 3, 4, 5, 6, 7],
+    createdAt: _kFixedCreatedAt,
+  ),
+  Routine(
+    id: 'routine_3',
+    homeId: 'home_1',
+    name: 'Weekend',
+    days: const [6, 7],
     createdAt: _kFixedCreatedAt,
   ),
 ];
@@ -304,21 +311,44 @@ final _kSeedRoutineEvents = <RoutineEvent>[
     id: 'rev_1',
     routineId: 'routine_1',
     homeId: 'home_1',
-    title: 'Morning Pour-Over & Stretch',
-    startMinutes: 60, // 1:00 AM (visible in top viewport without scrolling)
-    endMinutes: 135, // 2:15 AM
-    category: 'Wellness',
-    notes: '15g coffee, 250ml water',
+    title: 'Coffee together',
+    startMinutes: 390, // 6:30 AM
+    endMinutes: 420, // 7:00 AM
+    category: 'Meals',
+    owner: 'both',
     createdAt: _kFixedCreatedAt,
   ),
   RoutineEvent(
     id: 'rev_2',
     routineId: 'routine_1',
     homeId: 'home_1',
+    title: 'Morning Pour-Over & Stretch',
+    startMinutes: 420, // 7:00 AM
+    endMinutes: 480, // 8:00 AM
+    category: 'Wellness',
+    owner: 'user_alex',
+    createdAt: _kFixedCreatedAt,
+  ),
+  RoutineEvent(
+    id: 'rev_3',
+    routineId: 'routine_1',
+    homeId: 'home_1',
+    title: 'Morning Yoga',
+    startMinutes: 420, // 7:00 AM
+    endMinutes: 480, // 8:00 AM
+    category: 'Fitness',
+    owner: 'user_sarah',
+    createdAt: _kFixedCreatedAt,
+  ),
+  RoutineEvent(
+    id: 'rev_4',
+    routineId: 'routine_1',
+    homeId: 'home_1',
     title: 'Deep Focus Block',
-    startMinutes: 180, // 3:00 AM
-    endMinutes: 300, // 5:00 AM
+    startMinutes: 540, // 9:00 AM
+    endMinutes: 660, // 11:00 AM
     category: 'Work',
+    owner: 'user_alex',
     createdAt: _kFixedCreatedAt,
   ),
 ];
