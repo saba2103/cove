@@ -91,7 +91,7 @@ v0.1-alpha ──> v0.2-alpha ──> v0.3-alpha ──> v0.4-alpha ──> v0.5
 | **`v0.6-alpha`** | Sep 17, 2026 | **Commitments Helicopter View & Profile Studio**: 12-month commitment projections, smart decimal rendering, custom avatar presets, user initials badge. |
 | **`v1.0-alpha.1`** | Sep 19, 2026 | **Calendar-First Sanctuary Architecture**: Replaced standalone dashboard with calendar agenda hub, Today morning briefing, EMI Tracker with loan foreclosure and multi-select burden simulation, persistent delivery reconciliation, and direct push notification routing. |
 | **`v1.0-alpha.2`** | Oct 22, 2026 | **Encrypted Drive Backup**: End-to-end encrypted household snapshot backup (`726c3b0`, `73f7fcc`) with Argon2id passphrase-derived keys (AES-256-GCM envelope), Google Drive `appDataFolder` storage, atomic SQLite + key + preference restore with post-restore Supabase log catch-up, and nightly automatic WorkManager backup schedule. |
-| **`v2.0-alpha.1`** | Oct 22, 2026 | **The Design System**: W3C DTCG design token pipeline (`design/tokens.json` → generated `cove_tokens.dart`), WCAG AA contrast fixes across light and dark modes, `PlusJakartaSans` replacing `GeneralSans` for UI, `LibreBodoni` (with native `₹` glyph) replacing `BodoniModa` for display and tabular figures, `CoveTheme` serving `CoveTokens` in both modes, and automated quality gates (contrast check, one-way style ratchet, version agreement, 84 multi-viewport screen goldens, and 17-table Drift v11 schema migration verification). |
+| **`v2.0-alpha.1`** | Oct 28, 2026 | **The Design System**: W3C DTCG design token pipeline (`design/tokens.json` → generated `cove_tokens.dart`), WCAG AA contrast across light and dark modes, `PlusJakartaSans` & `LibreBodoni` (native `₹`), paper-and-ink slips (`CoveTicket`, `CoveReceipt`, `CoveVoucher`, `CoveBand`, `CoveHabitCard`, `CoveNote`, `CoveDial`), 17 screens rebuilt on `CovePage`/`CoveSheet`/`CoveDetailSheet`/`CoveFloatingBar` with deterministic `CoveLetterComposer`, one-question-at-a-time `AddFlow` with `LastAddStore`, `CoveShape` 100% squircles with `SquirclePathCache`, `CoveNotificationDescriber` & 60s list coalescing, 4 Android home-screen widgets (`Day Arc`, `Slip`, `Ledger`, `Day Sheet`) with durable `WidgetTickIntentLog` & single-transaction outbox commits, `PendingDeleteService` deferred undo, Drift v12 schema (event/task/routine owners, two-lane `RoutineScreen`, `local_pets` & `local_pet_tags`), and automated quality gates. |
 
 ---
 
@@ -152,7 +152,7 @@ gitGraph
     merge feature/v1-calendar-first-restructure id: "79053d1 (main)"
 ```
 
-- **`main`**: The single source of truth for production-ready code. Pushing to `origin/main` automatically triggers Vercel to build and publish Flutter Web (`./build.sh`).
+- **`main`**: The single source of truth for production-ready code. Pushing to `origin/main` normally triggers Vercel to build and publish Flutter Web (`./build.sh`); as of `v2.0-alpha.1` (Oct 28, 2026), web deploys on `main` are paused via `"git": { "deploymentEnabled": { "main": false } }` in `vercel.json` until the web redesign pass.
 - **`feature/*`**: Dedicated feature branches where extensive development, testing, and multi-device APK builds are validated before merging.
 - **Fast-Forward Merges (`--ff-only`)**: When history is linear, fast-forward merges keep the commit graph clean, traceable, and bisectable.
 

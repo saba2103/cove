@@ -51,14 +51,20 @@ const List<ChangelogItem> kChangelogItems = [
     id: 'v2_design_system',
     title: 'v2.0-alpha.1 — The Design System',
     tagline:
-        'DTCG token pipeline with generated Dart, WCAG AA contrast, Plus Jakarta Sans & Libre Bodoni typography, and automated quality gates.',
+        'Cove, put together: one look, one way to add, and a home screen that knows your day.',
     outcome:
-        'Both light and dark modes now run on a unified W3C DTCG design token system with verified WCAG AA contrast across every surface and text pairing. Plus Jakarta Sans replaces General Sans for UI legibility, and Libre Bodoni replaces Bodoni Moda for display titles and hero/card figures with native ₹ glyph support.',
+        'Every screen has been redrawn to one design — calmer type, figures in Bodoni, and soft squircle corners throughout, in light and dark.\n\n'
+        'Today reads like paper: the things on your day as tickets, receipts and notes, and a short letter that sums up the day.\n\n'
+        'Adding anything is now one question at a time, with "Again" to repeat the last thing you logged.\n\n'
+        'Four home-screen widgets — the day as a ring, a list you can tick, the month\'s spending, and the day as a printed page.\n\n'
+        'Notifications now say what actually happened ("Ancy logged ₹820 for coffee beans") and group quick list changes into one.\n\n'
+        'Say whose an event, task or routine is, and tag anything with Lyla, Cabo or Luca.\n\n'
+        'Undo really undoes, invites never send your home\'s key anywhere, and nothing ever makes up a number.',
     underTheHood:
-        'DTCG token pipeline (design/tokens.json → tool/gen_tokens.dart → CoveTokens, CoveSpace, CoveSize, CoveRadius, CoveType, CoveMotion) serving both light and dark modes, WCAG AA contrast fixes, Plus Jakarta Sans for UI, Libre Bodoni for display and figures, and quality gates (contrast check, style ratchet, version agreement, 84 multi-viewport goldens, and 17-table Drift v11 schema migration test).',
+        'DTCG token pipeline (design/tokens.json → tool/gen_tokens.dart → CoveTokens, CoveSpace, CoveSize, CoveRadius, CoveType, CoveMotion) serving light and dark modes with WCAG AA contrast, Plus Jakarta Sans & Libre Bodoni (native ₹), paper-and-ink slips (CoveTicket, CoveReceipt, CoveVoucher, CoveBand, CoveHabitCard, CoveNote, CoveDial), 17 screens rebuilt on CovePage/CoveSheet/CoveDetailSheet/CoveFloatingBar with deterministic CoveLetterComposer, one-question-at-a-time AddFlow with LastAddStore, CoveShape 100% squircles with SquirclePathCache, CoveNotificationDescriber & 60s list coalescing, 4 Android home-screen widgets (Day Arc, Slip, Ledger, Day Sheet) with durable WidgetTickIntentLog & single-transaction outbox commits, PendingDeleteService deferred undo, Drift schema v12 (event/task/routine owners, two-lane RoutineScreen, local_pets & local_pet_tags), and zero-tolerance style/shape/contrast/version/golden/migration gates.',
     category: 'Design & Architecture',
     version: 'v2.0-alpha.1',
-    date: 'Oct 22, 2026',
+    date: 'Oct 28, 2026',
     icon: Icons.palette_outlined,
     previewType: ChangelogPreviewType.smartDecimals,
   ),

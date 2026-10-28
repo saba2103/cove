@@ -526,7 +526,7 @@ class AboutCoveScreen extends ConsumerWidget {
             child: Column(
               children: [
                 Text(
-                  'Cove v2.0-alpha.1 (1) · Designed for Two',
+                  'Cove v2.0-alpha.1 (2) · Designed for Two',
                   style: CoveType.rowSub.copyWith(
                     fontWeight: FontWeight.w600,
                     color: cv.textSecondary,

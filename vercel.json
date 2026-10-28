@@ -2,6 +2,11 @@
   "buildCommand": "./build.sh",
   "outputDirectory": "build/web",
   "framework": null,
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

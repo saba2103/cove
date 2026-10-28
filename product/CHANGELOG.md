@@ -4,7 +4,16 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ---
 
-## [v2.0-alpha.1] — 2026-10-22
+## [v2.0-alpha.1] — 2026-10-28
+
+### Changed
+- **Release `v2.0-alpha.1` ("The Design System") — Build `+2`, What's New Copy & Paused Web Deploys (`Oct 28, 2026`)**:
+  - *Outcome*:
+    - Bumped `pubspec.yaml` to `version: 2.0.0-alpha.1+2` and `AboutCoveScreen` to `Cove v2.0-alpha.1 (2) · Designed for Two` in lockstep with `kCoveCurrentAppVersion = '2.0.0-alpha.1'`.
+    - Rewrote the `v2.0-alpha.1 — The Design System` `ChangelogItem` (`title`, `tagline`, `outcome`, `underTheHood`, and release date `Oct 28, 2026`) in Cove's plain user-facing voice with the complete Phases 0–4 technical summary under the hood.
+    - Paused automatic Vercel web deployments on `main` via `"git": { "deploymentEnabled": { "main": false } }` in [`vercel.json`](../vercel.json) so the live web app stays untouched until the web redesign pass.
+  - *Under the Hood*:
+    - Updated [`pubspec.yaml`](../pubspec.yaml), [`lib/features/changelog/changelog_models.dart`](../lib/features/changelog/changelog_models.dart), [`lib/features/home/about_cove_screen.dart`](../lib/features/home/about_cove_screen.dart), [`vercel.json`](../vercel.json), [`product/versioning_and_git_strategy.md`](./versioning_and_git_strategy.md), and regenerated the affected goldens in [`test/golden/about_changelog_41c_golden_test.dart`](../test/golden/about_changelog_41c_golden_test.dart).
 
 ### Fixed
 - **Only the Home's Creator Re-Syncs the `homes` Row (`Oct 28, 2026`)**:

@@ -121,7 +121,7 @@ void main() {
 
   group('ChangelogScreen Widget Tests', () {
     testWidgets('ChangelogScreen renders timeline items, dates, intro card, and What\'s Fresh AppBar button', (tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.physicalSize = const Size(800, 2600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -147,6 +147,14 @@ void main() {
 
       // Timeline Items
       expect(find.text('RELEASE TIMELINE'), findsOneWidget);
+      expect(find.text('v2.0-alpha.1 — The Design System'), findsOneWidget);
+      expect(
+        find.text(
+          'Cove, put together: one look, one way to add, and a home screen that knows your day.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Oct 28, 2026'), findsOneWidget);
       expect(find.text('Home-Scoped Budget, Currency & Reminders'), findsOneWidget);
       expect(find.text('Contextual Notification Deep Linking'), findsOneWidget);
       expect(find.text('Sep 25, 2026'), findsWidgets);
