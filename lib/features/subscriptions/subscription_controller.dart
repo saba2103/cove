@@ -446,7 +446,9 @@ class SubscriptionController {
     // 1. Immediately record tombstone and delete locally
     try {
       await _db.recordTombstone(id, 'subscription');
-      await _db.deletePetTagsForRecord('commitment', id);
+      if (isPrivate) {
+        await _db.deletePetTagsForRecord('commitment', id);
+      }
       await (_db.delete(_db.localSubscriptions)..where((t) => t.id.equals(id))).go();
     } catch (_) {}
 

@@ -656,41 +656,109 @@ void main() {
   );
 
   test(
-    'Deleting a record through PendingDeleteService keeps pet tags on Undo and removes them on commit',
+    'Saba deletes a tagged expense -> after sync, zero tags for it on Ancy\'s device too; an undo during the window leaves the tags on both',
     () async {
-      final (db, store) = await createTestDb();
-      final emittedEvents = <(String, Map<String, dynamic>)>[];
-      final container = createContainer(
-        db: db,
-        store: store,
-        emittedEvents: emittedEvents,
+      // Saba's device and Ancy's device each have their own SQLite database.
+      final (sabaDb, sabaStore) = await createTestDb();
+      final (ancyDb, ancyStore) = await createTestDb();
+
+      // Any event emitted on Saba's device is applied locally in the same
+      // transaction and queued for sync to Ancy's device.
+      final relayQueue = <(String, String, Map<String, dynamic>, DateTime)>[];
+      var seq = 0;
+
+      final sabaContainer = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(sabaDb),
+          activeHomeIdProvider.overrideWith(() => _ActiveHomeIdStub(homeId)),
+          activeHomeProvider.overrideWith(
+            (ref) => Stream.value(
+              LocalHome(
+                id: homeId,
+                name: 'Our Cove',
+                createdAt: DateTime.utc(2026, 1, 1),
+                createdBy: alex.id,
+                currency: 'INR',
+              ),
+            ),
+          ),
+          activeHomeHasPartnerProvider
+              .overrideWith(_ActiveHomePartnerStub.new),
+          authProvider.overrideWith(() => _TestAuthNotifier(alex)),
+          coveEmitActionProvider.overrideWithValue(({
+            required String eventType,
+            required Map<String, dynamic> payload,
+            String? targetHomeId,
+          }) async {
+            final targetHome = targetHomeId ?? homeId;
+            final eventId = 'evt_${++seq}_$eventType';
+            final now = clock.now().toUtc();
+            final cloned = Map<String, dynamic>.from(payload);
+            await sabaStore.applyEvent(
+              eventId: eventId,
+              homeId: targetHome,
+              eventType: eventType,
+              payload: cloned,
+              timestamp: now,
+              authorId: alex.id,
+            );
+            relayQueue.add((eventId, eventType, cloned, now));
+          }),
+        ],
       );
       addTearDown(() async {
-        container.dispose();
-        await db.close();
+        sabaContainer.dispose();
+        await sabaDb.close();
+        await ancyDb.close();
       });
 
-      final petController = container.read(petControllerProvider);
+      Future<void> syncRelayToAncy() async {
+        while (relayQueue.isNotEmpty) {
+          final (eventId, eventType, payload, ts) = relayQueue.removeAt(0);
+          await ancyStore.applyEvent(
+            eventId: eventId,
+            homeId: homeId,
+            eventType: eventType,
+            payload: payload,
+            timestamp: ts,
+            authorId: alex.id,
+          );
+        }
+      }
+
+      final petController = sabaContainer.read(petControllerProvider);
       final lylaId = await petController.createPet('Lyla');
 
-      final expenseId =
-          await container.read(expenseControllerProvider).logExpense(
-                title: 'Pet shampoo',
-                amount: 350,
-                currency: 'INR',
-                expenseDate: DateTime.utc(2026, 4, 20),
-                paidBy: alex.id,
-                category: 'Pets',
-              );
+      final expenseId = await sabaContainer
+          .read(expenseControllerProvider)
+          .logExpense(
+            title: 'Pet shampoo',
+            amount: 350,
+            currency: 'INR',
+            expenseDate: DateTime.utc(2026, 4, 20),
+            paidBy: alex.id,
+            category: 'Pets',
+          );
       await petController.addPetTag(
         petId: lylaId,
         recordKind: PetRecordKind.expense,
         recordId: expenseId,
       );
 
-      final pendingDelete = container.read(pendingDeleteServiceProvider);
+      // Sync creation + tag to Ancy's device -> both devices have 1 tag for the expense.
+      await syncRelayToAncy();
+      expect(
+        await sabaDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        hasLength(1),
+      );
+      expect(
+        await ancyDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        hasLength(1),
+      );
 
-      // 1. Schedule delete then undo -> tags remain intact.
+      final pendingDelete = sabaContainer.read(pendingDeleteServiceProvider);
+
+      // 1. Saba deletes the expense and undoes during the window -> tags stay on both devices.
       await pendingDelete.scheduleDelete(
         kind: PendingDeleteKind.expense,
         id: expenseId,
@@ -700,25 +768,108 @@ void main() {
         kind: PendingDeleteKind.expense,
         id: expenseId,
       );
-      final tagsAfterUndo = await db.getPetTagsForRecord(
-        PetRecordKind.expense,
-        expenseId,
+      await syncRelayToAncy();
+      expect(
+        await sabaDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        hasLength(1),
       );
-      expect(tagsAfterUndo, hasLength(1));
+      expect(
+        await ancyDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        hasLength(1),
+      );
 
-      // 2. Schedule delete and commit -> tags are removed from local_pet_tags.
+      // 2. Saba deletes the expense and lets the window commit -> after sync,
+      // zero tags for it on Saba's device AND zero tags on Ancy's device too.
       await pendingDelete.scheduleDelete(
         kind: PendingDeleteKind.expense,
         id: expenseId,
         duration: const Duration(milliseconds: 10),
       );
       await Future<void>.delayed(const Duration(milliseconds: 60));
+      await syncRelayToAncy();
 
-      final tagsAfterCommit = await db.getPetTagsForRecord(
-        PetRecordKind.expense,
-        expenseId,
+      expect(
+        await sabaDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        isEmpty,
       );
-      expect(tagsAfterCommit, isEmpty);
+      expect(
+        await ancyDb.getPetTagsForRecord(PetRecordKind.expense, expenseId),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'Every record-delete event in applyEventInTransaction deletes that record\'s pet tags in the same transaction',
+    () async {
+      final (db, store) = await createTestDb();
+      addTearDown(db.close);
+
+      final now = DateTime.utc(2026, 4, 20, 12, 0);
+      await store.applyEvent(
+        eventId: 'evt_pet_1',
+        homeId: homeId,
+        eventType: 'pet_created',
+        payload: {
+          'id': 'pet_lyla',
+          'home_id': homeId,
+          'name': 'Lyla',
+          'created_by': alex.id,
+          'created_at': now.toIso8601String(),
+        },
+        timestamp: now,
+        authorId: alex.id,
+      );
+
+      const cases = <(String, String, String)>[
+        (PetRecordKind.expense, 'exp_del_1', 'expense_deleted'),
+        (PetRecordKind.task, 'task_del_1', 'list_item_deleted'),
+        (PetRecordKind.habit, 'habit_del_1', 'habit_deleted'),
+        (PetRecordKind.event, 'event_del_1', 'calendar_event_deleted'),
+        (PetRecordKind.commitment, 'sub_del_1', 'subscription_deleted'),
+        (PetRecordKind.routineEvent, 'rev_del_1', 'routine_event_deleted'),
+      ];
+
+      var seq = 0;
+      for (final (recordKind, recordId, deleteEventType) in cases) {
+        await store.applyEvent(
+          eventId: 'evt_tag_${++seq}',
+          homeId: homeId,
+          eventType: 'pet_tag_added',
+          payload: {
+            'id': 'tag_$recordId',
+            'home_id': homeId,
+            'pet_id': 'pet_lyla',
+            'record_kind': recordKind,
+            'record_id': recordId,
+            'created_by': alex.id,
+            'created_at': now.toIso8601String(),
+          },
+          timestamp: now,
+          authorId: alex.id,
+        );
+        expect(
+          await db.getPetTagsForRecord(recordKind, recordId),
+          hasLength(1),
+        );
+
+        await store.applyEvent(
+          eventId: 'evt_del_${++seq}',
+          homeId: homeId,
+          eventType: deleteEventType,
+          payload: {
+            'id': recordId,
+            'home_id': homeId,
+          },
+          timestamp: now.add(const Duration(seconds: 1)),
+          authorId: alex.id,
+        );
+        expect(
+          await db.getPetTagsForRecord(recordKind, recordId),
+          isEmpty,
+          reason: '$deleteEventType should remove pet tags for $recordKind',
+        );
+      }
     },
   );
 

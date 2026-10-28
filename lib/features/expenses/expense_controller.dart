@@ -280,6 +280,9 @@ class ExpenseController {
 
     // 1. Immediately delete from local database and record tombstone to prevent resurrection on pull-to-refresh
     try {
+      if (visibility == ExpenseVisibility.privateToMe) {
+        await _db.deletePetTagsForRecord('expense', id);
+      }
       await _db.deleteExpense(id);
       await _db.recordTombstone(id, 'expense');
     } catch (_) {}

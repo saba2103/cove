@@ -207,6 +207,7 @@ class LocalStateStoreImpl implements LocalStateStore {
             final items = await (db.select(db.localListItems)..where((t) => t.listId.equals(listId))).get();
             for (final item in items) {
               await db.recordTombstone(item.id, 'list_item');
+              await db.deletePetTagsForRecord('task', item.id);
             }
             await (db.delete(db.localListItems)..where((t) => t.listId.equals(listId))).go();
             await (db.delete(db.localLists)..where((t) => t.id.equals(listId))).go();
@@ -366,6 +367,7 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'list_item_deleted':
           final itemId = payload['id'] as String;
           await db.recordTombstone(itemId, 'list_item');
+          await db.deletePetTagsForRecord('task', itemId);
           await (db.delete(db.localListItems)
                 ..where((t) => t.id.equals(itemId)))
               .go();
@@ -378,6 +380,7 @@ class LocalStateStoreImpl implements LocalStateStore {
               .get();
           for (final item in completedItems) {
             await db.recordTombstone(item.id, 'list_item');
+            await db.deletePetTagsForRecord('task', item.id);
           }
           await db.clearCompletedListItems(homeId, targetListId);
           break;
@@ -450,6 +453,7 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'subscription_deleted':
           final deleteId = payload['id'] as String;
           await db.recordTombstone(deleteId, 'subscription');
+          await db.deletePetTagsForRecord('commitment', deleteId);
           await (db.delete(db.localSubscriptions)
                 ..where((t) => t.id.equals(deleteId)))
               .go();
@@ -526,6 +530,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'expense_deleted':
           final expenseId = payload['id'] as String;
+          await db.deletePetTagsForRecord('expense', expenseId);
           await (db.delete(db.localExpenses)
                 ..where((t) => t.id.equals(expenseId)))
               .go();
@@ -650,6 +655,7 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'habit_deleted':
           final habitId = payload['id'] as String;
           await db.recordTombstone(habitId, 'habit');
+          await db.deletePetTagsForRecord('habit', habitId);
           await db.deleteHabit(habitId);
           break;
 
@@ -696,6 +702,7 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'calendar_event_deleted':
           final eventId = payload['id'] as String;
           await db.recordTombstone(eventId, 'calendar_event');
+          await db.deletePetTagsForRecord('event', eventId);
           await (db.delete(db.localCalendarEvents)
                 ..where((t) => t.id.equals(eventId)))
               .go();
@@ -796,6 +803,12 @@ class LocalStateStoreImpl implements LocalStateStore {
         case 'routine_deleted':
           final delRoutineId = payload['id'] as String;
           await db.recordTombstone(delRoutineId, 'routine');
+          final routineEvents = await (db.select(db.localRoutineEvents)
+                ..where((t) => t.routineId.equals(delRoutineId)))
+              .get();
+          for (final ev in routineEvents) {
+            await db.deletePetTagsForRecord('routine_event', ev.id);
+          }
           await (db.delete(db.localRoutineEvents)..where((t) => t.routineId.equals(delRoutineId))).go();
           await (db.delete(db.localRoutines)..where((t) => t.id.equals(delRoutineId))).go();
           break;
@@ -833,6 +846,7 @@ class LocalStateStoreImpl implements LocalStateStore {
 
         case 'routine_event_deleted':
           final delEventId = payload['id'] as String;
+          await db.deletePetTagsForRecord('routine_event', delEventId);
           await (db.delete(db.localRoutineEvents)..where((t) => t.id.equals(delEventId))).go();
           break;
 

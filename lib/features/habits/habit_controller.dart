@@ -250,6 +250,7 @@ class HabitController {
     final isPrivate = habit.targetDaysPerWeek < 0;
 
     if (isPrivate) {
+      await _db.deletePetTagsForRecord('habit', habit.id);
       await _db.deleteHabit(habit.id);
       return;
     }

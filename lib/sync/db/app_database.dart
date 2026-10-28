@@ -1016,9 +1016,8 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<void> deleteExpense(String expenseId) async {
-    await deletePetTagsForRecord('expense', expenseId);
-    await (delete(localExpenses)..where((t) => t.id.equals(expenseId))).go();
+  Future<void> deleteExpense(String expenseId) {
+    return (delete(localExpenses)..where((t) => t.id.equals(expenseId))).go();
   }
 
   Stream<List<LocalHabit>> watchHabits(
@@ -1060,7 +1059,6 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> deleteHabit(String habitId) async {
-    await deletePetTagsForRecord('habit', habitId);
     await (delete(localHabitCheckins)..where((t) => t.habitId.equals(habitId))).go();
     await (delete(localHabits)..where((t) => t.id.equals(habitId))).go();
   }
@@ -1101,9 +1099,8 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
-  Future<void> deleteCalendarEvent(String eventId) async {
-    await deletePetTagsForRecord('event', eventId);
-    await (delete(localCalendarEvents)..where((t) => t.id.equals(eventId))).go();
+  Future<void> deleteCalendarEvent(String eventId) {
+    return (delete(localCalendarEvents)..where((t) => t.id.equals(eventId))).go();
   }
 
   Stream<List<LocalOutboxEvent>> watchOutbox(String homeId) {
