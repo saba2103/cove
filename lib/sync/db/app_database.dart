@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/foundation.dart';
 // ignore: depend_on_referenced_packages
 import 'package:path_provider/path_provider.dart';
 // ignore: depend_on_referenced_packages
@@ -621,6 +622,7 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(localPetTags);
             await m.createIndex(idxLocalPetTagsRecord);
           }
+          debugPrint('[AppDatabase] schema user_version migrated $from -> $to');
         },
       );
 
