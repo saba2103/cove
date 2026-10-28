@@ -312,6 +312,8 @@ class HomeController {
 
   /// Ensures a locally stored home and current user membership exist in Supabase.
   /// Self-heals any connection dropouts or delayed initial inserts.
+  /// Only the home's creator (`home.createdBy == userId`) writes the `homes` row;
+  /// non-creator members skip it and only sync their own `home_members` row.
   Future<void> ensureHomeSyncedToSupabase(String homeId) async {
     if (!await _keyStore.hasKey(homeId)) {
       return;
@@ -330,14 +332,16 @@ class HomeController {
     if (userId == null) return;
 
     try {
-      await supabase.from('homes').upsert({
-        'id': home.id,
-        'name': home.name,
-        'description': home.description,
-        'icon': home.icon,
-        'created_at': home.createdAt.toIso8601String(),
-        'created_by': home.createdBy,
-      });
+      if (home.createdBy == userId) {
+        await supabase.from('homes').upsert({
+          'id': home.id,
+          'name': home.name,
+          'description': home.description,
+          'icon': home.icon,
+          'created_at': home.createdAt.toIso8601String(),
+          'created_by': home.createdBy,
+        });
+      }
 
       final userProfile = ref.read(userProfileProvider);
       await supabase.from('home_members').upsert({

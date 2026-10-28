@@ -34,6 +34,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> _map = {};
@@ -699,7 +701,97 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 50));
     });
+
+    test('ensureHomeSyncedToSupabase only writes the homes row when the user is the home creator', () async {
+      await keyStore.saveKey('home_shared', Uint8List(32));
+      await db.into(db.localHomes).insert(
+            LocalHomesCompanion.insert(
+              id: 'home_shared',
+              name: 'Saba&Ancy',
+              createdAt: DateTime.utc(2026, 10, 1),
+              createdBy: 'user_saba',
+            ),
+          );
+
+      // 1. Creator (user_saba) -> upserts both homes and home_members
+      final creatorHttp = _RecordingHttpClient();
+      final creatorSupabase = SupabaseClient(
+        'https://cove-test.supabase.co',
+        'test-anon-key',
+        httpClient: creatorHttp,
+      );
+      addTearDown(creatorSupabase.dispose);
+
+      final creatorContainer = ProviderContainer(
+        overrides: [
+          ...createOverrides(
+            user: const CoveUser(
+              id: 'user_saba',
+              email: 'saba@cove.test',
+              displayName: 'Saba',
+            ),
+          ),
+          supabaseClientProvider.overrideWithValue(creatorSupabase),
+        ],
+      );
+      addTearDown(creatorContainer.dispose);
+
+      await creatorContainer
+          .read(homeControllerProvider)
+          .ensureHomeSyncedToSupabase('home_shared');
+
+      expect(
+        creatorHttp.paths,
+        containsAll(<String>['/rest/v1/homes', '/rest/v1/home_members']),
+      );
+
+      // 2. Non-creator member (user_ancy) -> skips homes upsert and only upserts home_members
+      final memberHttp = _RecordingHttpClient();
+      final memberSupabase = SupabaseClient(
+        'https://cove-test.supabase.co',
+        'test-anon-key',
+        httpClient: memberHttp,
+      );
+      addTearDown(memberSupabase.dispose);
+
+      final memberContainer = ProviderContainer(
+        overrides: [
+          ...createOverrides(
+            user: const CoveUser(
+              id: 'user_ancy',
+              email: 'ancy@cove.test',
+              displayName: 'Ancy',
+            ),
+          ),
+          supabaseClientProvider.overrideWithValue(memberSupabase),
+        ],
+      );
+      addTearDown(memberContainer.dispose);
+
+      await memberContainer
+          .read(homeControllerProvider)
+          .ensureHomeSyncedToSupabase('home_shared');
+
+      expect(memberHttp.paths, isNot(contains('/rest/v1/homes')));
+      expect(memberHttp.paths, contains('/rest/v1/home_members'));
+    });
   });
+}
+
+class _RecordingHttpClient extends http.BaseClient {
+  final List<String> paths = <String>[];
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    await request.finalize().drain<void>();
+    paths.add(request.url.path);
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode('[]')),
+      201,
+      request: request,
+      headers: const <String, String>{'content-type': 'application/json'},
+    );
+  }
 }
 
 class FakeAuthNotifier extends Notifier<AsyncValue<CoveUser?>>

@@ -7,6 +7,11 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [v2.0-alpha.1] — 2026-10-22
 
 ### Fixed
+- **Only the Home's Creator Re-Syncs the `homes` Row (`Oct 28, 2026`)**:
+  - *Outcome*:
+    - Guarded the `supabase.from('homes').upsert(...)` call in [`HomeController.ensureHomeSyncedToSupabase`](../lib/features/home/home_controller.dart) with `if (home.createdBy == userId)` so non-creator members skip writing the `homes` row (avoiding the `42501` RLS violation on launch) while still syncing their own `home_members` row.
+  - *Under the Hood*:
+    - Added a test in [`test/auth_onboarding_test.dart`](../test/auth_onboarding_test.dart) verifying the creator upserts both `/rest/v1/homes` and `/rest/v1/home_members` while a non-creator member skips `/rest/v1/homes` and only upserts `/rest/v1/home_members`.
 - **Task 4.6b — Undoing "Mark paid" Deletes Logged Expense & Restores Commitment (`Oct 27, 2026`)**:
   - *Outcome*:
     1. **`renewOrPaySubscription` & `forecloseEmi` Return Logged Expense ID (`lib/features/subscriptions/subscription_controller.dart`)**: Both methods now return `Future<String?>` with the created expense ID when `logExpense` is ticked (`true`), or `null` when unticked, and `updateSubscription` restores `isActive: true` for private commitments as well as shared ones.
