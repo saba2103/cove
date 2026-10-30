@@ -313,7 +313,7 @@ class _ComponentShowcaseScreenState
                 isDark ? 'Dark' : 'Light',
                 style: typography.caption.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: colors.accentPrimary,
+                  color: context.cv.accentText,
                 ),
               ),
               const SizedBox(width: 8),
@@ -348,7 +348,7 @@ class _ComponentShowcaseScreenState
                 style: typography.caption.copyWith(
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w600,
-                  color: colors.accentPrimary,
+                  color: context.cv.accentText,
                 ),
               ),
               const SizedBox(height: 4),

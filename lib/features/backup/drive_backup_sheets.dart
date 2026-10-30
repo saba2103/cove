@@ -454,7 +454,7 @@ class _RestoreBackupSheetState extends ConsumerState<RestoreBackupSheet> {
             ),
             backgroundColor: selected ? cv.surfaceRow : null,
             border: Border.all(
-              color: selected ? cv.accentFill : cv.lineHairline,
+              color: selected ? cv.accentFill : cv.lineControl,
               width: selected ? _kSelectedBorderWidth : _kBorderWidth,
             ),
             onTap: () => setState(() => _selected = f),

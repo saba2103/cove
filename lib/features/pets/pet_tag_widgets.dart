@@ -131,7 +131,6 @@ class RecordPetTagChips extends StatelessWidget {
 
   static const double _kChipBorderWidth = 1.0; // (literal) 1dp chip border
   static const double _kPawIconSize = 13.0; // (literal) 13dp small paw icon
-  static const double _kArchivedOpacity = 0.55; // (literal) greyed-out archived chip
 
   const RecordPetTagChips({
     super.key,
@@ -183,7 +182,7 @@ class _RecordPetChip extends StatelessWidget {
         CoveRadius.pill,
         color: archived ? cv.surfaceRow : cv.accentWash,
         side: BorderSide(
-          color: archived ? cv.lineHairline : cv.lineStrong,
+          color: cv.lineControl,
           width: RecordPetTagChips._kChipBorderWidth,
         ),
       ),
@@ -207,9 +206,8 @@ class _RecordPetChip extends StatelessWidget {
     );
 
     final wrapped = archived
-        ? Opacity(
+        ? KeyedSubtree(
             key: ValueKey('record_pet_chip_archived_${pet.id}'),
-            opacity: RecordPetTagChips._kArchivedOpacity,
             child: chip,
           )
         : chip;
@@ -351,7 +349,7 @@ class PetTagPickerSheet extends ConsumerWidget {
                         border: isTagged
                             ? null
                             : Border.all(
-                                color: cv.lineStrong,
+                                color: cv.lineControl,
                                 width: _kCheckBorderWidth,
                               ),
                       ),

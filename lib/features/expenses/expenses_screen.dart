@@ -1192,13 +1192,17 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     clipBehavior: Clip.none,
                     alignment: Alignment.centerLeft,
                     children: [
-                      CoveShape.clip(
-                        CoveRadius.pill,
-                        SizedBox(
-                          height: _kBarHeight,
-                          width: double.infinity,
-                          child: ColoredBox(
-                            color: cv.lineStrong,
+                      DecoratedBox(
+                        decoration: CoveShape.decoration(
+                          CoveRadius.pill,
+                          color: cv.surfaceRow,
+                          side: BorderSide(color: cv.lineControl),
+                        ),
+                        child: CoveShape.clip(
+                          CoveRadius.pill,
+                          SizedBox(
+                            height: _kBarHeight,
+                            width: double.infinity,
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: FractionallySizedBox(
@@ -2148,7 +2152,7 @@ class _DailySpendBarChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 2.0), // (literal)
                     ColoredBox(
-                      color: cv.lineStrong,
+                      color: cv.lineControl,
                       child: const SizedBox(
                         width: double.infinity,
                         height: _kBorderWidth,
@@ -2189,10 +2193,10 @@ class _DailySpendBarChart extends StatelessWidget {
                           _kBarRadius,
                           color: isFuture
                               ? Colors.transparent
-                              : (value > 0 ? activeBarColor : cv.lineStrong),
+                              : (value > 0 ? activeBarColor : cv.lineControl),
                           side: isFuture
                               ? BorderSide(
-                                  color: cv.lineStrong,
+                                  color: cv.lineControl,
                                   width: _kBorderWidth,
                                 )
                               : BorderSide.none,

@@ -306,10 +306,12 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                                     ),
                                   ),
                                 ),
-                                Text(
-                                  '·',
-                                  style: CoveType.rowSub.copyWith(
-                                    color: cv.textSecondary,
+                                ExcludeSemantics(
+                                  child: Text(
+                                    '·',
+                                    style: CoveType.barLabel.copyWith(
+                                      color: cv.textSecondary,
+                                    ),
                                   ),
                                 ),
                                 Text(

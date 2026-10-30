@@ -129,15 +129,16 @@ class _CategoryDetailSheetState extends ConsumerState<CategoryDetailSheet> {
               controller: controller,
               autofocus: true,
               textCapitalization: TextCapitalization.words,
+              cursorColor: cv.lineFocus,
               style: CoveType.body.copyWith(color: cv.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Category name',
                 hintStyle: CoveType.rowSub.copyWith(color: cv.textTertiary),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.lineHairline),
+                  borderSide: BorderSide(color: cv.lineControl),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: cv.accentFill),
+                  borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
                 ),
               ),
             ),

@@ -42,6 +42,7 @@ class CoveTheme {
       useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: tokens.surfaceCanvas,
+      focusColor: tokens.accentWash,
       fontFamily: 'PlusJakartaSans',
       colorScheme: ColorScheme(
         brightness: brightness,
@@ -131,8 +132,44 @@ class CoveTheme {
       chipTheme: ChipThemeData(
         backgroundColor: tokens.surfaceCard,
         selectedColor: tokens.accentTint,
-        side: BorderSide(color: tokens.lineStrong, width: 1),
+        side: BorderSide(color: tokens.lineControl, width: 1),
         shape: CoveShape.border(CoveRadius.inline),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tokens.textOnAccent;
+          }
+          return tokens.textSecondary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tokens.accentFill;
+          }
+          return Colors.transparent;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return tokens.lineControl;
+        }),
+        trackOutlineWidth: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return 0.0;
+          }
+          return 1.5;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return tokens.accentFill;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStatePropertyAll(tokens.textOnAccent),
+        side: BorderSide(color: tokens.lineControl, width: 1.5),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
@@ -157,15 +194,15 @@ class CoveTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: CoveInputBorder(
           radius: CoveRadius.inline,
-          borderSide: BorderSide(color: tokens.lineStrong),
+          borderSide: BorderSide(color: tokens.lineControl),
         ),
         enabledBorder: CoveInputBorder(
           radius: CoveRadius.inline,
-          borderSide: BorderSide(color: tokens.lineStrong),
+          borderSide: BorderSide(color: tokens.lineControl),
         ),
         focusedBorder: CoveInputBorder(
           radius: CoveRadius.inline,
-          borderSide: BorderSide(color: tokens.accentFill, width: 1.5),
+          borderSide: BorderSide(color: tokens.lineFocus, width: 1.5),
         ),
         errorBorder: CoveInputBorder(
           radius: CoveRadius.inline,

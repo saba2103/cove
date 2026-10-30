@@ -880,16 +880,16 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     Icon(
                       Icons.bedtime_outlined,
                       size: _asleepIconSize,
-                      color: cv.accentText.withValues(alpha: 0.8),
+                      color: cv.accentText,
                     ),
                     const SizedBox(width: CoveSpace.xs),
-                    Expanded(
+                    Flexible(
                       child: Text(
                         'asleep · 7 h · 11p – 6a',
                         maxLines: isScaled ? null : 1,
                         overflow: isScaled ? null : TextOverflow.ellipsis,
                         style: CoveType.rowSub.copyWith(
-                          color: cv.textTertiary,
+                          color: cv.textSky,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -929,7 +929,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                       child: Text(
                         label,
                         style: CoveType.barLabel.copyWith(
-                          color: cv.textTertiary,
+                          color: cv.textSky,
                         ),
                       ),
                     ),
@@ -1269,7 +1269,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             height: _nowDotSize,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: cv.accentFill,
+                color: cv.lineFocus,
                 shape: BoxShape.circle,
               ),
             ),
@@ -1278,7 +1278,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             child: SizedBox(
               height: _nowLineHeight,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: cv.accentFill),
+                decoration: BoxDecoration(color: cv.lineFocus),
               ),
             ),
           ),

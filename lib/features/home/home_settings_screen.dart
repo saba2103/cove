@@ -570,7 +570,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                                 Text(
                                   '&',
                                   style: CoveType.heroFigure.copyWith(
-                                    color: cv.accentFill,
+                                    color: cv.accentText,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -602,7 +602,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                                 Text(
                                   '&',
                                   style: CoveType.heroFigure.copyWith(
-                                    color: cv.accentFill,
+                                    color: cv.accentText,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -652,7 +652,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                                   togetherText,
                                   textAlign: TextAlign.center,
                                   style: CoveType.readout.copyWith(
-                                    color: cv.accentTint,
+                                    color: cv.accentText,
                                   ),
                                 ),
                                 const SizedBox(height: CoveSpace.xs),
@@ -665,7 +665,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                                   inCoveText,
                                   textAlign: TextAlign.center,
                                   style: CoveType.readout.copyWith(
-                                    color: cv.accentTint,
+                                    color: cv.accentText,
                                   ),
                                 ),
                                 const SizedBox(height: CoveSpace.xs),
@@ -684,7 +684,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                               Text(
                                 togetherText,
                                 style: CoveType.readout.copyWith(
-                                  color: cv.accentTint,
+                                  color: cv.accentText,
                                 ),
                               ),
                               const SizedBox(height: CoveSpace.xs),
@@ -697,7 +697,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                               Text(
                                 inCoveText,
                                 style: CoveType.readout.copyWith(
-                                  color: cv.accentTint,
+                                  color: cv.accentText,
                                 ),
                               ),
                               const SizedBox(height: CoveSpace.xs),
@@ -1267,15 +1267,16 @@ class _PetNameDialogState extends State<_PetNameDialog> {
         controller: _controller,
         autofocus: true,
         textCapitalization: TextCapitalization.words,
+        cursorColor: cv.lineFocus,
         style: CoveType.body.copyWith(color: cv.textPrimary),
         decoration: InputDecoration(
           hintText: 'Pet name',
           hintStyle: CoveType.body.copyWith(color: cv.textTertiary),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: cv.lineHairline),
+            borderSide: BorderSide(color: cv.lineControl),
           ),
           focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: cv.accentFill),
+            borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
           ),
         ),
         onSubmitted: (val) => Navigator.of(context).pop(val.trim()),

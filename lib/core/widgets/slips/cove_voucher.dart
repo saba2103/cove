@@ -376,7 +376,7 @@ class _DueCircle extends StatelessWidget {
     final circleSize = textScale > 1.0
         ? (CoveVoucher.kDueCircleSize * textScale).ceilToDouble()
         : CoveVoucher.kDueCircleSize;
-    final ringColor = isPaid ? palette.rule : palette.accentFill;
+    final ringColor = isPaid ? palette.mark : palette.accentFill;
     final dayColor = isPaid ? palette.tertiary : palette.accent;
     final monthColor = palette.tertiary;
 

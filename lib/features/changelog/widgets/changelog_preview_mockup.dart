@@ -369,7 +369,7 @@ class _SmartDecimalsPreview extends StatelessWidget {
           before,
           style: CoveType.barLabel.copyWith(
             decoration: TextDecoration.lineThrough,
-            color: cv.textSecondary.withValues(alpha: 0.5),
+            color: cv.textTertiary,
           ),
         ),
         const SizedBox(width: CoveSpace.sm),

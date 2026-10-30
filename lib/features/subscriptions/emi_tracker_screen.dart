@@ -866,14 +866,21 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
             style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
           ),
           const SizedBox(height: CoveSpace.sm),
-          CoveShape.clip(
-            CoveRadius.pill,
-            SizedBox(
-              height: _kBarHeight,
-              child: LinearProgressIndicator(
-                value: overallPayoffPercent,
-                backgroundColor: cv.surfaceRow,
-                valueColor: AlwaysStoppedAnimation<Color>(cv.accentFill),
+          DecoratedBox(
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
+              color: cv.surfaceRow,
+              side: BorderSide(color: cv.lineControl),
+            ),
+            child: CoveShape.clip(
+              CoveRadius.pill,
+              SizedBox(
+                height: _kBarHeight,
+                child: LinearProgressIndicator(
+                  value: overallPayoffPercent,
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(cv.accentFill),
+                ),
               ),
             ),
           ),
@@ -954,7 +961,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                     selectedIndex: effectiveIdx,
                     strokeColor: cv.accentFill,
                     fillColor: cv.accentWash,
-                    gridColor: cv.lineHairline,
+                    gridColor: cv.lineControl,
                     surfaceColor: cv.surfaceCanvas,
                     labelStyle: CoveType.rowSub.copyWith(
                       color: cv.textSecondary,
@@ -1186,7 +1193,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                                 text:
                                     '${currency.symbol}${formatCoveAmount(groupMonthly)}',
                                 style: CoveType.rowTitle.copyWith(
-                                  color: cv.accentTint,
+                                  color: cv.accentText,
                                 ),
                               ),
                               TextSpan(
@@ -1226,7 +1233,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                                 text:
                                     '${currency.symbol}${formatCoveAmount(groupMonthly)}',
                                 style: CoveType.rowTitle.copyWith(
-                                  color: cv.accentTint,
+                                  color: cv.accentText,
                                 ),
                               ),
                               TextSpan(
@@ -1477,7 +1484,7 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                         totalInstallments: total,
                         paidInstallments: paid,
                         punchedColor: cv.accentFill,
-                        unpunchedColor: cv.lineStrong,
+                        unpunchedColor: cv.lineControl,
                       ),
                     ),
                   ),

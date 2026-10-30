@@ -668,7 +668,7 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                   child: Text(
                     item.module.label.toUpperCase(),
                     style: CoveType.capsCard.copyWith(
-                      color: cv.accentTint,
+                      color: cv.accentText,
                     ),
                   ),
                 ),

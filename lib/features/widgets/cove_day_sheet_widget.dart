@@ -847,7 +847,6 @@ class CoveDaySheetCard extends StatelessWidget {
   static const double _kMeridiemGap = 3.0; // (literal) 3dp gap between short time and AM/PM
   static const double _kLineTitleSize = 14.0; // (literal) 14sp line title
   static const double _kLineSubSize = 11.5; // (literal) 11.5sp line subtitle
-  static const double _kDimmedTimeAlpha = 0.52; // (literal) dimmed time alpha when over
   static const double _kHabitDotSize = 10.0; // (literal) 10dp habit dot diameter
   static const double _kHabitDotGap = 6.0; // (literal) 6dp gap between habit dots
   static const double _kHabitDotStroke = 1.4; // (literal) 1.4dp outlined habit dot stroke
@@ -1087,9 +1086,7 @@ class CoveDaySheetCard extends StatelessWidget {
     required bool showMeridiem,
   }) {
     final isDimmed = line.isOver;
-    final timeColor = isDimmed
-        ? cv.accentText.withValues(alpha: _kDimmedTimeAlpha)
-        : cv.accentText;
+    final timeColor = isDimmed ? cv.textTertiary : cv.accentText;
     final VoidCallback? onTap = line.isTask
         ? (onTickTask != null ? () => onTickTask!(line) : null)
         : (onOpenLine != null ? () => onOpenLine!(line) : onOpenSheet);
@@ -1194,7 +1191,7 @@ class CoveDaySheetCard extends StatelessWidget {
         _kTaskCheckboxRadius,
         color: isCompleted ? cv.accentFill : Colors.transparent,
         side: BorderSide(
-          color: isCompleted ? cv.accentFill : cv.lineStrong,
+          color: isCompleted ? cv.accentFill : cv.lineControl,
           width: _kHabitDotStroke,
         ),
       ),

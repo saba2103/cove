@@ -212,7 +212,7 @@ class CoveDial extends StatelessWidget implements CoveSlipObject {
                   height: dialDiameter,
                   child: CustomPaint(
                     painter: _CoveDialRingPainter(
-                      trackColor: palette.rule,
+                      trackColor: palette.mark,
                       arcColor: arcColor,
                       share: clampedShare,
                     ),

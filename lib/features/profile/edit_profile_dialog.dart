@@ -251,7 +251,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   avatar: Icon(
                     Icons.photo_library_outlined,
                     size: _kChipIconSize,
-                    color: cv.accentFill,
+                    color: cv.accentText,
                   ),
                   label: Text(
                     'Upload Photo',
@@ -260,8 +260,12 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  backgroundColor: cv.surfaceRow,
-                  side: BorderSide(color: cv.lineHairline),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.sm,
+                    vertical: CoveSpace.xs,
+                  ),
+                  backgroundColor: cv.surfaceSheet,
+                  side: BorderSide(color: cv.lineControl),
                   shape: chipShape,
                   onPressed: _isUploading
                       ? null
@@ -271,7 +275,7 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   avatar: Icon(
                     Icons.camera_alt_outlined,
                     size: _kChipIconSize,
-                    color: cv.accentFill,
+                    color: cv.accentText,
                   ),
                   label: Text(
                     'Camera',
@@ -280,8 +284,12 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  backgroundColor: cv.surfaceRow,
-                  side: BorderSide(color: cv.lineHairline),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.sm,
+                    vertical: CoveSpace.xs,
+                  ),
+                  backgroundColor: cv.surfaceSheet,
+                  side: BorderSide(color: cv.lineControl),
                   shape: chipShape,
                   onPressed: _isUploading
                       ? null
@@ -296,10 +304,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                     ),
                     label: Text(
                       'Use Initials',
-                      style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                      style: CoveType.rowSub.copyWith(color: cv.textPrimary),
                     ),
-                    backgroundColor: cv.surfaceRow,
-                    side: BorderSide(color: cv.lineHairline),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.sm,
+                      vertical: CoveSpace.xs,
+                    ),
+                    backgroundColor: cv.surfaceSheet,
+                    side: BorderSide(color: cv.lineControl),
                     shape: chipShape,
                     onPressed: () {
                       setState(() {
@@ -318,10 +330,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                   ),
                   label: Text(
                     _showAvatarInput ? 'Hide URL' : 'Link URL',
-                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    style: CoveType.rowSub.copyWith(color: cv.textPrimary),
                   ),
-                  backgroundColor: cv.surfaceRow,
-                  side: BorderSide(color: cv.lineHairline),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.sm,
+                    vertical: CoveSpace.xs,
+                  ),
+                  backgroundColor: cv.surfaceSheet,
+                  side: BorderSide(color: cv.lineControl),
                   shape: chipShape,
                   onPressed: () {
                     setState(() {
@@ -342,8 +358,12 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                         color: cv.statusAlertText,
                       ),
                     ),
-                    backgroundColor: cv.surfaceRow,
-                    side: BorderSide(color: cv.lineHairline),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.sm,
+                      vertical: CoveSpace.xs,
+                    ),
+                    backgroundColor: cv.surfaceSheet,
+                    side: BorderSide(color: cv.lineControl),
                     shape: chipShape,
                     onPressed: () {
                       final user = ref.read(authProvider).value;

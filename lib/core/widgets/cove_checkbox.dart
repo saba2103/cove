@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_reflow_row.dart';
+import 'slips/cove_slip.dart';
 
 class CoveCheckbox extends StatelessWidget {
   final bool value;
@@ -25,7 +26,13 @@ class CoveCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final slipPalette = CoveSlipScope.maybeOf(context);
     final duration = CoveMotion.q(context);
+    final checkedFill = slipPalette?.accentFill ?? cv.accentFill;
+    final checkIconColor = slipPalette?.variant == CoveSlipVariant.paper
+        ? CoveTokens.dark.textPrimary
+        : cv.textOnAccent;
+    final uncheckedBorder = slipPalette?.mark ?? cv.lineControl;
 
     final box = AnimatedContainer(
       duration: duration,
@@ -34,11 +41,11 @@ class CoveCheckbox extends StatelessWidget {
       height: size,
       decoration: CoveShape.decoration(
         CoveSpace.xs,
-        color: value ? cv.accentFill : Colors.transparent,
+        color: value ? checkedFill : Colors.transparent,
         side: value
             ? BorderSide.none
             : BorderSide(
-                color: cv.textTertiary,
+                color: uncheckedBorder,
                 width: _kBorderWidth,
               ),
       ),
@@ -47,7 +54,7 @@ class CoveCheckbox extends StatelessWidget {
           ? Icon(
               Icons.check,
               size: size * 0.72,
-              color: cv.textOnAccent,
+              color: checkIconColor,
               weight: 600,
             )
           : null,

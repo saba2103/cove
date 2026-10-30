@@ -115,15 +115,16 @@ class ListItemDetailSheet extends ConsumerWidget {
                   controller: controller,
                   autofocus: true,
                   textCapitalization: TextCapitalization.sentences,
+                  cursorColor: cv.lineFocus,
                   style: CoveType.body.copyWith(color: cv.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Item name',
                     labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
                     enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.lineHairline),
+                      borderSide: BorderSide(color: cv.lineControl),
                     ),
                     focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.accentFill),
+                      borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
                     ),
                   ),
                 ),
@@ -131,15 +132,16 @@ class ListItemDetailSheet extends ConsumerWidget {
                 TextField(
                   controller: notesController,
                   textCapitalization: TextCapitalization.sentences,
+                  cursorColor: cv.lineFocus,
                   style: CoveType.body.copyWith(color: cv.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Notes (optional)',
                     labelStyle: CoveType.rowSub.copyWith(color: cv.textSecondary),
                     enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.lineHairline),
+                      borderSide: BorderSide(color: cv.lineControl),
                     ),
                     focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.accentFill),
+                      borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
                     ),
                   ),
                 ),

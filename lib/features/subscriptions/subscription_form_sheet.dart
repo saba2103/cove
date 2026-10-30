@@ -531,6 +531,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                         : Row(
                             children: [
                               Expanded(child: commitmentTypeChildren[0]),
+                              const SizedBox(width: CoveSpace.sm),
                               Expanded(child: commitmentTypeChildren[1]),
                             ],
                           ),
@@ -660,14 +661,14 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       if (_totalInstallments != null && _totalInstallments! > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                            vertical: 2,
+                            horizontal: CoveSpace.md,
+                            vertical: CoveSpace.sm,
                           ),
                           decoration: CoveShape.decoration(
                             CoveRadius.pill,
-                            color: cv.accentWash,
+                            color: cv.surfaceSheet,
                             side: BorderSide(
-                              color: cv.accentFill.withValues(alpha: 0.4),
+                              color: cv.lineControl,
                               width: 1,
                             ),
                           ),
@@ -723,7 +724,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             decoration: CoveShape.decoration(
                               CoveRadius.pill,
                               color: cv.surfaceCard,
-                              side: BorderSide(color: cv.lineHairline, width: 1),
+                              side: BorderSide(color: cv.lineControl, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -814,12 +815,16 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                   ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 1.5,
+                                      horizontal: CoveSpace.sm,
+                                      vertical: CoveSpace.xs,
                                     ),
                                     decoration: CoveShape.decoration(
                                       CoveRadius.pill,
-                                      color: cv.accentWash,
+                                      color: cv.surfaceRow,
+                                      side: BorderSide(
+                                        color: cv.lineControl,
+                                        width: 1,
+                                      ),
                                     ),
                                     child: Text(
                                       'Syncs with Last Due',
@@ -830,7 +835,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: CoveSpace.sm),
                               Text(
                                 '${((_totalInstallments ?? 12) - _effectivePaidInstallments).clamp(0, _totalInstallments ?? 12)} remaining of ${_totalInstallments ?? 12}',
                                 style: CoveType.barLabel.copyWith(
@@ -844,7 +849,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                             decoration: CoveShape.decoration(
                               CoveRadius.pill,
                               color: cv.surfaceCard,
-                              side: BorderSide(color: cv.lineHairline, width: 1),
+                              side: BorderSide(color: cv.lineControl, width: 1),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -877,10 +882,12 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                       isDense: true,
                                       contentPadding: const EdgeInsets.symmetric(vertical: 6),
                                       border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
                                       hintText: '$_effectivePaidInstallments',
                                       hintStyle: CoveType.readout.copyWith(
                                         fontWeight: FontWeight.w500,
-                                        color: cv.textSecondary.withValues(alpha: 0.5),
+                                        color: cv.textTertiary,
                                       ),
                                     ),
                                     inputFormatters: [
@@ -1100,6 +1107,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                   setState(() => _billingCycle = 'monthly'),
                             ),
                           ),
+                          const SizedBox(width: CoveSpace.sm),
                           Expanded(
                             child: _buildCyclePill(
                               label: 'Annual',
@@ -1108,6 +1116,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                                   setState(() => _billingCycle = 'annual'),
                             ),
                           ),
+                          const SizedBox(width: CoveSpace.sm),
                           Expanded(
                             child: _buildCyclePill(
                               label: _billingCycle == 'custom'
@@ -1242,7 +1251,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                   decoration: CoveShape.decoration(
                     CoveRadius.pill,
                     color: cv.surfaceRow,
-                    side: BorderSide(color: cv.lineHairline, width: 1),
+                    side: BorderSide(color: cv.lineControl, width: 1),
                   ),
                   padding: EdgeInsets.symmetric(
                     horizontal: 16,

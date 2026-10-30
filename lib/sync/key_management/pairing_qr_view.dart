@@ -5,7 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../core/theme/cove_theme.dart';
+import '../../core/shape/cove_shape.dart';
+import '../../core/theme/cove_tokens.dart';
 import '../../core/widgets/cove_card.dart';
 import '../../core/widgets/cove_pill_button.dart';
 import '../../features/home/home_controller.dart';
@@ -21,6 +22,14 @@ import 'pairing_relay.dart';
 class PairingQrView extends ConsumerStatefulWidget {
   final PairingPayload payload;
   final VoidCallback? onDone;
+
+  static const double _kQrFramePadding = 14.0; // (literal) QR quiet-zone padding
+  static const double _kQrBorderWidth = 1.5; // (literal) QR frame stroke
+  static const double _kQrSize = 190.0; // (literal) QR matrix viewport size
+  static const double _kCodeSpinnerSize = 32.0; // (literal) loading spinner box
+  static const double _kCodeSpinnerStroke = 2.0; // (literal) loading spinner stroke
+  static const double _kCodeLetterSpacing = 4.0; // (literal) 6-digit code tracking
+  static const double _kCopyIconSize = 14.0; // (literal) copy glyph size
 
   const PairingQrView({
     super.key,
@@ -167,8 +176,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
+    final cv = context.cv;
     final qrData = widget.payload.toQrString();
 
     final pendingRequest = _activePendingRequest;
@@ -177,7 +185,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
       return Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
             child: PairingApprovalSheet(
               request: pendingRequest,
               shownPublicKey: shownPublicKey,
@@ -208,178 +216,172 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
     return Center(
       child: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: CoveSize.maxContent),
           child: CoveCard(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(CoveSpace.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   pairTitle,
                   textAlign: TextAlign.center,
-                  style: typography.headline.copyWith(fontSize: 22),
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: CoveSpace.sm),
                 Text(
                   pairDesc,
                   textAlign: TextAlign.center,
-                  style: typography.bodyRegular.copyWith(
-                    color: colors.textMuted,
+                  style: CoveType.body.copyWith(
+                    color: cv.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: CoveSpace.gutter),
 
-                // QR Code container
+                // QR Code container (high-contrast paper plate for camera scan)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(PairingQrView._kQrFramePadding),
                   decoration: CoveShape.decoration(
-                    16,
-                    color: Colors.white,
+                    CoveRadius.inline,
+                    color: CoveTokens.light.surfaceCard,
                     side: BorderSide(
-                      color: colors.accentPrimary.withValues(alpha: 0.3),
-                      width: 2,
+                      color: cv.lineControl,
+                      width: PairingQrView._kQrBorderWidth,
                     ),
                   ),
                   child: QrImageView(
                     data: qrData,
                     version: QrVersions.auto,
-                    size: 190.0,
-                    eyeStyle: const QrEyeStyle(
+                    size: PairingQrView._kQrSize,
+                    eyeStyle: QrEyeStyle(
                       eyeShape: QrEyeShape.square,
-                      color: Color(0xFF0B1F1E),
+                      color: CoveTokens.dark.surfaceCanvas,
                     ),
-                    dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleStyle: QrDataModuleStyle(
                       dataModuleShape: QrDataModuleShape.square,
-                      color: Color(0xFF0B1F1E),
+                      color: CoveTokens.dark.surfaceCanvas,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: CoveSpace.md + CoveSpace.xs),
 
                 // 6-Digit Pairing Code Display Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                    horizontal: CoveSpace.md + CoveSpace.xs,
+                    vertical: CoveSpace.md,
                   ),
                   decoration: CoveShape.decoration(
-                    12,
-                    color: colors.surfaceRow,
+                    CoveRadius.inline,
+                    color: cv.surfaceRow,
                     side: BorderSide(
-                      color: colors.borderHairline,
-                      width: 1,
+                      color: cv.lineControl,
                     ),
                   ),
                   child: Column(
                     children: [
                       Text(
                         'PAIRING CODE',
-                        style: typography.caption.copyWith(
-                          letterSpacing: 1.0,
-                          color: colors.textMuted,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: CoveSpace.sm),
                       if (_isLoadingCode)
                         const SizedBox(
-                          height: 32,
-                          width: 32,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          height: PairingQrView._kCodeSpinnerSize,
+                          width: PairingQrView._kCodeSpinnerSize,
+                          child: CircularProgressIndicator(
+                            strokeWidth: PairingQrView._kCodeSpinnerStroke,
+                          ),
                         )
                       else ...[
                         Text(
                           formattedCode,
-                          style: TextStyle(
-                            fontFamily: 'PlusJakartaSans',
-                            fontSize: 28,
+                          style: CoveType.cardFigure.copyWith(
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 4.0,
-                            color: colors.accentPrimary,
+                            letterSpacing: PairingQrView._kCodeLetterSpacing,
+                            color: cv.accentText,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: CoveSpace.xs),
                         Text(
                           'Valid for 10 minutes',
-                          style: TextStyle(
-                            fontFamily: 'PlusJakartaSans',
-                            fontSize: 11,
-                            color: colors.textSubtle,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: CoveSpace.sm),
                         InkWell(
                           onTap: _copyCode,
-                          customBorder: CoveShape.border(20),
+                          customBorder: CoveShape.border(CoveRadius.inline),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                              horizontal: CoveSpace.md,
+                              vertical: CoveSpace.sm,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   _copied ? Icons.check : Icons.copy_rounded,
-                                  size: 14,
+                                  size: PairingQrView._kCopyIconSize,
                                   color: _copied
-                                      ? colors.accentPrimary
-                                      : colors.textMuted,
+                                      ? cv.accentText
+                                      : cv.textSecondary,
                                 ),
-                                const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      _copied
-                                          ? 'Copied to clipboard'
-                                          : 'Copy 6-digit code',
-                                      style: TextStyle(
-                                        fontFamily: 'PlusJakartaSans',
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                        color: _copied
-                                            ? colors.accentPrimary
-                                            : colors.textMuted,
-                                      ),
+                                const SizedBox(width: CoveSpace.sm),
+                                Flexible(
+                                  child: Text(
+                                    _copied
+                                        ? 'Copied to clipboard'
+                                        : 'Copy 6-digit code',
+                                    style: CoveType.rowSub.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      color: _copied
+                                          ? cv.accentText
+                                          : cv.textSecondary,
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
+                ),
 
                 if (_statusMessage != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: CoveSpace.md),
                   Text(
                     _statusMessage!,
                     key: const ValueKey('pairing_qr_status_message'),
                     textAlign: TextAlign.center,
-                    style: typography.caption.copyWith(
-                      color: colors.accentPrimary,
+                    style: CoveType.rowSub.copyWith(
+                      color: cv.accentText,
                     ),
                   ),
                 ],
 
-                const SizedBox(height: 14),
+                const SizedBox(height: CoveSpace.md),
 
                 // Home name chip
                 Text(
                   widget.payload.homeName,
                   textAlign: TextAlign.center,
-                  style: typography.title.copyWith(fontSize: 15),
+                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: CoveSpace.xs),
                 Text(
                   'Zero-Knowledge Direct Key Exchange',
                   textAlign: TextAlign.center,
-                  style: typography.caption.copyWith(
-                    color: colors.accentPrimary,
+                  style: CoveType.rowSub.copyWith(
+                    color: cv.accentText,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: CoveSpace.gutter),
                 CovePillButton(
                   label: 'Done',
                   onPressed:

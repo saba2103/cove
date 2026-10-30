@@ -110,3 +110,32 @@ Every in-app surface must survive `TextScaler.linear(1.3)` and `TextScaler.linea
    - [`AddKeypad`](../lib/features/add/widgets/add_keypad.dart) keys grow taller with scaled digit metrics.
    - Slips (`CoveReceipt`, `CoveTicket`, `CoveVoucher`, `CoveHabitCard`, `CoveBand`, `CoveDial`, `CoveNote`) let their text wrap cleanly across lines.
 3. **Automated Gate**: Enforced in `./tool/check.sh` via [`test/golden/text_scale_52_golden_test.dart`](../test/golden/text_scale_52_golden_test.dart).
+
+---
+
+## 7. Orientation Lock & Fold Inner-Screen Landscape Behaviour (`targetSdk 36`, Android 16)
+
+Cove targets **Android 16 (`targetSdk = 36`**, `minSdk = 24` in [`android/app/build.gradle.kts`](../android/app/build.gradle.kts)) and intentionally keeps its portrait lock:
+- `android:screenOrientation="portrait"` on `.MainActivity` in [`android/app/src/main/AndroidManifest.xml`](../android/app/src/main/AndroidManifest.xml) (with no `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY` opt-out).
+- `SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])` in [`lib/main.dart`](../lib/main.dart).
+
+How Android 16 handles this lock across form factors:
+1. **Phones & Fold Cover Screen (`smallestScreenWidthDp < 600dp`)**: On compact displays — such as the Pixel 6 (`411dp` / `485dp` forced density) and the Galaxy Z Fold7 folded cover screen (`320dp`) — Android 16 honours both `android:screenOrientation="portrait"` and `setPreferredOrientations([portraitUp])`, keeping Cove locked to portrait.
+2. **Fold Inner Screen & Tablets (`smallestScreenWidthDp >= 600dp`)**: Under Android 16's adaptive-apps platform policy for `targetSdk >= 36`, the system sets `PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION` and **ignores** `android:screenOrientation="portrait"`, `setPreferredOrientations`, and `resizeableActivity="false"` on any display with `sw >= 600dp`. When the Galaxy Z Fold7 is unfolded (`840×900dp`, `sw = 840dp`) and rotated 90°, Android rotates Cove freely into **`900×840dp` landscape** at full window bounds without letterboxing.
+3. **Layout Strategy & Goldens**: Cove introduces **no separate landscape layout** on wide viewports — `AppShell` (`540dp` outer shell) and [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart) (`CoveSize.maxContent = 420dp` when viewport width `>= 600dp`) centre the single-column canvas cleanly inside `900×840dp`. [`CoveWidth.wideLandscape`](../test/golden/golden_harness.dart) (`Size(900, 840)`) goldens on `TodayScreen` and `ExpensesScreen` in [`test/golden/screens_golden_test.dart`](../test/golden/screens_golden_test.dart) guard against overflow regressions at the Fold inner screen's landscape dimensions.
+
+---
+
+## 8. Text & Non-Text Contrast Convention (`WCAG 1.4.3, 1.4.11`)
+
+Every text label (`>= 4.5:1`) and every meaningful UI boundary, control outline, focus indicator, or chart reference mark (`>= 3.0:1`) must clear WCAG AA through semantic tokens in [`design/tokens.json`](../design/tokens.json) — never through raw hex literals or ad-hoc `< 0.6` text alphas:
+
+1. **Accent Text vs. Accent Fill**: Body and badge copy drawn in accent gold must use `cv.accentText` (or `cv.accentTint` where muted tint is intended), **never** `cv.accentFill` (whose light-mode fill `#A97C4F` is calibrated for `>= 3:1` control fills, not `4.5:1` text). Text sitting *on* an `accentFill` pill uses `cv.textOnAccent`.
+2. **Sky-Backed Labels (`cv.textSky`)**: Text painted directly across Routines' 7-stop day/night sky gradient uses `cv.textSky`, verified at `>= 4.5:1` against every interpolated point of the sky in both dark and light modes.
+3. **Decorative Dividers vs. Interactive / Meaningful Boundaries**:
+   - `cv.lineHairline` and `cv.lineStrong` are strictly **decorative** dividers and card hairlines (`< 1.5:1`).
+   - `cv.lineControl` (`>= 3.0:1` across all 4 app surfaces and all `paper` and `ink` slip stops) is required for interactive control boundaries and meaningful non-text state marks: resting input borders (`CovePillInput`, `InputDecorationTheme`, underline inputs), off-state toggle tracks (`CoveToggleSwitch`, `SwitchThemeData`), unticked checkboxes (`CoveCheckbox`, Day Sheet task boxes, pet picker ticks), action/filter chip borders, empty/upcoming EMI installment ticks, unfilled budget/payoff bar outlines, and chart baselines, pace lines, zero-spend stubs, and year guides.
+   - `cv.lineFocus` (`>= 3.0:1` — clearing `>= 4.1:1` across every surface, slip, and sky stop in both modes) is used for focused input borders (`1.5dp`) and the Routines `NOW` indicator line.
+   - `cv.paperEdge` (`>= 3.0:1` against both outer light-mode surfaces and inner `paper.{from, via, to}` stops) frames light-mode `CoveSlip` artifacts at a full `1.0dp` clipped stroke.
+   - Inside `CoveSlip` artifacts (`CoveVoucher`, `CoveDial`, slip-hosted `CoveCheckbox`), non-text marks use `CoveSlipPalette.mark` (`paper.ink3` on `paper`, `slip.inkMark` on `ink`, both `>= 3.0:1` across every gradient stop).
+4. **Automated Gate**: Enforced mechanically in `./tool/check.sh` by [`tool/check_contrast.py`](../tool/check_contrast.py) and runtime pixel-level `textContrastGuideline` checks across all 115 surfaces in [`test/a11y/`](../test/a11y/).

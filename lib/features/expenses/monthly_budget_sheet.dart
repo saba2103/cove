@@ -162,7 +162,7 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
               decoration: CoveShape.decoration(
                 CoveRadius.inline,
                 color: cv.surfaceRow,
-                side: BorderSide(color: cv.lineHairline),
+                side: BorderSide(color: cv.lineControl),
               ),
               child: Row(
                 children: [
@@ -170,13 +170,14 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                     currency.symbol,
                     style: CoveType.cardFigure.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: cv.accentTint,
+                      color: cv.accentText,
                     ),
                   ),
                   const SizedBox(width: CoveSpace.sm),
                   Expanded(
                     child: TextField(
                       controller: _amountController,
+                      cursorColor: cv.lineFocus,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -190,6 +191,8 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
                           color: cv.textTertiary,
                         ),
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),

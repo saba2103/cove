@@ -90,7 +90,7 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
               CoveSpace.md,
               color: cv.surfaceRow,
               side: BorderSide(
-                color: cv.lineHairline,
+                color: cv.lineFocus,
                 width: _kBorderWidth,
               ),
             ),
@@ -103,6 +103,7 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
               autofocus: true,
               textInputAction: TextInputAction.done,
               textCapitalization: TextCapitalization.sentences,
+              cursorColor: cv.lineFocus,
               style: CoveType.body.copyWith(color: cv.textPrimary),
               decoration: InputDecoration(
                 hintText: 'e.g. Weekend Hardware, Book Wishlist…',
@@ -111,6 +112,8 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
                   color: cv.textTertiary,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
               ),
               onSubmitted: (_) => _submit(),
             ),

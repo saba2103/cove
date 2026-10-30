@@ -93,10 +93,13 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
   final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
+  final Color textSky;
   final Color textOnAccent;
   final Color textOnPaper;
   final Color lineHairline;
   final Color lineStrong;
+  final Color lineControl;
+  final Color lineFocus;
   final Color accentFill;
   final Color accentText;
   final Color accentTint;
@@ -149,10 +152,13 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     required this.textPrimary,
     required this.textSecondary,
     required this.textTertiary,
+    required this.textSky,
     required this.textOnAccent,
     required this.textOnPaper,
     required this.lineHairline,
     required this.lineStrong,
+    required this.lineControl,
+    required this.lineFocus,
     required this.accentFill,
     required this.accentText,
     required this.accentTint,
@@ -205,15 +211,18 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     textPrimary: Color(0xFFF3ECE2),
     textSecondary: Color(0xFFB4B7B0),
     textTertiary: Color(0xFF909993),
+    textSky: Color(0xFFCDD1CA),
     textOnAccent: Color(0xFF0B1F1E),
     textOnPaper: Color(0xFF1E332F),
     lineHairline: Color(0x12F3ECE2),
     lineStrong: Color(0x24F3ECE2),
+    lineControl: Color(0xFF849691),
+    lineFocus: Color(0xFFD8B98C),
     accentFill: Color(0xFFD8B98C),
     accentText: Color(0xFFD8B98C),
     accentTint: Color(0xFFEAD3AC),
     accentWash: Color(0x1FD8B98C),
-    statusAlert: Color(0xFFC46D5E),
+    statusAlert: Color(0xFFCA7364),
     statusAlertText: Color(0xFFD4806F),
     statusGood: Color(0xFF8CBE9D),
     moneyMore: Color(0xFFD99B86),
@@ -236,7 +245,7 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     slipInkMark: Color(0xFF909993),
     categoryTravel: Color(0xFFE0C98A),
     categoryGroceries: Color(0xFFD8B98C),
-    categoryHealth: Color(0xFFC46D5E),
+    categoryHealth: Color(0xFFCA7364),
     categoryEatingOut: Color(0xFFC9A0C4),
     categoryHome: Color(0xFFA8C49B),
     categoryPets: Color(0xFF8FC9B6),
@@ -264,17 +273,20 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     textPrimary: Color(0xFF1E332F),
     textSecondary: Color(0xFF4B5B57),
     textTertiary: Color(0xFF5D6B67),
+    textSky: Color(0xFF4B5B57),
     textOnAccent: Color(0xFF0B1F1E),
     textOnPaper: Color(0xFF1E332F),
     lineHairline: Color(0x141E332F),
     lineStrong: Color(0x291E332F),
+    lineControl: Color(0xFF64736F),
+    lineFocus: Color(0xFF76532D),
     accentFill: Color(0xFFA97C4F),
     accentText: Color(0xFF76532D),
-    accentTint: Color(0xFFA97C4F),
+    accentTint: Color(0xFF845D33),
     accentWash: Color(0x1FA97C4F),
     statusAlert: Color(0xFFB4523F),
     statusAlertText: Color(0xFFA8483A),
-    statusGood: Color(0xFF3E7753),
+    statusGood: Color(0xFF316343),
     moneyMore: Color(0xFF985A47),
     moneyLess: Color(0xFF3E7753),
     paperFrom: Color(0xFFEDE3D0),
@@ -286,7 +298,7 @@ class CoveTokens extends ThemeExtension<CoveTokens> {
     paperAccent: Color(0xFF76532D),
     paperRule: Color(0x331E332F),
     paperHairline: Color(0x1C1E332F),
-    paperEdge: Color(0x331E332F),
+    paperEdge: Color(0xFF646C65),
     slipInkFrom: Color(0xFF1A4541),
     slipInkVia: Color(0xFF133734),
     slipInkTo: Color(0xFF0E2A28),

@@ -313,7 +313,7 @@ class _MonthChangeChart extends StatelessWidget {
             children: [
               // Horizontal zero baseline
               ColoredBox(
-                color: cv.lineStrong,
+                color: cv.lineControl,
                 child: const SizedBox(
                   width: double.infinity,
                   height: _kBorderWidth,
@@ -476,7 +476,7 @@ class _MonthChangeChart extends StatelessWidget {
                         text:
                             '$currencySymbol${formatCoveAmount(markedMonthTotal)}',
                         style: CoveType.rowTitle.copyWith(
-                          color: cv.accentTint,
+                          color: cv.accentText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -704,7 +704,7 @@ class _MonthLedgerTable extends StatelessWidget {
                               : '—',
                           style: CoveType.rowTitle.copyWith(
                             color: annualGrandTotal > 0
-                                ? cv.accentTint
+                                ? cv.accentText
                                 : cv.textTertiary,
                             fontWeight: FontWeight.w600,
                           ),
@@ -805,7 +805,7 @@ class _MonthLedgerTable extends StatelessWidget {
                         textAlign: TextAlign.right,
                         style: CoveType.rowTitle.copyWith(
                           color: annualGrandTotal > 0
-                              ? cv.accentTint
+                              ? cv.accentText
                               : cv.textTertiary,
                           fontWeight: FontWeight.w600,
                         ),
@@ -912,7 +912,7 @@ class _MonthLedgerTable extends StatelessWidget {
                                       : '—',
                                   style: CoveType.rowTitle.copyWith(
                                     color: totalAmount > 0
-                                        ? cv.accentTint
+                                        ? cv.accentText
                                         : cv.textTertiary,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1048,7 +1048,7 @@ class _MonthLedgerTable extends StatelessWidget {
                                 textAlign: TextAlign.right,
                                 style: CoveType.rowTitle.copyWith(
                                   color: totalAmount > 0
-                                      ? cv.accentTint
+                                      ? cv.accentText
                                       : cv.textTertiary,
                                   fontWeight: FontWeight.w700,
                                 ),

@@ -3,15 +3,14 @@
 // Populated from the 5.0 baseline audit (`build/a11y_baseline.md`).
 // Trimmed Phase 5 scope: 5.0, 5.2, and a revised 5.5.
 // Failures belonging to 5.1, 5.3, 5.4, or 5.6 are marked
-// `'launch blocker, deferred'`; contrast failures addressed in 5.5 are
-// marked `'5.5'`. Any `(Brightness, A11yGuidelineKind)` absent from a
-// surface's entry runs actively in `flutter test` and `./tool/check.sh`.
+// `'launch blocker, deferred'`; all 18 contrast checks tagged `'5.5'` were
+// resolved through tokens and removed in 5.5 so they run actively in
+// `flutter test` and `./tool/check.sh`.
 import 'package:flutter/material.dart';
 
 import 'a11y_harness.dart';
 
 const String kLaunchBlockerDeferredReason = 'launch blocker, deferred';
-const String kPhase55Reason = '5.5';
 
 const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
     <String, Map<A11yCheckKey, String>>{
@@ -81,9 +80,7 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
   // Screens — RoutineScreen (populated two-lane)
   'routine_screen': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.dark, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
   // Screens — ListsScreen
   'lists_screen': <A11yCheckKey, String>{
@@ -103,10 +100,6 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
     (Brightness.light, A11yGuidelineKind.textContrast): kLaunchBlockerDeferredReason, // 5.1
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.dark, A11yGuidelineKind.textContrast): kLaunchBlockerDeferredReason, // 5.1
-  },
-  // Screens — HomeSettingsScreen / Our home (populated)
-  'home_settings_screen': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
   // Screens — ProfileScreen (with DriveBackupSection)
   'profile_screen': <A11yCheckKey, String>{
@@ -151,10 +144,6 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
   },
-  // Sheets & Dialogs — ActivityEventDetailSheet
-  'activity_event_detail_sheet': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
   // Sheets & Dialogs — CalendarEventFormSheet
   'calendar_event_form_sheet': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.labeledTapTarget): kLaunchBlockerDeferredReason, // 5.1
@@ -171,10 +160,8 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
   'subscription_form_sheet': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.light, A11yGuidelineKind.labeledTapTarget): kLaunchBlockerDeferredReason, // 5.1
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.dark, A11yGuidelineKind.labeledTapTarget): kLaunchBlockerDeferredReason, // 5.1
-    (Brightness.dark, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
   // Sheets & Dialogs — RoutineEventFormSheet
   'routine_event_form_sheet': <A11yCheckKey, String>{
@@ -236,10 +223,8 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
   'edit_profile_dialog': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.light, A11yGuidelineKind.labeledTapTarget): kLaunchBlockerDeferredReason, // 5.1
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
     (Brightness.dark, A11yGuidelineKind.labeledTapTarget): kLaunchBlockerDeferredReason, // 5.1
-    (Brightness.dark, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
   // Sheets & Dialogs — EditHomeDialog
   'edit_home_dialog': <A11yCheckKey, String>{
@@ -266,39 +251,11 @@ const Map<String, Map<A11yCheckKey, String>> kA11yBaselineSkips =
   // Sheets & Dialogs — WhatsFreshModal
   'whats_fresh_modal': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.dark, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
   // Sheets & Dialogs — PairingQrView
   'pairing_qr_view': <A11yCheckKey, String>{
     (Brightness.light, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
     (Brightness.dark, A11yGuidelineKind.androidTapTarget): kLaunchBlockerDeferredReason, // 5.1 / 5.3 / 5.6
-    (Brightness.dark, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Sheets & Dialogs — HomeSettingsScreen → _PetNameDialog
-  'home_pet_name_dialog': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Add Flow — AddFlow Event Step 6 — Review (CoveTicket)
-  'add_event_6_review': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Add Flow — AddFlow Task Step 5 — Review (CoveNote)
-  'add_task_5_review': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Add Flow — AddFlow Habit Step 4 — Review (CoveHabitCard)
-  'add_habit_4_review': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Add Flow — AddFlow Commitment Step 7 — Review (CoveVoucher standard)
-  'add_commitment_7_review': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
-  },
-  // Add Flow — AddFlow Routine Step 6 — Review (CoveBand)
-  'add_routine_6_review': <A11yCheckKey, String>{
-    (Brightness.light, A11yGuidelineKind.textContrast): kPhase55Reason, // 5.5
   },
 };

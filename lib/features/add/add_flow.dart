@@ -2139,6 +2139,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               hintMaxLines: isScaled ? 3 : 1,
               hintStyle: CoveType.title.copyWith(color: cv.textTertiary),
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
             ),
             onSubmitted: (val) async {
               final clean = val.trim();
@@ -2156,7 +2158,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           ),
           Container(
             height: AddFlow._kInputUnderlineHeight,
-            color: cv.accentFill,
+            color: cv.lineFocus,
           ),
         ],
       );
@@ -2377,11 +2379,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -2614,11 +2618,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -2862,11 +2868,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -3044,11 +3052,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -3392,11 +3402,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -3637,11 +3649,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           fieldTaps: fieldTaps,
         ),
         if (!_isAdded) ...[
-          const SizedBox(height: CoveSpace.md),
-          Text(
-            'Tap anything above to change it.',
-            textAlign: TextAlign.center,
-            style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+          const SizedBox(height: CoveSpace.xl + CoveSpace.sm),
+          Center(
+            child: Text(
+              'Tap anything above to change it.',
+              textAlign: TextAlign.center,
+              style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+            ),
           ),
         ],
       ],
@@ -3678,6 +3692,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             hintMaxLines: isScaled ? 3 : 1,
             hintStyle: CoveType.title.copyWith(color: cv.textTertiary),
             border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
           ),
           onChanged: onTextChanged,
           onSubmitted: (_) {
@@ -3689,7 +3705,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
         ),
         Container(
           height: AddFlow._kInputUnderlineHeight,
-          color: cv.accentFill,
+          color: cv.lineFocus,
         ),
         if (suggestions.isNotEmpty || optional) ...[
           const SizedBox(height: CoveSpace.lg),

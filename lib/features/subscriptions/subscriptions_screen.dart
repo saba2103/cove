@@ -1037,7 +1037,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                 activeSubs: activeSubs,
                 strokeColor: cv.accentFill,
                 fillColor: cv.accentWash,
-                gridColor: cv.lineHairline,
+                gridColor: cv.lineControl,
                 surfaceColor: cv.surfaceCanvas,
                 pillFillColor: cv.accentFill,
                 pillTextStyle: CoveType.barLabel.copyWith(
@@ -1216,7 +1216,8 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                     Text(
                       statusWords,
                       style: CoveType.rowSub.copyWith(
-                        color: carriesAlert ? cv.statusAlert : cv.accentTint,
+                        color:
+                            carriesAlert ? cv.statusAlertText : cv.accentText,
                       ),
                     ),
                 ],
@@ -1226,7 +1227,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
             Text(
               '${currency.symbol}${formatCoveAmount(groupTotal)}',
               style: CoveType.rowSub.copyWith(
-                color: isFirstGroup ? cv.accentTint : cv.textTertiary,
+                color: isFirstGroup ? cv.accentText : cv.textTertiary,
               ),
             ),
           ],

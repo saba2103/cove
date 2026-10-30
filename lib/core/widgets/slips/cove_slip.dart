@@ -725,10 +725,12 @@ class _CoveSlipSurfacePainter extends CustomPainter {
     canvas.drawPath(path, fillPaint);
 
     if (palette.edgeColor != null) {
+      // Stroke is clipped to `path`, so 2x kEdgeStrokeWidth renders a full
+      // 1dp inner edge without losing half the stroke outside the clip.
       final edgePaint = Paint()
         ..color = palette.edgeColor!
         ..style = PaintingStyle.stroke
-        ..strokeWidth = CoveSlip.kEdgeStrokeWidth;
+        ..strokeWidth = CoveSlip.kEdgeStrokeWidth * 2.0;
       canvas.save();
       canvas.clipPath(path);
       canvas.drawPath(path, edgePaint);

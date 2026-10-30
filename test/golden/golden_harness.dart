@@ -27,6 +27,7 @@ class CoveWidth {
   static const w432  = Size(432, 914);   // Phone at smaller display size (432dp)
   static const w480  = Size(480, 914);   // Phone at smaller display size (480dp, e.g. Pixel 6 at 356dpi)
   static const wide  = Size(840, 900);   // Fold 7 open — proves the maxContent cap
+  static const wideLandscape = Size(900, 840); // Fold 7 open rotated to landscape (Android 16 sw >= 600dp)
 }
 
 String _resolveFlutterRoot() {
@@ -134,9 +135,11 @@ Future<void> goldenMatrix(
           ? 'cover'
           : size == CoveWidth.wide
               ? 'wide'
-              : size == CoveWidth.phone
-                  ? 'phone'
-                  : '${size.width.toInt()}dp';
+              : size == CoveWidth.wideLandscape
+                  ? 'wide_landscape'
+                  : size == CoveWidth.phone
+                      ? 'phone'
+                      : '${size.width.toInt()}dp';
       final pairKey = '$name.$w';
       for (final mode in modes) {
         final originalOnError = FlutterError.onError;

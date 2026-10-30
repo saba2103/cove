@@ -225,6 +225,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
+          cursorColor: cv.lineFocus,
           style: CoveType.body.copyWith(
             color: cv.textPrimary,
           ),
@@ -232,10 +233,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
             hintText: 'List name',
             hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: cv.lineHairline),
+              borderSide: BorderSide(color: cv.lineControl),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: cv.accentFill),
+              borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
             ),
           ),
         ),
@@ -409,6 +410,7 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                   controller: controller,
                   autofocus: true,
                   textCapitalization: TextCapitalization.sentences,
+                  cursorColor: cv.lineFocus,
                   style: CoveType.body.copyWith(
                     color: cv.textPrimary,
                   ),
@@ -416,10 +418,10 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
                     hintText: 'Item name',
                     hintStyle: CoveType.body.copyWith(color: cv.textSecondary),
                     enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.lineHairline),
+                      borderSide: BorderSide(color: cv.lineControl),
                     ),
                     focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: cv.accentFill),
+                      borderSide: BorderSide(color: cv.lineFocus, width: 1.5),
                     ),
                   ),
                 ),

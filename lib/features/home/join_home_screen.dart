@@ -300,7 +300,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                               _kPinInputRadius,
                               color: cv.surfaceRow,
                               side: BorderSide(
-                                color: cv.lineHairline,
+                                color: cv.lineFocus,
                                 width: _kPinBorderWidth,
                               ),
                             ),
@@ -323,7 +323,7 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                                 letterSpacing: _kPinLetterSpacing,
                                 color: cv.accentText,
                               ),
-                              cursorColor: cv.accentFill,
+                              cursorColor: cv.lineFocus,
                               decoration: InputDecoration(
                                 hintText: '• • • • • •',
                                 hintMaxLines:
@@ -344,6 +344,8 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                                   color: cv.textTertiary,
                                 ),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal:
                                       MediaQuery.textScalerOf(

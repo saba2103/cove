@@ -40,7 +40,7 @@ class CoveToggleSwitch extends StatelessWidget {
           side: value
               ? BorderSide.none
               : BorderSide(
-                  color: cv.lineStrong,
+                  color: cv.lineControl,
                   width: _kBorderWidth,
                 ),
         ),
