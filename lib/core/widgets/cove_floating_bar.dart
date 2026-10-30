@@ -291,7 +291,9 @@ class CoveFloatingBar extends StatelessWidget {
     final cv = context.cv;
     final duration = CoveMotion.q(context);
     final fg = selected ? cv.accentText : cv.textSecondary;
-    final showLabels = MediaQuery.sizeOf(context).width >= kLabelThreshold;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final showLabels =
+        (MediaQuery.sizeOf(context).width / textScale) >= kLabelThreshold;
 
     return Semantics(
       button: true,
@@ -448,6 +450,7 @@ class CoveFloatingBar extends StatelessWidget {
   }) {
     final cv = context.cv;
     final fg = selected ? cv.accentText : cv.textPrimary;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Semantics(
       button: true,
@@ -462,7 +465,10 @@ class CoveFloatingBar extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: CoveSize.hit),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+            padding: EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: isScaled ? CoveSpace.sm : 0.0,
+            ),
             decoration: CoveShape.decoration(
               CoveRadius.inline,
               color: selected ? cv.accentWash : Colors.transparent,
@@ -479,8 +485,8 @@ class CoveFloatingBar extends StatelessWidget {
                   child: Text(
                     item.label,
                     key: ValueKey('cove_bar_overflow_label_${item.id}'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
                     style: CoveType.rowTitle.copyWith(color: fg),
                   ),
                 ),

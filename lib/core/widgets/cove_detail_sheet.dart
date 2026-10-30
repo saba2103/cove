@@ -202,11 +202,15 @@ class CoveDetailSheet extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    SizedBox(
+                    ConstrainedBox(
                       key: const ValueKey('cove_detail_sheet_kind_glyph'),
-                      width: kKindGlyphSize,
-                      height: kKindGlyphSize,
+                      constraints: const BoxConstraints(
+                        minWidth: kKindGlyphSize,
+                        minHeight: kKindGlyphSize,
+                      ),
                       child: Center(
+                        widthFactor: 1.0,
+                        heightFactor: 1.0,
                         child: IconTheme(
                           data: IconThemeData(
                             size: kKindGlyphSize,
@@ -272,11 +276,15 @@ class CoveDetailSheet extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        SizedBox(
+                        ConstrainedBox(
                           key: const ValueKey('cove_detail_sheet_meaning_glyph'),
-                          width: kMeaningGlyphSize,
-                          height: kMeaningGlyphSize,
+                          constraints: const BoxConstraints(
+                            minWidth: kMeaningGlyphSize,
+                            minHeight: kMeaningGlyphSize,
+                          ),
                           child: Center(
+                            widthFactor: 1.0,
+                            heightFactor: 1.0,
                             child: IconTheme(
                               data: IconThemeData(
                                 size: kMeaningGlyphSize,
@@ -334,20 +342,36 @@ class CoveDetailSheet extends StatelessWidget {
                 const SizedBox(height: CoveSpace.lg),
                 Semantics(
                   sortKey: const OrdinalSortKey(3.0),
-                  child: Row(
-                    children: [
-                      for (var i = 0; i < verbs.length; i++) ...[
-                        if (i > 0) const SizedBox(width: CoveSpace.md),
-                        Expanded(
-                          child: _CoveDetailVerbButton(
-                            key: ValueKey('cove_detail_sheet_verb_$i'),
-                            verb: verbs[i],
-                            enabled: !isMidCommit,
-                          ),
+                  child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0 &&
+                          verbs.length > 1
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < verbs.length; i++) ...[
+                              if (i > 0) const SizedBox(height: CoveSpace.sm),
+                              _CoveDetailVerbButton(
+                                key: ValueKey('cove_detail_sheet_verb_$i'),
+                                verb: verbs[i],
+                                enabled: !isMidCommit,
+                              ),
+                            ],
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            for (var i = 0; i < verbs.length; i++) ...[
+                              if (i > 0) const SizedBox(width: CoveSpace.md),
+                              Expanded(
+                                child: _CoveDetailVerbButton(
+                                  key: ValueKey('cove_detail_sheet_verb_$i'),
+                                  verb: verbs[i],
+                                  enabled: !isMidCommit,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                      ],
-                    ],
-                  ),
                 ),
               ],
             ],
@@ -382,6 +406,8 @@ class _CoveDetailVerbButtonState extends State<_CoveDetailVerbButton> {
     final cv = context.cv;
     final duration = CoveMotion.q(context);
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     return Semantics(
       button: true,
       enabled: _canTap,
@@ -392,12 +418,16 @@ class _CoveDetailVerbButtonState extends State<_CoveDetailVerbButton> {
         onTapDown: _canTap ? (_) => setState(() => _pressing = true) : null,
         onTapUp: _canTap ? (_) => setState(() => _pressing = false) : null,
         onTapCancel: _canTap ? () => setState(() => _pressing = false) : null,
-        child: SizedBox(
-          height: CoveSize.hit,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: CoveSize.hit),
           child: AnimatedContainer(
             duration: duration,
             curve: CoveMotion.easing,
-            padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+            height: isScaled ? null : CoveSize.hit,
+            padding: EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: isScaled ? CoveSpace.sm : 0.0,
+            ),
             decoration: CoveShape.decoration(
               CoveRadius.pill,
               color: _pressing ? cv.accentWash : Colors.transparent,
@@ -422,8 +452,9 @@ class _CoveDetailVerbButtonState extends State<_CoveDetailVerbButton> {
                 Flexible(
                   child: Text(
                     widget.verb.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    textAlign: isScaled ? TextAlign.center : null,
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
                     style: CoveType.rowTitle.copyWith(
                       color: cv.textPrimary,
                     ),
@@ -540,12 +571,14 @@ class _CoveDetailKindText extends StatelessWidget {
     final kindStyle = CoveType.capsPage.copyWith(color: cv.textPrimary);
     final contextStyle = CoveType.capsPage.copyWith(color: cv.textTertiary);
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     if (contextLabel == null || contextLabel!.isEmpty) {
       return Text(
         kind,
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.clip,
+        maxLines: isScaled ? null : 1,
+        softWrap: isScaled,
+        overflow: isScaled ? null : TextOverflow.clip,
         style: kindStyle,
       );
     }
@@ -587,16 +620,16 @@ class _CoveDetailKindText extends StatelessWidget {
           children: [
             Text(
               kind,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.clip,
+              maxLines: isScaled ? null : 1,
+              softWrap: isScaled,
+              overflow: isScaled ? null : TextOverflow.clip,
               style: kindStyle,
             ),
             Text(
               contextLabel!,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.clip,
+              maxLines: isScaled ? null : 1,
+              softWrap: isScaled,
+              overflow: isScaled ? null : TextOverflow.clip,
               style: contextStyle,
             ),
           ],

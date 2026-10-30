@@ -7,6 +7,14 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 ## [Unreleased]
 
 ### Added
+- **Phase 5.2 — Layouts Hold at 200% Text (`WCAG 1.4.4, 1.4.10`) (`Oct 30, 2026`)**:
+  - *Outcome*:
+    - Reflowed every screen, slip, sheet, dialog, and Add-flow step across `TextScaler.linear(1.3)` and `TextScaler.linear(2.0)` at `320dp` (`CoveWidth.cover`) and `411dp` (`CoveWidth.phone`) in both Dark and Light modes with zero `RenderFlex` overflows, zero clipped text, zero ellipsis truncation on meaningful labels, and zero visual change at `1.0x`.
+    - Metric grids (`CoveMetricGrid`) stack to one column when text is scaled; side-by-side rows (`CoveRow`, `CoveGroupedRow`, `CoveChecklistRow`, `CommitmentsHelicopterScreen` summary tiles, `RoutineScreen` day lanes, `AddPersonPicker`, and `AddChoiceList`) stack cleanly; `CoveFloatingBar` drops to icons only; `AddKeypad` keys grow taller with the scaled digit metrics; and slips (`CoveReceipt`, `CoveTicket`, `CoveVoucher`, `CoveHabitCard`, `CoveBand`, `CoveDial`, `CoveNote`) let their text wrap while offscreen Android home-screen widget bitmaps (`CoveWidgetService`) keep their own sizes.
+    - Audited `lib/` for `textScaler` clamps: zero clamps exist in in-app widgets; only `CoveWidgetService._wrapForOffscreenRender` uses a fixed `MediaQueryData` for headless Android RemoteViews bitmap rendering.
+  - *Under the Hood*:
+    - Added [`lib/core/widgets/cove_reflow_row.dart`](../lib/core/widgets/cove_reflow_row.dart) (`CoveReflowRow` single-pass `RenderBox` widget that keeps `trailing` inline when space permits and stacks `trailing` below `body` when scaled text needs the full row width) and wired adaptive reflow across [`lib/core/widgets/`](../lib/core/widgets/), [`lib/core/widgets/slips/`](../lib/core/widgets/slips/), [`lib/features/add/`](../lib/features/add/), and feature screens/sheets/dialogs, plus [`product/ENGINEERING_PRACTICES.md`](./ENGINEERING_PRACTICES.md).
+    - Added [`test/golden/text_scale_52_golden_test.dart`](../test/golden/text_scale_52_golden_test.dart) and **208** scaled golden baselines under [`test/golden/goldens/text_scale_52/`](../test/golden/goldens/text_scale_52/) alongside **920** overflow, clipped-text, and ellipsis checks across all 115 surfaces and explicit structural assertions for all five 5.2 reflow rules.
 - **Phase 5.0 — Baseline Accessibility Audit Across Every Screen, Sheet & Add Step (`Oct 30, 2026`)**:
   - *Outcome*:
     - Added [`test/a11y/`](../test/a11y/) pumping **115 deterministic surfaces** (**36** screen views, **35** sheets/modals/dialogs, and **44** `AddFlow` step states covering every `AddStep` across all 6 `AddKind`s) at `411×914dp` (`CoveWidth.phone`, `TextScaler.linear(1.0)`, `DPR 2.0`) in both `Brightness.light` and `Brightness.dark` with the overflow guard active, and evaluating Flutter's `androidTapTargetGuideline` (`48×48dp`), `labeledTapTargetGuideline`, and `textContrastGuideline` (`690` checks total).

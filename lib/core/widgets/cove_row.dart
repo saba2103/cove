@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
 import '../theme/cove_tokens.dart';
 import 'cove_avatar.dart';
+import 'cove_reflow_row.dart';
 
 /// Semantic colour tone for a [CoveRow] trailing amount (`design/specs/03-row.md`).
 ///
@@ -169,57 +170,90 @@ class _CoveRowState extends State<CoveRow> {
 
                 // Row content (padding derived as (CoveSize.row - content) / 2)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: CoveSpace.xs),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      if (hasLeading) ...[
-                        SizedBox(
-                          width: CoveSize.avatarRow,
-                          child: Center(child: leadingWidget),
-                        ),
-                        const SizedBox(width: CoveSpace.md),
-                      ],
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                  padding: EdgeInsets.symmetric(
+                    vertical: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                        ? CoveSpace.sm
+                        : CoveSpace.xs,
+                  ),
+                  child: Builder(
+                    builder: (context) {
+                      final isScaled =
+                          MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+                      final titleColumn = Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.title,
+                            maxLines: isScaled ? null : 1,
+                            overflow: isScaled ? null : TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
+                            ),
+                          ),
+                          if (hasSubtitle) ...[
+                            const SizedBox(height: CoveRow._kSubtitleGap),
                             Text(
-                              widget.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.rowTitle.copyWith(
-                                color: cv.textPrimary,
+                              widget.subtitle!,
+                              maxLines: isScaled ? null : 1,
+                              overflow: isScaled ? null : TextOverflow.ellipsis,
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textTertiary,
                               ),
                             ),
-                            if (hasSubtitle) ...[
-                              const SizedBox(height: CoveRow._kSubtitleGap),
-                              Text(
-                                widget.subtitle!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: CoveType.rowSub.copyWith(
-                                  color: cv.textTertiary,
-                                ),
+                          ],
+                        ],
+                      );
+
+                      final Widget? trailingWidget = !hasTrailing
+                          ? null
+                          : hasAmount
+                              ? Text(
+                                  widget.amount!,
+                                  style: CoveType.cardFigure.copyWith(
+                                    color: amountColor,
+                                  ),
+                                )
+                              : widget.trailing!;
+
+                      if (!isScaled) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            if (hasLeading) ...[
+                              SizedBox(
+                                width: CoveSize.avatarRow,
+                                child: Center(child: leadingWidget),
                               ),
+                              const SizedBox(width: CoveSpace.md),
+                            ],
+                            Expanded(child: titleColumn),
+                            if (trailingWidget != null) ...[
+                              const SizedBox(width: CoveSpace.md),
+                              trailingWidget,
                             ],
                           ],
-                        ),
-                      ),
-                      if (hasTrailing) ...[
-                        const SizedBox(width: CoveSpace.md),
-                        if (hasAmount)
-                          Text(
-                            widget.amount!,
-                            style: CoveType.cardFigure.copyWith(
-                              color: amountColor,
-                            ),
-                          )
-                        else
-                          widget.trailing!,
-                      ],
-                    ],
+                        );
+                      }
+
+                      return CoveReflowRow(
+                        allowStack: true,
+                        forceStack: hasAmount,
+                        leading: hasLeading
+                            ? ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  minWidth: CoveSize.avatarRow,
+                                ),
+                                child: Center(
+                                  widthFactor: 1.0,
+                                  child: leadingWidget,
+                                ),
+                              )
+                            : null,
+                        body: titleColumn,
+                        trailing: trailingWidget,
+                      );
+                    },
                   ),
                 ),
 

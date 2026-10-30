@@ -177,9 +177,11 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Habit' : 'New Habit',
-                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit Habit' : 'New Habit',
+                      style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                    ),
                   ),
                   IconButton(
                     icon: Icon(Icons.close, size: 20, color: cv.textSecondary),
@@ -214,52 +216,93 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
               const SizedBox(height: CoveSpace.sm),
               Container(
                 decoration: CoveShape.decoration(
-                  CoveRadius.pill,
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                      ? CoveRadius.inline
+                      : CoveRadius.pill,
                   color: cv.surfaceRow,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildPill(
-                        label: 'Daily',
-                        isSelected: _cadence == 'daily',
-                        onTap: () => setState(() {
-                          _cadence = 'daily';
-                          _selectedDays = {1, 2, 3, 4, 5, 6, 7};
-                          _targetDays = 7;
-                        }),
+                child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildPill(
+                            label: 'Daily',
+                            isSelected: _cadence == 'daily',
+                            onTap: () => setState(() {
+                              _cadence = 'daily';
+                              _selectedDays = {1, 2, 3, 4, 5, 6, 7};
+                              _targetDays = 7;
+                            }),
+                          ),
+                          _buildPill(
+                            label: 'Weekly',
+                            isSelected: _cadence == 'weekly',
+                            onTap: () => setState(() {
+                              _cadence = 'weekly';
+                              if (_selectedDays.length != 1) {
+                                _selectedDays = {clock.now().weekday};
+                              }
+                              _targetDays = 1;
+                            }),
+                          ),
+                          _buildPill(
+                            label: 'Custom',
+                            isSelected: _cadence == 'custom',
+                            onTap: () => setState(() {
+                              _cadence = 'custom';
+                              if (_selectedDays.isEmpty ||
+                                  _selectedDays.length == 7) {
+                                _selectedDays = {1, 3, 5}; // Mon, Wed, Fri
+                              }
+                              _targetDays = _selectedDays.length;
+                            }),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: _buildPill(
+                              label: 'Daily',
+                              isSelected: _cadence == 'daily',
+                              onTap: () => setState(() {
+                                _cadence = 'daily';
+                                _selectedDays = {1, 2, 3, 4, 5, 6, 7};
+                                _targetDays = 7;
+                              }),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildPill(
+                              label: 'Weekly',
+                              isSelected: _cadence == 'weekly',
+                              onTap: () => setState(() {
+                                _cadence = 'weekly';
+                                if (_selectedDays.length != 1) {
+                                  _selectedDays = {clock.now().weekday};
+                                }
+                                _targetDays = 1;
+                              }),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildPill(
+                              label: 'Custom',
+                              isSelected: _cadence == 'custom',
+                              onTap: () => setState(() {
+                                _cadence = 'custom';
+                                if (_selectedDays.isEmpty ||
+                                    _selectedDays.length == 7) {
+                                  _selectedDays = {1, 3, 5}; // Mon, Wed, Fri
+                                }
+                                _targetDays = _selectedDays.length;
+                              }),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                      child: _buildPill(
-                        label: 'Weekly',
-                        isSelected: _cadence == 'weekly',
-                        onTap: () => setState(() {
-                          _cadence = 'weekly';
-                          if (_selectedDays.length != 1) {
-                            _selectedDays = {clock.now().weekday};
-                          }
-                          _targetDays = 1;
-                        }),
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildPill(
-                        label: 'Custom',
-                        isSelected: _cadence == 'custom',
-                        onTap: () => setState(() {
-                          _cadence = 'custom';
-                          if (_selectedDays.isEmpty || _selectedDays.length == 7) {
-                            _selectedDays = {1, 3, 5}; // Mon, Wed, Fri
-                          }
-                          _targetDays = _selectedDays.length;
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
               ),
 
               // Days of week selector for Weekly & Custom
@@ -361,21 +404,20 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                 padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildVisibilityPill(
+                    if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildVisibilityPill(
                             icon: Icons.people_outline,
                             label: 'Shared with $partnerName',
                             isSelected:
                                 _visibility == HabitVisibility.shared,
-                            onTap: () => setState(() =>
-                                _visibility = HabitVisibility.shared),
+                            onTap: () => setState(
+                                () => _visibility = HabitVisibility.shared),
                           ),
-                        ),
-                        const SizedBox(width: CoveSpace.xs),
-                        Expanded(
-                          child: _buildVisibilityPill(
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildVisibilityPill(
                             icon: Icons.lock_outline,
                             label: 'Private to Me',
                             isSelected:
@@ -383,9 +425,34 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                             onTap: () => setState(() =>
                                 _visibility = HabitVisibility.privateToMe),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.people_outline,
+                              label: 'Shared with $partnerName',
+                              isSelected:
+                                  _visibility == HabitVisibility.shared,
+                              onTap: () => setState(() =>
+                                  _visibility = HabitVisibility.shared),
+                            ),
+                          ),
+                          const SizedBox(width: CoveSpace.xs),
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.lock_outline,
+                              label: 'Private to Me',
+                              isSelected:
+                                  _visibility == HabitVisibility.privateToMe,
+                              onTap: () => setState(() =>
+                                  _visibility = HabitVisibility.privateToMe),
+                            ),
+                          ),
+                        ],
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         10,
@@ -447,63 +514,78 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final chipSize = ((constraints.maxWidth - 6 * CoveSpace.xs) / 7)
-            .clamp(32.0, CoveSize.buttonRound);
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: days.map((day) {
-            final dayNum = day.$1;
-            final letter = day.$2;
-            final isSelected = _selectedDays.contains(dayNum);
+        final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+        final isScaled = textScale > 1.0;
+        final chipSize = isScaled
+            ? (CoveSize.buttonRound * (textScale > 1.35 ? 1.2 : 1.05))
+                .ceilToDouble()
+            : ((constraints.maxWidth - 6 * CoveSpace.xs) / 7)
+                .clamp(32.0, CoveSize.buttonRound);
 
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (_cadence == 'weekly') {
-                    // Weekly is single day selection
-                    _selectedDays = {dayNum};
-                  } else {
-                    // Custom allows multi-selection
-                    if (isSelected) {
-                      if (_selectedDays.length > 1) {
-                        _selectedDays.remove(dayNum);
-                      }
-                    } else {
-                      _selectedDays.add(dayNum);
+        final chipWidgets = days.map((day) {
+          final dayNum = day.$1;
+          final letter = day.$2;
+          final isSelected = _selectedDays.contains(dayNum);
+
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                if (_cadence == 'weekly') {
+                  // Weekly is single day selection
+                  _selectedDays = {dayNum};
+                } else {
+                  // Custom allows multi-selection
+                  if (isSelected) {
+                    if (_selectedDays.length > 1) {
+                      _selectedDays.remove(dayNum);
                     }
-                    _targetDays = _selectedDays.length;
+                  } else {
+                    _selectedDays.add(dayNum);
                   }
-                });
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: chipSize,
-                height: chipSize,
-                decoration: BoxDecoration(
+                  _targetDays = _selectedDays.length;
+                }
+              });
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: chipSize,
+              height: chipSize,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? cv.accentFill
+                    : cv.surfaceRow,
+                shape: BoxShape.circle,
+                border: Border.all(
                   color: isSelected
                       ? cv.accentFill
-                      : cv.surfaceRow,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected
-                        ? cv.accentFill
-                        : cv.lineHairline,
-                    width: 1,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  letter,
-                  style: CoveType.readout.copyWith(
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? cv.textOnAccent
-                        : cv.textPrimary,
-                  ),
+                      : cv.lineHairline,
+                  width: 1,
                 ),
               ),
-            );
-          }).toList(),
+              alignment: Alignment.center,
+              child: Text(
+                letter,
+                style: CoveType.readout.copyWith(
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? cv.textOnAccent
+                      : cv.textPrimary,
+                ),
+              ),
+            ),
+          );
+        }).toList();
+
+        if (isScaled) {
+          return Wrap(
+            spacing: CoveSpace.sm,
+            runSpacing: CoveSpace.sm,
+            children: chipWidgets,
+          );
+        }
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: chipWidgets,
         );
       },
     );
@@ -581,8 +663,11 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
             Flexible(
               child: Text(
                 label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines:
+                    MediaQuery.textScalerOf(context).scale(1.0) > 1.0 ? null : 1,
+                overflow: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                    ? null
+                    : TextOverflow.ellipsis,
                 style: CoveType.rowSub.copyWith(
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? cv.textPrimary : cv.textSecondary,

@@ -406,109 +406,135 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
       ),
       child: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Builder(
+            builder: (context) {
+              final isScaled =
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+              final commitmentTypeChildren = [
+                _buildSelectorPill(
+                  label: 'Subscription',
+                  isSelected: _endDate == null &&
+                      (_totalInstallments == null || _totalInstallments == 0),
+                  onTap: () => setState(() {
+                    _endDate = null;
+                    _totalInstallments = null;
+                    _paidInstallments = null;
+                    _paidInstallmentsController.clear();
+                  }),
+                ),
+                _buildSelectorPill(
+                  label: 'EMI / Loan',
+                  isSelected: _endDate != null ||
+                      (_totalInstallments != null && _totalInstallments! > 0),
+                  onTap: () => setState(() {
+                    _totalInstallments ??= 12;
+                    _paidInstallments ??= 0;
+                    _paidInstallmentsController.text = '$_paidInstallments';
+                    _recalculateEndDate();
+                  }),
+                ),
+              ];
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isEditing ? 'Edit Commitment' : 'New Commitment',
+                          style: CoveType.slipTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          size: 20,
+                          color: cv.textSecondary,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Service Name
                   Text(
-                    isEditing ? 'Edit Commitment' : 'New Commitment',
-                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                    'COMMITMENT NAME',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 20, color: cv.textSecondary),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Service Name
-              Text(
-                'COMMITMENT NAME',
-                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-              ),
-              const SizedBox(height: CoveSpace.sm),
-              CovePillInput(
-                controller: _nameController,
-                hintText: 'e.g. Netflix, Spotify, Car Loan, Device EMI',
-                prefixIcon: Icon(
-                  Icons.autorenew_outlined,
-                  size: 18,
-                  color: cv.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Amount
-              Text(
-                'AMOUNT',
-                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-              ),
-              const SizedBox(height: CoveSpace.sm),
-              CovePillInput(
-                controller: _amountController,
-                hintText: '0.00',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                prefixIcon: Padding(
-                  padding: const EdgeInsets.only(left: CoveSpace.xs),
-                  child: Text(
-                    currency.symbol,
-                    style: CoveType.rowTitle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: cv.textPrimary,
+                  const SizedBox(height: CoveSpace.sm),
+                  CovePillInput(
+                    controller: _nameController,
+                    hintText: 'e.g. Netflix, Spotify, Car Loan, Device EMI',
+                    prefixIcon: Icon(
+                      Icons.autorenew_outlined,
+                      size: 18,
+                      color: cv.textSecondary,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 18),
+                  const SizedBox(height: 18),
 
-              // Commitment Type Selector (Ongoing Subscription vs Finite EMI / Loan)
-              Text(
-                'COMMITMENT TYPE',
-                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-              ),
-              const SizedBox(height: CoveSpace.sm),
-              Container(
-                height: CoveSize.hit,
-                decoration: CoveShape.decoration(
-                  CoveRadius.pill,
-                  color: cv.surfaceRow,
-                  side: BorderSide(color: cv.lineHairline, width: 1),
-                ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: 'Subscription',
-                        isSelected: _endDate == null && (_totalInstallments == null || _totalInstallments == 0),
-                        onTap: () => setState(() {
-                          _endDate = null;
-                          _totalInstallments = null;
-                          _paidInstallments = null;
-                          _paidInstallmentsController.clear();
-                        }),
+                  // Amount
+                  Text(
+                    'AMOUNT',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
+                  const SizedBox(height: CoveSpace.sm),
+                  CovePillInput(
+                    controller: _amountController,
+                    hintText: '0.00',
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: CoveSpace.xs),
+                      child: Text(
+                        currency.symbol,
+                        style: CoveType.rowTitle.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cv.textPrimary,
+                        ),
                       ),
                     ),
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: 'EMI / Loan',
-                        isSelected: _endDate != null || (_totalInstallments != null && _totalInstallments! > 0),
-                        onTap: () => setState(() {
-                          _totalInstallments ??= 12;
-                          _paidInstallments ??= 0;
-                          _paidInstallmentsController.text = '$_paidInstallments';
-                          _recalculateEndDate();
-                        }),
-                      ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Commitment Type Selector (Ongoing Subscription vs Finite EMI / Loan)
+                  Text(
+                    'COMMITMENT TYPE',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
+                  const SizedBox(height: CoveSpace.sm),
+                  Container(
+                    height: isScaled ? null : CoveSize.hit,
+                    decoration: CoveShape.decoration(
+                      isScaled ? CoveRadius.inline : CoveRadius.pill,
+                      color: cv.surfaceRow,
+                      side: BorderSide(color: cv.lineHairline, width: 1),
                     ),
-                  ],
-                ),
-              ),
+                    padding: EdgeInsets.all(isScaled ? CoveSpace.xs : 3),
+                    child: isScaled
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              commitmentTypeChildren[0],
+                              const SizedBox(height: CoveSpace.xs),
+                              commitmentTypeChildren[1],
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(child: commitmentTypeChildren[0]),
+                              Expanded(child: commitmentTypeChildren[1]),
+                            ],
+                          ),
+                  ),
               const SizedBox(height: 18),
 
               // Financed Through (Card, Person, Bank, etc.)
@@ -1029,40 +1055,71 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                height: CoveSize.hit,
+                height: isScaled ? null : CoveSize.hit,
                 decoration: CoveShape.decoration(
-                  CoveRadius.pill,
+                  isScaled ? CoveRadius.inline : CoveRadius.pill,
                   color: cv.surfaceRow,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildCyclePill(
-                        label: 'Monthly',
-                        isSelected: _billingCycle == 'monthly',
-                        onTap: () => setState(() => _billingCycle = 'monthly'),
+                padding: EdgeInsets.all(isScaled ? CoveSpace.xs : 3),
+                child: isScaled
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildCyclePill(
+                            label: 'Monthly',
+                            isSelected: _billingCycle == 'monthly',
+                            onTap: () =>
+                                setState(() => _billingCycle = 'monthly'),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildCyclePill(
+                            label: 'Annual',
+                            isSelected: _billingCycle == 'annual',
+                            onTap: () =>
+                                setState(() => _billingCycle = 'annual'),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildCyclePill(
+                            label: _billingCycle == 'custom'
+                                ? 'Custom (${_customMonths}m)'
+                                : 'Custom',
+                            isSelected: _billingCycle == 'custom',
+                            onTap: () =>
+                                setState(() => _billingCycle = 'custom'),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: _buildCyclePill(
+                              label: 'Monthly',
+                              isSelected: _billingCycle == 'monthly',
+                              onTap: () =>
+                                  setState(() => _billingCycle = 'monthly'),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildCyclePill(
+                              label: 'Annual',
+                              isSelected: _billingCycle == 'annual',
+                              onTap: () =>
+                                  setState(() => _billingCycle = 'annual'),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildCyclePill(
+                              label: _billingCycle == 'custom'
+                                  ? 'Custom (${_customMonths}m)'
+                                  : 'Custom',
+                              isSelected: _billingCycle == 'custom',
+                              onTap: () =>
+                                  setState(() => _billingCycle = 'custom'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                      child: _buildCyclePill(
-                        label: 'Annual',
-                        isSelected: _billingCycle == 'annual',
-                        onTap: () => setState(() => _billingCycle = 'annual'),
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildCyclePill(
-                        label: _billingCycle == 'custom'
-                            ? 'Custom (${_customMonths}m)'
-                            : 'Custom',
-                        isSelected: _billingCycle == 'custom',
-                        onTap: () => setState(() => _billingCycle = 'custom'),
-                      ),
-                    ),
-                  ],
-                ),
               ),
 
               // Custom Duration Card
@@ -1084,28 +1141,31 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Every $_customMonths months',
-                                style: CoveType.rowTitle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: cv.textPrimary,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Every $_customMonths months',
+                                  style: CoveType.rowTitle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: cv.textPrimary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _customMonths == 7
-                                    ? 'e.g. 6+1 months WiFi plan'
-                                    : 'Recurring billing interval',
-                                style: CoveType.barLabel.copyWith(
-                                  color: cv.textSecondary,
-                                  fontWeight: FontWeight.w400,
+                                const SizedBox(height: 2),
+                                Text(
+                                  _customMonths == 7
+                                      ? 'e.g. 6+1 months WiFi plan'
+                                      : 'Recurring billing interval',
+                                  style: CoveType.barLabel.copyWith(
+                                    color: cv.textSecondary,
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: CoveSpace.sm),
                           // Stepper controls
                           Container(
                             decoration: CoveShape.decoration(
@@ -1175,13 +1235,19 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 onTap: _pickDate,
                 customBorder: CoveShape.border(CoveRadius.pill),
                 child: Container(
-                  height: CoveSize.hit,
+                  height: isScaled ? null : CoveSize.hit,
+                  constraints: isScaled
+                      ? const BoxConstraints(minHeight: CoveSize.hit)
+                      : null,
                   decoration: CoveShape.decoration(
                     CoveRadius.pill,
                     color: cv.surfaceRow,
                     side: BorderSide(color: cv.lineHairline, width: 1),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: isScaled ? CoveSpace.sm : 0,
+                  ),
                   child: Row(
                     children: [
                       Icon(
@@ -1262,44 +1328,82 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                height: CoveSize.hit,
+                height: isScaled ? null : CoveSize.hit,
                 decoration: CoveShape.decoration(
-                  CoveRadius.pill,
+                  isScaled ? CoveRadius.inline : CoveRadius.pill,
                   color: cv.surfaceRow,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: myName,
-                        isSelected: _paidBy == myId ||
-                            (_paidBy != 'split' &&
-                                _paidBy != '50/50' &&
-                                _paidBy != (partnerProfile.userId ?? 'partner_user') &&
-                                _paidBy != 'partner_user'),
-                        onTap: () => setState(() => _paidBy = myId),
+                padding: EdgeInsets.all(isScaled ? CoveSpace.xs : 3),
+                child: isScaled
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildSelectorPill(
+                            label: myName,
+                            isSelected: _paidBy == myId ||
+                                (_paidBy != 'split' &&
+                                    _paidBy != '50/50' &&
+                                    _paidBy !=
+                                        (partnerProfile.userId ??
+                                            'partner_user') &&
+                                    _paidBy != 'partner_user'),
+                            onTap: () => setState(() => _paidBy = myId),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildSelectorPill(
+                            label: 'Split (50/50)',
+                            isSelected:
+                                _paidBy == 'split' || _paidBy == '50/50',
+                            onTap: () => setState(() => _paidBy = 'split'),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildSelectorPill(
+                            label: partnerName,
+                            isSelected: _paidBy ==
+                                    (partnerProfile.userId ?? 'partner_user') ||
+                                _paidBy == 'partner_user',
+                            onTap: () => setState(() => _paidBy =
+                                partnerProfile.userId ?? 'partner_user'),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: _buildSelectorPill(
+                              label: myName,
+                              isSelected: _paidBy == myId ||
+                                  (_paidBy != 'split' &&
+                                      _paidBy != '50/50' &&
+                                      _paidBy !=
+                                          (partnerProfile.userId ??
+                                              'partner_user') &&
+                                      _paidBy != 'partner_user'),
+                              onTap: () => setState(() => _paidBy = myId),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildSelectorPill(
+                              label: 'Split (50/50)',
+                              isSelected:
+                                  _paidBy == 'split' || _paidBy == '50/50',
+                              onTap: () => setState(() => _paidBy = 'split'),
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildSelectorPill(
+                              label: partnerName,
+                              isSelected: _paidBy ==
+                                      (partnerProfile.userId ??
+                                          'partner_user') ||
+                                  _paidBy == 'partner_user',
+                              onTap: () => setState(() => _paidBy =
+                                  partnerProfile.userId ?? 'partner_user'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: 'Split (50/50)',
-                        isSelected: _paidBy == 'split' || _paidBy == '50/50',
-                        onTap: () => setState(() => _paidBy = 'split'),
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: partnerName,
-                        isSelected: _paidBy == (partnerProfile.userId ?? 'partner_user') ||
-                            _paidBy == 'partner_user',
-                        onTap: () => setState(() =>
-                            _paidBy = partnerProfile.userId ?? 'partner_user'),
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 22),
 
@@ -1318,27 +1422,47 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 padding: const EdgeInsets.all(CoveSpace.xs),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildVisibilityPill(
+                    if (isScaled)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildVisibilityPill(
                             icon: Icons.people_outline,
                             label: 'Shared with $partnerName',
                             isSelected: !_isPrivate,
                             onTap: () => setState(() => _isPrivate = false),
                           ),
-                        ),
-                        const SizedBox(width: CoveSpace.xs),
-                        Expanded(
-                          child: _buildVisibilityPill(
+                          const SizedBox(height: CoveSpace.xs),
+                          _buildVisibilityPill(
                             icon: Icons.visibility_off_outlined,
                             label: 'Private to Me',
                             isSelected: _isPrivate,
                             onTap: () => setState(() => _isPrivate = true),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.people_outline,
+                              label: 'Shared with $partnerName',
+                              isSelected: !_isPrivate,
+                              onTap: () => setState(() => _isPrivate = false),
+                            ),
+                          ),
+                          const SizedBox(width: CoveSpace.xs),
+                          Expanded(
+                            child: _buildVisibilityPill(
+                              icon: Icons.visibility_off_outlined,
+                              label: 'Private to Me',
+                              isSelected: _isPrivate,
+                              onTap: () => setState(() => _isPrivate = true),
+                            ),
+                          ),
+                        ],
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         10,
@@ -1407,6 +1531,8 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                 ),
               ],
             ],
+          );
+            },
           ),
         ),
       ),
@@ -1419,10 +1545,17 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
+        padding: isScaled
+            ? const EdgeInsets.symmetric(
+                vertical: CoveSpace.sm,
+                horizontal: CoveSpace.md,
+              )
+            : null,
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.pill,
@@ -1430,6 +1563,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected
@@ -1448,6 +1582,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -1483,7 +1618,7 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? cv.textPrimary : cv.textSecondary,
                 ),
-                overflow: TextOverflow.ellipsis,
+                overflow: isScaled ? null : TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1526,12 +1661,19 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return InkWell(
       onTap: onTap,
       customBorder: CoveShape.border(CoveRadius.pill),
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
+        padding: isScaled
+            ? const EdgeInsets.symmetric(
+                vertical: CoveSpace.sm,
+                horizontal: CoveSpace.md,
+              )
+            : null,
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.pill,
@@ -1551,11 +1693,12 @@ class _SubscriptionFormSheetState extends ConsumerState<SubscriptionFormSheet> {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             color: isSelected ? cv.textPrimary : cv.textSecondary,
           ),
-          overflow: TextOverflow.ellipsis,
+          overflow: isScaled ? null : TextOverflow.ellipsis,
         ),
       ),
     );

@@ -46,6 +46,8 @@ class _HelicopterPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final cv = context.cv;
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     return Container(
       padding: const EdgeInsets.all(CoveSpace.md),
       decoration: CoveShape.decoration(
@@ -57,66 +59,142 @@ class _HelicopterPreview extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Header Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          if (isScaled)
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: CoveSpace.sm,
+                runSpacing: CoveSpace.xs,
                 children: [
-                  Icon(
-                    Icons.grid_view_rounded,
-                    size: _kHeaderIconSize,
-                    color: cv.accentFill,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.grid_view_rounded,
+                        size: _kHeaderIconSize,
+                        color: cv.accentFill,
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Flexible(
+                        child: Text(
+                          '2026 Commitments',
+                          style: CoveType.rowSub.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: CoveSpace.sm),
-                  Text(
-                    '2026 Commitments',
-                    style: CoveType.rowSub.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: cv.textPrimary,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CoveSpace.sm,
+                      vertical: CoveSpace.xs,
+                    ),
+                    decoration: CoveShape.decoration(
+                      _kBadgeRadius,
+                      color: cv.accentWash,
+                    ),
+                    child: Text(
+                      '50/50 ON',
+                      style: CoveType.barLabel.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cv.accentText,
+                      ),
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CoveSpace.sm,
-                  vertical: CoveSpace.xs,
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.grid_view_rounded,
+                      size: _kHeaderIconSize,
+                      color: cv.accentFill,
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Text(
+                      '2026 Commitments',
+                      style: CoveType.rowSub.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cv.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                decoration: CoveShape.decoration(
-                  _kBadgeRadius,
-                  color: cv.accentWash,
-                ),
-                child: Text(
-                  '50/50 ON',
-                  style: CoveType.barLabel.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: cv.accentText,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.sm,
+                    vertical: CoveSpace.xs,
+                  ),
+                  decoration: CoveShape.decoration(
+                    _kBadgeRadius,
+                    color: cv.accentWash,
+                  ),
+                  child: Text(
+                    '50/50 ON',
+                    style: CoveType.barLabel.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: cv.accentText,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: CoveSpace.sm),
-          // 3x2 Mini Month Grid
-          Row(
-            children: [
-              _buildMiniMonth(context, 'Jan', '₹24k', true),
-              const SizedBox(width: CoveSpace.sm),
-              _buildMiniMonth(context, 'Feb', '₹18k', false),
-              const SizedBox(width: CoveSpace.sm),
-              _buildMiniMonth(context, 'Mar', '₹32k', false),
-            ],
-          ),
-          const SizedBox(height: CoveSpace.sm),
-          Row(
-            children: [
-              _buildMiniMonth(context, 'Apr', '₹19k', false),
-              const SizedBox(width: CoveSpace.sm),
-              _buildMiniMonth(context, 'May', '₹21k', false),
-              const SizedBox(width: CoveSpace.sm),
-              _buildMiniMonth(context, 'Jun', '₹27k', false),
-            ],
-          ),
+          // Mini Month Grid (3x2 at 1.0x, 2x3 when scaled)
+          if (isScaled) ...[
+            Row(
+              children: [
+                _buildMiniMonth(context, 'Jan', '₹24k', true),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Feb', '₹18k', false),
+              ],
+            ),
+            const SizedBox(height: CoveSpace.sm),
+            Row(
+              children: [
+                _buildMiniMonth(context, 'Mar', '₹32k', false),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Apr', '₹19k', false),
+              ],
+            ),
+            const SizedBox(height: CoveSpace.sm),
+            Row(
+              children: [
+                _buildMiniMonth(context, 'May', '₹21k', false),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Jun', '₹27k', false),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                _buildMiniMonth(context, 'Jan', '₹24k', true),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Feb', '₹18k', false),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Mar', '₹32k', false),
+              ],
+            ),
+            const SizedBox(height: CoveSpace.sm),
+            Row(
+              children: [
+                _buildMiniMonth(context, 'Apr', '₹19k', false),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'May', '₹21k', false),
+                const SizedBox(width: CoveSpace.sm),
+                _buildMiniMonth(context, 'Jun', '₹27k', false),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -282,6 +360,71 @@ class _SmartDecimalsPreview extends StatelessWidget {
     required bool isClean,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final valuesRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          before,
+          style: CoveType.barLabel.copyWith(
+            decoration: TextDecoration.lineThrough,
+            color: cv.textSecondary.withValues(alpha: 0.5),
+          ),
+        ),
+        const SizedBox(width: CoveSpace.sm),
+        Icon(
+          Icons.arrow_forward_rounded,
+          size: _kArrowIconSize,
+          color: cv.textTertiary,
+        ),
+        const SizedBox(width: CoveSpace.sm),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CoveSpace.sm,
+            vertical: CoveSpace.xs,
+          ),
+          decoration: CoveShape.decoration(
+            CoveSpace.xs,
+            color: isClean ? cv.accentWash : cv.surfaceRow,
+            side: BorderSide(
+              color: isClean
+                  ? cv.accentFill.withValues(alpha: 0.3)
+                  : cv.lineHairline,
+            ),
+          ),
+          child: Text(
+            after,
+            style: CoveType.barLabel.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isClean ? cv.accentText : cv.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (isScaled) {
+      return SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: CoveSpace.sm,
+          runSpacing: CoveSpace.xs,
+          children: [
+            Text(
+              label,
+              style: CoveType.barLabel.copyWith(
+                color: cv.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            valuesRow,
+          ],
+        ),
+      );
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -297,47 +440,7 @@ class _SmartDecimalsPreview extends StatelessWidget {
           ),
         ),
         const SizedBox(width: CoveSpace.sm),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              before,
-              style: CoveType.barLabel.copyWith(
-                decoration: TextDecoration.lineThrough,
-                color: cv.textSecondary.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(width: CoveSpace.sm),
-            Icon(
-              Icons.arrow_forward_rounded,
-              size: _kArrowIconSize,
-              color: cv.textTertiary,
-            ),
-            const SizedBox(width: CoveSpace.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: CoveSpace.sm,
-                vertical: CoveSpace.xs,
-              ),
-              decoration: CoveShape.decoration(
-                CoveSpace.xs,
-                color: isClean ? cv.accentWash : cv.surfaceRow,
-                side: BorderSide(
-                  color: isClean
-                      ? cv.accentFill.withValues(alpha: 0.3)
-                      : cv.lineHairline,
-                ),
-              ),
-              child: Text(
-                after,
-                style: CoveType.barLabel.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: isClean ? cv.accentText : cv.textPrimary,
-                ),
-              ),
-            ),
-          ],
-        ),
+        valuesRow,
       ],
     );
   }
@@ -361,6 +464,7 @@ class _ProfileStudioPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -373,6 +477,8 @@ class _ProfileStudioPreview extends StatelessWidget {
         side: BorderSide(color: cv.lineHairline),
       ),
       child: Row(
+        crossAxisAlignment:
+            isScaled ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           // Avatar with Camera Badge
           Stack(
@@ -428,21 +534,39 @@ class _ProfileStudioPreview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    _buildPillChip(
-                      context,
-                      Icons.photo_library_outlined,
-                      'Upload Photo',
-                    ),
-                    const SizedBox(width: CoveSpace.sm),
-                    _buildPillChip(
-                      context,
-                      Icons.text_fields_rounded,
-                      'Initials',
-                    ),
-                  ],
-                ),
+                if (isScaled)
+                  Wrap(
+                    spacing: CoveSpace.sm,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      _buildPillChip(
+                        context,
+                        Icons.photo_library_outlined,
+                        'Upload Photo',
+                      ),
+                      _buildPillChip(
+                        context,
+                        Icons.text_fields_rounded,
+                        'Initials',
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      _buildPillChip(
+                        context,
+                        Icons.photo_library_outlined,
+                        'Upload Photo',
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      _buildPillChip(
+                        context,
+                        Icons.text_fields_rounded,
+                        'Initials',
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: CoveSpace.sm),
                 Row(
                   children: [
@@ -452,11 +576,13 @@ class _ProfileStudioPreview extends StatelessWidget {
                       color: cv.accentFill,
                     ),
                     const SizedBox(width: CoveSpace.xs),
-                    Text(
-                      'Frame 0 Instant Sync',
-                      style: CoveType.barLabel.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cv.accentText,
+                    Flexible(
+                      child: Text(
+                        'Frame 0 Instant Sync',
+                        style: CoveType.barLabel.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cv.accentText,
+                        ),
                       ),
                     ),
                   ],

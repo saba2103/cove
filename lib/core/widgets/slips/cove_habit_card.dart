@@ -197,10 +197,16 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
             const SizedBox(height: CoveSpace.md),
 
             // 3. 21-day streak grid (left) + run count in slipFigure (right)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(
+            Builder(
+              builder: (context) {
+                final textScale =
+                    MediaQuery.textScalerOf(context).scale(1.0);
+                final isScaled = textScale > 1.0;
+                final stackStreak = isScaled &&
+                    (MediaQuery.sizeOf(context).width / textScale) <
+                        CoveSize.compactThreshold;
+
+                final gridBox = SizedBox(
                   width: gridWidth,
                   height: gridHeight,
                   child: CustomPaint(
@@ -211,35 +217,66 @@ class CoveHabitCard extends StatelessWidget implements CoveSlipObject {
                       todayRingColor: palette.accentFill,
                     ),
                   ),
-                ),
-                const SizedBox(width: CoveSpace.md),
-                Expanded(
-                  child: Column(
+                );
+
+                if (stackStreak) {
+                  return Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      gridBox,
+                      const SizedBox(height: CoveSpace.md),
                       Text(
                         '$daysRunning',
-                        maxLines: 1,
-                        softWrap: false,
-                        textAlign: TextAlign.end,
                         style:
                             CoveType.slipFigure.copyWith(color: palette.title),
                       ),
                       const SizedBox(height: CoveSpace.xs),
                       Text(
                         runLabel.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.end,
                         style: CoveType.capsSlip.copyWith(
                           color: palette.tertiary,
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    gridBox,
+                    const SizedBox(width: CoveSpace.md),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$daysRunning',
+                            maxLines: isScaled ? null : 1,
+                            softWrap: isScaled,
+                            textAlign: TextAlign.end,
+                            style: CoveType.slipFigure.copyWith(
+                              color: palette.title,
+                            ),
+                          ),
+                          const SizedBox(height: CoveSpace.xs),
+                          Text(
+                            runLabel.toUpperCase(),
+                            maxLines: isScaled ? null : 1,
+                            overflow: isScaled ? null : TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: CoveType.capsSlip.copyWith(
+                              color: palette.tertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ],

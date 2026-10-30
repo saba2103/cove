@@ -95,3 +95,18 @@ iOS and Android draw the status bar natively; the app must never draw a second s
 3. **Bottom Inset with Floating Bar**: Pages wearing the floating bar add `MediaQuery.padding.bottom` (or `MediaQuery.paddingOf(context).bottom`) to `CoveSpace.barClearance` for their bottom scroll padding.
 4. **Header Spacing**: Content begins immediately below the top inset with no extra top padding of its own — the page header supplies its own top space.
 5. **Max-Content Width**: Page content is constrained to `CoveSize.maxContent` (`420 dp`) and centred on wider viewports via [`CoveMaxWidth`](../lib/core/widgets/cove_max_width.dart).
+
+---
+
+## 6. Text Scaling & Reflow Convention (WCAG 1.4.4, 1.4.10)
+
+Every in-app surface must survive `TextScaler.linear(1.3)` and `TextScaler.linear(2.0)` down to `320 dp` (`CoveWidth.cover`) in both Dark and Light modes with the overflow guard active, zero clipped text, and zero ellipsis truncation on meaningful labels:
+
+1. **Reflow, Never Clamp**: Never cap or clamp `MediaQuery.textScalerOf(context)` on in-app widgets. The sole fixed `MediaQueryData` in `lib/` is [`CoveWidgetService._wrapForOffscreenRender`](../lib/features/widgets/cove_widget_service.dart), which rasterizes Android home-screen `RemoteViews` bitmaps (such as the Day Sheet widget) offscreen at their own widget dimensions.
+2. **Preserve `1.0x` Geometry**: Gate scaled reflow rules behind `MediaQuery.textScalerOf(context).scale(1.0) > 1.0` or effective-width thresholds (`MediaQuery.sizeOf(context).width / textScale < CoveSize.compactThreshold`) so `1.0x` layouts remain pixel-identical:
+   - [`CoveMetricGrid`](../lib/core/widgets/cove_metric_card.dart) stacks to a single full-width column.
+   - Side-by-side rows stack via [`CoveReflowRow`](../lib/core/widgets/cove_reflow_row.dart) (single-pass `RenderBox` layout without `IntrinsicWidth`) or responsive `Wrap` / `Column` fallbacks.
+   - [`CoveFloatingBar`](../lib/core/widgets/cove_floating_bar.dart) drops text labels to icons-only while preserving the central Add orb.
+   - [`AddKeypad`](../lib/features/add/widgets/add_keypad.dart) keys grow taller with scaled digit metrics.
+   - Slips (`CoveReceipt`, `CoveTicket`, `CoveVoucher`, `CoveHabitCard`, `CoveBand`, `CoveDial`, `CoveNote`) let their text wrap cleanly across lines.
+3. **Automated Gate**: Enforced in `./tool/check.sh` via [`test/golden/text_scale_52_golden_test.dart`](../test/golden/text_scale_52_golden_test.dart).

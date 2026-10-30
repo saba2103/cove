@@ -207,10 +207,12 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     for (final tick in _tickLabels)
-                      Text(
-                        tick,
-                        style: CoveType.capsSlip.copyWith(
-                          color: palette.tertiary,
+                      Flexible(
+                        child: Text(
+                          tick,
+                          style: CoveType.capsSlip.copyWith(
+                            color: palette.tertiary,
+                          ),
                         ),
                       ),
                   ],
@@ -234,20 +236,37 @@ class CoveBand extends StatelessWidget implements CoveSlipObject {
                 CoveRadius.inline,
                 color: palette.hairline,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < 7; i++) ...[
-                    if (i > 0) const SizedBox(width: CoveSpace.xs),
-                    _BandDayDot(
-                      letter: _dayLetters[i],
-                      active: days.contains(i + 1),
-                      palette: palette,
-                      activeTextColor: stripeColor,
+              child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                  ? Center(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: CoveSpace.xs,
+                        runSpacing: CoveSpace.xs,
+                        children: [
+                          for (var i = 0; i < 7; i++)
+                            _BandDayDot(
+                              letter: _dayLetters[i],
+                              active: days.contains(i + 1),
+                              palette: palette,
+                              activeTextColor: stripeColor,
+                            ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < 7; i++) ...[
+                          if (i > 0) const SizedBox(width: CoveSpace.xs),
+                          _BandDayDot(
+                            letter: _dayLetters[i],
+                            active: days.contains(i + 1),
+                            palette: palette,
+                            activeTextColor: stripeColor,
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
           const SizedBox(height: CoveSpace.md),
@@ -325,9 +344,13 @@ class _BandDayDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final dotSize = textScale > 1.0
+        ? (CoveBand.kDayDotSize * textScale).ceilToDouble()
+        : CoveBand.kDayDotSize;
     return Container(
-      width: CoveBand.kDayDotSize,
-      height: CoveBand.kDayDotSize,
+      width: dotSize,
+      height: dotSize,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,

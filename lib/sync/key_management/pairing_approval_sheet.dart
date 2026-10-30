@@ -44,64 +44,66 @@ class PairingApprovalSheet extends StatelessWidget {
       code: request.code,
     ).formatted;
 
-    return Padding(
-      padding: const EdgeInsets.all(CoveSpace.lg),
-      child: CoveCard(
-        padding: const EdgeInsets.all(CoveSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '$joiner wants to join $homeName.',
-              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: CoveSpace.sm),
-            Text(
-              'Do these words match on their phone?',
-              style: CoveType.body.copyWith(color: cv.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: CoveSpace.lg),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: CoveSpace.lg,
-                vertical: CoveSpace.md,
-              ),
-              decoration: CoveShape.decoration(
-                CoveRadius.inline,
-                color: cv.surfaceRow,
-                side: BorderSide(
-                  color: cv.lineHairline,
-                ),
-              ),
-              child: Text(
-                words,
-                key: const ValueKey('pairing_approval_verification_words'),
-                style: CoveType.title.copyWith(
-                  color: cv.accentText,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.4,
-                ),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(CoveSpace.lg),
+        child: CoveCard(
+          padding: const EdgeInsets.all(CoveSpace.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '$joiner wants to join $homeName.',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
                 textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: CoveSpace.xl),
-            CovePillButton(
-              label: 'Let them in',
-              isFullWidth: true,
-              isLoading: isSubmitting,
-              onPressed: isSubmitting ? null : onApprove,
-            ),
-            const SizedBox(height: CoveSpace.sm),
-            CovePillButton(
-              label: 'Not them',
-              variant: CoveButtonVariant.secondary,
-              isFullWidth: true,
-              onPressed: isSubmitting ? null : onDecline,
-            ),
-          ],
+              const SizedBox(height: CoveSpace.sm),
+              Text(
+                'Do these words match on their phone?',
+                style: CoveType.body.copyWith(color: cv.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: CoveSpace.lg),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CoveSpace.lg,
+                  vertical: CoveSpace.md,
+                ),
+                decoration: CoveShape.decoration(
+                  CoveRadius.inline,
+                  color: cv.surfaceRow,
+                  side: BorderSide(
+                    color: cv.lineHairline,
+                  ),
+                ),
+                child: Text(
+                  words,
+                  key: const ValueKey('pairing_approval_verification_words'),
+                  style: CoveType.title.copyWith(
+                    color: cv.accentText,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: CoveSpace.xl),
+              CovePillButton(
+                label: 'Let them in',
+                isFullWidth: true,
+                isLoading: isSubmitting,
+                onPressed: isSubmitting ? null : onApprove,
+              ),
+              const SizedBox(height: CoveSpace.sm),
+              CovePillButton(
+                label: 'Not them',
+                variant: CoveButtonVariant.secondary,
+                isFullWidth: true,
+                onPressed: isSubmitting ? null : onDecline,
+              ),
+            ],
+          ),
         ),
       ),
     );

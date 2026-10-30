@@ -631,62 +631,77 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: onCycleAttribution,
-                        child: Container(
-                          height: _kPillHeight,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                          ),
-                          decoration: CoveShape.decoration(
-                            CoveRadius.pill,
-                            color: cv.surfaceRow,
-                            side: BorderSide(
-                              color: cv.lineHairline,
-                              width: _kHairline,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: CoveSize.avatarInline +
-                                    _kAvatarOverlapOffset,
-                                height: CoveSize.avatarInline,
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      left: _kAvatarOverlapOffset,
-                                      top: 0,
-                                      child: CoveAvatar.inline(
-                                        person: CovePerson.b,
-                                        nameOrInitial: partnerName,
-                                      ),
-                                    ),
-                                    Positioned(
-                                      left: 0,
-                                      top: 0,
-                                      child: CoveAvatar.inline(
-                                        person: CovePerson.a,
-                                        nameOrInitial: myName,
-                                      ),
-                                    ),
-                                  ],
+                        child: Builder(
+                          builder: (context) {
+                            final isScaled =
+                                MediaQuery.textScalerOf(context).scale(1.0) >
+                                1.0;
+                            return Container(
+                              height: isScaled ? null : _kPillHeight,
+                              constraints: isScaled
+                                  ? const BoxConstraints(
+                                      minHeight: _kPillHeight,
+                                    )
+                                  : null,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: CoveSpace.sm,
+                                vertical: isScaled ? CoveSpace.xs : 0,
+                              ),
+                              decoration: CoveShape.decoration(
+                                CoveRadius.pill,
+                                color: cv.surfaceRow,
+                                side: BorderSide(
+                                  color: cv.lineHairline,
+                                  width: _kHairline,
                                 ),
                               ),
-                              const SizedBox(width: CoveSpace.xs),
-                              Text(
-                                attributionLabel,
-                                style: CoveType.barLabel.copyWith(
-                                  color: cv.textPrimary,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: CoveSize.avatarInline +
+                                        _kAvatarOverlapOffset,
+                                    height: CoveSize.avatarInline,
+                                    child: Stack(
+                                      children: [
+                                        Positioned(
+                                          left: _kAvatarOverlapOffset,
+                                          top: 0,
+                                          child: CoveAvatar.inline(
+                                            person: CovePerson.b,
+                                            nameOrInitial: partnerName,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          left: 0,
+                                          top: 0,
+                                          child: CoveAvatar.inline(
+                                            person: CovePerson.a,
+                                            nameOrInitial: myName,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: CoveSpace.xs),
+                                  Flexible(
+                                    child: Text(
+                                      attributionLabel,
+                                      style: CoveType.barLabel.copyWith(
+                                        color: cv.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: CoveSpace.xs),
+                                  Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: _kInlineIconSize,
+                                    color: cv.textTertiary,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: CoveSpace.xs),
-                              Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: _kInlineIconSize,
-                                color: cv.textTertiary,
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -813,13 +828,23 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                           ),
                           const SizedBox(width: CoveSpace.xs),
                           Expanded(
-                            child: Text(
-                              'Calculate monthly & annual together',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.rowSub.copyWith(
-                                color: cv.textSecondary,
-                              ),
+                            child: Builder(
+                              builder: (context) {
+                                final isScaled =
+                                    MediaQuery.textScalerOf(
+                                      context,
+                                    ).scale(1.0) >
+                                    1.0;
+                                return Text(
+                                  'Calculate monthly & annual together',
+                                  maxLines: isScaled ? null : 1,
+                                  overflow:
+                                      isScaled ? null : TextOverflow.ellipsis,
+                                  style: CoveType.rowSub.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -873,6 +898,7 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -880,8 +906,14 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
       child: AnimatedContainer(
         duration: duration,
         curve: CoveMotion.easing,
-        height: _kPillHeight,
-        padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+        height: isScaled ? null : _kPillHeight,
+        constraints: isScaled
+            ? const BoxConstraints(minHeight: _kPillHeight)
+            : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: CoveSpace.md,
+          vertical: isScaled ? CoveSpace.xs : 0,
+        ),
         decoration: CoveShape.decoration(
           CoveRadius.pill,
           color: selected ? cv.accentWash : Colors.transparent,
@@ -1047,6 +1079,8 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
           Builder(
             builder: (context) {
               final isSelected = _selectedKindFilter == seg.$1;
+              final isScaled =
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
               return Semantics(
                 button: true,
                 selected: isSelected,
@@ -1058,9 +1092,13 @@ class _SubscriptionsScreenState extends ConsumerState<SubscriptionsScreen> {
                   child: AnimatedContainer(
                     duration: duration,
                     curve: CoveMotion.easing,
-                    height: _kPillHeight,
-                    padding: const EdgeInsets.symmetric(
+                    height: isScaled ? null : _kPillHeight,
+                    constraints: isScaled
+                        ? const BoxConstraints(minHeight: _kPillHeight)
+                        : null,
+                    padding: EdgeInsets.symmetric(
                       horizontal: CoveSpace.md,
+                      vertical: isScaled ? CoveSpace.xs : 0,
                     ),
                     decoration: CoveShape.decoration(
                       CoveRadius.pill,

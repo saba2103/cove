@@ -519,41 +519,52 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         }
       },
       onLongPress: () => _openRoutineForm(routine),
-      child: AnimatedContainer(
-        duration: duration,
-        curve: CoveMotion.easing,
-        height: _chipHeight,
-        padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-        decoration: CoveShape.decoration(
-          CoveRadius.pill,
-          color: isSelected ? cv.accentFill : Colors.transparent,
-          side: BorderSide(
-            color: isSelected ? cv.accentFill : cv.lineStrong,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              routine.name,
-              style: CoveType.readout.copyWith(
-                color: isSelected ? cv.textOnAccent : cv.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+      child: Builder(
+        builder: (context) {
+          final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+          return AnimatedContainer(
+            duration: duration,
+            curve: CoveMotion.easing,
+            height: isScaled ? null : _chipHeight,
+            constraints: isScaled
+                ? const BoxConstraints(minHeight: _chipHeight)
+                : null,
+            padding: EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: isScaled ? CoveSpace.xs : 0,
+            ),
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
+              color: isSelected ? cv.accentFill : Colors.transparent,
+              side: BorderSide(
+                color: isSelected ? cv.accentFill : cv.lineStrong,
               ),
             ),
-            if (eventCount > 0) ...[
-              const SizedBox(width: CoveSpace.sm),
-              Text(
-                '$eventCount',
-                style: CoveType.readout.copyWith(
-                  color: isSelected
-                      ? cv.textOnAccent.withValues(alpha: 0.72)
-                      : cv.textTertiary,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  routine.name,
+                  style: CoveType.readout.copyWith(
+                    color: isSelected ? cv.textOnAccent : cv.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
+                if (eventCount > 0) ...[
+                  const SizedBox(width: CoveSpace.sm),
+                  Text(
+                    '$eventCount',
+                    style: CoveType.readout.copyWith(
+                      color: isSelected
+                          ? cv.textOnAccent.withValues(alpha: 0.72)
+                          : cv.textTertiary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -566,10 +577,115 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     required CoveTokens cv,
   }) {
     final duration = CoveMotion.q(context);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     final yoursOpacity =
         _focusedLane == RoutineLaneFocus.partner ? _fadedLaneOpacity : 1.0;
     final partnerOpacity =
         _focusedLane == RoutineLaneFocus.yours ? _fadedLaneOpacity : 1.0;
+
+    final yoursItem = Semantics(
+      button: true,
+      selected: _focusedLane == RoutineLaneFocus.yours,
+      label: myName,
+      child: GestureDetector(
+        key: const ValueKey('routine_legend_yours'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _toggleLaneFocus(RoutineLaneFocus.yours),
+        child: AnimatedOpacity(
+          key: const ValueKey('routine_legend_opacity_yours'),
+          duration: duration,
+          curve: CoveMotion.easing,
+          opacity: yoursOpacity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.sm,
+              vertical: CoveSpace.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CoveAvatar.inline(
+                  person: myPerson,
+                  nameOrInitial: myName,
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Flexible(
+                  child: Text(
+                    myName,
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
+                    style: CoveType.readout.copyWith(
+                      color: cv.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final partnerItem = Semantics(
+      button: true,
+      selected: _focusedLane == RoutineLaneFocus.partner,
+      label: partnerName,
+      child: GestureDetector(
+        key: const ValueKey('routine_legend_partner'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _toggleLaneFocus(RoutineLaneFocus.partner),
+        child: AnimatedOpacity(
+          key: const ValueKey('routine_legend_opacity_partner'),
+          duration: duration,
+          curve: CoveMotion.easing,
+          opacity: partnerOpacity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.sm,
+              vertical: CoveSpace.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CoveAvatar.inline(
+                  person: partnerPerson,
+                  nameOrInitial: partnerName,
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Flexible(
+                  child: Text(
+                    partnerName,
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
+                    style: CoveType.readout.copyWith(
+                      color: cv.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (isScaled) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: CoveSpace.gutter),
+        child: Wrap(
+          alignment: WrapAlignment.spaceEvenly,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: CoveSpace.md,
+          runSpacing: CoveSpace.xs,
+          children: [
+            yoursItem,
+            partnerItem,
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(
@@ -578,101 +694,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Center(
-              child: Semantics(
-                button: true,
-                selected: _focusedLane == RoutineLaneFocus.yours,
-                label: myName,
-                child: GestureDetector(
-                  key: const ValueKey('routine_legend_yours'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _toggleLaneFocus(RoutineLaneFocus.yours),
-                  child: AnimatedOpacity(
-                    key: const ValueKey('routine_legend_opacity_yours'),
-                    duration: duration,
-                    curve: CoveMotion.easing,
-                    opacity: yoursOpacity,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CoveSpace.sm,
-                        vertical: CoveSpace.xs,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CoveAvatar.inline(
-                            person: myPerson,
-                            nameOrInitial: myName,
-                          ),
-                          const SizedBox(width: CoveSpace.sm),
-                          Flexible(
-                            child: Text(
-                              myName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.readout.copyWith(
-                                color: cv.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: Center(child: yoursItem)),
           const SizedBox(width: _laneGap),
-          Expanded(
-            child: Center(
-              child: Semantics(
-                button: true,
-                selected: _focusedLane == RoutineLaneFocus.partner,
-                label: partnerName,
-                child: GestureDetector(
-                  key: const ValueKey('routine_legend_partner'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _toggleLaneFocus(RoutineLaneFocus.partner),
-                  child: AnimatedOpacity(
-                    key: const ValueKey('routine_legend_opacity_partner'),
-                    duration: duration,
-                    curve: CoveMotion.easing,
-                    opacity: partnerOpacity,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CoveSpace.sm,
-                        vertical: CoveSpace.xs,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CoveAvatar.inline(
-                            person: partnerPerson,
-                            nameOrInitial: partnerName,
-                          ),
-                          const SizedBox(width: CoveSpace.sm),
-                          Flexible(
-                            child: Text(
-                              partnerName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.readout.copyWith(
-                                color: cv.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: Center(child: partnerItem)),
         ],
       ),
     );
@@ -682,6 +706,15 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     final eventsAsync = ref.watch(routineEventsProvider(routine.id));
     final user = ref.watch(authProvider).value;
     final currentUserId = user?.id ?? 'local_user';
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final effectiveHourHeight = isScaled
+        ? _hourHeight * (textScale <= 1.35 ? 2.2 : 5.2)
+        : _hourHeight;
+    final effectiveAsleepHeight =
+        isScaled ? _asleepStripHeight * textScale * 1.4 : _asleepStripHeight;
+    final effectiveTimeGutterWidth =
+        isScaled ? (_timeGutterWidth + 8.0) : _timeGutterWidth;
 
     return eventsAsync.when(
       loading: () => SizedBox(
@@ -701,8 +734,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         final hasEarlyEvents = events.any((e) => e.startMinutes < 360);
         final startHour = hasEarlyEvents ? 0 : 6;
         final hourCount = 24 - startHour;
-        final topOffset = hasEarlyEvents ? 0.0 : _asleepStripHeight;
-        final totalHeight = topOffset + hourCount * _hourHeight;
+        final topOffset = hasEarlyEvents ? 0.0 : effectiveAsleepHeight;
+        final totalHeight = topOffset + hourCount * effectiveHourHeight;
 
         final soloEvents = <RoutineEvent>[];
         final sharedEvents = <RoutineEvent>[];
@@ -718,7 +751,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final canvasWidth = constraints.maxWidth;
-            const trackLeft = _timeGutterWidth;
+            final trackLeft = effectiveTimeGutterWidth;
             const trackRight = CoveSpace.sm;
             final trackWidth =
                 (canvasWidth - trackLeft - trackRight).clamp(0.0, double.infinity);
@@ -744,6 +777,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                         cv,
                         startHour: startHour,
                         topOffset: topOffset,
+                        hourHeight: effectiveHourHeight,
+                        timeGutterWidth: effectiveTimeGutterWidth,
+                        isScaled: isScaled,
                       ),
 
                       // 2. Center split line separating left lane (yours) and right lane (partner's)
@@ -768,6 +804,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           trackLeft: trackLeft,
                           trackWidth: trackWidth,
                           laneWidth: laneWidth,
+                          hourHeight: effectiveHourHeight,
+                          textScale: textScale,
+                          isScaled: isScaled,
                           cv: cv,
                         ),
 
@@ -783,6 +822,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           trackLeft: trackLeft,
                           trackWidth: trackWidth,
                           laneWidth: laneWidth,
+                          hourHeight: effectiveHourHeight,
+                          textScale: textScale,
+                          isScaled: isScaled,
                           cv: cv,
                         ),
 
@@ -793,6 +835,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                         startHour: startHour,
                         topOffset: topOffset,
                         totalHeight: totalHeight,
+                        hourHeight: effectiveHourHeight,
+                        timeGutterWidth: effectiveTimeGutterWidth,
                       ),
                     ],
                   ),
@@ -810,6 +854,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     CoveTokens cv, {
     required int startHour,
     required double topOffset,
+    required double hourHeight,
+    required double timeGutterWidth,
+    required bool isScaled,
   }) {
     final hourCount = 24 - startHour;
 
@@ -839,8 +886,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     Expanded(
                       child: Text(
                         'asleep · 7 h · 11p – 6a',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: isScaled ? null : 1,
+                        overflow: isScaled ? null : TextOverflow.ellipsis,
                         style: CoveType.rowSub.copyWith(
                           color: cv.textTertiary,
                           fontStyle: FontStyle.italic,
@@ -867,15 +914,16 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               startMinutes: hour * 60,
             ),
             child: SizedBox(
-              height: _hourHeight,
+              height: hourHeight,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: _timeGutterWidth,
+                    width: timeGutterWidth,
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: CoveSpace.sm,
+                      padding: EdgeInsets.only(
+                        left: isScaled ? CoveSpace.xs : CoveSpace.sm,
+                        right: isScaled ? CoveSpace.xs : 0,
                         top: CoveSpace.xs,
                       ),
                       child: Text(
@@ -915,14 +963,18 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     required double trackLeft,
     required double trackWidth,
     required double laneWidth,
+    required double hourHeight,
+    required double textScale,
+    required bool isScaled,
     required CoveTokens cv,
   }) {
     final startMin = event.startMinutes;
     final baseMinute = startHour * 60;
-    final top = topOffset + ((startMin - baseMinute) / 60.0) * _hourHeight;
+    final top = topOffset + ((startMin - baseMinute) / 60.0) * hourHeight;
     final duration = event.durationMinutes;
-    final rawHeight = (duration / 60.0) * _hourHeight;
-    final height = rawHeight.clamp(_minEventHeight, totalHeight - top);
+    final rawHeight = (duration / 60.0) * hourHeight;
+    final minHeight = isScaled ? _minEventHeight * textScale : _minEventHeight;
+    final height = rawHeight.clamp(minHeight, totalHeight - top);
 
     final double left;
     final double width;
@@ -948,9 +1000,13 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     }
 
     final isSharedGold = ownerKind == _RoutineBandOwnerKind.both;
-    final bandRadius = height <= 44.0 ? CoveRadius.pill : CoveRadius.inline;
+    final bandRadius =
+        (!isScaled && height <= 44.0) ? CoveRadius.pill : CoveRadius.inline;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final showNotes = height >= _threeLineEventHeight &&
+    final minNotesHeight = isScaled
+        ? _threeLineEventHeight * (textScale <= 1.35 ? 2.2 : 5.2)
+        : _threeLineEventHeight;
+    final showNotes = height >= minNotesHeight &&
         event.notes != null &&
         event.notes!.trim().isNotEmpty;
 
@@ -963,7 +1019,52 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         : cv.textTertiary;
 
     final Widget content;
-    if (isSharedGold && height < _compactEventHeight) {
+    if (isScaled) {
+      final useCompactTitleStyle = !isSharedGold && width < 140.0;
+      content = Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isSharedGold ? CoveSpace.md : CoveSpace.xs + 2.0,
+          vertical: CoveSpace.xs,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              event.title,
+              style: (useCompactTitleStyle ? CoveType.readout : CoveType.rowTitle)
+                  .copyWith(
+                color: titleColor,
+                fontWeight: isSharedGold ? FontWeight.w600 : FontWeight.w500,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 2.0),
+            Text(
+              event.formattedTimeRange,
+              style: (useCompactTitleStyle ? CoveType.barLabel : CoveType.rowSub)
+                  .copyWith(
+                color: subColor,
+                height: 1.15,
+              ),
+            ),
+            if (showNotes) ...[
+              const SizedBox(height: 2.0),
+              Text(
+                event.notes!,
+                style: (useCompactTitleStyle
+                        ? CoveType.barLabel
+                        : CoveType.rowSub)
+                    .copyWith(
+                  color: notesColor,
+                  height: 1.15,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    } else if (isSharedGold && height < _compactEventHeight) {
       // Compact shared gold pill spanning both lanes: Title left, time right
       content = Padding(
         padding: const EdgeInsets.symmetric(
@@ -1139,6 +1240,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     required int startHour,
     required double topOffset,
     required double totalHeight,
+    required double hourHeight,
+    required double timeGutterWidth,
   }) {
     final now = clock.now();
     if (!routine.days.contains(now.weekday)) {
@@ -1151,13 +1254,13 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     if (currentMinutes < baseMinute && topOffset > 0) {
       top = (currentMinutes / baseMinute) * topOffset;
     } else {
-      top = topOffset + ((currentMinutes - baseMinute) / 60.0) * _hourHeight;
+      top = topOffset + ((currentMinutes - baseMinute) / 60.0) * hourHeight;
     }
     final clampedTop = top.clamp(0.0, totalHeight);
 
     return Positioned(
       top: clampedTop - (_nowDotSize / 2),
-      left: _timeGutterWidth - (_nowDotSize / 2),
+      left: timeGutterWidth - (_nowDotSize / 2),
       right: 0,
       child: Row(
         children: [

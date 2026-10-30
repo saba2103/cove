@@ -313,9 +313,11 @@ class _CalendarEventFormSheetState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Event' : 'Add Calendar Event',
-                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit Event' : 'Add Calendar Event',
+                      style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                    ),
                   ),
                   if (isEditing)
                     Row(
@@ -445,9 +447,11 @@ class _CalendarEventFormSheetState
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'All-day Event',
-                    style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                  Expanded(
+                    child: Text(
+                      'All-day Event',
+                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+                    ),
                   ),
                   Switch.adaptive(
                     value: _isAllDay,
@@ -464,10 +468,12 @@ class _CalendarEventFormSheetState
                 style: CoveType.capsPage.copyWith(color: cv.textSecondary),
               ),
               const SizedBox(height: CoveSpace.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
+              if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0 &&
+                  !_isAllDay)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
@@ -489,9 +495,7 @@ class _CalendarEventFormSheetState
                       ),
                       onPressed: () => _pickDate(isStart: true),
                     ),
-                  ),
-                  if (!_isAllDay) ...[
-                    const SizedBox(width: 10),
+                    const SizedBox(height: CoveSpace.sm),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: cv.lineHairline),
@@ -499,6 +503,7 @@ class _CalendarEventFormSheetState
                           horizontal: 14,
                           vertical: CoveSpace.md,
                         ),
+                        alignment: Alignment.centerLeft,
                       ),
                       icon: Icon(
                         Icons.access_time,
@@ -514,8 +519,60 @@ class _CalendarEventFormSheetState
                       onPressed: () => _pickTime(isStart: true),
                     ),
                   ],
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: cv.lineHairline),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                          alignment: Alignment.centerLeft,
+                        ),
+                        icon: Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: cv.textPrimary,
+                        ),
+                        label: Text(
+                          dateFormat.format(_startDate),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        onPressed: () => _pickDate(isStart: true),
+                      ),
+                    ),
+                    if (!_isAllDay) ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: cv.lineHairline),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                        ),
+                        icon: Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: cv.textPrimary,
+                        ),
+                        label: Text(
+                          _startTime.format(context),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        onPressed: () => _pickTime(isStart: true),
+                      ),
+                    ],
+                  ],
+                ),
               const SizedBox(height: 14),
 
               // End Date & Time
@@ -524,10 +581,12 @@ class _CalendarEventFormSheetState
                 style: CoveType.capsPage.copyWith(color: cv.textSecondary),
               ),
               const SizedBox(height: CoveSpace.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
+              if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0 &&
+                  !_isAllDay)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: cv.lineHairline),
                         padding: const EdgeInsets.symmetric(
@@ -549,9 +608,7 @@ class _CalendarEventFormSheetState
                       ),
                       onPressed: () => _pickDate(isStart: false),
                     ),
-                  ),
-                  if (!_isAllDay) ...[
-                    const SizedBox(width: 10),
+                    const SizedBox(height: CoveSpace.sm),
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: cv.lineHairline),
@@ -559,6 +616,7 @@ class _CalendarEventFormSheetState
                           horizontal: 14,
                           vertical: CoveSpace.md,
                         ),
+                        alignment: Alignment.centerLeft,
                       ),
                       icon: Icon(
                         Icons.access_time,
@@ -574,8 +632,60 @@ class _CalendarEventFormSheetState
                       onPressed: () => _pickTime(isStart: false),
                     ),
                   ],
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: cv.lineHairline),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                          alignment: Alignment.centerLeft,
+                        ),
+                        icon: Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: cv.textPrimary,
+                        ),
+                        label: Text(
+                          dateFormat.format(_endDate),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        onPressed: () => _pickDate(isStart: false),
+                      ),
+                    ),
+                    if (!_isAllDay) ...[
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: cv.lineHairline),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                        ),
+                        icon: Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: cv.textPrimary,
+                        ),
+                        label: Text(
+                          _endTime.format(context),
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        onPressed: () => _pickTime(isStart: false),
+                      ),
+                    ],
+                  ],
+                ),
               const SizedBox(height: 18),
 
               // Recurrence / Repeat Selector

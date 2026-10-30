@@ -113,161 +113,257 @@ class CoveTicket extends StatelessWidget implements CoveSlipObject {
   @override
   Widget build(BuildContext context) {
     final palette = CoveSlipPalette.resolve(context, variant);
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackStub = isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
     final hasMeridiem = meridiem != null && meridiem!.trim().isNotEmpty;
     final hasAlert = alertText != null && alertText!.trim().isNotEmpty;
     final hasLocation = location != null && location!.trim().isNotEmpty;
 
+    final leftColumn = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        CoveSlipFieldTapTarget(
+          field: CoveSlipField.title,
+          fieldTaps: fieldTaps,
+          child: CoveSlip.buildHeader(
+            palette: palette,
+            capsLabel: capsLabel,
+            title: title,
+          ),
+        ),
+        if (hasLocation) ...[
+          const SizedBox(height: CoveSpace.xs),
+          CoveSlipFieldTapTarget(
+            field: CoveSlipField.location,
+            fieldTaps: fieldTaps,
+            child: Text(
+              location!,
+              style: CoveType.readout.copyWith(
+                color: palette.secondary,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: CoveSpace.xs),
+        CoveSlipFieldTapTarget(
+          field: CoveSlipField.date,
+          fieldTaps: fieldTaps,
+          child: Text(
+            date,
+            style: CoveType.readout.copyWith(
+              color: palette.secondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        CoveSlipFieldTapTarget(
+          field: CoveSlipField.owner,
+          fieldTaps: fieldTaps,
+          child: Text(
+            owner,
+            style: CoveType.readout.copyWith(
+              color: palette.tertiary,
+            ),
+          ),
+        ),
+        if (hasAlert) ...[
+          const SizedBox(height: CoveSpace.xs),
+          Text(
+            alertText!,
+            style: CoveType.rowSub.copyWith(
+              color: palette.alertText,
+            ),
+          ),
+        ],
+        if (visibility != null && !stackStub)
+          CoveSlipVisibilityLine(
+            visibility: visibility!,
+            palette: palette,
+            showTopRule: true,
+            fieldTaps: fieldTaps,
+          ),
+      ],
+    );
+
     return CoveSlip(
       variant: variant,
       padding: EdgeInsets.zero,
-      pathBuilder: _buildTicketPath,
+      pathBuilder: stackStub ? null : _buildTicketPath,
       foregroundPainter: _CoveTicketDecorationPainter(
         spineColor: palette.accent,
         ruleColor: palette.rule,
+        drawVerticalPerforation: !stackStub,
       ),
       onTap: onTap,
       stamp: stamp,
       stampLanded: stampLanded,
       visibility: visibility,
-      renderVisibilityInSlip: false,
+      renderVisibilityInSlip: stackStub,
       fieldTaps: fieldTaps,
       semanticLabel: semanticLabel ?? _buildDefaultSemantics(),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(CoveSpace.gutter),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CoveSlipFieldTapTarget(
-                      field: CoveSlipField.title,
-                      fieldTaps: fieldTaps,
-                      child: CoveSlip.buildHeader(
-                        palette: palette,
-                        capsLabel: capsLabel,
-                        title: title,
+      child: stackStub
+          ? Padding(
+              padding: const EdgeInsets.all(CoveSpace.gutter),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  leftColumn,
+                  const SizedBox(height: CoveSpace.md),
+                  SizedBox(
+                    height: kPerforationWidth,
+                    child: CustomPaint(
+                      painter: _TicketHorizontalDashedPainter(
+                        color: palette.rule,
                       ),
                     ),
-                    if (hasLocation) ...[
-                      const SizedBox(height: CoveSpace.xs),
-                      CoveSlipFieldTapTarget(
-                        field: CoveSlipField.location,
-                        fieldTaps: fieldTaps,
-                        child: Text(
-                          location!,
-                          style: CoveType.readout.copyWith(
-                            color: palette.secondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: CoveSpace.xs),
-                    CoveSlipFieldTapTarget(
-                      field: CoveSlipField.date,
-                      fieldTaps: fieldTaps,
-                      child: Text(
-                        date,
-                        style: CoveType.readout.copyWith(
-                          color: palette.secondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: CoveSpace.sm),
-                    CoveSlipFieldTapTarget(
-                      field: CoveSlipField.owner,
-                      fieldTaps: fieldTaps,
-                      child: Text(
-                        owner,
-                        style: CoveType.readout.copyWith(
-                          color: palette.tertiary,
-                        ),
-                      ),
-                    ),
-                    if (hasAlert) ...[
-                      const SizedBox(height: CoveSpace.xs),
-                      Text(
-                        alertText!,
-                        style: CoveType.rowSub.copyWith(
-                          color: palette.alertText,
-                        ),
-                      ),
-                    ],
-                    if (visibility != null)
-                      CoveSlipVisibilityLine(
-                        visibility: visibility!,
-                        palette: palette,
-                        showTopRule: true,
-                        fieldTaps: fieldTaps,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(
-              width: kStubWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CoveSpace.md,
-                  vertical: CoveSpace.gutter,
-                ),
-                child: CoveSlipFieldTapTarget(
-                  field: CoveSlipField.time,
-                  fieldTaps: fieldTaps,
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        stubLabel.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: CoveType.capsSlip.copyWith(
-                          color: palette.tertiary,
-                        ),
-                      ),
-                      const SizedBox(height: CoveSpace.xs),
-                      Text(
-                        hour,
-                        textAlign: TextAlign.center,
-                        style: CoveType.slipFigure.copyWith(
-                          color: palette.title,
-                        ),
-                      ),
-                      if (hasMeridiem) ...[
-                        const SizedBox(height: CoveSpace.xs),
-                        Text(
-                          meridiem!.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: CoveType.capsSlip.copyWith(
-                            color: palette.tertiary,
-                          ),
-                        ),
-                      ],
-                    ],
                   ),
-                ),
+                  const SizedBox(height: CoveSpace.md),
+                  CoveSlipFieldTapTarget(
+                    field: CoveSlipField.time,
+                    fieldTaps: fieldTaps,
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.end,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: CoveSpace.xs),
+                          child: Text(
+                            stubLabel.toUpperCase(),
+                            style: CoveType.capsSlip.copyWith(
+                              color: palette.tertiary,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          hour,
+                          style: CoveType.slipFigure.copyWith(
+                            color: palette.title,
+                          ),
+                        ),
+                        if (hasMeridiem)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: CoveSpace.xs,
+                            ),
+                            child: Text(
+                              meridiem!.toUpperCase(),
+                              style: CoveType.capsSlip.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(CoveSpace.gutter),
+                      child: leftColumn,
+                    ),
+                  ),
+                  SizedBox(
+                    width: kStubWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.md,
+                        vertical: CoveSpace.gutter,
+                      ),
+                      child: CoveSlipFieldTapTarget(
+                        field: CoveSlipField.time,
+                        fieldTaps: fieldTaps,
+                        alignment: Alignment.center,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              stubLabel.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: CoveType.capsSlip.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                            const SizedBox(height: CoveSpace.xs),
+                            Text(
+                              hour,
+                              textAlign: TextAlign.center,
+                              style: CoveType.slipFigure.copyWith(
+                                color: palette.title,
+                              ),
+                            ),
+                            if (hasMeridiem) ...[
+                              const SizedBox(height: CoveSpace.xs),
+                              Text(
+                                meridiem!.toUpperCase(),
+                                textAlign: TextAlign.center,
+                                style: CoveType.capsSlip.copyWith(
+                                  color: palette.tertiary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
+}
+
+class _TicketHorizontalDashedPainter extends CustomPainter {
+  final Color color;
+
+  const _TicketHorizontalDashedPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = CoveTicket.kPerforationWidth
+      ..style = PaintingStyle.stroke;
+
+    var x = 0.0;
+    final y = size.height / 2.0;
+    while (x < size.width) {
+      final dashEnd = math.min(x + CoveTicket.kDashLength, size.width);
+      canvas.drawLine(Offset(x, y), Offset(dashEnd, y), paint);
+      x += CoveTicket.kDashLength + CoveTicket.kDashGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TicketHorizontalDashedPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _CoveTicketDecorationPainter extends CustomPainter {
   final Color spineColor;
   final Color ruleColor;
+  final bool drawVerticalPerforation;
 
   const _CoveTicketDecorationPainter({
     required this.spineColor,
     required this.ruleColor,
+    this.drawVerticalPerforation = true,
   });
 
   @override
@@ -285,6 +381,8 @@ class _CoveTicketDecorationPainter extends CustomPainter {
       ),
       spinePaint,
     );
+
+    if (!drawVerticalPerforation) return;
 
     // 2. Vertical dashed perforation line between the top and bottom 16dp semicircle notches
     final notchRadius = CoveTicket.kNotchDiameter / 2.0;
@@ -312,5 +410,6 @@ class _CoveTicketDecorationPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CoveTicketDecorationPainter oldDelegate) =>
       oldDelegate.spineColor != spineColor ||
-      oldDelegate.ruleColor != ruleColor;
+      oldDelegate.ruleColor != ruleColor ||
+      oldDelegate.drawVerticalPerforation != drawVerticalPerforation;
 }

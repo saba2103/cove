@@ -149,55 +149,54 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                     top: _kTopBarTopPadding,
                     bottom: CoveSpace.xs,
                   ),
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                            vertical: CoveSpace.xs,
-                          ),
-                          decoration: CoveShape.decoration(
-                            CoveRadius.pill,
-                            color: cv.accentWash,
-                            side: BorderSide(
-                              color: cv.accentFill.withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.auto_awesome,
-                                size: CoveSpace.md,
-                                color: cv.accentFill,
-                              ),
-                              const SizedBox(width: CoveSpace.xs),
-                              Flexible(
-                                child: Text(
-                                  "WHAT'S FRESH · v1.0",
-                                  overflow: TextOverflow.ellipsis,
-                                  style: CoveType.barLabel.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                    color: cv.accentText,
-                                  ),
-                                ),
-                              ),
-                            ],
+                  child: Builder(
+                    builder: (context) {
+                      final isScaled =
+                          MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+                      final badge = Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.sm,
+                          vertical: CoveSpace.xs,
+                        ),
+                        decoration: CoveShape.decoration(
+                          CoveRadius.pill,
+                          color: cv.accentWash,
+                          side: BorderSide(
+                            color: cv.accentFill.withValues(alpha: 0.25),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      Text(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              size: CoveSpace.md,
+                              color: cv.accentFill,
+                            ),
+                            const SizedBox(width: CoveSpace.xs),
+                            Flexible(
+                              child: Text(
+                                "WHAT'S FRESH · v1.0",
+                                overflow:
+                                    isScaled ? null : TextOverflow.ellipsis,
+                                style: CoveType.barLabel.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                  color: cv.accentText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                      final stepCounter = Text(
                         '${_currentPage + 1} of ${_featuredItems.length}',
                         style: CoveType.barLabel.copyWith(
                           fontWeight: FontWeight.w600,
                           color: cv.textSecondary,
                         ),
-                      ),
-                      const SizedBox(width: CoveSpace.xs),
-                      IconButton(
+                      );
+                      final closeButton = IconButton(
                         onPressed: () =>
                             Navigator.of(context, rootNavigator: true).pop(),
                         icon: Icon(
@@ -207,8 +206,43 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                         ),
                         splashRadius: _kCloseIconSize,
                         tooltip: 'Close',
-                      ),
-                    ],
+                      );
+
+                      if (isScaled) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  top: CoveSpace.xs,
+                                ),
+                                child: Wrap(
+                                  spacing: CoveSpace.sm,
+                                  runSpacing: CoveSpace.xs,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    badge,
+                                    stepCounter,
+                                  ],
+                                ),
+                              ),
+                            ),
+                            closeButton,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Flexible(child: badge),
+                          const SizedBox(width: CoveSpace.sm),
+                          stepCounter,
+                          const SizedBox(width: CoveSpace.xs),
+                          closeButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
 
@@ -345,12 +379,14 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                                         color: cv.textSecondary,
                                       ),
                                       const SizedBox(width: CoveSpace.sm),
-                                      Text(
-                                        'UNDER THE HOOD',
-                                        style: CoveType.barLabel.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.8,
-                                          color: cv.textSecondary,
+                                      Expanded(
+                                        child: Text(
+                                          'UNDER THE HOOD',
+                                          style: CoveType.barLabel.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.8,
+                                            color: cv.textSecondary,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -385,26 +421,30 @@ class _WhatsFreshModalState extends State<WhatsFreshModal> {
                     top: CoveSpace.sm,
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Smooth Dot Indicators
-                      Row(
-                        children: List.generate(_featuredItems.length, (idx) {
-                          final isActive = idx == _currentPage;
-                          return AnimatedContainer(
-                            duration: CoveMotion.q(context),
-                            margin: const EdgeInsets.only(right: _kDotSize),
-                            width: isActive ? CoveSpace.gutter : _kDotSize,
-                            height: _kDotSize,
-                            decoration: CoveShape.decoration(
-                              CoveRadius.pill,
-                              color: isActive
-                                  ? cv.accentFill
-                                  : cv.lineHairline.withValues(alpha: 0.8),
-                            ),
-                          );
-                        }),
+                      Flexible(
+                        child: Wrap(
+                          runSpacing: CoveSpace.xs,
+                          children: List.generate(_featuredItems.length, (idx) {
+                            final isActive = idx == _currentPage;
+                            return AnimatedContainer(
+                              duration: CoveMotion.q(context),
+                              margin: const EdgeInsets.only(right: _kDotSize),
+                              width: isActive ? CoveSpace.gutter : _kDotSize,
+                              height: _kDotSize,
+                              decoration: CoveShape.decoration(
+                                CoveRadius.pill,
+                                color: isActive
+                                    ? cv.accentFill
+                                    : cv.lineHairline.withValues(alpha: 0.8),
+                              ),
+                            );
+                          }),
+                        ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: CoveSpace.sm),
                       // Next / Done Button
                       CovePillButton(
                         label: _currentPage == _featuredItems.length - 1

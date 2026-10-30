@@ -342,10 +342,12 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               TextFormField(
                 controller: _titleController,
                 style: CoveType.body.copyWith(color: cv.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Event Title',
                   hintText: 'e.g. Morning Workout, Deep Work, Lunch',
-                  border: CoveInputBorder(
+                  hintMaxLines:
+                      MediaQuery.textScalerOf(context).scale(1.0) > 1.0 ? 4 : null,
+                  border: const CoveInputBorder(
                     radius: CoveRadius.inline,
                   ),
                 ),
@@ -358,10 +360,11 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               ),
               const SizedBox(height: 16),
               // Time pickers row
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
+              if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    InkWell(
                       onTap: _pickStartTime,
                       customBorder: CoveShape.border(CoveRadius.inline),
                       child: Container(
@@ -394,10 +397,8 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: CoveSpace.md),
-                  Expanded(
-                    child: InkWell(
+                    const SizedBox(height: CoveSpace.sm),
+                    InkWell(
                       onTap: _pickEndTime,
                       customBorder: CoveShape.border(CoveRadius.inline),
                       child: Container(
@@ -430,9 +431,84 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: _pickStartTime,
+                        customBorder: CoveShape.border(CoveRadius.inline),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                          decoration: CoveShape.decoration(
+                            CoveRadius.inline,
+                            side: BorderSide(color: cv.lineHairline),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Start Time',
+                                style: CoveType.rowSub.copyWith(
+                                  color: cv.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: CoveSpace.xs),
+                              Text(
+                                RoutineEvent.formatMinutes(_startMinutes),
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.md),
+                    Expanded(
+                      child: InkWell(
+                        onTap: _pickEndTime,
+                        customBorder: CoveShape.border(CoveRadius.inline),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: CoveSpace.md,
+                          ),
+                          decoration: CoveShape.decoration(
+                            CoveRadius.inline,
+                            side: BorderSide(color: cv.lineHairline),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'End Time',
+                                style: CoveType.rowSub.copyWith(
+                                  color: cv.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: CoveSpace.xs),
+                              Text(
+                                RoutineEvent.formatMinutes(_endMinutes),
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 16),
               Text(
                 'Category',
@@ -466,12 +542,15 @@ class _RoutineEventFormSheetState extends ConsumerState<RoutineEventFormSheet> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _notesController,
-                maxLines: 2,
+                maxLines:
+                    MediaQuery.textScalerOf(context).scale(1.0) > 1.0 ? 4 : 2,
                 style: CoveType.body.copyWith(color: cv.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Notes (optional)',
                   hintText: 'e.g. Focus blocks, items to prepare',
-                  border: CoveInputBorder(
+                  hintMaxLines:
+                      MediaQuery.textScalerOf(context).scale(1.0) > 1.0 ? 4 : null,
+                  border: const CoveInputBorder(
                     radius: CoveRadius.inline,
                   ),
                 ),

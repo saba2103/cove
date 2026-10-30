@@ -122,9 +122,15 @@ class _AddDayStripState extends State<AddDayStrip> {
     }
   }
 
-  double _computeDesiredScrollOffset(double viewportWidth) {
+  double _resolvedCellMinWidth(double textScale) {
+    if (textScale <= 1.0) return AddDayStrip.kCellMinWidth;
+    return (AddDayStrip.kCellMinWidth * textScale).ceilToDouble();
+  }
+
+  double _computeDesiredScrollOffset(double viewportWidth, double textScale) {
     if (viewportWidth <= 0 || !viewportWidth.isFinite) return 0.0;
-    final totalWidth = widget.days.length * AddDayStrip.kCellMinWidth +
+    final cellMinWidth = _resolvedCellMinWidth(textScale);
+    final totalWidth = widget.days.length * cellMinWidth +
         (widget.days.length - 1) * CoveSpace.sm;
     final maxScroll = (totalWidth - viewportWidth).clamp(0.0, double.infinity);
     if (maxScroll <= 0) return 0.0;
@@ -140,9 +146,9 @@ class _AddDayStripState extends State<AddDayStrip> {
     final primaryIdx = selectedIdx >= 0 ? selectedIdx : anchorIdx;
     if (primaryIdx < 0) return 0.0;
 
-    const itemExtent = AddDayStrip.kCellMinWidth + CoveSpace.sm;
+    final itemExtent = cellMinWidth + CoveSpace.sm;
     final cellStart = primaryIdx * itemExtent;
-    final cellEnd = cellStart + AddDayStrip.kCellMinWidth;
+    final cellEnd = cellStart + cellMinWidth;
 
     var offset = 0.0;
     if (cellEnd > viewportWidth) {
@@ -151,7 +157,7 @@ class _AddDayStripState extends State<AddDayStrip> {
 
     if (anchorIdx >= 0 && anchorIdx != primaryIdx) {
       final anchorStart = anchorIdx * itemExtent;
-      final anchorEnd = anchorStart + AddDayStrip.kCellMinWidth;
+      final anchorEnd = anchorStart + cellMinWidth;
       if (anchorStart < offset && (cellEnd - anchorStart) <= viewportWidth) {
         offset = anchorStart.clamp(0.0, maxScroll);
       } else if (anchorEnd > offset + viewportWidth &&
@@ -163,8 +169,11 @@ class _AddDayStripState extends State<AddDayStrip> {
     return offset.clamp(0.0, maxScroll);
   }
 
-  ScrollController _ensureCompactScrollController(double viewportWidth) {
-    final desired = _computeDesiredScrollOffset(viewportWidth);
+  ScrollController _ensureCompactScrollController(
+    double viewportWidth,
+    double textScale,
+  ) {
+    final desired = _computeDesiredScrollOffset(viewportWidth, textScale);
     final current = _scrollController;
     if (current == null) {
       final next = ScrollController(initialScrollOffset: desired);
@@ -195,7 +204,8 @@ class _AddDayStripState extends State<AddDayStrip> {
     final controller = _scrollController;
     if (!mounted || controller == null || !controller.hasClients) return;
     final viewportWidth = controller.position.viewportDimension;
-    final desired = _computeDesiredScrollOffset(viewportWidth);
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final desired = _computeDesiredScrollOffset(viewportWidth, textScale);
     final maxScroll = controller.position.maxScrollExtent;
     if (maxScroll <= 0) return;
     controller.jumpTo(desired.clamp(0.0, maxScroll));
@@ -280,15 +290,18 @@ class _AddDayStripState extends State<AddDayStrip> {
         // 7-cell strip (scrolls horizontally when width cannot fit 7 × 48dp)
         LayoutBuilder(
           builder: (context, constraints) {
-            const minRequiredWidth =
-                7 * AddDayStrip.kCellMinWidth + 6 * CoveSpace.xs;
+            final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+            final cellMinWidth = _resolvedCellMinWidth(textScale);
+            final minRequiredWidth = 7 * cellMinWidth + 6 * CoveSpace.xs;
             final isCompact =
                 MediaQuery.sizeOf(context).width < CoveSize.compactThreshold ||
                     constraints.maxWidth < minRequiredWidth;
 
             if (isCompact) {
-              final controller =
-                  _ensureCompactScrollController(constraints.maxWidth);
+              final controller = _ensureCompactScrollController(
+                constraints.maxWidth,
+                textScale,
+              );
               return SingleChildScrollView(
                 key: const ValueKey('add_day_strip_scroll'),
                 controller: controller,
@@ -299,7 +312,7 @@ class _AddDayStripState extends State<AddDayStrip> {
                     for (var i = 0; i < widget.days.length; i++) ...[
                       if (i > 0) const SizedBox(width: CoveSpace.sm),
                       SizedBox(
-                        width: AddDayStrip.kCellMinWidth,
+                        width: cellMinWidth,
                         child: _buildDayCell(context, widget.days[i]),
                       ),
                     ],
@@ -404,6 +417,9 @@ class _AddDayStripState extends State<AddDayStrip> {
     final Color weekdayColor = isSelected ? cv.accentText : cv.textTertiary;
     final Color dayNumberColor = isSelected ? cv.textPrimary : cv.textSecondary;
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+
     return Semantics(
       container: true,
       button: true,
@@ -415,11 +431,17 @@ class _AddDayStripState extends State<AddDayStrip> {
           behavior: HitTestBehavior.opaque,
           onTap: () => widget.onSelected(date),
           child: Container(
-            constraints: const BoxConstraints(
-              minWidth: AddDayStrip.kCellMinWidth,
+            constraints: BoxConstraints(
+              minWidth: _resolvedCellMinWidth(textScale),
               minHeight: AddDayStrip.kCellHeight,
             ),
-            height: AddDayStrip.kCellHeight,
+            height: isScaled ? null : AddDayStrip.kCellHeight,
+            padding: isScaled
+                ? const EdgeInsets.symmetric(
+                    horizontal: CoveSpace.xs,
+                    vertical: CoveSpace.sm,
+                  )
+                : null,
             decoration: CoveShape.decoration(
               CoveRadius.inline,
               color: fillColor,
@@ -429,6 +451,7 @@ class _AddDayStripState extends State<AddDayStrip> {
               ),
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
@@ -642,7 +665,12 @@ class _AddAnotherDateSheetState extends State<AddAnotherDateSheet> {
           const SizedBox(height: CoveSpace.md),
           LayoutBuilder(
             builder: (context, constraints) {
-              const minGridWidth = 7 * CoveSize.hit + 6 * CoveSpace.xs;
+              final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+              final cellExtent = textScale > 1.0
+                  ? (CoveSize.hit * (textScale > 1.5 ? 1.5 : textScale))
+                      .ceilToDouble()
+                  : CoveSize.hit;
+              final minGridWidth = 7 * cellExtent + 6 * CoveSpace.xs;
               final needsScroll = constraints.maxWidth < minGridWidth;
 
               final gridColumn = Column(
@@ -656,7 +684,7 @@ class _AddAnotherDateSheetState extends State<AddAnotherDateSheet> {
                         if (c > 0) const SizedBox(width: CoveSpace.xs),
                         if (needsScroll)
                           SizedBox(
-                            width: CoveSize.hit,
+                            width: cellExtent,
                             child: Center(
                               child: Text(
                                 AddAnotherDateSheet._weekdayHeaders[c],
@@ -689,8 +717,8 @@ class _AddAnotherDateSheetState extends State<AddAnotherDateSheet> {
                           if (c > 0) const SizedBox(width: CoveSpace.xs),
                           if (needsScroll)
                             SizedBox(
-                              width: CoveSize.hit,
-                              height: CoveSize.hit,
+                              width: cellExtent,
+                              height: cellExtent,
                               child: _buildDayCell(
                                 context,
                                 r * 7 + c - leadingBlanks + 1,
@@ -700,7 +728,7 @@ class _AddAnotherDateSheetState extends State<AddAnotherDateSheet> {
                           else
                             Expanded(
                               child: SizedBox(
-                                height: CoveSize.hit,
+                                height: cellExtent,
                                 child: _buildDayCell(
                                   context,
                                   r * 7 + c - leadingBlanks + 1,

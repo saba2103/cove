@@ -711,6 +711,7 @@ class SlipListPickerSheet extends ConsumerWidget {
     final summary = ref.watch(slipSummaryProvider);
     final selectedId = summary.listId;
     final options = summary.availableLists;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Container(
       padding: const EdgeInsets.all(CoveSpace.xl),
@@ -721,73 +722,129 @@ class SlipListPickerSheet extends ConsumerWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'THE SLIP · CHOOSE A LIST',
-              style: CoveType.capsPage.copyWith(color: cv.textTertiary),
-            ),
-            const SizedBox(height: CoveSpace.xs),
-            Text(
-              'Which list sits on your home screen?',
-              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-            ),
-            const SizedBox(height: CoveSpace.md),
-            for (final option in options)
-              InkWell(
-                key: ValueKey('slip_list_option_${option.id}'),
-                onTap: () async {
-                  await ref
-                      .read(slipSelectedListIdProvider.notifier)
-                      .selectList(option.id);
-                  if (context.mounted) {
-                    Navigator.of(context).pop(option.id);
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
-                  child: Row(
-                    children: [
-                      Icon(
-                        option.id == selectedId
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_off,
-                        size: CoveSize.avatarInline,
-                        color: option.id == selectedId
-                            ? cv.accentText
-                            : cv.textTertiary,
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      Expanded(
-                        child: Text(
-                          option.name,
-                          style: CoveType.rowTitle.copyWith(
-                            color: cv.textPrimary,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'THE SLIP · CHOOSE A LIST',
+                style: CoveType.capsPage.copyWith(color: cv.textTertiary),
+              ),
+              const SizedBox(height: CoveSpace.xs),
+              Text(
+                'Which list sits on your home screen?',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+              ),
+              const SizedBox(height: CoveSpace.md),
+              for (final option in options)
+                InkWell(
+                  key: ValueKey('slip_list_option_${option.id}'),
+                  onTap: () async {
+                    await ref
+                        .read(slipSelectedListIdProvider.notifier)
+                        .selectList(option.id);
+                    if (context.mounted) {
+                      Navigator.of(context).pop(option.id);
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
+                    child: isScaled
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: CoveSpace.xs,
+                                ),
+                                child: Icon(
+                                  option.id == selectedId
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  size: CoveSize.avatarInline,
+                                  color: option.id == selectedId
+                                      ? cv.accentText
+                                      : cv.textTertiary,
+                                ),
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      option.name,
+                                      style: CoveType.rowTitle.copyWith(
+                                        color: cv.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: CoveSpace.xs),
+                                    Wrap(
+                                      spacing: CoveSpace.sm,
+                                      runSpacing: CoveSpace.xs,
+                                      children: [
+                                        if (option.isMostUsed)
+                                          Text(
+                                            'MOST USED',
+                                            style: CoveType.capsCard.copyWith(
+                                              color: cv.accentText,
+                                            ),
+                                          ),
+                                        Text(
+                                          '${option.openCount} OPEN',
+                                          style: CoveType.capsCard.copyWith(
+                                            color: cv.textTertiary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Icon(
+                                option.id == selectedId
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                size: CoveSize.avatarInline,
+                                color: option.id == selectedId
+                                    ? cv.accentText
+                                    : cv.textTertiary,
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Expanded(
+                                child: Text(
+                                  option.name,
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              if (option.isMostUsed) ...[
+                                Text(
+                                  'MOST USED',
+                                  style: CoveType.capsCard.copyWith(
+                                    color: cv.accentText,
+                                  ),
+                                ),
+                                const SizedBox(width: CoveSpace.sm),
+                              ],
+                              Text(
+                                '${option.openCount} OPEN',
+                                style: CoveType.capsCard.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      if (option.isMostUsed) ...[
-                        Text(
-                          'MOST USED',
-                          style: CoveType.capsCard.copyWith(
-                            color: cv.accentText,
-                          ),
-                        ),
-                        const SizedBox(width: CoveSpace.sm),
-                      ],
-                      Text(
-                        '${option.openCount} OPEN',
-                        style: CoveType.capsCard.copyWith(
-                          color: cv.textTertiary,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

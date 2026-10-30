@@ -650,8 +650,11 @@ class ActivityEventDetailSheet extends ConsumerWidget {
             const SizedBox(height: CoveSpace.xl),
 
             // Module & Sync status header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: CoveSpace.sm,
+              runSpacing: CoveSpace.xs,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -674,12 +677,14 @@ class ActivityEventDetailSheet extends ConsumerWidget {
                   children: [
                     CoveSyncTick(status: item.syncStatus, size: _kSyncTickSize),
                     const SizedBox(width: CoveSpace.xs),
-                    Text(
-                      item.syncStatus == CoveSyncStatus.syncedToPartner
-                          ? 'Synced E2EE'
-                          : 'Saved Locally',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.textTertiary,
+                    Flexible(
+                      child: Text(
+                        item.syncStatus == CoveSyncStatus.syncedToPartner
+                            ? 'Synced E2EE'
+                            : 'Saved Locally',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
+                        ),
                       ),
                     ),
                   ],

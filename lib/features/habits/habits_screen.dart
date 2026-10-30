@@ -286,23 +286,48 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (partnerShared.isNotEmpty) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "${partnerName.toUpperCase()}'S HABITS",
-                            style: CoveType.capsPage.copyWith(
-                              color: cv.textSecondary,
-                            ),
+                      if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+                        SizedBox(
+                          width: double.infinity,
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: CoveSpace.sm,
+                            runSpacing: CoveSpace.xs,
+                            children: [
+                              Text(
+                                "${partnerName.toUpperCase()}'S HABITS",
+                                style: CoveType.capsPage.copyWith(
+                                  color: cv.textSecondary,
+                                ),
+                              ),
+                              Text(
+                                'Read-only',
+                                style: CoveType.barLabel.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Read-only',
-                            style: CoveType.barLabel.copyWith(
-                              color: cv.textTertiary,
+                        )
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "${partnerName.toUpperCase()}'S HABITS",
+                              style: CoveType.capsPage.copyWith(
+                                color: cv.textSecondary,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            Text(
+                              'Read-only',
+                              style: CoveType.barLabel.copyWith(
+                                color: cv.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: CoveSpace.sm),
                       CoveGroupedCard(
                         children: partnerShared.map((habit) {
@@ -359,19 +384,37 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
 
         // 2. PARTNER'S SHARED HABITS (READ-ONLY VIEW)
         if (partnerShared.isNotEmpty) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "${partnerName.toUpperCase()}'S HABITS",
-                style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-              ),
-              Text(
-                'Read-only',
-                style: CoveType.barLabel.copyWith(color: cv.textTertiary),
-              ),
-            ],
-          ),
+          if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: CoveSpace.sm,
+              runSpacing: CoveSpace.xs,
+              children: [
+                Text(
+                  "${partnerName.toUpperCase()}'S HABITS",
+                  style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                ),
+                Text(
+                  'Read-only',
+                  style: CoveType.barLabel.copyWith(color: cv.textTertiary),
+                ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "${partnerName.toUpperCase()}'S HABITS",
+                  style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                ),
+                Text(
+                  'Read-only',
+                  style: CoveType.barLabel.copyWith(color: cv.textTertiary),
+                ),
+              ],
+            ),
           const SizedBox(height: CoveSpace.sm),
           CoveGroupedCard(
             children: partnerShared.map((habit) {
@@ -446,6 +489,12 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     final schedule = HabitSchedule.parse(habit.cadence, targetDays: habit.targetDaysPerWeek);
     final cadenceLabel = schedule.formatDisplayLabel(targetDays: habit.targetDaysPerWeek);
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+    final streakWidget = CoveStreakIndicator(
+      count: streak.currentStreak,
+      label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
+    );
+
     return Dismissible(
       key: ValueKey('dismiss_${habit.id}'),
       direction: DismissDirection.endToStart,
@@ -486,6 +535,8 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
             bottom: 9,
           ),
           child: Row(
+            crossAxisAlignment:
+                isScaled ? CrossAxisAlignment.start : CrossAxisAlignment.center,
             children: [
               // Checkbox for today's checkin
               CoveCheckbox(
@@ -526,8 +577,8 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                         children: [
                           Text(
                             habit.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: isScaled ? null : 1,
+                            overflow: isScaled ? null : TextOverflow.ellipsis,
                             style: CoveType.rowTitle.copyWith(
                               color: streak.isCheckedToday
                                   ? cv.textSecondary
@@ -577,20 +628,26 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                           ],
                         ],
                       ),
+                      if (isScaled) ...[
+                        const SizedBox(height: CoveSpace.xs),
+                        streakWidget,
+                      ],
                     ],
                   ),
                 ),
               ),
 
-              // Streak Indicator in Bodoni Moda (no flames / badges)
-              CoveStreakIndicator(
-                count: streak.currentStreak,
-                label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
-              ),
-              const SizedBox(width: 10),
+              if (!isScaled) ...[
+                // Streak Indicator in Bodoni Moda (no flames / badges)
+                streakWidget,
+                const SizedBox(width: 10),
+              ],
 
               // Two-tick sync status
-              CoveSyncTick(status: syncStatus),
+              Padding(
+                padding: EdgeInsets.only(top: isScaled ? CoveSpace.sm : 0),
+                child: CoveSyncTick(status: syncStatus),
+              ),
 
               // Edit / Delete Popup Menu
               PopupMenuButton<String>(
@@ -698,6 +755,12 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     final schedule = HabitSchedule.parse(habit.cadence, targetDays: habit.targetDaysPerWeek);
     final cadenceLabel = schedule.formatDisplayLabel(targetDays: habit.targetDaysPerWeek);
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+    final streakWidget = CoveStreakIndicator(
+      count: streak.currentStreak,
+      label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
+    );
+
     return InkWell(
       onTap: () => HabitDetailSheet.show(
         context,
@@ -708,31 +771,36 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
+          crossAxisAlignment:
+              isScaled ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
             // Passive indicator: subtle circle showing completed vs resting (no red alarm!)
-            Container(
-              width: CoveSpace.gutter,
-              height: CoveSpace.gutter,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: streak.isCheckedToday
-                    ? cv.accentFill.withValues(alpha: 0.25)
-                    : Colors.transparent,
-                border: Border.all(
+            Padding(
+              padding: EdgeInsets.only(top: isScaled ? CoveSpace.xs : 0),
+              child: Container(
+                width: CoveSpace.gutter,
+                height: CoveSpace.gutter,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: streak.isCheckedToday
-                      ? cv.accentFill
-                      : cv.textTertiary.withValues(alpha: 0.4),
-                  width: 1.5,
+                      ? cv.accentFill.withValues(alpha: 0.25)
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: streak.isCheckedToday
+                        ? cv.accentFill
+                        : cv.textTertiary.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
                 ),
+                alignment: Alignment.center,
+                child: streak.isCheckedToday
+                    ? Icon(
+                        Icons.check,
+                        size: 12,
+                        color: cv.accentText,
+                      )
+                    : null,
               ),
-              alignment: Alignment.center,
-              child: streak.isCheckedToday
-                  ? Icon(
-                      Icons.check,
-                      size: 12,
-                      color: cv.accentText,
-                    )
-                  : null,
             ),
             const SizedBox(width: 14),
 
@@ -744,8 +812,8 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                 children: [
                   Text(
                     habit.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
                     style: CoveType.rowTitle.copyWith(
                       color: cv.textPrimary,
                     ),
@@ -759,16 +827,19 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                       color: cv.textTertiary,
                     ),
                   ),
+                  if (isScaled) ...[
+                    const SizedBox(height: CoveSpace.xs),
+                    streakWidget,
+                  ],
                 ],
               ),
             ),
 
-            // Streak Counter
-            CoveStreakIndicator(
-              count: streak.currentStreak,
-              label: habit.cadence.startsWith('weekly') ? 'wks' : 'days',
-            ),
-            const SizedBox(width: CoveSpace.md),
+            if (!isScaled) ...[
+              // Streak Counter
+              streakWidget,
+              const SizedBox(width: CoveSpace.md),
+            ],
 
             // Quiet Acknowledge Tap
             if (streak.isCheckedToday)

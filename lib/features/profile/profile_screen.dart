@@ -638,15 +638,61 @@ class ProfileScreen extends ConsumerWidget {
     required CoveTokens cv,
   }) {
     final duration = CoveMotion.q(context);
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackModes =
+        isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
     const modes = <(String, ThemeMode)>[
       ('Light', ThemeMode.light),
       ('Dark', ThemeMode.dark),
       ('System', ThemeMode.system),
     ];
 
+    Widget buildPill((String, ThemeMode) entry) {
+      final (label, mode) = entry;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => ref.read(themeModeProvider.notifier).setThemeMode(mode),
+        child: AnimatedContainer(
+          duration: duration,
+          curve: CoveMotion.easing,
+          height: isScaled ? null : _kThemeBarHeight,
+          constraints: isScaled
+              ? const BoxConstraints(minHeight: _kThemeBarHeight)
+              : null,
+          padding: isScaled
+              ? const EdgeInsets.symmetric(
+                  vertical: CoveSpace.xs,
+                  horizontal: CoveSpace.sm,
+                )
+              : null,
+          alignment: Alignment.center,
+          decoration: CoveShape.decoration(
+            CoveRadius.pill,
+            color: mode == activeMode ? cv.accentWash : Colors.transparent,
+            side: BorderSide(
+              color: mode == activeMode ? cv.accentFill : Colors.transparent,
+              width: _kBorderWidth,
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: CoveType.readout.copyWith(
+              color: mode == activeMode ? cv.textPrimary : cv.textSecondary,
+              fontWeight:
+                  mode == activeMode ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      );
+    }
+
     return DecoratedBox(
       decoration: CoveShape.decoration(
-        CoveRadius.pill,
+        stackModes ? CoveRadius.inline : CoveRadius.pill,
         color: cv.surfaceCanvas,
         side: BorderSide(
           color: cv.lineHairline,
@@ -655,47 +701,21 @@ class ProfileScreen extends ConsumerWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(CoveSpace.xs),
-        child: Row(
-          children: [
-            for (final (label, mode) in modes)
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () =>
-                      ref.read(themeModeProvider.notifier).setThemeMode(mode),
-                  child: AnimatedContainer(
-                    duration: duration,
-                    curve: CoveMotion.easing,
-                    height: _kThemeBarHeight,
-                    alignment: Alignment.center,
-                    decoration: CoveShape.decoration(
-                      CoveRadius.pill,
-                      color: mode == activeMode
-                          ? cv.accentWash
-                          : Colors.transparent,
-                      side: BorderSide(
-                        color: mode == activeMode
-                            ? cv.accentFill
-                            : Colors.transparent,
-                        width: _kBorderWidth,
-                      ),
-                    ),
-                    child: Text(
-                      label,
-                      style: CoveType.readout.copyWith(
-                        color: mode == activeMode
-                            ? cv.textPrimary
-                            : cv.textSecondary,
-                        fontWeight: mode == activeMode
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
+        child: stackModes
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < modes.length; i++) ...[
+                    if (i > 0) const SizedBox(height: CoveSpace.xs),
+                    buildPill(modes[i]),
+                  ],
+                ],
+              )
+            : Row(
+                children: [
+                  for (final entry in modes) Expanded(child: buildPill(entry)),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }
@@ -742,9 +762,11 @@ class ProfileScreen extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: CoveType.readout.copyWith(color: cv.textSecondary),
+        Flexible(
+          child: Text(
+            label,
+            style: CoveType.readout.copyWith(color: cv.textSecondary),
+          ),
         ),
         const SizedBox(width: CoveSpace.xs),
         Icon(
@@ -913,24 +935,38 @@ class ProfileScreen extends ConsumerWidget {
                     width: _kBorderWidth,
                   ),
                 ),
-                child: SizedBox(
-                  height: _kBackupButtonHeight,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.arrow_upward_rounded,
-                        size: _kIconSize,
-                        color: cv.textPrimary,
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      Text(
-                        backingUp ? 'Backing Up…' : 'Back Up Now',
-                        style: CoveType.rowTitle.copyWith(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: _kBackupButtonHeight,
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: CoveSpace.md,
+                      vertical:
+                          MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                          ? CoveSpace.sm
+                          : 0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.arrow_upward_rounded,
+                          size: _kIconSize,
                           color: cv.textPrimary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: CoveSpace.sm),
+                        Flexible(
+                          child: Text(
+                            backingUp ? 'Backing Up…' : 'Back Up Now',
+                            textAlign: TextAlign.center,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

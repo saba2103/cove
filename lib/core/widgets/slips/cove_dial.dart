@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import '../cove_avatar.dart';
+import '../cove_reflow_row.dart';
 import 'cove_receipt.dart';
 import 'cove_slip.dart';
 
@@ -192,49 +193,64 @@ class CoveDial extends StatelessWidget implements CoveSlipObject {
           const SizedBox(height: CoveSpace.lg),
 
           // 2. 160dp donut dial with centred figure and "THIS MONTH" caps
-          Center(
-            child: SizedBox(
-              width: kDialDiameter,
-              height: kDialDiameter,
-              child: CustomPaint(
-                painter: _CoveDialRingPainter(
-                  trackColor: palette.rule,
-                  arcColor: arcColor,
-                  share: clampedShare,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: kDialStroke + CoveSpace.sm,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          amount,
-                          maxLines: 1,
-                          textAlign: TextAlign.center,
-                          style: CoveType.slipFigure.copyWith(
-                            color: palette.title,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale =
+                  MediaQuery.textScalerOf(context).scale(1.0);
+              final isScaled = textScale > 1.0;
+              final dialDiameter = isScaled
+                  ? math.min(
+                      constraints.maxWidth,
+                      (kDialDiameter * math.min(textScale, 1.35))
+                          .ceilToDouble(),
+                    )
+                  : kDialDiameter;
+
+              return Center(
+                child: SizedBox(
+                  width: dialDiameter,
+                  height: dialDiameter,
+                  child: CustomPaint(
+                    painter: _CoveDialRingPainter(
+                      trackColor: palette.rule,
+                      arcColor: arcColor,
+                      share: clampedShare,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: kDialStroke + CoveSpace.sm,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              amount,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: CoveType.slipFigure.copyWith(
+                                color: palette.title,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: CoveSpace.xs),
+                          Text(
+                            periodLabel.toUpperCase(),
+                            maxLines: isScaled ? null : 1,
+                            overflow: isScaled ? null : TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: CoveType.capsSlip.copyWith(
+                              color: palette.tertiary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: CoveSpace.xs),
-                      Text(
-                        periodLabel.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: CoveType.capsSlip.copyWith(
-                          color: palette.tertiary,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
           // 3. Receipt-style recent purchase rows below
@@ -375,6 +391,7 @@ class _DialReceiptRowState extends State<_DialReceiptRow> {
     final hasSubtitle =
         item.subtitle != null && item.subtitle!.trim().isNotEmpty;
     final showPlate = _interactive && (_hovered || _pressed);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return MouseRegion(
       cursor:
@@ -399,49 +416,93 @@ class _DialReceiptRowState extends State<_DialReceiptRow> {
             CoveDial.kRowHoverRadius,
             color: showPlate ? palette.hairline : Colors.transparent,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CoveAvatar.inline(
-                person: item.payer,
-                nameOrInitial: item.nameOrInitial,
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+          child: isScaled
+              ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowTitle.copyWith(color: palette.title),
+                    CoveAvatar.inline(
+                      person: item.payer,
+                      nameOrInitial: item.nameOrInitial,
                     ),
-                    if (hasSubtitle) ...[
-                      Text(
-                        item.subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CoveType.rowSub.copyWith(
-                          color: palette.tertiary,
+                    const SizedBox(width: CoveSpace.sm),
+                    Expanded(
+                      child: CoveReflowRow(
+                        allowStack: true,
+                        forceStack: true,
+                        body: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: CoveType.rowTitle.copyWith(
+                                color: palette.title,
+                              ),
+                            ),
+                            if (hasSubtitle)
+                              Text(
+                                item.subtitle!,
+                                style: CoveType.rowSub.copyWith(
+                                  color: palette.tertiary,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: Text(
+                          item.amount,
+                          style: CoveType.readout.copyWith(
+                            color: palette.title,
+                          ),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CoveAvatar.inline(
+                      person: item.payer,
+                      nameOrInitial: item.nameOrInitial,
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: palette.title,
+                            ),
+                          ),
+                          if (hasSubtitle) ...[
+                            Text(
+                              item.subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Text(
+                      item.amount,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: CoveType.readout.copyWith(
+                        color: palette.title,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              Text(
-                item.amount,
-                maxLines: 1,
-                softWrap: false,
-                style: CoveType.readout.copyWith(
-                  color: palette.title,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

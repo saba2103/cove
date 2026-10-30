@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/shape/cove_shape.dart';
@@ -115,27 +117,54 @@ class _AddKeypadState extends State<AddKeypad> {
               widget.showCurrencySymbol ? '₹$formattedValue' : formattedValue,
           child: ExcludeSemantics(
             child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  if (widget.showCurrencySymbol) ...[
-                    Text(
-                      '₹',
-                      style: CoveType.title.copyWith(color: cv.textTertiary),
+              child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          if (widget.showCurrencySymbol) ...[
+                            Text(
+                              '₹',
+                              style: CoveType.title
+                                  .copyWith(color: cv.textTertiary),
+                            ),
+                            const SizedBox(width: CoveSpace.xs),
+                          ],
+                          Text(
+                            formattedValue,
+                            maxLines: 1,
+                            style: CoveType.heroFigure
+                                .copyWith(color: figureColor),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        if (widget.showCurrencySymbol) ...[
+                          Text(
+                            '₹',
+                            style:
+                                CoveType.title.copyWith(color: cv.textTertiary),
+                          ),
+                          const SizedBox(width: CoveSpace.xs),
+                        ],
+                        Flexible(
+                          child: Text(
+                            formattedValue,
+                            maxLines: 1,
+                            style: CoveType.heroFigure
+                                .copyWith(color: figureColor),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: CoveSpace.xs),
-                  ],
-                  Flexible(
-                    child: Text(
-                      formattedValue,
-                      maxLines: 1,
-                      style: CoveType.heroFigure.copyWith(color: figureColor),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -275,6 +304,17 @@ class _KeypadKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final isScaled = textScaler.scale(1.0) > 1.0;
+    final baseFontSize = CoveType.title.fontSize ?? 24.0;
+    final lineHeight = CoveType.title.height ?? 1.25;
+    final keyHeight = isScaled
+        ? math.max(
+            CoveSize.row,
+            (textScaler.scale(baseFontSize) * lineHeight).ceilToDouble() +
+                CoveSpace.lg,
+          )
+        : CoveSize.row;
 
     return Semantics(
       container: true,
@@ -286,11 +326,11 @@ class _KeypadKey extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: Container(
-            constraints: const BoxConstraints(
+            constraints: BoxConstraints(
               minWidth: CoveSize.hit,
-              minHeight: CoveSize.row,
+              minHeight: keyHeight,
             ),
-            height: CoveSize.row,
+            height: keyHeight,
             alignment: Alignment.center,
             decoration: CoveShape.decoration(
               CoveRadius.inline,

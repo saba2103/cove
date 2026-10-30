@@ -216,6 +216,7 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
               children: [
                 Text(
                   pairTitle,
+                  textAlign: TextAlign.center,
                   style: typography.headline.copyWith(fontSize: 22),
                 ),
                 const SizedBox(height: 6),
@@ -326,27 +327,29 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                                       : colors.textMuted,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  _copied
-                                      ? 'Copied to clipboard'
-                                      : 'Copy 6-digit code',
-                                  style: TextStyle(
-                                    fontFamily: 'PlusJakartaSans',
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: _copied
-                                        ? colors.accentPrimary
-                                        : colors.textMuted,
+                                  Flexible(
+                                    child: Text(
+                                      _copied
+                                          ? 'Copied to clipboard'
+                                          : 'Copy 6-digit code',
+                                      style: TextStyle(
+                                        fontFamily: 'PlusJakartaSans',
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: _copied
+                                            ? colors.accentPrimary
+                                            : colors.textMuted,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
 
                 if (_statusMessage != null) ...[
                   const SizedBox(height: 12),
@@ -365,11 +368,13 @@ class _PairingQrViewState extends ConsumerState<PairingQrView> {
                 // Home name chip
                 Text(
                   widget.payload.homeName,
+                  textAlign: TextAlign.center,
                   style: typography.title.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Zero-Knowledge Direct Key Exchange',
+                  textAlign: TextAlign.center,
                   style: typography.caption.copyWith(
                     color: colors.accentPrimary,
                   ),

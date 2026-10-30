@@ -93,16 +93,31 @@ class AboutCoveScreen extends ConsumerWidget {
     final createdDateStr = activeHome != null
         ? DateFormat('MMMM yyyy').format(activeHome.createdAt)
         : 'Recently';
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text(
-          'About Sanctuary',
-          style: CoveType.letter.copyWith(color: cv.textPrimary),
-        ),
+        toolbarHeight: isScaled
+            ? (kToolbarHeight * textScale).clamp(kToolbarHeight, 112.0)
+            : null,
+        title: isScaled
+            ? DefaultTextStyle.merge(
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+                child: Text(
+                  'About Sanctuary',
+                  style: CoveType.letter.copyWith(color: cv.textPrimary),
+                ),
+              )
+            : Text(
+                'About Sanctuary',
+                style: CoveType.letter.copyWith(color: cv.textPrimary),
+              ),
         actions: [
-          if (homes.length > 1)
+          if (!isScaled && homes.length > 1)
             Padding(
               padding: const EdgeInsets.only(right: _kVerticalPadding),
               child: CovePillButton(
@@ -120,6 +135,18 @@ class AboutCoveScreen extends ConsumerWidget {
           vertical: _kVerticalPadding,
         ),
         children: [
+          if (isScaled && homes.length > 1) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: CovePillButton(
+                label: 'Switch Home',
+                isCompact: true,
+                variant: CoveButtonVariant.secondary,
+                onPressed: () => HomeSwitcherSheet.show(context),
+              ),
+            ),
+            const SizedBox(height: CoveSpace.md),
+          ],
           // --- 1. HERO COVE MONOGRAM & NAME ---
           Center(
             child: Column(
@@ -187,12 +214,15 @@ class AboutCoveScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'MEMBERS OF THIS COVE',
-                      style: CoveType.capsCard.copyWith(
-                        color: cv.textSecondary,
+                    Expanded(
+                      child: Text(
+                        'MEMBERS OF THIS COVE',
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textSecondary,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: CoveSpace.sm),
                     CoveSyncTick(
                       status: hasPartner
                           ? CoveSyncStatus.syncedToPartner
@@ -300,6 +330,63 @@ class AboutCoveScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                  )
+                else if (isScaled)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: CoveSize.hit,
+                            height: CoveSize.hit,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: cv.surfaceRow,
+                              border: Border.all(color: cv.lineHairline),
+                            ),
+                            child: Icon(
+                              Icons.person_add_outlined,
+                              size: CoveSize.avatarInline,
+                              color: cv.statusAlert,
+                            ),
+                          ),
+                          const SizedBox(width: CoveSpace.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Partner not yet joined',
+                                  style: CoveType.rowTitle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'Share your pairing code to link devices.',
+                                  style: CoveType.rowSub.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: CoveSpace.md),
+                      CovePillButton(
+                        label: 'Invite',
+                        isCompact: true,
+                        variant: CoveButtonVariant.secondary,
+                        onPressed: () {
+                          if (activeHome != null) {
+                            _showPairingModal(context, ref, activeHome.id);
+                          }
+                        },
                       ),
                     ],
                   )
@@ -527,6 +614,7 @@ class AboutCoveScreen extends ConsumerWidget {
               children: [
                 Text(
                   'Cove v2.0-alpha.1 (2) · Designed for Two',
+                  textAlign: TextAlign.center,
                   style: CoveType.rowSub.copyWith(
                     fontWeight: FontWeight.w600,
                     color: cv.textSecondary,
@@ -536,6 +624,7 @@ class AboutCoveScreen extends ConsumerWidget {
                 const SizedBox(height: CoveSpace.xs),
                 Text(
                   'Crafted with love for the two of you ❤️',
+                  textAlign: TextAlign.center,
                   style: CoveType.barLabel.copyWith(
                     fontWeight: FontWeight.w400,
                     color: cv.textTertiary,

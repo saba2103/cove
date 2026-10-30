@@ -22,12 +22,17 @@ class ChangelogScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        toolbarHeight: isScaled
+            ? (kToolbarHeight * textScale).clamp(kToolbarHeight, 112.0)
+            : null,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -36,21 +41,32 @@ class ChangelogScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           tooltip: 'Back',
         ),
-        title: Text(
-          'Changelog & Updates',
-          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-        ),
+        title: isScaled
+            ? DefaultTextStyle.merge(
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+                child: Text(
+                  'Changelog & Updates',
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
+              )
+            : Text(
+                'Changelog & Updates',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+              ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: CoveSpace.md),
-            child: CovePillButton(
-              label: "What's Fresh",
-              icon: const Icon(Icons.auto_awesome, size: _kButtonIconSize),
-              isCompact: true,
-              variant: CoveButtonVariant.secondary,
-              onPressed: () => WhatsFreshModal.show(context, force: true),
+          if (!isScaled)
+            Padding(
+              padding: const EdgeInsets.only(right: CoveSpace.md),
+              child: CovePillButton(
+                label: "What's Fresh",
+                icon: const Icon(Icons.auto_awesome, size: _kButtonIconSize),
+                isCompact: true,
+                variant: CoveButtonVariant.secondary,
+                onPressed: () => WhatsFreshModal.show(context, force: true),
+              ),
             ),
-          ),
         ],
       ),
       body: SafeArea(
@@ -60,6 +76,19 @@ class ChangelogScreen extends StatelessWidget {
             vertical: _kVerticalPadding,
           ),
           children: [
+            if (isScaled) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CovePillButton(
+                  label: "What's Fresh",
+                  icon: const Icon(Icons.auto_awesome, size: _kButtonIconSize),
+                  isCompact: true,
+                  variant: CoveButtonVariant.secondary,
+                  onPressed: () => WhatsFreshModal.show(context, force: true),
+                ),
+              ),
+              const SizedBox(height: CoveSpace.md),
+            ],
             // Intro Header Card
             Container(
               padding: const EdgeInsets.all(CoveSpace.gutter),
@@ -332,11 +361,13 @@ class _TimelineItemRow extends StatelessWidget {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                item.date,
-                                style: CoveType.barLabel.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: cv.textSecondary,
+                              Flexible(
+                                child: Text(
+                                  item.date,
+                                  style: CoveType.barLabel.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: cv.textSecondary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: CoveSpace.sm),
@@ -404,12 +435,14 @@ class _TimelineItemRow extends StatelessWidget {
                                 color: cv.textSecondary,
                               ),
                               const SizedBox(width: CoveSpace.xs),
-                              Text(
-                                'UNDER THE HOOD',
-                                style: CoveType.barLabel.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.7,
-                                  color: cv.textSecondary,
+                              Expanded(
+                                child: Text(
+                                  'UNDER THE HOOD',
+                                  style: CoveType.barLabel.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.7,
+                                    color: cv.textSecondary,
+                                  ),
                                 ),
                               ),
                             ],

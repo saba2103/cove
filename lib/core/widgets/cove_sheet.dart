@@ -98,6 +98,10 @@ class CoveSheet extends StatelessWidget {
     final bottomInset = CovePageInsets.bottomOf(context);
     final canDismiss = !isMidCommit && onDismiss != null;
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+    final hasExplicitChildHeight =
+        child is SizedBox && (child as SizedBox).height != null;
+
     final Widget sheetBody = Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -159,7 +163,14 @@ class CoveSheet extends StatelessWidget {
             ),
             const SizedBox(height: CoveSpace.md),
           ],
-          child,
+          if (isScaled && !hasExplicitChildHeight)
+            Flexible(
+              child: SingleChildScrollView(
+                child: child,
+              ),
+            )
+          else
+            child,
         ],
       ),
     );

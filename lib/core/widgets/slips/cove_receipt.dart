@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../shape/cove_shape.dart';
 import '../../theme/cove_tokens.dart';
 import '../cove_avatar.dart';
+import '../cove_reflow_row.dart';
 import 'cove_slip.dart';
 
 /// A single purchase row inside a [CoveReceipt] (`design/specs/10-paper-objects.md`).
@@ -312,32 +313,55 @@ class CoveReceipt extends StatelessWidget implements CoveSlipObject {
           // 4. Bottom dashed rule + TOTAL row
           _ReceiptDashedRule(color: palette.rule),
           const SizedBox(height: CoveSpace.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(
-                child: Text(
+          if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: CoveSpace.sm,
+              runSpacing: CoveSpace.xs,
+              children: [
+                Text(
                   totalLabel.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: CoveType.capsSlip.copyWith(color: palette.tertiary),
                 ),
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              CoveSlipFieldTapTarget(
-                field: CoveSlipField.amount,
-                fieldTaps: fieldTaps,
-                alignment: Alignment.centerRight,
-                child: Text(
-                  totalAmount,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: CoveType.slipFigure.copyWith(color: palette.title),
+                CoveSlipFieldTapTarget(
+                  field: CoveSlipField.amount,
+                  fieldTaps: fieldTaps,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    totalAmount,
+                    style: CoveType.slipFigure.copyWith(color: palette.title),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Text(
+                    totalLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                CoveSlipFieldTapTarget(
+                  field: CoveSlipField.amount,
+                  fieldTaps: fieldTaps,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    totalAmount,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: CoveType.slipFigure.copyWith(color: palette.title),
+                  ),
+                ),
+              ],
+            ),
 
           // 5. Split bar + named amounts beside it (WCAG 1.4.1)
           if (split != null) ...[
@@ -405,6 +429,7 @@ class _ReceiptItemRowState extends State<_ReceiptItemRow> {
     final palette = widget.palette;
     final hasSubtitle = item.subtitle != null && item.subtitle!.trim().isNotEmpty;
     final showPlate = _interactive && (_hovered || _pressed);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return MouseRegion(
       cursor: _interactive ? SystemMouseCursors.click : SystemMouseCursors.basic,
@@ -428,49 +453,93 @@ class _ReceiptItemRowState extends State<_ReceiptItemRow> {
             CoveReceipt.kRowHoverRadius,
             color: showPlate ? palette.hairline : Colors.transparent,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CoveAvatar.inline(
-                person: item.payer,
-                nameOrInitial: item.nameOrInitial,
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+          child: isScaled
+              ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowTitle.copyWith(color: palette.title),
+                    CoveAvatar.inline(
+                      person: item.payer,
+                      nameOrInitial: item.nameOrInitial,
                     ),
-                    if (hasSubtitle) ...[
-                      Text(
-                        item.subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CoveType.rowSub.copyWith(
-                          color: palette.tertiary,
+                    const SizedBox(width: CoveSpace.sm),
+                    Expanded(
+                      child: CoveReflowRow(
+                        allowStack: true,
+                        forceStack: true,
+                        body: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: CoveType.rowTitle.copyWith(
+                                color: palette.title,
+                              ),
+                            ),
+                            if (hasSubtitle)
+                              Text(
+                                item.subtitle!,
+                                style: CoveType.rowSub.copyWith(
+                                  color: palette.tertiary,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: Text(
+                          item.amount,
+                          style: CoveType.readout.copyWith(
+                            color: palette.title,
+                          ),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CoveAvatar.inline(
+                      person: item.payer,
+                      nameOrInitial: item.nameOrInitial,
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: palette.title,
+                            ),
+                          ),
+                          if (hasSubtitle) ...[
+                            Text(
+                              item.subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Text(
+                      item.amount,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: CoveType.readout.copyWith(
+                        color: palette.title,
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              Text(
-                item.amount,
-                maxLines: 1,
-                softWrap: false,
-                style: CoveType.readout.copyWith(
-                  color: palette.title,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -491,6 +560,7 @@ class _ReceiptSplitSection extends StatelessWidget {
     final clampedShare = split.viewerShare.clamp(0.0, 1.0);
     final viewerFlex = (clampedShare * 1000).round();
     final partnerFlex = ((1.0 - clampedShare) * 1000).round();
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -518,11 +588,13 @@ class _ReceiptSplitSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: CoveSpace.sm),
-        Row(
-          children: [
-            Expanded(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+        if (isScaled)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     width: CoveSpace.sm,
@@ -533,7 +605,7 @@ class _ReceiptSplitSection extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: CoveSpace.xs),
-                  Flexible(
+                  Expanded(
                     child: Text.rich(
                       TextSpan(
                         children: [
@@ -551,43 +623,14 @@ class _ReceiptSplitSection extends StatelessWidget {
                           ),
                         ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: CoveSpace.sm),
-            Expanded(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
+              const SizedBox(height: CoveSpace.xs),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Flexible(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '${split.partnerAmount} ',
-                            style: CoveType.rowSub.copyWith(
-                              color: palette.secondary,
-                            ),
-                          ),
-                          TextSpan(
-                            text: split.partnerName,
-                            style: CoveType.rowSub.copyWith(
-                              color: palette.tertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                    ),
-                  ),
-                  const SizedBox(width: CoveSpace.xs),
                   Container(
                     width: CoveSpace.sm,
                     height: CoveSpace.sm,
@@ -596,11 +639,115 @@ class _ReceiptSplitSection extends StatelessWidget {
                       color: palette.rule,
                     ),
                   ),
+                  const SizedBox(width: CoveSpace.xs),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${split.partnerName} ',
+                            style: CoveType.rowSub.copyWith(
+                              color: palette.tertiary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: split.partnerAmount,
+                            style: CoveType.rowSub.copyWith(
+                              color: palette.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: CoveSpace.sm,
+                      height: CoveSpace.sm,
+                      decoration: CoveShape.decoration(
+                        CoveSpace.xs / 2,
+                        color: palette.accentFill,
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.xs),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${split.viewerName} ',
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: split.viewerAmount,
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: CoveSpace.sm),
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${split.partnerAmount} ',
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.secondary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: split.partnerName,
+                              style: CoveType.rowSub.copyWith(
+                                color: palette.tertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.xs),
+                    Container(
+                      width: CoveSpace.sm,
+                      height: CoveSpace.sm,
+                      decoration: CoveShape.decoration(
+                        CoveSpace.xs / 2,
+                        color: palette.rule,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }

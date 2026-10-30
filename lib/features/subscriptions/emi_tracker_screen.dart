@@ -699,8 +699,10 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
     required double personBMonthly,
     required double bothMonthly,
   }) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final isCompact =
-        MediaQuery.sizeOf(context).width < CoveSize.compactThreshold;
+        (MediaQuery.sizeOf(context).width / textScale) <
+        CoveSize.compactThreshold;
 
     final eachMonthCard = _buildEachMonthCard(
       context,
@@ -1011,6 +1013,8 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
           Builder(
             builder: (context) {
               final isSelected = _sortMode == item.$1;
+              final isScaled =
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
               return Semantics(
                 button: true,
                 selected: isSelected,
@@ -1021,9 +1025,13 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                   child: AnimatedContainer(
                     duration: duration,
                     curve: CoveMotion.easing,
-                    height: _kSortPillHeight,
-                    padding: const EdgeInsets.symmetric(
+                    height: isScaled ? null : _kSortPillHeight,
+                    constraints: isScaled
+                        ? const BoxConstraints(minHeight: _kSortPillHeight)
+                        : null,
+                    padding: EdgeInsets.symmetric(
                       horizontal: CoveSpace.md,
+                      vertical: isScaled ? CoveSpace.xs : 0,
                     ),
                     decoration: CoveShape.decoration(
                       CoveRadius.pill,
@@ -1140,48 +1148,98 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                   ? groupName
                   : '${groupName.toUpperCase()} · ${emis.length}';
 
+              final isScaled =
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      CoveAvatar.inline(
-                        person: person,
-                        nameOrInitial: isSplitGroup ? null : groupName,
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      Expanded(
-                        child: Text(
-                          headerTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CoveType.capsCard.copyWith(
-                            color: cv.textSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      Text.rich(
-                        TextSpan(
+                  if (isScaled)
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            TextSpan(
-                              text:
-                                  '${currency.symbol}${formatCoveAmount(groupMonthly)}',
-                              style: CoveType.rowTitle.copyWith(
-                                color: cv.accentTint,
-                              ),
+                            CoveAvatar.inline(
+                              person: person,
+                              nameOrInitial: isSplitGroup ? null : groupName,
                             ),
-                            TextSpan(
-                              text: ' /mo',
-                              style: CoveType.rowSub.copyWith(
-                                color: cv.textTertiary,
+                            const SizedBox(width: CoveSpace.sm),
+                            Flexible(
+                              child: Text(
+                                headerTitle,
+                                style: CoveType.capsCard.copyWith(
+                                  color: cv.textSecondary,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text:
+                                    '${currency.symbol}${formatCoveAmount(groupMonthly)}',
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.accentTint,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' /mo',
+                                style: CoveType.rowSub.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        CoveAvatar.inline(
+                          person: person,
+                          nameOrInitial: isSplitGroup ? null : groupName,
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Expanded(
+                          child: Text(
+                            headerTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.capsCard.copyWith(
+                              color: cv.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text:
+                                    '${currency.symbol}${formatCoveAmount(groupMonthly)}',
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.accentTint,
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' /mo',
+                                style: CoveType.rowSub.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   const SizedBox(height: CoveSpace.sm),
                   _buildEmiGroupCard(
                     context,
@@ -1293,75 +1351,139 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                   ),
                 )
               : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+          child: Builder(
+            builder: (context) {
+              final isScaled =
+                  MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (isSelected) ...[
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: _kCheckIconSize,
-                      color: cv.accentFill,
+                  if (isScaled)
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSelected) ...[
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: _kCheckIconSize,
+                                color: cv.accentFill,
+                              ),
+                              const SizedBox(width: CoveSpace.xs),
+                            ],
+                            Flexible(
+                              child: Text(
+                                emi.name,
+                                style: CoveType.rowTitle.copyWith(
+                                  color: cv.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${currency.symbol}${formatCoveAmount(emi.amount)}',
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        if (isSelected) ...[
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: _kCheckIconSize,
+                            color: cv.accentFill,
+                          ),
+                          const SizedBox(width: CoveSpace.xs),
+                        ],
+                        Expanded(
+                          child: Text(
+                            emi.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowTitle.copyWith(
+                              color: cv.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Text(
+                          '${currency.symbol}${formatCoveAmount(emi.amount)}',
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: CoveSpace.xs),
-                  ],
-                  Expanded(
-                    child: Text(
-                      emi.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowTitle.copyWith(
-                        color: cv.textPrimary,
+                  const SizedBox(height: CoveSpace.xs),
+                  if (isScaled)
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Text(
+                          metaParts.join(' · '),
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          '$remaining left ($paid/$total mo)',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            metaParts.join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.textTertiary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: CoveSpace.sm),
+                        Text(
+                          '$remaining left ($paid/$total mo)',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: CoveSpace.sm),
+                  // Punched installment tick strip (one tick per installment)
+                  SizedBox(
+                    height: _kTickTrackHeight,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: _PunchedInstallmentTicksPainter(
+                        totalInstallments: total,
+                        paidInstallments: paid,
+                        punchedColor: cv.accentFill,
+                        unpunchedColor: cv.lineStrong,
                       ),
                     ),
                   ),
-                  const SizedBox(width: CoveSpace.sm),
-                  Text(
-                    '${currency.symbol}${formatCoveAmount(emi.amount)}',
-                    style: CoveType.rowTitle.copyWith(
-                      color: cv.textPrimary,
-                    ),
-                  ),
                 ],
-              ),
-              const SizedBox(height: CoveSpace.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      metaParts.join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.textTertiary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: CoveSpace.sm),
-                  Text(
-                    '$remaining left ($paid/$total mo)',
-                    style: CoveType.rowSub.copyWith(
-                      color: cv.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: CoveSpace.sm),
-              // Punched installment tick strip (one tick per installment)
-              SizedBox(
-                height: _kTickTrackHeight,
-                width: double.infinity,
-                child: CustomPaint(
-                  painter: _PunchedInstallmentTicksPainter(
-                    totalInstallments: total,
-                    paidInstallments: paid,
-                    punchedColor: cv.accentFill,
-                    unpunchedColor: cv.lineStrong,
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -1404,38 +1526,78 @@ class _EmiTrackerScreenState extends ConsumerState<EmiTrackerScreen> {
                 final emi = completedEmis[i];
                 final total = _totalInstallmentsOf(emi);
                 final totalAmount = total * emi.amount;
+                final isScaled =
+                    MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
                 return GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => CommitmentDetailSheet.show(context, emi),
                   child: Padding(
                     padding: const EdgeInsets.all(CoveSpace.md),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_rounded,
-                          size: _kCheckIconSize,
-                          color: cv.statusGood,
-                        ),
-                        const SizedBox(width: CoveSpace.sm),
-                        Expanded(
-                          child: Text(
-                            emi.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: CoveType.rowTitle.copyWith(
-                              color: cv.textSecondary,
-                            ),
+                    child: isScaled
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: CoveSpace.xs,
+                                ),
+                                child: Icon(
+                                  Icons.check_circle_rounded,
+                                  size: _kCheckIconSize,
+                                  color: cv.statusGood,
+                                ),
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Expanded(
+                                child: Wrap(
+                                  alignment: WrapAlignment.spaceBetween,
+                                  spacing: CoveSpace.sm,
+                                  runSpacing: CoveSpace.xs,
+                                  children: [
+                                    Text(
+                                      emi.name,
+                                      style: CoveType.rowTitle.copyWith(
+                                        color: cv.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${currency.symbol}${formatCoveAmount(totalAmount)} paid',
+                                      style: CoveType.rowSub.copyWith(
+                                        color: cv.textTertiary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: _kCheckIconSize,
+                                color: cv.statusGood,
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Expanded(
+                                child: Text(
+                                  emi.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: cv.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: CoveSpace.sm),
+                              Text(
+                                '${currency.symbol}${formatCoveAmount(totalAmount)} paid',
+                                style: CoveType.rowSub.copyWith(
+                                  color: cv.textTertiary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: CoveSpace.sm),
-                        Text(
-                          '${currency.symbol}${formatCoveAmount(totalAmount)} paid',
-                          style: CoveType.rowSub.copyWith(
-                            color: cv.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 );
               },

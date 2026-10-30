@@ -149,6 +149,9 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
         .whereType<CalendarExpenseEntry>()
         .fold<double>(0.0, (sum, exp) => sum + exp.amount);
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+
     return Column(
       children: [
         // Month Navigation Header
@@ -162,11 +165,13 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                DateFormat('MMMM yyyy').format(monthStart),
-                style: CoveType.slipTitle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: cv.textPrimary,
+              Expanded(
+                child: Text(
+                  DateFormat('MMMM yyyy').format(monthStart),
+                  style: CoveType.slipTitle.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: cv.textPrimary,
+                  ),
                 ),
               ),
               Row(
@@ -213,18 +218,30 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: const ['M', 'T', 'W', 'T', 'F', 'S', 'S']
                       .map(
-                        (letter) => SizedBox(
-                          width: CoveSize.buttonRound,
-                          child: Center(
-                            child: Text(
-                              letter,
-                              style: CoveType.rowSub.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: cv.textTertiary,
+                        (letter) => isScaled
+                            ? Expanded(
+                                child: Center(
+                                  child: Text(
+                                    letter,
+                                    style: CoveType.rowSub.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: cv.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : SizedBox(
+                                width: CoveSize.buttonRound,
+                                child: Center(
+                                  child: Text(
+                                    letter,
+                                    style: CoveType.rowSub.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: cv.textTertiary,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
                       )
                       .toList(),
                 ),
@@ -234,11 +251,12 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
-                  childAspectRatio: 1.0,
+                  childAspectRatio:
+                      isScaled ? (1.0 / (textScale * 1.25)) : 1.0,
                   mainAxisSpacing: _kGridSpacing,
-                  crossAxisSpacing: _kGridSpacing,
+                  crossAxisSpacing: isScaled ? 3.0 : _kGridSpacing,
                 ),
                 itemCount: gridDays.length,
                 itemBuilder: (ctx, idx) {
@@ -252,57 +270,53 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                   final isToday = CalendarDateUtils.isSameDay(day, now);
                   final dotCount = _getDistinctLayerCount(entriesMap, day);
 
+                  final cellContainer = Container(
+                    width: isScaled ? double.infinity : _kDayCellSize,
+                    height: isScaled ? double.infinity : _kDayCellSize,
+                    decoration: CoveShape.decoration(
+                      CoveSpace.md,
+                      color: isSelected
+                          ? cv.accentFill
+                          : (isToday ? cv.accentWash : cv.surfaceCard),
+                      side: BorderSide(
+                        color: isToday && !isSelected
+                            ? cv.accentFill
+                            : (isSelected ? cv.accentFill : cv.lineHairline),
+                        width: isToday && !isSelected
+                            ? _kTodayBorderWidth
+                            : _kDividerHeight,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${day.day}',
+                          style: CoveType.readout.copyWith(
+                            fontFamily: 'LibreBodoni',
+                            fontWeight: isSelected || isToday
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? cv.textOnAccent
+                                : (isToday ? cv.accentText : cv.textPrimary),
+                          ),
+                        ),
+                        SizedBox(height: isScaled ? 2.0 : CoveSpace.xs),
+                        // Stepped champagne opacity density dots
+                        _buildDensityDots(
+                          cv: cv,
+                          count: dotCount,
+                          isSelected: isSelected,
+                        ),
+                      ],
+                    ),
+                  );
+
                   return GestureDetector(
                     onTap: () => widget.onSelectDate(day),
                     behavior: HitTestBehavior.opaque,
-                    child: Center(
-                      child: Container(
-                        width: _kDayCellSize,
-                        height: _kDayCellSize,
-                        decoration: CoveShape.decoration(
-                          CoveSpace.md,
-                          color: isSelected
-                              ? cv.accentFill
-                              : (isToday ? cv.accentWash : cv.surfaceCard),
-                          side: BorderSide(
-                            color: isToday && !isSelected
-                                ? cv.accentFill
-                                : (isSelected
-                                      ? cv.accentFill
-                                      : cv.lineHairline),
-                            width: isToday && !isSelected
-                                ? _kTodayBorderWidth
-                                : _kDividerHeight,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${day.day}',
-                              style: CoveType.readout.copyWith(
-                                fontFamily: 'LibreBodoni',
-                                fontWeight: isSelected || isToday
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color: isSelected
-                                    ? cv.textOnAccent
-                                    : (isToday
-                                          ? cv.accentText
-                                          : cv.textPrimary),
-                              ),
-                            ),
-                            const SizedBox(height: CoveSpace.xs),
-                            // Stepped champagne opacity density dots
-                            _buildDensityDots(
-                              cv: cv,
-                              count: dotCount,
-                              isSelected: isSelected,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: isScaled ? cellContainer : Center(child: cellContainer),
                   );
                 },
               ),
@@ -316,57 +330,117 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
                     horizontal: _kListHorizontalPadding,
                     vertical: CoveSpace.md,
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: _kSummaryIconBoxSize,
-                        height: _kSummaryIconBoxSize,
-                        decoration: CoveShape.decoration(
-                          _kSummaryIconBoxRadius,
-                          color: cv.accentWash,
-                        ),
-                        child: Icon(
-                          Icons.calendar_today_outlined,
-                          size: _kSummaryIconSize,
-                          color: cv.accentFill,
-                        ),
-                      ),
-                      const SizedBox(width: CoveSpace.md),
-                      Expanded(
-                        child: Column(
+                  child: isScaled
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              CalendarDateUtils.formatDateHeading(
-                                widget.selectedDate,
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: _kSummaryIconBoxSize,
+                                  height: _kSummaryIconBoxSize,
+                                  decoration: CoveShape.decoration(
+                                    _kSummaryIconBoxRadius,
+                                    color: cv.accentWash,
+                                  ),
+                                  child: Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: _kSummaryIconSize,
+                                    color: cv.accentFill,
+                                  ),
+                                ),
+                                const SizedBox(width: CoveSpace.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        CalendarDateUtils.formatDateHeading(
+                                          widget.selectedDate,
+                                        ),
+                                        style: CoveType.rowTitle.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: cv.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: CoveSpace.xs),
+                                      Text(
+                                        selectedDayEntries.isEmpty
+                                            ? 'No scheduled entries · Tap to view day'
+                                            : '${selectedDayEntries.length} items'
+                                                  '${totalSpentOnSelectedDay > 0 ? " · ${currencyPref.symbol}${formatCoveAmount(totalSpentOnSelectedDay)} logged" : ""}',
+                                        style: CoveType.rowSub.copyWith(
+                                          color: cv.textTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: CoveSpace.md),
+                            CovePillButton(
+                              label: 'View Day',
+                              isCompact: true,
+                              variant: CoveButtonVariant.secondary,
+                              onPressed: () =>
+                                  widget.onSelectDate(widget.selectedDate),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Container(
+                              width: _kSummaryIconBoxSize,
+                              height: _kSummaryIconBoxSize,
+                              decoration: CoveShape.decoration(
+                                _kSummaryIconBoxRadius,
+                                color: cv.accentWash,
                               ),
-                              style: CoveType.rowTitle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: cv.textPrimary,
+                              child: Icon(
+                                Icons.calendar_today_outlined,
+                                size: _kSummaryIconSize,
+                                color: cv.accentFill,
                               ),
                             ),
-                            const SizedBox(height: CoveSpace.xs),
-                            Text(
-                              selectedDayEntries.isEmpty
-                                  ? 'No scheduled entries · Tap to view day'
-                                  : '${selectedDayEntries.length} items'
-                                        '${totalSpentOnSelectedDay > 0 ? " · ${currencyPref.symbol}${formatCoveAmount(totalSpentOnSelectedDay)} logged" : ""}',
-                              style: CoveType.rowSub.copyWith(
-                                color: cv.textTertiary,
+                            const SizedBox(width: CoveSpace.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    CalendarDateUtils.formatDateHeading(
+                                      widget.selectedDate,
+                                    ),
+                                    style: CoveType.rowTitle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: cv.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: CoveSpace.xs),
+                                  Text(
+                                    selectedDayEntries.isEmpty
+                                        ? 'No scheduled entries · Tap to view day'
+                                        : '${selectedDayEntries.length} items'
+                                              '${totalSpentOnSelectedDay > 0 ? " · ${currencyPref.symbol}${formatCoveAmount(totalSpentOnSelectedDay)} logged" : ""}',
+                                    style: CoveType.rowSub.copyWith(
+                                      color: cv.textTertiary,
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                            CovePillButton(
+                              label: 'View Day',
+                              isCompact: true,
+                              variant: CoveButtonVariant.secondary,
+                              onPressed: () =>
+                                  widget.onSelectDate(widget.selectedDate),
                             ),
                           ],
                         ),
-                      ),
-                      CovePillButton(
-                        label: 'View Day',
-                        isCompact: true,
-                        variant: CoveButtonVariant.secondary,
-                        onPressed: () =>
-                            widget.onSelectDate(widget.selectedDate),
-                      ),
-                    ],
-                  ),
                 ),
               ),
 

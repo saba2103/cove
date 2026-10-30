@@ -67,6 +67,116 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final dialogBody = Padding(
+      padding: const EdgeInsets.all(CoveSpace.gutter),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'NEW SHARED LIST',
+            style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+          ),
+          const SizedBox(height: CoveSpace.sm),
+          Text(
+            'Create a collection',
+            style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+          ),
+          const SizedBox(height: _kTitleBottomGap),
+          Container(
+            decoration: CoveShape.decoration(
+              CoveSpace.md,
+              color: cv.surfaceRow,
+              side: BorderSide(
+                color: cv.lineHairline,
+                width: _kBorderWidth,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.md,
+              vertical: CoveSpace.xs,
+            ),
+            child: TextField(
+              controller: _nameController,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              textCapitalization: TextCapitalization.sentences,
+              style: CoveType.body.copyWith(color: cv.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'e.g. Weekend Hardware, Book Wishlist…',
+                hintMaxLines: isScaled ? 8 : null,
+                hintStyle: CoveType.readout.copyWith(
+                  color: cv.textTertiary,
+                ),
+                border: InputBorder.none,
+              ),
+              onSubmitted: (_) => _submit(),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: CoveSpace.sm),
+            Text(
+              _error!,
+              style: CoveType.rowSub.copyWith(color: cv.statusAlertText),
+            ),
+          ],
+          const SizedBox(height: CoveSpace.gutter),
+          if (isScaled)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: CoveSpace.sm,
+                runSpacing: CoveSpace.sm,
+                children: [
+                  TextButton(
+                    onPressed: _isCreating
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: CoveType.readout.copyWith(
+                        color: cv.textSecondary,
+                      ),
+                    ),
+                  ),
+                  CovePillButton(
+                    label: _isCreating ? 'Creating…' : 'Create List',
+                    isCompact: true,
+                    onPressed: _isCreating ? null : _submit,
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isCreating
+                      ? null
+                      : () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: CoveType.readout.copyWith(
+                      color: cv.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                CovePillButton(
+                  label: _isCreating ? 'Creating…' : 'Create List',
+                  isCompact: true,
+                  onPressed: _isCreating ? null : _submit,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
 
     return Dialog(
       backgroundColor: cv.surfaceCard,
@@ -78,80 +188,7 @@ class _CreateListDialogState extends ConsumerState<CreateListDialog> {
         horizontal: CoveSpace.lg,
         vertical: CoveSpace.lg,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(CoveSpace.gutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'NEW SHARED LIST',
-              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
-            ),
-            const SizedBox(height: CoveSpace.sm),
-            Text(
-              'Create a collection',
-              style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-            ),
-            const SizedBox(height: _kTitleBottomGap),
-            Container(
-              decoration: CoveShape.decoration(
-                CoveSpace.md,
-                color: cv.surfaceRow,
-                side: BorderSide(
-                  color: cv.lineHairline,
-                  width: _kBorderWidth,
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: CoveSpace.md,
-                vertical: CoveSpace.xs,
-              ),
-              child: TextField(
-                controller: _nameController,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                textCapitalization: TextCapitalization.sentences,
-                style: CoveType.body.copyWith(color: cv.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'e.g. Weekend Hardware, Book Wishlist…',
-                  hintStyle: CoveType.readout.copyWith(color: cv.textTertiary),
-                  border: InputBorder.none,
-                ),
-                onSubmitted: (_) => _submit(),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: CoveSpace.sm),
-              Text(
-                _error!,
-                style: CoveType.rowSub.copyWith(color: cv.statusAlertText),
-              ),
-            ],
-            const SizedBox(height: CoveSpace.gutter),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isCreating
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: CoveType.readout.copyWith(color: cv.textSecondary),
-                  ),
-                ),
-                const SizedBox(width: CoveSpace.sm),
-                CovePillButton(
-                  label: _isCreating ? 'Creating…' : 'Create List',
-                  isCompact: true,
-                  onPressed: _isCreating ? null : _submit,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      child: isScaled ? SingleChildScrollView(child: dialogBody) : dialogBody,
     );
   }
 }

@@ -82,6 +82,8 @@ class _ChoiceOptionRow<T> extends StatelessWidget {
     final semanticLabel =
         hasSubtitle ? '${option.label}, ${option.subtitle}' : option.label;
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     return Semantics(
       container: true,
       button: true,
@@ -128,14 +130,36 @@ class _ChoiceOptionRow<T> extends StatelessWidget {
                   const SizedBox(width: CoveSpace.md),
                 ],
                 Expanded(
-                  child: Text(
-                    option.label,
-                    style: CoveType.rowTitle.copyWith(
-                      color: selected ? cv.textPrimary : cv.textSecondary,
-                    ),
-                  ),
+                  child: isScaled && hasSubtitle
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              option.label,
+                              style: CoveType.rowTitle.copyWith(
+                                color: selected
+                                    ? cv.textPrimary
+                                    : cv.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: CoveSpace.xs / 2),
+                            Text(
+                              option.subtitle!,
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textTertiary,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          option.label,
+                          style: CoveType.rowTitle.copyWith(
+                            color: selected ? cv.textPrimary : cv.textSecondary,
+                          ),
+                        ),
                 ),
-                if (hasSubtitle) ...[
+                if (hasSubtitle && !isScaled) ...[
                   const SizedBox(width: CoveSpace.md),
                   Flexible(
                     child: Text(

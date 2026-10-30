@@ -65,20 +65,35 @@ class CoveSectionLabel extends StatelessWidget {
     );
 
     final hasReadout = readout != null && readout!.isNotEmpty;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     final Widget line = hasReadout
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(child: labelWidget),
-              const SizedBox(width: CoveSpace.md),
-              Text(
-                readout!,
-                style: CoveType.readout.copyWith(color: cv.textTertiary),
-              ),
-            ],
-          )
+        ? (isScaled
+            ? Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: CoveSpace.md,
+                runSpacing: CoveSpace.xs,
+                children: [
+                  labelWidget,
+                  Text(
+                    readout!,
+                    style: CoveType.readout.copyWith(color: cv.textTertiary),
+                  ),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(child: labelWidget),
+                  const SizedBox(width: CoveSpace.md),
+                  Text(
+                    readout!,
+                    style: CoveType.readout.copyWith(color: cv.textTertiary),
+                  ),
+                ],
+              ))
         : labelWidget;
 
     if (variant == CoveSectionLabelVariant.card) {

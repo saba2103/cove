@@ -187,6 +187,7 @@ class CoveSlipVisibilityLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -200,8 +201,8 @@ class CoveSlipVisibilityLine extends StatelessWidget {
         Flexible(
           child: Text(
             visibility.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: isScaled ? null : 1,
+            overflow: isScaled ? null : TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: CoveType.capsSlip.copyWith(color: palette.tertiary),
           ),

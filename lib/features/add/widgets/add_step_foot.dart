@@ -48,6 +48,11 @@ class AddStepFoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackFoot = isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
 
     final Widget leftWidget;
     if (secondaryLabel != null) {
@@ -65,8 +70,9 @@ class AddStepFoot extends StatelessWidget {
                 minWidth: CoveSize.hit,
                 minHeight: CoveSize.row,
               ),
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: CoveSpace.gutter,
+                vertical: isScaled ? CoveSpace.sm : 0.0,
               ),
               alignment: Alignment.center,
               decoration: CoveShape.decoration(
@@ -79,6 +85,7 @@ class AddStepFoot extends StatelessWidget {
               ),
               child: Text(
                 secondaryLabel!,
+                textAlign: TextAlign.center,
                 style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
               ),
             ),
@@ -171,8 +178,9 @@ class AddStepFoot extends StatelessWidget {
               minWidth: _kPrimaryMinWidth,
               minHeight: CoveSize.row,
             ),
-            padding: const EdgeInsets.symmetric(
+            padding: EdgeInsets.symmetric(
               horizontal: CoveSpace.lg,
+              vertical: isScaled ? CoveSpace.sm : 0.0,
             ),
             alignment: Alignment.center,
             decoration: CoveShape.decoration(
@@ -182,9 +190,12 @@ class AddStepFoot extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  primaryLabel,
-                  style: CoveType.rowTitle.copyWith(color: labelColor),
+                Flexible(
+                  child: Text(
+                    primaryLabel,
+                    textAlign: TextAlign.center,
+                    style: CoveType.rowTitle.copyWith(color: labelColor),
+                  ),
                 ),
                 if (showArrow) ...[
                   const SizedBox(width: CoveSpace.sm),
@@ -200,6 +211,18 @@ class AddStepFoot extends StatelessWidget {
         ),
       ),
     );
+
+    if (stackFoot) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          leftWidget,
+          const SizedBox(height: CoveSpace.sm),
+          primaryButton,
+        ],
+      );
+    }
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

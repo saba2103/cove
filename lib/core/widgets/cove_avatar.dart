@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/cove_tokens.dart';
 
@@ -49,6 +50,7 @@ class CoveAvatar extends StatelessWidget {
   static const double _kInitialScale = 0.44; // (literal) per 05-avatar.md
   static const double _kBothRingWidth = 1.5; // (literal) 1.5dp ring per 05-avatar.md
   static const double _kTightLineHeight = 1.0; // (literal) optical vertical centring
+  static const double _kScaledGlyphRoom = 1.3; // (literal) room for Libre Bodoni metrics at >1x text scale
 
   const CoveAvatar({
     super.key,
@@ -121,8 +123,16 @@ class CoveAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
-    final diameter = rung.diameter;
-    final initialFontSize = diameter * _kInitialScale;
+    final baseDiameter = rung.diameter;
+    final initialFontSize = baseDiameter * _kInitialScale;
+    final scaledInitialSize =
+        MediaQuery.textScalerOf(context).scale(initialFontSize);
+    final diameter = scaledInitialSize > initialFontSize
+        ? math.max(
+            baseDiameter,
+            (scaledInitialSize * _kScaledGlyphRoom).ceilToDouble(),
+          )
+        : baseDiameter;
     final glyph = _resolveGlyph();
 
     final Color labelColor = switch (person) {

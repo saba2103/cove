@@ -53,26 +53,47 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
     final homeId = ref.watch(activeHomeIdProvider);
     final customOrderMap = ref.watch(roadmapCustomOrderProvider);
     final orderedIds = (homeId != null ? customOrderMap[homeId] : null) ?? [];
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackTabs =
+        isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text(
-          'App Roadmap',
-          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-        ),
+        toolbarHeight: isScaled
+            ? (kToolbarHeight * textScale).clamp(kToolbarHeight, 112.0)
+            : null,
+        title: isScaled
+            ? DefaultTextStyle.merge(
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+                child: Text(
+                  'App Roadmap',
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
+              )
+            : Text(
+                'App Roadmap',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+              ),
         elevation: 0,
         backgroundColor: Colors.transparent,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: CoveSpace.md),
-            child: CovePillButton(
-              label: '+ Wish',
-              isCompact: true,
-              onPressed: () => _showWishSheet(context),
-            ),
-          ),
-        ],
+        actions: isScaled
+            ? null
+            : [
+                Padding(
+                  padding: const EdgeInsets.only(right: CoveSpace.md),
+                  child: CovePillButton(
+                    label: '+ Wish',
+                    isCompact: true,
+                    onPressed: () => _showWishSheet(context),
+                  ),
+                ),
+              ],
       ),
       body: SafeArea(
         child: roadmapAsync.when(
@@ -112,6 +133,17 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
                 vertical: CoveSpace.md,
               ),
               children: [
+                if (isScaled) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: CovePillButton(
+                      label: '+ Wish',
+                      isCompact: true,
+                      onPressed: () => _showWishSheet(context),
+                    ),
+                  ),
+                  const SizedBox(height: CoveSpace.md),
+                ],
                 // Editorial Info Banner
                 CoveCard(
                   padding: const EdgeInsets.all(CoveSpace.gutter),
@@ -160,31 +192,55 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
 
                 // Tab Switcher (Active vs Shipped)
                 Container(
-                  height: CoveSize.buttonRound,
+                  height: isScaled ? null : CoveSize.buttonRound,
+                  constraints: isScaled
+                      ? const BoxConstraints(minHeight: CoveSize.buttonRound)
+                      : null,
                   decoration: CoveShape.decoration(
                     CoveRadius.card,
                     color: cv.surfaceCard,
                     side: BorderSide(color: cv.lineHairline),
                   ),
                   padding: const EdgeInsets.all(CoveSpace.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildTabPill(
-                          label: 'Active (${activeItems.length})',
-                          isSelected: _selectedTab == 0,
-                          onTap: () => setState(() => _selectedTab = 0),
+                  child: stackTabs
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildTabPill(
+                              label: 'Active (${activeItems.length})',
+                              isSelected: _selectedTab == 0,
+                              onTap: () => setState(() => _selectedTab = 0),
+                              isScaled: true,
+                            ),
+                            const SizedBox(height: CoveSpace.xs),
+                            _buildTabPill(
+                              label: 'Shipped (${completedItems.length})',
+                              isSelected: _selectedTab == 1,
+                              onTap: () => setState(() => _selectedTab = 1),
+                              isScaled: true,
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _buildTabPill(
+                                label: 'Active (${activeItems.length})',
+                                isSelected: _selectedTab == 0,
+                                onTap: () => setState(() => _selectedTab = 0),
+                                isScaled: isScaled,
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildTabPill(
+                                label: 'Shipped (${completedItems.length})',
+                                isSelected: _selectedTab == 1,
+                                onTap: () => setState(() => _selectedTab = 1),
+                                isScaled: isScaled,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Expanded(
-                        child: _buildTabPill(
-                          label: 'Shipped (${completedItems.length})',
-                          isSelected: _selectedTab == 1,
-                          onTap: () => setState(() => _selectedTab = 1),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: CoveSpace.gutter),
 
@@ -363,6 +419,7 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
+    bool isScaled = false,
   }) {
     final cv = context.cv;
 
@@ -372,12 +429,19 @@ class _RoadmapScreenState extends ConsumerState<RoadmapScreen> {
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
         alignment: Alignment.center,
+        padding: isScaled
+            ? const EdgeInsets.symmetric(
+                horizontal: CoveSpace.sm,
+                vertical: CoveSpace.sm,
+              )
+            : null,
         decoration: CoveShape.decoration(
           CoveRadius.inline,
           color: isSelected ? cv.accentFill : Colors.transparent,
         ),
         child: Text(
           label,
+          textAlign: isScaled ? TextAlign.center : null,
           style: CoveType.rowSub.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             color: isSelected ? cv.textOnAccent : cv.textTertiary,

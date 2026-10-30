@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../shape/cove_shape.dart';
@@ -33,8 +34,21 @@ class CoveTabRow extends StatelessWidget {
     final cv = context.cv;
 
     if (onReorder != null) {
+      final textScaler = MediaQuery.textScalerOf(context);
+      final isScaled = textScaler.scale(1.0) > 1.0;
+      final reorderHeight = isScaled
+          ? math.max(
+              _kReorderRowHeight,
+              textScaler.scale(20.0) +
+                  CoveSpace.sm +
+                  CoveSpace.xs +
+                  CoveSpace.xs +
+                  _kIndicatorHeight +
+                  CoveSpace.xs,
+            )
+          : _kReorderRowHeight;
       return SizedBox(
-        height: _kReorderRowHeight,
+        height: reorderHeight,
         child: ReorderableListView.builder(
           scrollDirection: Axis.horizontal,
           buildDefaultDragHandles: false,

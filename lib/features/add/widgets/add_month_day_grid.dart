@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/shape/cove_shape.dart';
@@ -50,8 +52,12 @@ class AddMonthDayGrid extends StatelessWidget {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            const minGridWidth =
-                kColumns * CoveSize.hit + (kColumns - 1) * CoveSpace.xs;
+            final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+            final cellExtent = textScale > 1.0
+                ? (CoveSize.hit * math.min(textScale, 1.5)).ceilToDouble()
+                : CoveSize.hit;
+            final minGridWidth =
+                kColumns * cellExtent + (kColumns - 1) * CoveSpace.xs;
             final needsHorizontalScroll = constraints.maxWidth < minGridWidth;
 
             final grid = Column(
@@ -68,8 +74,8 @@ class AddMonthDayGrid extends StatelessWidget {
                         if (c > 0) const SizedBox(width: CoveSpace.xs),
                         if (needsHorizontalScroll)
                           SizedBox(
-                            width: CoveSize.hit,
-                            height: CoveSize.hit,
+                            width: cellExtent,
+                            height: cellExtent,
                             child: _buildDayCell(
                               context,
                               r * kColumns + c + 1,
@@ -78,7 +84,7 @@ class AddMonthDayGrid extends StatelessWidget {
                         else
                           Expanded(
                             child: SizedBox(
-                              height: CoveSize.hit,
+                              height: cellExtent,
                               child: _buildDayCell(
                                 context,
                                 r * kColumns + c + 1,

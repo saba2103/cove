@@ -248,6 +248,183 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     final myId = currentUser?.id ?? 'user_alex';
     final myName = userProfile.displayName;
     final partnerName = partnerProfile.displayName;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final segmentChildren = [
+      _buildSegmentPill(
+        icon: Icons.receipt_long_outlined,
+        label: 'Expense',
+        isSelected: !_isTransfer,
+        onTap: () => setState(() => _isTransfer = false),
+      ),
+      _buildSegmentPill(
+        icon: Icons.swap_horiz,
+        label: 'Transfer',
+        isSelected: _isTransfer,
+        onTap: () {
+          setState(() {
+            _isTransfer = true;
+            if (_titleController.text.trim().isEmpty) {
+              _titleController.text = 'Transfer';
+            }
+          });
+        },
+      ),
+    ];
+
+    final amountField = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'AMOUNT',
+          style: CoveType.capsPage.copyWith(
+            color: cv.textSecondary,
+          ),
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        CovePillInput(
+          controller: _amountController,
+          hintText: '0.00',
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: CoveSpace.xs),
+            child: Text(
+              currency.symbol,
+              style: CoveType.rowTitle.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cv.textPrimary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final dateField = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DATE',
+          style: CoveType.capsPage.copyWith(
+            color: cv.textSecondary,
+          ),
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        InkWell(
+          onTap: _pickDate,
+          customBorder: CoveShape.border(CoveRadius.pill),
+          child: Container(
+            height: isScaled ? null : CoveSize.hit,
+            constraints: isScaled
+                ? const BoxConstraints(minHeight: CoveSize.hit)
+                : null,
+            decoration: CoveShape.decoration(
+              CoveRadius.pill,
+              color: cv.surfaceRow,
+              side: BorderSide(
+                color: cv.lineHairline,
+                width: 1,
+              ),
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: isScaled ? CoveSpace.sm : 0,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: cv.textSecondary,
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Expanded(
+                  child: Text(
+                    DateFormat('MMM d').format(_expenseDate),
+                    style: CoveType.rowTitle.copyWith(
+                      color: cv.textPrimary,
+                    ),
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 18,
+                  color: cv.accentText,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final paidByChildren = [
+      _buildSelectorPill(
+        label: myName,
+        isSelected: _paidBy == myId ||
+            (_paidBy != (partnerProfile.userId ?? 'partner_user') &&
+                _paidBy != 'partner_user'),
+        onTap: () => setState(() => _paidBy = myId),
+      ),
+      _buildSelectorPill(
+        label: partnerName,
+        isSelected: _paidBy == (partnerProfile.userId ?? 'partner_user') ||
+            _paidBy == 'partner_user',
+        onTap: () =>
+            setState(() => _paidBy = partnerProfile.userId ?? 'partner_user'),
+      ),
+    ];
+
+    final paymentMethodChildren = [
+      _buildPaymentMethodPill(
+        icon: Icons.credit_card_outlined,
+        label: 'Card',
+        isSelected: _paymentMethod == 'card',
+        onTap: () => setState(
+          () => _paymentMethod = _paymentMethod == 'card' ? null : 'card',
+        ),
+      ),
+      _buildPaymentMethodPill(
+        icon: Icons.qr_code_2_rounded,
+        label: 'UPI',
+        isSelected: _paymentMethod == 'upi',
+        onTap: () => setState(
+          () => _paymentMethod = _paymentMethod == 'upi' ? null : 'upi',
+        ),
+      ),
+      _buildPaymentMethodPill(
+        icon: Icons.payments_outlined,
+        label: 'Cash',
+        isSelected: _paymentMethod == 'cash',
+        onTap: () => setState(
+          () => _paymentMethod = _paymentMethod == 'cash' ? null : 'cash',
+        ),
+      ),
+    ];
+
+    final visibilityChildren = [
+      _buildVisibilityPill(
+        icon: Icons.people_outline,
+        label: 'Shared',
+        isSelected: _visibility == ExpenseVisibility.shared,
+        onTap: () => setState(() => _visibility = ExpenseVisibility.shared),
+      ),
+      _buildVisibilityPill(
+        icon: Icons.visibility_outlined,
+        label: '$partnerName sees',
+        isSelected: _visibility == ExpenseVisibility.partnerCanSee,
+        onTap: () =>
+            setState(() => _visibility = ExpenseVisibility.partnerCanSee),
+      ),
+      _buildVisibilityPill(
+        icon: Icons.visibility_off_outlined,
+        label: 'Private',
+        isSelected: _visibility == ExpenseVisibility.privateToMe,
+        onTap: () =>
+            setState(() => _visibility = ExpenseVisibility.privateToMe),
+      ),
+    ];
 
     return Container(
       decoration: CoveShape.topDecoration(
@@ -271,11 +448,13 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.initialExpense != null
-                        ? (_isTransfer ? 'Edit Transfer' : 'Edit Expense')
-                        : (_isTransfer ? 'Record Transfer' : 'Log Expense'),
-                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                  Expanded(
+                    child: Text(
+                      widget.initialExpense != null
+                          ? (_isTransfer ? 'Edit Transfer' : 'Edit Expense')
+                          : (_isTransfer ? 'Record Transfer' : 'Log Expense'),
+                      style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                    ),
                   ),
                   IconButton(
                     icon: Icon(Icons.close, size: 20, color: cv.textSecondary),
@@ -287,40 +466,28 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
 
               // Entry Type Segment Switcher (Expense vs Transfer)
               Container(
-                height: 44,
+                height: isScaled ? null : 44,
                 decoration: CoveShape.decoration(
-                  CoveRadius.pill,
+                  isScaled ? CoveRadius.inline : CoveRadius.pill,
                   color: cv.surfaceRow,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildSegmentPill(
-                        icon: Icons.receipt_long_outlined,
-                        label: 'Expense',
-                        isSelected: !_isTransfer,
-                        onTap: () => setState(() => _isTransfer = false),
+                padding: EdgeInsets.all(isScaled ? CoveSpace.xs : 3),
+                child: isScaled
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          segmentChildren[0],
+                          const SizedBox(height: CoveSpace.xs),
+                          segmentChildren[1],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: segmentChildren[0]),
+                          Expanded(child: segmentChildren[1]),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                      child: _buildSegmentPill(
-                        icon: Icons.swap_horiz,
-                        label: 'Transfer',
-                        isSelected: _isTransfer,
-                        onTap: () {
-                          setState(() {
-                            _isTransfer = true;
-                            if (_titleController.text.trim().isEmpty) {
-                              _titleController.text = 'Transfer';
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 18),
 
@@ -344,96 +511,18 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               const SizedBox(height: 18),
 
               // Amount & Currency Row
-              Row(
-                children: [
-                  Expanded(
-                    flex: 6,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'AMOUNT',
-                          style: CoveType.capsPage.copyWith(
-                            color: cv.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: CoveSpace.sm),
-                        CovePillInput(
-                          controller: _amountController,
-                          hintText: '0.00',
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.only(left: CoveSpace.xs),
-                            child: Text(
-                              currency.symbol,
-                              style: CoveType.rowTitle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: cv.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'DATE',
-                          style: CoveType.capsPage.copyWith(
-                            color: cv.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: CoveSpace.sm),
-                        InkWell(
-                          onTap: _pickDate,
-                          customBorder: CoveShape.border(CoveRadius.pill),
-                          child: Container(
-                            height: CoveSize.hit,
-                            decoration: CoveShape.decoration(
-                              CoveRadius.pill,
-                              color: cv.surfaceRow,
-                              side: BorderSide(
-                                color: cv.lineHairline,
-                                width: 1,
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 16,
-                                  color: cv.textSecondary,
-                                ),
-                                const SizedBox(width: CoveSpace.sm),
-                                Expanded(
-                                  child: Text(
-                                    DateFormat('MMM d').format(_expenseDate),
-                                    style: CoveType.rowTitle.copyWith(
-                                      color: cv.textPrimary,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.arrow_drop_down,
-                                  size: 18,
-                                  color: cv.accentText,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              if (isScaled) ...[
+                amountField,
+                const SizedBox(height: 14),
+                dateField,
+              ] else
+                Row(
+                  children: [
+                    Expanded(flex: 6, child: amountField),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 5, child: dateField),
+                  ],
+                ),
               const SizedBox(height: 18),
 
               // Paid By Selector
@@ -443,35 +532,28 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               ),
               const SizedBox(height: CoveSpace.sm),
               Container(
-                height: CoveSize.hit,
+                height: isScaled ? null : CoveSize.hit,
                 decoration: CoveShape.decoration(
-                  CoveRadius.pill,
+                  isScaled ? CoveRadius.inline : CoveRadius.pill,
                   color: cv.surfaceRow,
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
-                padding: const EdgeInsets.all(3),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: myName,
-                        isSelected: _paidBy == myId ||
-                            (_paidBy != (partnerProfile.userId ?? 'partner_user') &&
-                                _paidBy != 'partner_user'),
-                        onTap: () => setState(() => _paidBy = myId),
+                padding: EdgeInsets.all(isScaled ? CoveSpace.xs : 3),
+                child: isScaled
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          paidByChildren[0],
+                          const SizedBox(height: CoveSpace.xs),
+                          paidByChildren[1],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: paidByChildren[0]),
+                          Expanded(child: paidByChildren[1]),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                      child: _buildSelectorPill(
-                        label: partnerName,
-                        isSelected: _paidBy == (partnerProfile.userId ?? 'partner_user') ||
-                            _paidBy == 'partner_user',
-                        onTap: () => setState(() =>
-                            _paidBy = partnerProfile.userId ?? 'partner_user'),
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 18),
 
@@ -510,39 +592,26 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   side: BorderSide(color: cv.lineHairline, width: 1),
                 ),
                 padding: const EdgeInsets.all(CoveSpace.xs),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildPaymentMethodPill(
-                        icon: Icons.credit_card_outlined,
-                        label: 'Card',
-                        isSelected: _paymentMethod == 'card',
-                        onTap: () => setState(() =>
-                            _paymentMethod = _paymentMethod == 'card' ? null : 'card'),
+                child: isScaled
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          paymentMethodChildren[0],
+                          const SizedBox(height: CoveSpace.xs),
+                          paymentMethodChildren[1],
+                          const SizedBox(height: CoveSpace.xs),
+                          paymentMethodChildren[2],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: paymentMethodChildren[0]),
+                          const SizedBox(width: CoveSpace.xs),
+                          Expanded(child: paymentMethodChildren[1]),
+                          const SizedBox(width: CoveSpace.xs),
+                          Expanded(child: paymentMethodChildren[2]),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: CoveSpace.xs),
-                    Expanded(
-                      child: _buildPaymentMethodPill(
-                        icon: Icons.qr_code_2_rounded,
-                        label: 'UPI',
-                        isSelected: _paymentMethod == 'upi',
-                        onTap: () => setState(() =>
-                            _paymentMethod = _paymentMethod == 'upi' ? null : 'upi'),
-                      ),
-                    ),
-                    const SizedBox(width: CoveSpace.xs),
-                    Expanded(
-                      child: _buildPaymentMethodPill(
-                        icon: Icons.payments_outlined,
-                        label: 'Cash',
-                        isSelected: _paymentMethod == 'cash',
-                        onTap: () => setState(() =>
-                            _paymentMethod = _paymentMethod == 'cash' ? null : 'cash'),
-                      ),
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 18),
 
@@ -724,42 +793,27 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   padding: const EdgeInsets.all(CoveSpace.xs),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildVisibilityPill(
-                              icon: Icons.people_outline,
-                              label: 'Shared',
-                              isSelected:
-                                  _visibility == ExpenseVisibility.shared,
-                              onTap: () => setState(() =>
-                                  _visibility = ExpenseVisibility.shared),
-                            ),
-                          ),
-                          const SizedBox(width: CoveSpace.xs),
-                          Expanded(
-                            child: _buildVisibilityPill(
-                              icon: Icons.visibility_outlined,
-                              label: '$partnerName sees',
-                              isSelected: _visibility ==
-                                  ExpenseVisibility.partnerCanSee,
-                              onTap: () => setState(() => _visibility =
-                                  ExpenseVisibility.partnerCanSee),
-                            ),
-                          ),
-                          const SizedBox(width: CoveSpace.xs),
-                          Expanded(
-                            child: _buildVisibilityPill(
-                              icon: Icons.visibility_off_outlined,
-                              label: 'Private',
-                              isSelected:
-                                  _visibility == ExpenseVisibility.privateToMe,
-                              onTap: () => setState(() =>
-                                  _visibility = ExpenseVisibility.privateToMe),
-                            ),
-                          ),
-                        ],
-                      ),
+                      if (isScaled)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            visibilityChildren[0],
+                            const SizedBox(height: CoveSpace.xs),
+                            visibilityChildren[1],
+                            const SizedBox(height: CoveSpace.xs),
+                            visibilityChildren[2],
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(child: visibilityChildren[0]),
+                            const SizedBox(width: CoveSpace.xs),
+                            Expanded(child: visibilityChildren[1]),
+                            const SizedBox(width: CoveSpace.xs),
+                            Expanded(child: visibilityChildren[2]),
+                          ],
+                        ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                           10,
@@ -825,10 +879,17 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
+        padding: isScaled
+            ? const EdgeInsets.symmetric(
+                vertical: CoveSpace.sm,
+                horizontal: CoveSpace.md,
+              )
+            : null,
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.pill,
@@ -836,6 +897,7 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: CoveType.readout.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected
@@ -854,11 +916,15 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
-        padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
+        padding: EdgeInsets.symmetric(
+          vertical: CoveSpace.sm,
+          horizontal: isScaled ? CoveSpace.sm : 0,
+        ),
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.inline,
@@ -886,7 +952,7 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? cv.accentText : cv.textSecondary,
                 ),
-                overflow: TextOverflow.ellipsis,
+                overflow: isScaled ? null : TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -927,11 +993,13 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
               color: isSelected ? cv.accentText : cv.textSecondary,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: CoveType.readout.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? cv.accentText : cv.textSecondary,
+            Flexible(
+              child: Text(
+                label,
+                style: CoveType.readout.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? cv.accentText : cv.textSecondary,
+                ),
               ),
             ),
           ],
@@ -947,10 +1015,17 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
     required VoidCallback onTap,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: CoveMotion.q(context),
+        padding: isScaled
+            ? const EdgeInsets.symmetric(
+                vertical: CoveSpace.sm,
+                horizontal: CoveSpace.md,
+              )
+            : null,
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.pill,
@@ -967,13 +1042,15 @@ class _ExpenseFormSheetState extends ConsumerState<ExpenseFormSheet> {
                   : cv.textSecondary,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: CoveType.readout.copyWith(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected
-                    ? cv.textOnAccent
-                    : cv.textSecondary,
+            Flexible(
+              child: Text(
+                label,
+                style: CoveType.readout.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? cv.textOnAccent
+                      : cv.textSecondary,
+                ),
               ),
             ),
           ],

@@ -1060,6 +1060,11 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
   Widget _buildPickerSheet(BuildContext context, AddFlowContext ctx) {
     final cv = context.cv;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackTiles = isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
     final hasDatedAnchor = widget.anchor != null;
     final anchorUpper =
         DateFormat('EEE d MMM').format(ctx.anchor).toUpperCase();
@@ -1076,7 +1081,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             children: [
               Expanded(
                 child: RichText(
-                  maxLines: 1,
+                  maxLines: isScaled ? null : 1,
                   text: TextSpan(
                     style: CoveType.capsPage.copyWith(color: cv.textTertiary),
                     children: [
@@ -1101,28 +1106,34 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           ),
           const SizedBox(height: CoveSpace.md),
 
-          // 2 × 3 grid of kind tiles
-          for (var row = 0; row < 3; row++) ...[
-            if (row > 0) const SizedBox(height: CoveSpace.md),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildPickerTile(
-                    context,
-                    _pickerTiles[row * 2],
+          // 2 × 3 grid of kind tiles (stacks to 1 column at large text scale)
+          if (stackTiles)
+            for (var i = 0; i < _pickerTiles.length; i++) ...[
+              if (i > 0) const SizedBox(height: CoveSpace.md),
+              _buildPickerTile(context, _pickerTiles[i]),
+            ]
+          else
+            for (var row = 0; row < 3; row++) ...[
+              if (row > 0) const SizedBox(height: CoveSpace.md),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildPickerTile(
+                      context,
+                      _pickerTiles[row * 2],
+                    ),
                   ),
-                ),
-                const SizedBox(width: CoveSpace.md),
-                Expanded(
-                  child: _buildPickerTile(
-                    context,
-                    _pickerTiles[row * 2 + 1],
+                  const SizedBox(width: CoveSpace.md),
+                  Expanded(
+                    child: _buildPickerTile(
+                      context,
+                      _pickerTiles[row * 2 + 1],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
 
           // Optional Again row (§6)
           if (resolvedAgain != null) ...[
@@ -1206,6 +1217,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
   Widget _buildAgainRow(BuildContext context, AddAgainSummary summary) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Semantics(
       container: true,
@@ -1235,6 +1247,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               ),
             ),
             child: Row(
+              crossAxisAlignment:
+                  isScaled ? CrossAxisAlignment.start : CrossAxisAlignment.center,
               children: [
                 Icon(
                   Icons.autorenew,
@@ -1243,28 +1257,44 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                 ),
                 const SizedBox(width: CoveSpace.sm),
                 Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: CoveType.rowTitle.copyWith(
-                        color: cv.textSecondary,
-                      ),
-                      children: [
-                        const TextSpan(text: 'Again: '),
-                        TextSpan(
-                          text: summary.titleAndContext,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
                           style: CoveType.rowTitle.copyWith(
-                            color: cv.textPrimary,
+                            color: cv.textSecondary,
                           ),
+                          children: [
+                            const TextSpan(text: 'Again: '),
+                            TextSpan(
+                              text: summary.titleAndContext,
+                              style: CoveType.rowTitle.copyWith(
+                                color: cv.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isScaled) ...[
+                        const SizedBox(height: CoveSpace.xs / 2),
+                        Text(
+                          summary.lastReadout,
+                          style: CoveType.rowSub
+                              .copyWith(color: cv.textTertiary),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: CoveSpace.sm),
-                Text(
-                  summary.lastReadout,
-                  style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                ),
+                if (!isScaled) ...[
+                  const SizedBox(width: CoveSpace.sm),
+                  Text(
+                    summary.lastReadout,
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1307,6 +1337,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
 
   Widget _buildStepSheet(BuildContext context, AddFlowContext ctx) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     final steps = _currentSteps(ctx);
     final step = _currentStep(ctx)!;
     final stepNumber = _stepIndex + 1;
@@ -1345,7 +1376,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                 ],
                 Expanded(
                   child: RichText(
-                    maxLines: 1,
+                    maxLines: isScaled ? null : 1,
                     text: TextSpan(
                       style: CoveType.capsPage.copyWith(color: cv.textPrimary),
                       children: [
@@ -1375,8 +1406,8 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               totalSteps: totalSteps,
             ),
 
-            // 3. Answered crumbs (hidden after Added)
-            if (!_isAdded && crumbs.isNotEmpty) ...[
+            // 3. Answered crumbs (pinned at 1.0x; scrolls with body when scaled)
+            if (!isScaled && !_isAdded && crumbs.isNotEmpty) ...[
               const SizedBox(height: CoveSpace.md),
               AddCrumbs(
                 crumbs: crumbs,
@@ -1384,7 +1415,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               ),
             ],
 
-            const SizedBox(height: CoveSpace.lg),
+            SizedBox(height: isScaled ? CoveSpace.md : CoveSpace.lg),
 
             // 4–5. Question heading + Step body (scrolls inside fixed-height sheet)
             Expanded(
@@ -1394,6 +1425,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (isScaled && !_isAdded && crumbs.isNotEmpty) ...[
+                      AddCrumbs(
+                        crumbs: crumbs,
+                        onSelectStep: (targetIdx) => _goToStep(targetIdx),
+                      ),
+                      const SizedBox(height: CoveSpace.lg),
+                    ],
                     Text(
                       question,
                       textAlign: TextAlign.center,
@@ -1410,7 +1448,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
               ),
             ),
 
-            const SizedBox(height: CoveSpace.lg),
+            SizedBox(height: isScaled ? CoveSpace.md : CoveSpace.lg),
 
             // 6. Step foot (pinned at bottom)
             if (_isAdded)
@@ -2083,6 +2121,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     ];
 
     if (_addingNewCategory) {
+      final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2091,10 +2130,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
             key: const ValueKey('add_new_category_input'),
             controller: _newCategoryController,
             autofocus: true,
+            maxLines: isScaled ? null : 1,
+            textInputAction: TextInputAction.done,
             textAlign: TextAlign.center,
             style: CoveType.title.copyWith(color: cv.textPrimary),
             decoration: InputDecoration(
               hintText: 'Category name',
+              hintMaxLines: isScaled ? 3 : 1,
               hintStyle: CoveType.title.copyWith(color: cv.textTertiary),
               border: InputBorder.none,
             ),
@@ -3617,6 +3659,7 @@ class _AddFlowState extends ConsumerState<AddFlow> {
     VoidCallback? onSkip,
   }) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -3626,10 +3669,13 @@ class _AddFlowState extends ConsumerState<AddFlow> {
           key: const ValueKey('add_flow_text_input'),
           controller: _textController,
           autofocus: true,
+          maxLines: isScaled ? null : 1,
+          textInputAction: TextInputAction.done,
           textAlign: TextAlign.center,
           style: CoveType.title.copyWith(color: cv.textPrimary),
           decoration: InputDecoration(
             hintText: placeholder,
+            hintMaxLines: isScaled ? 3 : 1,
             hintStyle: CoveType.title.copyWith(color: cv.textTertiary),
             border: InputBorder.none,
           ),
@@ -3832,9 +3878,11 @@ class _SuggestionChip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: CoveType.rowTitle.copyWith(color: cv.textSecondary),
+                  ),
                 ),
               ],
             ),

@@ -734,6 +734,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         ? ((prevDelta.abs() / prevMonthByThisDay) * 100).round()
         : 0;
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     return Container(
       padding: const EdgeInsets.all(CoveSpace.gutter),
       decoration: CoveShape.decoration(
@@ -748,31 +750,53 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Top caption line: MONTH · SHARED and DAY N OF M
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _showTransfers
-                      ? '${standingMonthName.toUpperCase()} · TRANSFERS'
-                      : '${standingMonthName.toUpperCase()} · SHARED',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          if (isScaled)
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                spacing: CoveSpace.sm,
+                runSpacing: CoveSpace.xs,
+                children: [
+                  Text(
+                    _showTransfers
+                        ? '${standingMonthName.toUpperCase()} · TRANSFERS'
+                        : '${standingMonthName.toUpperCase()} · SHARED',
+                    style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+                  ),
+                  Text(
+                    'DAY $standingDay OF $daysInStandingMonth',
+                    style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _showTransfers
+                        ? '${standingMonthName.toUpperCase()} · TRANSFERS'
+                        : '${standingMonthName.toUpperCase()} · SHARED',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.sm),
+                Text(
+                  'DAY $standingDay OF $daysInStandingMonth',
                   style: CoveType.capsCard.copyWith(color: cv.textTertiary),
                 ),
-              ),
-              const SizedBox(width: CoveSpace.sm),
-              Text(
-                'DAY $standingDay OF $daysInStandingMonth',
-                style: CoveType.capsCard.copyWith(color: cv.textTertiary),
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: CoveSpace.sm),
 
           // Expenditure | Transfers segmented pill
           Container(
             decoration: CoveShape.decoration(
-              CoveRadius.pill,
+              isScaled ? CoveRadius.inline : CoveRadius.pill,
               color: cv.surfaceRow,
               side: BorderSide(
                 color: cv.lineHairline,
@@ -780,23 +804,42 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               ),
             ),
             padding: const EdgeInsets.all(_kBadgeVertPad),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildCardSegment(
-                  cv: cv,
-                  label: 'Expenditure',
-                  isSelected: !_showTransfers,
-                  onTap: () => setState(() => _showTransfers = false),
-                ),
-                _buildCardSegment(
-                  cv: cv,
-                  label: 'Transfers',
-                  isSelected: _showTransfers,
-                  onTap: () => setState(() => _showTransfers = true),
-                ),
-              ],
-            ),
+            child: isScaled
+                ? Wrap(
+                    spacing: CoveSpace.xs,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      _buildCardSegment(
+                        cv: cv,
+                        label: 'Expenditure',
+                        isSelected: !_showTransfers,
+                        onTap: () => setState(() => _showTransfers = false),
+                      ),
+                      _buildCardSegment(
+                        cv: cv,
+                        label: 'Transfers',
+                        isSelected: _showTransfers,
+                        onTap: () => setState(() => _showTransfers = true),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildCardSegment(
+                        cv: cv,
+                        label: 'Expenditure',
+                        isSelected: !_showTransfers,
+                        onTap: () => setState(() => _showTransfers = false),
+                      ),
+                      _buildCardSegment(
+                        cv: cv,
+                        label: 'Transfers',
+                        isSelected: _showTransfers,
+                        onTap: () => setState(() => _showTransfers = true),
+                      ),
+                    ],
+                  ),
           ),
           const SizedBox(height: CoveSpace.md),
 
@@ -927,51 +970,103 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 ),
               ),
               const SizedBox(height: CoveSpace.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: RichText(
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      text: TextSpan(
-                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                        children: [
-                          const TextSpan(text: 'You '),
-                          TextSpan(
-                            text:
-                                '${currency.symbol}${formatCoveAmount(paidByMeSharedTotal)}',
-                            style: CoveType.rowSub.copyWith(
-                              color: cv.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+              if (isScaled)
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: CoveSpace.sm,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
                           ),
-                        ],
+                          children: [
+                            const TextSpan(text: 'You '),
+                            TextSpan(
+                              text:
+                                  '${currency.symbol}${formatCoveAmount(paidByMeSharedTotal)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      RichText(
+                        text: TextSpan(
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                          children: [
+                            TextSpan(text: '$partnerName '),
+                            TextSpan(
+                              text:
+                                  '${currency.symbol}${formatCoveAmount(paidByPartnerSharedTotal)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                          children: [
+                            const TextSpan(text: 'You '),
+                            TextSpan(
+                              text:
+                                  '${currency.symbol}${formatCoveAmount(paidByMeSharedTotal)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: CoveSpace.sm),
-                  Flexible(
-                    child: RichText(
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      text: TextSpan(
-                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                        children: [
-                          TextSpan(text: '$partnerName '),
-                          TextSpan(
-                            text:
-                                '${currency.symbol}${formatCoveAmount(paidByPartnerSharedTotal)}',
-                            style: CoveType.rowSub.copyWith(
-                              color: cv.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                    const SizedBox(width: CoveSpace.sm),
+                    Flexible(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
                           ),
-                        ],
+                          children: [
+                            TextSpan(text: '$partnerName '),
+                            TextSpan(
+                              text:
+                                  '${currency.symbol}${formatCoveAmount(paidByPartnerSharedTotal)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: cv.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ],
         ],
@@ -1135,45 +1230,97 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   ),
                 ),
                 const SizedBox(height: CoveSpace.xs),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'TODAY',
-                      style: CoveType.capsCard.copyWith(
-                        color: cv.textTertiary,
-                      ),
+                if (textScaler.scale(1.0) > 1.0) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Text(
+                          'TODAY',
+                          style: CoveType.capsCard.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.textTertiary,
-                      ),
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Text(
+                          '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: CoveSpace.xs),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                  ),
+                ] else ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'TODAY',
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: CoveSpace.sm),
-                    Flexible(
-                      child: Text(
-                        'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                      Text(
+                        '$daysLeft day${daysLeft == 1 ? "" : "s"} left',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textTertiary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: CoveSpace.xs),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${currency.symbol}${formatCoveAmount(sharedMonthlyTotal)} spent',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Flexible(
+                        child: Text(
+                          'Target: ${currency.symbol}${formatCoveAmount(monthlyBudget)} (${(percentUsed * 100).toInt()}%)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             );
           },
@@ -1414,35 +1561,73 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       width: _kBorderWidth,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: _kCategoryDotSize,
-                        height: _kCategoryDotSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: catColor,
+                  child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                      ? Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: CoveSpace.xs,
+                          runSpacing: 2.0,
+                          children: [
+                            Container(
+                              width: _kCategoryDotSize,
+                              height: _kCategoryDotSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: catColor,
+                              ),
+                            ),
+                            Text(
+                              entry.key,
+                              style: CoveType.rowSub.copyWith(
+                                color: isSelected
+                                    ? cv.accentText
+                                    : cv.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              '${currency.symbol}${formatCoveAmount(entry.value)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: isSelected
+                                    ? cv.accentText
+                                    : cv.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: _kCategoryDotSize,
+                              height: _kCategoryDotSize,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: catColor,
+                              ),
+                            ),
+                            const SizedBox(width: CoveSpace.xs),
+                            Text(
+                              entry.key,
+                              style: CoveType.rowSub.copyWith(
+                                color: isSelected
+                                    ? cv.accentText
+                                    : cv.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: CoveSpace.xs),
+                            Text(
+                              '${currency.symbol}${formatCoveAmount(entry.value)}',
+                              style: CoveType.rowSub.copyWith(
+                                color: isSelected
+                                    ? cv.accentText
+                                    : cv.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: CoveSpace.xs),
-                      Text(
-                        entry.key,
-                        style: CoveType.rowSub.copyWith(
-                          color: isSelected ? cv.accentText : cv.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(width: CoveSpace.xs),
-                      Text(
-                        '${currency.symbol}${formatCoveAmount(entry.value)}',
-                        style: CoveType.rowSub.copyWith(
-                          color: isSelected ? cv.accentText : cv.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             );
@@ -1523,22 +1708,34 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               ),
               const SizedBox(width: CoveSpace.sm),
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      ledgerMonthLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
-                    ),
-                    Text(
-                      '${currency.symbol}${formatCoveAmount(ledgerMonthSharedTotal)} · $count purchase${count == 1 ? "" : "s"}$soFarSuffix',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                    ),
-                  ],
+                child: Builder(
+                  builder: (context) {
+                    final isScaled =
+                        MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          ledgerMonthLabel,
+                          textAlign: TextAlign.center,
+                          maxLines: isScaled ? null : 1,
+                          overflow: isScaled ? null : TextOverflow.ellipsis,
+                          style: CoveType.rowTitle.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          '${currency.symbol}${formatCoveAmount(ledgerMonthSharedTotal)} · $count purchase${count == 1 ? "" : "s"}$soFarSuffix',
+                          textAlign: TextAlign.center,
+                          maxLines: isScaled ? null : 1,
+                          overflow: isScaled ? null : TextOverflow.ellipsis,
+                          style: CoveType.rowSub.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: CoveSpace.sm),
@@ -1767,38 +1964,70 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         subtitle: subtitleText,
         isLast: isLast,
         onTap: () => ExpenseDetailSheet.show(context, expense),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (badgeLabel != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _kBadgeHorizPad,
-                  vertical: _kBadgeVertPad,
-                ),
-                decoration: CoveShape.decoration(
-                  CoveRadius.pill,
-                  color: cv.accentWash,
-                  side: BorderSide(
-                    color: cv.lineStrong,
-                    width: _kBorderWidth,
+        trailing: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+            ? Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: CoveSpace.xs,
+                runSpacing: CoveSpace.xs,
+                children: [
+                  if (badgeLabel != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _kBadgeHorizPad,
+                        vertical: _kBadgeVertPad,
+                      ),
+                      decoration: CoveShape.decoration(
+                        CoveRadius.pill,
+                        color: cv.accentWash,
+                        side: BorderSide(
+                          color: cv.lineStrong,
+                          width: _kBorderWidth,
+                        ),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: CoveType.barLabel.copyWith(color: cv.accentText),
+                      ),
+                    ),
+                  Text(
+                    '${currency.symbol}${formatCoveAmount(expense.amount)}',
+                    style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
                   ),
-                ),
-                child: Text(
-                  badgeLabel,
-                  style: CoveType.barLabel.copyWith(color: cv.accentText),
-                ),
+                  CoveSyncTick(status: tickStatus),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (badgeLabel != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: _kBadgeHorizPad,
+                        vertical: _kBadgeVertPad,
+                      ),
+                      decoration: CoveShape.decoration(
+                        CoveRadius.pill,
+                        color: cv.accentWash,
+                        side: BorderSide(
+                          color: cv.lineStrong,
+                          width: _kBorderWidth,
+                        ),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: CoveType.barLabel.copyWith(color: cv.accentText),
+                      ),
+                    ),
+                    const SizedBox(width: CoveSpace.xs),
+                  ],
+                  Text(
+                    '${currency.symbol}${formatCoveAmount(expense.amount)}',
+                    style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
+                  ),
+                  const SizedBox(width: CoveSpace.xs),
+                  CoveSyncTick(status: tickStatus),
+                ],
               ),
-              const SizedBox(width: CoveSpace.xs),
-            ],
-            Text(
-              '${currency.symbol}${formatCoveAmount(expense.amount)}',
-              style: CoveType.cardFigure.copyWith(color: cv.textPrimary),
-            ),
-            const SizedBox(width: CoveSpace.xs),
-            CoveSyncTick(status: tickStatus),
-          ],
-        ),
       ),
     );
   }

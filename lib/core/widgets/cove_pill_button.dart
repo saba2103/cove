@@ -106,6 +106,8 @@ class CovePillButton extends StatelessWidget {
       }
     }
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
     final Widget content = Row(
       mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -129,8 +131,9 @@ class CovePillButton extends StatelessWidget {
             child: Text(
               label,
               style: buttonStyle,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+              textAlign: isScaled ? TextAlign.center : null,
+              overflow: isScaled ? null : TextOverflow.ellipsis,
+              maxLines: isScaled ? null : 1,
             ),
           ),
         ],
@@ -139,8 +142,12 @@ class CovePillButton extends StatelessWidget {
 
     final buttonContainer = AnimatedContainer(
       duration: duration,
-      height: height,
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      height: isScaled ? null : height,
+      constraints: isScaled ? BoxConstraints(minHeight: height) : null,
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: isScaled ? CoveSpace.sm : 0.0,
+      ),
       decoration: CoveShape.decoration(
         CoveRadius.pill,
         color: onPressed == null

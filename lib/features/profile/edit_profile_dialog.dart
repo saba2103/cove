@@ -158,9 +158,11 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Edit Profile',
-                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                Expanded(
+                  child: Text(
+                    'Edit Profile',
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                  ),
                 ),
                 IconButton(
                   icon: Icon(
@@ -418,12 +420,14 @@ class _EditProfileDialogState extends ConsumerState<EditProfileDialog> {
                     color: cv.textTertiary,
                   ),
                   const SizedBox(width: CoveSpace.sm),
-                  Text(
-                    profile.email.isNotEmpty
-                        ? profile.email
-                        : 'No email associated',
-                    style: CoveType.rowTitle.copyWith(
-                      color: cv.textSecondary,
+                  Expanded(
+                    child: Text(
+                      profile.email.isNotEmpty
+                          ? profile.email
+                          : 'No email associated',
+                      style: CoveType.rowTitle.copyWith(
+                        color: cv.textSecondary,
+                      ),
                     ),
                   ),
                 ],

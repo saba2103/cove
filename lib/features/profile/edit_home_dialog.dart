@@ -82,93 +82,133 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
         color: cv.surfaceSheet,
       ),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Builder(
+          builder: (context) {
+            final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'About Us & Home',
-                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    color: cv.textSecondary,
-                    size: CoveSpace.gutter,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: CoveSpace.gutter),
-
-            // Home Icon preview
-            Center(
-              child: Column(
-                children: [
-                  DeterministicHomeIcon(
-                    homeId: activeHome.id,
-                    size: CoveSize.row,
-                  ),
-                  const SizedBox(height: CoveSpace.sm),
-                  Text(
-                    'Unique cryptographic mark derived from your Home key',
-                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: CoveSpace.gutter),
-
-            // Home Name
-            Text(
-              'HOME NAME',
-              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
-            ),
-            const SizedBox(height: CoveSpace.sm),
-            CovePillInput(
-              controller: _nameController,
-              hintText: 'e.g. Our Haven, Brooklyn Apt',
-            ),
-            const SizedBox(height: CoveSpace.gutter),
-
-            // Description
-            Text(
-              'DESCRIPTION',
-              style: CoveType.capsCard.copyWith(color: cv.textSecondary),
-            ),
-            const SizedBox(height: CoveSpace.sm),
-            CovePillInput(
-              controller: _descController,
-              hintText: 'A quiet place for both of us',
-            ),
-            const SizedBox(height: CoveSpace.gutter),
-
-            // Anniversary / Moved-in date
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'ANNIVERSARY OR MOVED-IN DATE',
-                  style: CoveType.capsCard.copyWith(color: cv.textSecondary),
-                ),
-                if (_selectedAnniversary != null)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedAnniversary = null);
-                    },
-                    child: Text(
-                      'Clear',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.statusAlertText,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'About Us & Home',
+                        style: CoveType.slipTitle.copyWith(
+                          color: cv.textPrimary,
+                        ),
                       ),
                     ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        color: cv.textSecondary,
+                        size: CoveSpace.gutter,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CoveSpace.gutter),
+
+                // Home Icon preview
+                Center(
+                  child: Column(
+                    children: [
+                      DeterministicHomeIcon(
+                        homeId: activeHome.id,
+                        size: CoveSize.row,
+                      ),
+                      const SizedBox(height: CoveSpace.sm),
+                      Text(
+                        'Unique cryptographic mark derived from your Home key',
+                        textAlign: isScaled ? TextAlign.center : null,
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+                const SizedBox(height: CoveSpace.gutter),
+
+                // Home Name
+                Text(
+                  'HOME NAME',
+                  style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                CovePillInput(
+                  controller: _nameController,
+                  hintText: 'e.g. Our Haven, Brooklyn Apt',
+                ),
+                const SizedBox(height: CoveSpace.gutter),
+
+                // Description
+                Text(
+                  'DESCRIPTION',
+                  style: CoveType.capsCard.copyWith(color: cv.textSecondary),
+                ),
+                const SizedBox(height: CoveSpace.sm),
+                CovePillInput(
+                  controller: _descController,
+                  hintText: 'A quiet place for both of us',
+                ),
+                const SizedBox(height: CoveSpace.gutter),
+
+                // Anniversary / Moved-in date
+                if (isScaled)
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: CoveSpace.sm,
+                    runSpacing: CoveSpace.xs,
+                    children: [
+                      Text(
+                        'ANNIVERSARY OR MOVED-IN DATE',
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textSecondary,
+                        ),
+                      ),
+                      if (_selectedAnniversary != null)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedAnniversary = null);
+                          },
+                          child: Text(
+                            'Clear',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.statusAlertText,
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'ANNIVERSARY OR MOVED-IN DATE',
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textSecondary,
+                        ),
+                      ),
+                      if (_selectedAnniversary != null)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedAnniversary = null);
+                          },
+                          child: Text(
+                            'Clear',
+                            style: CoveType.rowSub.copyWith(
+                              color: cv.statusAlertText,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
             const SizedBox(height: CoveSpace.sm),
             InkWell(
               customBorder: CoveShape.border(_kDateCardRadius),
@@ -266,6 +306,8 @@ class _EditHomeDialogState extends ConsumerState<EditHomeDialog> {
               },
             ),
           ],
+        );
+          },
         ),
       ),
     );

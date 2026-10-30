@@ -44,9 +44,13 @@ class CovePillInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Container(
-      height: CoveSize.hit,
+      height: isScaled ? null : CoveSize.hit,
+      constraints: isScaled
+          ? const BoxConstraints(minHeight: CoveSize.hit)
+          : null,
       decoration: CoveShape.decoration(
         CoveRadius.pill,
         color: cv.surfaceRow,
@@ -82,6 +86,7 @@ class CovePillInput extends StatelessWidget {
               cursorWidth: _kCursorWidth,
               decoration: InputDecoration(
                 hintText: hintText,
+                hintMaxLines: isScaled ? 6 : 1,
                 hintStyle: CoveType.readout.copyWith(
                   color: cv.textTertiary,
                 ),

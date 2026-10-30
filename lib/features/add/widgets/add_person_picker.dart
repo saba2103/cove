@@ -74,6 +74,10 @@ class AddPersonPicker<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final stackIndividuals = textScale > 1.0 &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
     final individuals =
         people.where((p) => p.person != CovePerson.both).toList();
     final bothTiles =
@@ -84,22 +88,34 @@ class AddPersonPicker<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (individuals.isNotEmpty)
-          Row(
-            children: [
-              for (var i = 0; i < individuals.length; i++) ...[
-                if (i > 0) const SizedBox(width: CoveSpace.md),
-                Expanded(
-                  child: _IndividualPersonTile<T>(
-                    tile: individuals[i],
-                    selected: selectedValue == individuals[i].value,
-                    onTap: individuals[i].enabled
-                        ? () => onSelected(individuals[i].value)
-                        : null,
+          if (stackIndividuals)
+            for (var i = 0; i < individuals.length; i++) ...[
+              if (i > 0) const SizedBox(height: CoveSpace.md),
+              _IndividualPersonTile<T>(
+                tile: individuals[i],
+                selected: selectedValue == individuals[i].value,
+                onTap: individuals[i].enabled
+                    ? () => onSelected(individuals[i].value)
+                    : null,
+              ),
+            ]
+          else
+            Row(
+              children: [
+                for (var i = 0; i < individuals.length; i++) ...[
+                  if (i > 0) const SizedBox(width: CoveSpace.md),
+                  Expanded(
+                    child: _IndividualPersonTile<T>(
+                      tile: individuals[i],
+                      selected: selectedValue == individuals[i].value,
+                      onTap: individuals[i].enabled
+                          ? () => onSelected(individuals[i].value)
+                          : null,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
+            ),
         for (final both in bothTiles) ...[
           const SizedBox(height: CoveSpace.md),
           _BothPersonTile<T>(

@@ -104,6 +104,7 @@ class CoveHeaderPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final cv = context.cv;
     final duration = CoveMotion.q(context);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Semantics(
       button: true,
@@ -116,9 +117,15 @@ class CoveHeaderPill extends StatelessWidget {
         child: AnimatedContainer(
           duration: duration,
           curve: CoveMotion.easing,
-          height: kHeight,
-          padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
-          alignment: Alignment.center,
+          height: isScaled ? null : kHeight,
+          constraints: isScaled
+              ? const BoxConstraints(minHeight: kHeight)
+              : null,
+          padding: EdgeInsets.symmetric(
+            horizontal: CoveSpace.md,
+            vertical: isScaled ? CoveSpace.xs : 0.0,
+          ),
+          alignment: isScaled ? null : Alignment.center,
           decoration: CoveShape.decoration(
             CoveRadius.pill,
             color: isActive ? cv.accentWash : Colors.transparent,
@@ -202,25 +209,46 @@ class CovePageHeader extends StatelessWidget {
       style: CoveType.title.copyWith(color: cv.textPrimary),
     );
 
-    final Widget titleAndReadout = Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        if (hasReadout) ...[
-          titleWidget,
-          const SizedBox(width: CoveSpace.md),
-          Flexible(
-            child: Text(
-              readout!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CoveType.readout.copyWith(color: cv.textTertiary),
-            ),
-          ),
-        ] else
-          Flexible(child: titleWidget),
-      ],
-    );
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final Widget titleAndReadout = isScaled
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleWidget,
+              if (hasReadout) ...[
+                const SizedBox(height: CoveSpace.xs),
+                Text(
+                  readout!,
+                  style: CoveType.readout.copyWith(color: cv.textTertiary),
+                ),
+              ],
+              if (hasTrailingPill) ...[
+                const SizedBox(height: CoveSpace.sm),
+                trailingPill!,
+              ],
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              if (hasReadout) ...[
+                titleWidget,
+                const SizedBox(width: CoveSpace.md),
+                Flexible(
+                  child: Text(
+                    readout!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CoveType.readout.copyWith(color: cv.textTertiary),
+                  ),
+                ),
+              ] else
+                Flexible(child: titleWidget),
+            ],
+          );
 
     final topInset = CovePageInsets.topOf(context);
     final effectiveTopPadding = topInset + kTopPadding;
@@ -238,33 +266,77 @@ class CovePageHeader extends StatelessWidget {
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: _kLineBoxHeight),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (hasLeading) ...[
-                    const SizedBox(
-                      width: CoveSize.buttonRound,
-                      height: _kLineBoxHeight,
+              child: isScaled
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        final controlsWidth = (hasLeading
+                                ? CoveSize.buttonRound + CoveSpace.md
+                                : 0.0) +
+                            (hasActions
+                                ? actionsDrawnWidth + CoveSpace.sm
+                                : 0.0);
+                        final inlineWidth =
+                            constraints.maxWidth - controlsWidth;
+                        if ((hasLeading || hasActions) && inlineWidth < 210.0) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: _kLineBoxHeight),
+                              const SizedBox(height: CoveSpace.sm),
+                              titleAndReadout,
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (hasLeading) ...[
+                              const SizedBox(
+                                width: CoveSize.buttonRound,
+                                height: _kLineBoxHeight,
+                              ),
+                              const SizedBox(width: CoveSpace.md),
+                            ],
+                            Expanded(child: titleAndReadout),
+                            if (hasActions) ...[
+                              const SizedBox(width: CoveSpace.sm),
+                              SizedBox(
+                                width: actionsDrawnWidth,
+                                height: _kLineBoxHeight,
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasLeading) ...[
+                          const SizedBox(
+                            width: CoveSize.buttonRound,
+                            height: _kLineBoxHeight,
+                          ),
+                          const SizedBox(width: CoveSpace.md),
+                        ],
+                        Expanded(child: titleAndReadout),
+                        if (hasTrailingPill) ...[
+                          const SizedBox(width: CoveSpace.sm),
+                          SizedBox(
+                            height: _kLineBoxHeight,
+                            child: Center(child: trailingPill!),
+                          ),
+                        ],
+                        if (hasActions) ...[
+                          const SizedBox(width: CoveSpace.sm),
+                          SizedBox(
+                            width: actionsDrawnWidth,
+                            height: _kLineBoxHeight,
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(width: CoveSpace.md),
-                  ],
-                  Expanded(child: titleAndReadout),
-                  if (hasTrailingPill) ...[
-                    const SizedBox(width: CoveSpace.sm),
-                    SizedBox(
-                      height: _kLineBoxHeight,
-                      child: Center(child: trailingPill!),
-                    ),
-                  ],
-                  if (hasActions) ...[
-                    const SizedBox(width: CoveSpace.sm),
-                    SizedBox(
-                      width: actionsDrawnWidth,
-                      height: _kLineBoxHeight,
-                    ),
-                  ],
-                ],
-              ),
             ),
           ),
           if (hasLeading)

@@ -27,6 +27,85 @@ class CurrencySelectorSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cv = context.cv;
     final currentCurrency = ref.watch(currencyPreferenceProvider);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Preferred Currency',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+              ),
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.close,
+                color: cv.textSecondary,
+                size: CoveSpace.gutter,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+        const SizedBox(height: _kHeaderBottomGap),
+        CoveGroupedCard(
+          children: supportedCurrencies.map((currency) {
+            final isSelected = currency.code == currentCurrency.code;
+            return CoveGroupedRow(
+              leading: Container(
+                width: isScaled ? null : _kBadgeSize,
+                height: isScaled ? null : _kBadgeSize,
+                constraints: isScaled
+                    ? const BoxConstraints(
+                        minWidth: _kBadgeSize,
+                        minHeight: _kBadgeSize,
+                      )
+                    : null,
+                padding: isScaled
+                    ? const EdgeInsets.symmetric(
+                        horizontal: CoveSpace.sm,
+                        vertical: CoveSpace.xs,
+                      )
+                    : null,
+                alignment: Alignment.center,
+                decoration: CoveShape.decoration(
+                  CoveSpace.sm,
+                  color: cv.surfaceRow,
+                ),
+                child: Text(
+                  currency.symbol,
+                  style: CoveType.rowTitle.copyWith(color: cv.accentText),
+                ),
+              ),
+              title: Text(
+                '${currency.name} (${currency.code})',
+                style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
+              ),
+              trailing: isSelected
+                  ? Icon(
+                      Icons.check_circle,
+                      color: cv.accentFill,
+                      size: CoveSpace.gutter,
+                    )
+                  : null,
+              onTap: () async {
+                await ref
+                    .read(currencyPreferenceProvider.notifier)
+                    .setCurrency(currency);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
 
     return Container(
       padding: EdgeInsets.only(
@@ -41,69 +120,7 @@ class CurrencySelectorSheet extends ConsumerWidget {
         CoveRadius.sheet,
         color: cv.surfaceSheet,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Preferred Currency',
-                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-              ),
-              IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: cv.textSecondary,
-                  size: CoveSpace.gutter,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const SizedBox(height: _kHeaderBottomGap),
-          CoveGroupedCard(
-            children: supportedCurrencies.map((currency) {
-              final isSelected = currency.code == currentCurrency.code;
-              return CoveGroupedRow(
-                leading: Container(
-                  width: _kBadgeSize,
-                  height: _kBadgeSize,
-                  alignment: Alignment.center,
-                  decoration: CoveShape.decoration(
-                    CoveSpace.sm,
-                    color: cv.surfaceRow,
-                  ),
-                  child: Text(
-                    currency.symbol,
-                    style: CoveType.rowTitle.copyWith(color: cv.accentText),
-                  ),
-                ),
-                title: Text(
-                  '${currency.name} (${currency.code})',
-                  style: CoveType.rowTitle.copyWith(color: cv.textPrimary),
-                ),
-                trailing: isSelected
-                    ? Icon(
-                        Icons.check_circle,
-                        color: cv.accentFill,
-                        size: CoveSpace.gutter,
-                      )
-                    : null,
-                onTap: () async {
-                  await ref
-                      .read(currencyPreferenceProvider.notifier)
-                      .setCurrency(currency);
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-                },
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+      child: isScaled ? SingleChildScrollView(child: body) : body,
     );
   }
 }

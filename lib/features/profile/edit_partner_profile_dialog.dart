@@ -69,9 +69,11 @@ class _EditPartnerProfileDialogState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Partner's Name",
-                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                Expanded(
+                  child: Text(
+                    "Partner's Name",
+                    style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                  ),
                 ),
                 IconButton(
                   icon: Icon(

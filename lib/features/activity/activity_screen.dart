@@ -478,14 +478,21 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
     required Duration duration,
     required CoveTokens cv,
   }) {
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _selectFilter(module),
       child: AnimatedContainer(
         duration: duration,
         curve: CoveMotion.easing,
-        height: _kFilterChipHeight,
-        padding: const EdgeInsets.symmetric(horizontal: CoveSpace.md),
+        height: isScaled ? null : _kFilterChipHeight,
+        constraints: isScaled
+            ? const BoxConstraints(minHeight: _kFilterChipHeight)
+            : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: CoveSpace.md,
+          vertical: isScaled ? CoveSpace.xs : 0,
+        ),
         alignment: Alignment.center,
         decoration: CoveShape.decoration(
           CoveRadius.pill,

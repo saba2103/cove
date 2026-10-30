@@ -1351,10 +1351,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             ),
             const SizedBox(width: CoveSpace.xs),
             Flexible(
-              child: Text(
-                'Encrypted on your phones, never on ours',
-                style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                overflow: TextOverflow.ellipsis,
+              child: Builder(
+                builder: (context) {
+                  final isScaled =
+                      MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+                  return Text(
+                    'Encrypted on your phones, never on ours',
+                    textAlign: isScaled ? TextAlign.center : null,
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
+                  );
+                },
               ),
             ),
           ],
@@ -1396,111 +1403,134 @@ class _TodayHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cv = context.cv;
     final homes = ref.watch(userHomesProvider).value ?? const <LocalHome>[];
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackHeader =
+        isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
+
+    final homeSelector = Semantics(
+      button: true,
+      label: 'Home: $homeName',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (homes.length > 1) {
+            HomeSwitcherSheet.show(context);
+          } else {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const HomeSettingsScreen(),
+              ),
+            );
+          }
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: CoveSize.hit),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    homeName,
+                    style: CoveType.slipTitle.copyWith(
+                      color: cv.textPrimary,
+                    ),
+                    maxLines: isScaled ? null : 1,
+                    overflow: isScaled ? null : TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: CoveSpace.xs),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: _kChevronIconSize,
+                  color: cv.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final actions = <Widget>[
+      if (weather != null) ...[
+        _buildWeatherChip(context, weather!),
+        const SizedBox(width: CoveSpace.xs),
+      ],
+      Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          CoveRoundButton(
+            icon: Icons.notifications_none_rounded,
+            variant: CoveRoundButtonVariant.ghost,
+            semanticLabel: 'Notifications',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ActivityScreen()),
+              );
+            },
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              top: CoveSpace.md,
+              right: CoveSpace.md,
+              child: IgnorePointer(
+                child: Container(
+                  width: _kUnreadDotSize,
+                  height: _kUnreadDotSize,
+                  decoration: BoxDecoration(
+                    color: cv.accentFill,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(width: CoveSpace.xs),
+      GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+        },
+        child: SizedBox(
+          width: CoveSize.hit,
+          height: CoveSize.hit,
+          child: Center(
+            child: CoveAvatar.header(
+              person: viewerPerson,
+              nameOrInitial: viewerName,
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    if (stackHeader) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          homeSelector,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: actions,
+          ),
+        ],
+      );
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Semantics(
-            button: true,
-            label: 'Home: $homeName',
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                if (homes.length > 1) {
-                  HomeSwitcherSheet.show(context);
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const HomeSettingsScreen(),
-                    ),
-                  );
-                }
-              },
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: CoveSize.hit),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          homeName,
-                          style: CoveType.slipTitle.copyWith(
-                            color: cv.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: CoveSpace.xs),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: _kChevronIconSize,
-                        color: cv.textSecondary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (weather != null) ...[
-          _buildWeatherChip(context, weather!),
-          const SizedBox(width: CoveSpace.xs),
-        ],
-        Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            CoveRoundButton(
-              icon: Icons.notifications_none_rounded,
-              variant: CoveRoundButtonVariant.ghost,
-              semanticLabel: 'Notifications',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ActivityScreen()),
-                );
-              },
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                top: CoveSpace.md,
-                right: CoveSpace.md,
-                child: IgnorePointer(
-                  child: Container(
-                    width: _kUnreadDotSize,
-                    height: _kUnreadDotSize,
-                    decoration: BoxDecoration(
-                      color: cv.accentFill,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(width: CoveSpace.xs),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
-          },
-          child: SizedBox(
-            width: CoveSize.hit,
-            height: CoveSize.hit,
-            child: Center(
-              child: CoveAvatar.header(
-                person: viewerPerson,
-                nameOrInitial: viewerName,
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: homeSelector),
+        ...actions,
       ],
     );
   }

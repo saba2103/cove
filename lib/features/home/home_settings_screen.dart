@@ -553,42 +553,72 @@ class HomeSettingsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                         horizontal: CoveSpace.gutter,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              creatorName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.title.copyWith(
-                                color: cv.textPrimary,
-                              ),
+                      child: MediaQuery.textScalerOf(context).scale(1.0) > 1.0
+                          ? Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: CoveSpace.sm,
+                              runSpacing: CoveSpace.xs,
+                              children: [
+                                Text(
+                                  creatorName,
+                                  textAlign: TextAlign.center,
+                                  style: CoveType.title.copyWith(
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  '&',
+                                  style: CoveType.heroFigure.copyWith(
+                                    color: cv.accentFill,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                                Text(
+                                  joinerName,
+                                  textAlign: TextAlign.center,
+                                  style: CoveType.title.copyWith(
+                                    color: cv.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    creatorName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: CoveType.title.copyWith(
+                                      color: cv.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: CoveSpace.sm),
+                                Text(
+                                  '&',
+                                  style: CoveType.heroFigure.copyWith(
+                                    color: cv.accentFill,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                                const SizedBox(width: CoveSpace.sm),
+                                Flexible(
+                                  child: Text(
+                                    joinerName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: CoveType.title.copyWith(
+                                      color: cv.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: CoveSpace.sm),
-                          Text(
-                            '&',
-                            style: CoveType.heroFigure.copyWith(
-                              color: cv.accentFill,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                          const SizedBox(width: CoveSpace.sm),
-                          Flexible(
-                            child: Text(
-                              joinerName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CoveType.title.copyWith(
-                                color: cv.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                     if (descriptionLine.isNotEmpty) ...[
                       const SizedBox(height: CoveSpace.xs),
@@ -606,36 +636,76 @@ class HomeSettingsScreen extends ConsumerWidget {
                       ),
                     ],
                     const SizedBox(height: CoveSpace.lg),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Column(
+                    if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CoveSpace.gutter,
+                        ),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: CoveSpace.section,
+                          runSpacing: CoveSpace.md,
                           children: [
-                            Text(
-                              togetherText,
-                              style: CoveType.readout.copyWith(
-                                color: cv.accentTint,
-                              ),
+                            Column(
+                              children: [
+                                Text(
+                                  togetherText,
+                                  textAlign: TextAlign.center,
+                                  style: CoveType.readout.copyWith(
+                                    color: cv.accentTint,
+                                  ),
+                                ),
+                                const SizedBox(height: CoveSpace.xs),
+                                const CoveSectionLabel.card(label: 'Together'),
+                              ],
                             ),
-                            const SizedBox(height: CoveSpace.xs),
-                            const CoveSectionLabel.card(label: 'Together'),
+                            Column(
+                              children: [
+                                Text(
+                                  inCoveText,
+                                  textAlign: TextAlign.center,
+                                  style: CoveType.readout.copyWith(
+                                    color: cv.accentTint,
+                                  ),
+                                ),
+                                const SizedBox(height: CoveSpace.xs),
+                                const CoveSectionLabel.card(label: 'In Cove'),
+                              ],
+                            ),
                           ],
                         ),
-                        const SizedBox(width: CoveSpace.section),
-                        Column(
-                          children: [
-                            Text(
-                              inCoveText,
-                              style: CoveType.readout.copyWith(
-                                color: cv.accentTint,
+                      )
+                    else
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Column(
+                            children: [
+                              Text(
+                                togetherText,
+                                style: CoveType.readout.copyWith(
+                                  color: cv.accentTint,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: CoveSpace.xs),
-                            const CoveSectionLabel.card(label: 'In Cove'),
-                          ],
-                        ),
-                      ],
-                    ),
+                              const SizedBox(height: CoveSpace.xs),
+                              const CoveSectionLabel.card(label: 'Together'),
+                            ],
+                          ),
+                          const SizedBox(width: CoveSpace.section),
+                          Column(
+                            children: [
+                              Text(
+                                inCoveText,
+                                style: CoveType.readout.copyWith(
+                                  color: cv.accentTint,
+                                ),
+                              ),
+                              const SizedBox(height: CoveSpace.xs),
+                              const CoveSectionLabel.card(label: 'In Cove'),
+                            ],
+                          ),
+                        ],
+                      ),
                   ],
                 ),
 

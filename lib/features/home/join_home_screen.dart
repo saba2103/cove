@@ -326,13 +326,32 @@ class _JoinHomeScreenState extends ConsumerState<JoinHomeScreen> {
                               cursorColor: cv.accentFill,
                               decoration: InputDecoration(
                                 hintText: '• • • • • •',
+                                hintMaxLines:
+                                    MediaQuery.textScalerOf(
+                                          context,
+                                        ).scale(1.0) >
+                                        1.0
+                                    ? 2
+                                    : null,
                                 hintStyle: CoveType.slipTitle.copyWith(
-                                  letterSpacing: _kPinHintLetterSpacing,
+                                  letterSpacing:
+                                      MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(1.0) >
+                                          1.0
+                                      ? 0.5
+                                      : _kPinHintLetterSpacing,
                                   color: cv.textTertiary,
                                 ),
                                 border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: _kBodyVerticalPadding,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      MediaQuery.textScalerOf(
+                                            context,
+                                          ).scale(1.0) >
+                                          1.0
+                                      ? CoveSpace.xs
+                                      : _kBodyVerticalPadding,
                                   vertical: CoveSpace.md,
                                 ),
                                 suffixIcon: IconButton(

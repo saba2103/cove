@@ -1057,33 +1057,71 @@ class _ListsScreenState extends ConsumerState<ListsScreen> {
         ),
         children: [
           // Actions row: remaining count & "Clear completed"
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${activeItems.length} remaining${completedItems.isNotEmpty ? " • ${completedItems.length} completed" : ""}',
-                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
-              ),
-              if (completedItems.isNotEmpty)
-                GestureDetector(
-                  onTap: () => _handleClearCompleted(activeList.id, completedItems.length),
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: CoveSpace.xs,
-                      horizontal: CoveSpace.xs,
+          if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: CoveSpace.sm,
+              runSpacing: CoveSpace.xs,
+              children: [
+                Text(
+                  '${activeItems.length} remaining${completedItems.isNotEmpty ? " • ${completedItems.length} completed" : ""}',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                ),
+                if (completedItems.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _handleClearCompleted(
+                      activeList.id,
+                      completedItems.length,
                     ),
-                    child: Text(
-                      'Clear completed',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.accentText,
-                        fontWeight: FontWeight.w500,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CoveSpace.xs,
+                        horizontal: CoveSpace.xs,
+                      ),
+                      child: Text(
+                        'Clear completed',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${activeItems.length} remaining${completedItems.isNotEmpty ? " • ${completedItems.length} completed" : ""}',
+                  style: CoveType.rowSub.copyWith(color: cv.textSecondary),
                 ),
-            ],
-          ),
+                if (completedItems.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _handleClearCompleted(
+                      activeList.id,
+                      completedItems.length,
+                    ),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CoveSpace.xs,
+                        horizontal: CoveSpace.xs,
+                      ),
+                      child: Text(
+                        'Clear completed',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           const SizedBox(height: CoveSpace.md),
 
           if (items.isEmpty)

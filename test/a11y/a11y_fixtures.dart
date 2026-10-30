@@ -2098,7 +2098,10 @@ List<A11ySurface> buildSheetA11ySurfaces() {
       ),
       wrap: wrapInAppShellConstraint,
       afterPump: (tester) async {
-        await tester.tap(find.text('+ Add Check-in Reminder'));
+        final btn = find.text('+ Add Check-in Reminder');
+        await tester.ensureVisible(btn);
+        await tester.pumpAndSettle();
+        await tester.tap(btn);
         await tester.pumpAndSettle();
       },
     ),

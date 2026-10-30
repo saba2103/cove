@@ -111,21 +111,27 @@ class _MonthlyBudgetSheetState extends ConsumerState<MonthlyBudgetSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.pie_chart_outline_rounded,
-                      color: cv.accentFill,
-                      size: CoveSize.avatarInline,
-                    ),
-                    const SizedBox(width: CoveSpace.sm),
-                    Text(
-                      currentBudget != null
-                          ? 'Edit Monthly Budget'
-                          : 'Set Monthly Budget',
-                      style: CoveType.letter.copyWith(color: cv.textPrimary),
-                    ),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.pie_chart_outline_rounded,
+                        color: cv.accentFill,
+                        size: CoveSize.avatarInline,
+                      ),
+                      const SizedBox(width: CoveSpace.sm),
+                      Expanded(
+                        child: Text(
+                          currentBudget != null
+                              ? 'Edit Monthly Budget'
+                              : 'Set Monthly Budget',
+                          style: CoveType.letter.copyWith(
+                            color: cv.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: Icon(

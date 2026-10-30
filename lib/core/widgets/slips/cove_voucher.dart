@@ -120,12 +120,97 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
   @override
   Widget build(BuildContext context) {
     final palette = CoveSlipPalette.resolve(context, variant);
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final stackHeader = isScaled &&
+        (MediaQuery.sizeOf(context).width / textScale) <
+            CoveSize.compactThreshold;
     final hasPaidFrom = paidFrom != null && paidFrom!.trim().isNotEmpty;
     final hasWhose = whose != null && whose!.trim().isNotEmpty;
     final dueField = (fieldTaps != null &&
             fieldTaps!.containsKey(CoveSlipField.dueDate))
         ? CoveSlipField.dueDate
         : CoveSlipField.date;
+
+    final leftHeader = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          capsLabel.toUpperCase(),
+          style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+        ),
+        const SizedBox(height: CoveSpace.xs),
+        CoveSlipFieldTapTarget(
+          field: CoveSlipField.title,
+          fieldTaps: fieldTaps,
+          child: Text(
+            title,
+            style: CoveType.slipTitle.copyWith(color: palette.title),
+          ),
+        ),
+        const SizedBox(height: CoveSpace.sm),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: CoveSpace.xs,
+          runSpacing: CoveSpace.xs,
+          children: [
+            CoveSlipFieldTapTarget(
+              field: CoveSlipField.amount,
+              fieldTaps: fieldTaps,
+              child: Text(
+                amount,
+                style: CoveType.slipFigure.copyWith(
+                  color: palette.title,
+                ),
+              ),
+            ),
+            if (cadenceSuffix.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(
+                  bottom: CoveSpace.xs,
+                ),
+                child: CoveSlipFieldTapTarget(
+                  field: CoveSlipField.cadence,
+                  fieldTaps: fieldTaps,
+                  child: Text(
+                    cadenceSuffix,
+                    style: CoveType.readout.copyWith(
+                      color: palette.tertiary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+
+    final dueBlock = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment:
+          stackHeader ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      children: [
+        CoveSlipFieldTapTarget(
+          field: dueField,
+          fieldTaps: fieldTaps,
+          alignment: Alignment.center,
+          child: _DueCircle(
+            day: dueDay,
+            month: dueMonth,
+            isPaid: isPaid,
+            palette: palette,
+          ),
+        ),
+        if (isPaid) ...[
+          const SizedBox(height: CoveSpace.sm),
+          CoveSlipStamp(
+            text: 'PAID',
+            color: palette.statusGood,
+          ),
+        ],
+      ],
+    );
 
     return CoveSlip(
       variant: variant,
@@ -148,91 +233,24 @@ class CoveVoucher extends StatelessWidget implements CoveSlipObject {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      capsLabel.toUpperCase(),
-                      style: CoveType.capsSlip.copyWith(color: palette.tertiary),
-                    ),
-                    const SizedBox(height: CoveSpace.xs),
-                    CoveSlipFieldTapTarget(
-                      field: CoveSlipField.title,
-                      fieldTaps: fieldTaps,
-                      child: Text(
-                        title,
-                        style: CoveType.slipTitle.copyWith(color: palette.title),
-                      ),
-                    ),
-                    const SizedBox(height: CoveSpace.sm),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.end,
-                      spacing: CoveSpace.xs,
-                      runSpacing: CoveSpace.xs,
-                      children: [
-                        CoveSlipFieldTapTarget(
-                          field: CoveSlipField.amount,
-                          fieldTaps: fieldTaps,
-                          child: Text(
-                            amount,
-                            style: CoveType.slipFigure.copyWith(
-                              color: palette.title,
-                            ),
-                          ),
-                        ),
-                        if (cadenceSuffix.trim().isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: CoveSpace.xs,
-                            ),
-                            child: CoveSlipFieldTapTarget(
-                              field: CoveSlipField.cadence,
-                              fieldTaps: fieldTaps,
-                              child: Text(
-                                cadenceSuffix,
-                                style: CoveType.readout.copyWith(
-                                  color: palette.tertiary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: CoveSpace.md),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  CoveSlipFieldTapTarget(
-                    field: dueField,
-                    fieldTaps: fieldTaps,
-                    alignment: Alignment.center,
-                    child: _DueCircle(
-                      day: dueDay,
-                      month: dueMonth,
-                      isPaid: isPaid,
-                      palette: palette,
-                    ),
-                  ),
-                  if (isPaid) ...[
-                    const SizedBox(height: CoveSpace.sm),
-                    CoveSlipStamp(
-                      text: 'PAID',
-                      color: palette.statusGood,
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
+          if (stackHeader) ...[
+            leftHeader,
+            const SizedBox(height: CoveSpace.md),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: CoveSpace.md,
+              runSpacing: CoveSpace.sm,
+              children: [dueBlock],
+            ),
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: leftHeader),
+                const SizedBox(width: CoveSpace.md),
+                dueBlock,
+              ],
+            ),
           if (isEmi) ...[
             const SizedBox(height: CoveSpace.md),
             SizedBox(
@@ -302,6 +320,25 @@ class _VoucherMetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+    if (isScaled) {
+      return Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: CoveSpace.sm,
+        runSpacing: CoveSpace.xs / 2,
+        children: [
+          Text(
+            label,
+            style: CoveType.readout.copyWith(color: palette.secondary),
+          ),
+          Text(
+            value,
+            style: CoveType.readout.copyWith(color: palette.title),
+          ),
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(
@@ -335,30 +372,37 @@ class _DueCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final circleSize = textScale > 1.0
+        ? (CoveVoucher.kDueCircleSize * textScale).ceilToDouble()
+        : CoveVoucher.kDueCircleSize;
     final ringColor = isPaid ? palette.rule : palette.accentFill;
     final dayColor = isPaid ? palette.tertiary : palette.accent;
     final monthColor = palette.tertiary;
 
     return SizedBox(
-      width: CoveVoucher.kDueCircleSize,
-      height: CoveVoucher.kDueCircleSize,
+      width: circleSize,
+      height: circleSize,
       child: CustomPaint(
         painter: _DashedCirclePainter(color: ringColor),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                day,
-                textAlign: TextAlign.center,
-                style: CoveType.slipTitle.copyWith(color: dayColor),
-              ),
-              Text(
-                month.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: CoveType.capsSlip.copyWith(color: monthColor),
-              ),
-            ],
+          child: Padding(
+            padding: EdgeInsets.all(textScale > 1.0 ? CoveSpace.xs : 0.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  day,
+                  textAlign: TextAlign.center,
+                  style: CoveType.slipTitle.copyWith(color: dayColor),
+                ),
+                Text(
+                  month.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: CoveType.capsSlip.copyWith(color: monthColor),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -380,25 +424,43 @@ class _EmiPunchGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = totalInstallments - paidInstallments;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
+        if (isScaled)
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: CoveSpace.sm,
+            runSpacing: CoveSpace.xs,
+            children: [
+              Text(
                 '$paidInstallments OF $totalInstallments PAID',
                 style: CoveType.capsSlip.copyWith(color: palette.tertiary),
               ),
-            ),
-            Text(
-              '$remaining LEFT',
-              style: CoveType.capsSlip.copyWith(color: palette.tertiary),
-            ),
-          ],
-        ),
+              Text(
+                '$remaining LEFT',
+                style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+              ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$paidInstallments OF $totalInstallments PAID',
+                  style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+                ),
+              ),
+              Text(
+                '$remaining LEFT',
+                style: CoveType.capsSlip.copyWith(color: palette.tertiary),
+              ),
+            ],
+          ),
         const SizedBox(height: CoveSpace.sm),
         Wrap(
           spacing: CoveSpace.xs,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/shape/cove_shape.dart';
@@ -107,7 +109,11 @@ class _AddWeekTogglesState extends State<AddWeekToggles> {
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            const minRequiredWidth = 7 * CoveSize.hit + 6 * CoveSpace.xs;
+            final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+            final cellExtent = textScale > 1.0
+                ? (CoveSize.hit * math.min(textScale, 1.5)).ceilToDouble()
+                : CoveSize.hit;
+            final minRequiredWidth = 7 * cellExtent + 6 * CoveSpace.xs;
             final isCompact =
                 MediaQuery.sizeOf(context).width < CoveSize.compactThreshold ||
                     constraints.maxWidth < minRequiredWidth;
@@ -122,8 +128,8 @@ class _AddWeekTogglesState extends State<AddWeekToggles> {
                     for (var i = 0; i < 7; i++) ...[
                       if (i > 0) const SizedBox(width: CoveSpace.sm),
                       SizedBox(
-                        width: CoveSize.hit,
-                        height: CoveSize.hit,
+                        width: cellExtent,
+                        height: cellExtent,
                         child: _buildDayToggle(context, i + 1),
                       ),
                     ],
@@ -138,7 +144,7 @@ class _AddWeekTogglesState extends State<AddWeekToggles> {
                   if (i > 0) const SizedBox(width: CoveSpace.xs),
                   Expanded(
                     child: SizedBox(
-                      height: CoveSize.hit,
+                      height: cellExtent,
                       child: _buildDayToggle(context, i + 1),
                     ),
                   ),

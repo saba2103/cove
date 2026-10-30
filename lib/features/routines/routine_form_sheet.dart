@@ -173,6 +173,12 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
   Widget build(BuildContext context) {
     final isEditing = widget.routine != null;
     final cv = context.cv;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
+    final dayCircleSize = isScaled
+        ? (CoveSize.buttonRound * (textScale > 1.35 ? 1.2 : 1.05))
+            .ceilToDouble()
+        : CoveSize.buttonRound;
 
     return Container(
       decoration: CoveShape.topDecoration(
@@ -197,11 +203,13 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    isEditing ? 'Edit Routine' : 'New Routine',
-                    style: CoveType.slipTitle.copyWith(
-                      color: cv.textPrimary,
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      isEditing ? 'Edit Routine' : 'New Routine',
+                      style: CoveType.slipTitle.copyWith(
+                        color: cv.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   if (isEditing)
@@ -220,10 +228,11 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               TextFormField(
                 controller: _nameController,
                 style: CoveType.body.copyWith(color: cv.textPrimary),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Routine Name',
                   hintText: 'e.g. Weekday, Weekend, Saturday',
-                  border: CoveInputBorder(
+                  hintMaxLines: isScaled ? 4 : null,
+                  border: const CoveInputBorder(
                     radius: CoveRadius.inline,
                   ),
                 ),
@@ -246,6 +255,7 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               // Preset chips
               Wrap(
                 spacing: CoveSpace.sm,
+                runSpacing: isScaled ? CoveSpace.sm : 0.0,
                 children: [
                   ActionChip(
                     label: const Text('Mon – Fri'),
@@ -271,39 +281,75 @@ class _RoutineFormSheetState extends ConsumerState<RoutineFormSheet> {
               ),
               const SizedBox(height: 16),
               // Day circles
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: _daysInfo.map((info) {
-                  final day = info['day'] as int;
-                  final label = info['label'] as String;
-                  final isSelected = _selectedDays.contains(day);
+              if (isScaled)
+                Wrap(
+                  spacing: CoveSpace.sm,
+                  runSpacing: CoveSpace.sm,
+                  children: _daysInfo.map((info) {
+                    final day = info['day'] as int;
+                    final label = info['label'] as String;
+                    final isSelected = _selectedDays.contains(day);
 
-                  return GestureDetector(
-                    onTap: () => _toggleDay(day),
-                    child: AnimatedContainer(
-                      duration: CoveMotion.q(context),
-                      width: CoveSize.buttonRound,
-                      height: CoveSize.buttonRound,
-                      decoration: BoxDecoration(
-                        color: isSelected ? cv.accentFill : cv.surfaceRow,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? cv.accentFill : cv.lineHairline,
-                          width: 1.5,
+                    return GestureDetector(
+                      onTap: () => _toggleDay(day),
+                      child: AnimatedContainer(
+                        duration: CoveMotion.q(context),
+                        width: dayCircleSize,
+                        height: dayCircleSize,
+                        decoration: BoxDecoration(
+                          color: isSelected ? cv.accentFill : cv.surfaceRow,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? cv.accentFill : cv.lineHairline,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          label,
+                          style: CoveType.readout.copyWith(
+                            color: isSelected ? cv.textOnAccent : cv.textPrimary,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                          ),
                         ),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        label,
-                        style: CoveType.readout.copyWith(
-                          color: isSelected ? cv.textOnAccent : cv.textPrimary,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    );
+                  }).toList(),
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: _daysInfo.map((info) {
+                    final day = info['day'] as int;
+                    final label = info['label'] as String;
+                    final isSelected = _selectedDays.contains(day);
+
+                    return GestureDetector(
+                      onTap: () => _toggleDay(day),
+                      child: AnimatedContainer(
+                        duration: CoveMotion.q(context),
+                        width: CoveSize.buttonRound,
+                        height: CoveSize.buttonRound,
+                        decoration: BoxDecoration(
+                          color: isSelected ? cv.accentFill : cv.surfaceRow,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? cv.accentFill : cv.lineHairline,
+                            width: 1.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          label,
+                          style: CoveType.readout.copyWith(
+                            color: isSelected ? cv.textOnAccent : cv.textPrimary,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
+                    );
+                  }).toList(),
+                ),
               const SizedBox(height: CoveSpace.lg),
               FilledButton(
                 style: FilledButton.styleFrom(

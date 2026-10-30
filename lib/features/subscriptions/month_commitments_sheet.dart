@@ -306,6 +306,110 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
       payerColor = cv.statusAlertText;
     }
 
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+
+    final categoryIcon = Container(
+      width: CoveSize.buttonRound,
+      height: CoveSize.buttonRound,
+      decoration: CoveShape.decoration(
+        CoveSpace.md,
+        color: cv.surfaceCard,
+        side: BorderSide(color: cv.lineHairline),
+      ),
+      child: Icon(
+        _getCategoryIcon(item.category),
+        size: CoveSpace.gutter,
+        color: cv.accentFill,
+      ),
+    );
+
+    final emiBadge = Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: CoveSpace.sm,
+        vertical: CoveSpace.xs,
+      ),
+      decoration: CoveShape.decoration(
+        _kBadgeRadius,
+        color: item.isEmi
+            ? cv.statusAlert.withValues(alpha: 0.15)
+            : cv.accentWash,
+      ),
+      child: Text(
+        item.isEmi ? 'EMI' : 'Sub',
+        style: CoveType.barLabel.copyWith(
+          fontWeight: FontWeight.w700,
+          color: item.isEmi ? cv.statusAlertText : cv.accentText,
+        ),
+      ),
+    );
+
+    final annualBadge = item.isAnnual
+        ? Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CoveSpace.sm,
+              vertical: CoveSpace.xs,
+            ),
+            decoration: CoveShape.decoration(
+              _kBadgeRadius,
+              color: cv.lineHairline,
+            ),
+            child: Text(
+              'Annual',
+              style: CoveType.barLabel.copyWith(
+                fontWeight: FontWeight.w600,
+                color: cv.textSecondary,
+              ),
+            ),
+          )
+        : null;
+
+    final metaWrap = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          'Due $dayFormatted',
+          style: CoveType.rowSub.copyWith(
+            color: cv.textSecondary,
+          ),
+        ),
+        Text(
+          ' · ',
+          style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+        ),
+        Text(
+          payerLabel,
+          style: CoveType.rowSub.copyWith(
+            color: payerColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        if (item.subscription.financedThrough != null &&
+            item.subscription.financedThrough!.trim().isNotEmpty) ...[
+          Text(
+            ' · ',
+            style: CoveType.rowSub.copyWith(
+              color: cv.textTertiary,
+            ),
+          ),
+          Text(
+            'via ${item.subscription.financedThrough!.trim()}',
+            style: CoveType.rowSub.copyWith(
+              color: cv.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final amountText = Text(
+      '$currencySymbol${formatCoveAmount(item.amount)}',
+      style: CoveType.rowTitle.copyWith(
+        fontWeight: FontWeight.w700,
+        color: cv.textPrimary,
+      ),
+    );
+
     return InkWell(
       onTap: () {
         CommitmentDetailSheet.show(context, item.subscription);
@@ -318,143 +422,78 @@ class _MonthCommitmentsSheetState extends ConsumerState<MonthCommitmentsSheet> {
           color: cv.surfaceRow,
           side: BorderSide(color: cv.lineHairline),
         ),
-        child: Row(
-          children: [
-            // Category Icon
-            Container(
-              width: CoveSize.buttonRound,
-              height: CoveSize.buttonRound,
-              decoration: CoveShape.decoration(
-                CoveSpace.md,
-                color: cv.surfaceCard,
-                side: BorderSide(color: cv.lineHairline),
-              ),
-              child: Icon(
-                _getCategoryIcon(item.category),
-                size: CoveSpace.gutter,
-                color: cv.accentFill,
-              ),
-            ),
-            const SizedBox(width: CoveSpace.md),
-
-            // Title and Details
-            Expanded(
-              child: Column(
+        child: isScaled
+            ? Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          item.name,
-                          style: CoveType.rowTitle.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: cv.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: CoveSpace.sm),
-                      // EMI or Sub badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: CoveSpace.sm,
-                          vertical: CoveSpace.xs,
-                        ),
-                        decoration: CoveShape.decoration(
-                          _kBadgeRadius,
-                          color: item.isEmi
-                              ? cv.statusAlert.withValues(alpha: 0.15)
-                              : cv.accentWash,
-                        ),
-                        child: Text(
-                          item.isEmi ? 'EMI' : 'Sub',
-                          style: CoveType.barLabel.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: item.isEmi
-                                ? cv.statusAlertText
-                                : cv.accentText,
-                          ),
-                        ),
-                      ),
-                      if (item.isAnnual) ...[
-                        const SizedBox(width: CoveSpace.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CoveSpace.sm,
-                            vertical: CoveSpace.xs,
-                          ),
-                          decoration: CoveShape.decoration(
-                            _kBadgeRadius,
-                            color: cv.lineHairline,
-                          ),
-                          child: Text(
-                            'Annual',
-                            style: CoveType.barLabel.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cv.textSecondary,
+                  categoryIcon,
+                  const SizedBox(width: CoveSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: CoveSpace.sm,
+                          runSpacing: CoveSpace.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              item.name,
+                              style: CoveType.rowTitle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: cv.textPrimary,
+                              ),
                             ),
-                          ),
+                            emiBadge,
+                            ?annualBadge,
+                          ],
                         ),
+                        const SizedBox(height: CoveSpace.xs),
+                        metaWrap,
+                        const SizedBox(height: CoveSpace.xs),
+                        amountText,
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: CoveSpace.xs),
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        'Due $dayFormatted',
-                        style: CoveType.rowSub.copyWith(
-                          color: cv.textSecondary,
-                        ),
-                      ),
-                      Text(
-                        ' · ',
-                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                      ),
-                      Text(
-                        payerLabel,
-                        style: CoveType.rowSub.copyWith(
-                          color: payerColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (item.subscription.financedThrough != null &&
-                          item.subscription.financedThrough!
-                              .trim()
-                              .isNotEmpty) ...[
-                        Text(
-                          ' · ',
-                          style: CoveType.rowSub.copyWith(
-                            color: cv.textTertiary,
-                          ),
-                        ),
-                        Text(
-                          'via ${item.subscription.financedThrough!.trim()}',
-                          style: CoveType.rowSub.copyWith(
-                            color: cv.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ],
+              )
+            : Row(
+                children: [
+                  categoryIcon,
+                  const SizedBox(width: CoveSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                item.name,
+                                style: CoveType.rowTitle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: cv.textPrimary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: CoveSpace.sm),
+                            emiBadge,
+                            if (annualBadge != null) ...[
+                              const SizedBox(width: CoveSpace.xs),
+                              annualBadge,
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: CoveSpace.xs),
+                        metaWrap,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: CoveSpace.sm),
+                  amountText,
+                ],
               ),
-            ),
-
-            // Amount
-            const SizedBox(width: CoveSpace.sm),
-            Text(
-              '$currencySymbol${formatCoveAmount(item.amount)}',
-              style: CoveType.rowTitle.copyWith(
-                fontWeight: FontWeight.w700,
-                color: cv.textPrimary,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

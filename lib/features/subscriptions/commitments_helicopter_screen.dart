@@ -459,23 +459,31 @@ class _MonthChangeChart extends StatelessWidget {
                 width: _kBorderWidth,
               ),
             ),
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                style: CoveType.rowSub.copyWith(color: cv.textSecondary),
-                children: [
-                  TextSpan(text: '$markedMonthShort · '),
-                  TextSpan(
-                    text:
-                        '$currencySymbol${formatCoveAmount(markedMonthTotal)}',
-                    style: CoveType.rowTitle.copyWith(
-                      color: cv.accentTint,
-                      fontWeight: FontWeight.w700,
-                    ),
+            child: Builder(
+              builder: (context) {
+                final isScaled =
+                    MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
+                return RichText(
+                  maxLines: isScaled ? null : 1,
+                  overflow:
+                      isScaled ? TextOverflow.clip : TextOverflow.ellipsis,
+                  textAlign: isScaled ? TextAlign.center : TextAlign.start,
+                  text: TextSpan(
+                    style: CoveType.rowSub.copyWith(color: cv.textSecondary),
+                    children: [
+                      TextSpan(text: '$markedMonthShort · '),
+                      TextSpan(
+                        text:
+                            '$currencySymbol${formatCoveAmount(markedMonthTotal)}',
+                        style: CoveType.rowTitle.copyWith(
+                          color: cv.accentTint,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -554,6 +562,7 @@ class _MonthLedgerTable extends StatelessWidget {
     final cv = context.cv;
     final warmedHairline =
         cv.accentFill.withValues(alpha: _kWarmedHairlineAlpha);
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -561,58 +570,84 @@ class _MonthLedgerTable extends StatelessWidget {
         // Table column header
         Padding(
           padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
-          child: Row(
-            children: [
-              SizedBox(
-                width: _kMonthColWidth,
-                child: Text(
-                  'MONTH',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+          child: isScaled
+              ? Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: CoveSpace.md,
+                  runSpacing: CoveSpace.xs,
+                  children: [
+                    Text(
+                      'MONTH · +/-',
+                      style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+                    ),
+                    Text(
+                      '${myName.toUpperCase()} · ${partnerName.toUpperCase()} · TOTAL',
+                      style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    SizedBox(
+                      width: _kMonthColWidth,
+                      child: Text(
+                        'MONTH',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kDeltaFlex,
+                      child: Text(
+                        '+/-',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kPersonFlex,
+                      child: Text(
+                        myName.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kPersonFlex,
+                      child: Text(
+                        partnerName.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kTotalFlex,
+                      child: Text(
+                        'TOTAL',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Expanded(
-                flex: _kDeltaFlex,
-                child: Text(
-                  '+/-',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
-                ),
-              ),
-              Expanded(
-                flex: _kPersonFlex,
-                child: Text(
-                  myName.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
-                ),
-              ),
-              Expanded(
-                flex: _kPersonFlex,
-                child: Text(
-                  partnerName.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
-                ),
-              ),
-              Expanded(
-                flex: _kTotalFlex,
-                child: Text(
-                  'TOTAL',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
-                ),
-              ),
-            ],
-          ),
         ),
 
         // 12 Month rows (no fill, no radius, no side stroke; warmed hairlines around currentMonth)
@@ -631,6 +666,7 @@ class _MonthLedgerTable extends StatelessWidget {
             cv: cv,
             month: month,
             isCurrentMonth: month == currentMonth,
+            isScaled: isScaled,
           ),
         ],
 
@@ -646,79 +682,137 @@ class _MonthLedgerTable extends StatelessWidget {
         // Footer row: year-over-year (prior-year comparison renders as — in text.tertiary)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: CoveSpace.md),
-          child: Row(
-            children: [
-              SizedBox(
-                width: _kMonthColWidth,
-                child: Text(
-                  'YEAR',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CoveType.capsCard.copyWith(color: cv.textTertiary),
+          child: isScaled
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: CoveSpace.sm,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Text(
+                          'YEAR',
+                          style: CoveType.capsCard.copyWith(
+                            color: cv.textTertiary,
+                          ),
+                        ),
+                        Text(
+                          annualGrandTotal > 0
+                              ? '$currencySymbol${formatCoveAmount(annualGrandTotal)}'
+                              : '—',
+                          style: CoveType.rowTitle.copyWith(
+                            color: annualGrandTotal > 0
+                                ? cv.accentTint
+                                : cv.textTertiary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: CoveSpace.xs),
+                    Wrap(
+                      spacing: CoveSpace.md,
+                      runSpacing: CoveSpace.xs,
+                      children: [
+                        Text(
+                          '$myName: ${annualMineTotal > 0 ? "$currencySymbol${formatCoveAmount(annualMineTotal)}" : "—"}',
+                          style: CoveType.rowSub.copyWith(
+                            color: annualMineTotal > 0
+                                ? cv.textPrimary
+                                : cv.textTertiary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          '$partnerName: ${annualPartnerTotal > 0 ? "$currencySymbol${formatCoveAmount(annualPartnerTotal)}" : "—"}',
+                          style: CoveType.rowSub.copyWith(
+                            color: annualPartnerTotal > 0
+                                ? cv.textPrimary
+                                : cv.textTertiary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    SizedBox(
+                      width: _kMonthColWidth,
+                      child: Text(
+                        'YEAR',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.capsCard.copyWith(
+                          color: cv.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kDeltaFlex,
+                      child: Text(
+                        '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kPersonFlex,
+                      child: Text(
+                        annualMineTotal > 0
+                            ? '$currencySymbol${formatCoveAmount(annualMineTotal)}'
+                            : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.rowSub.copyWith(
+                          color: annualMineTotal > 0
+                              ? cv.textPrimary
+                              : cv.textTertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kPersonFlex,
+                      child: Text(
+                        annualPartnerTotal > 0
+                            ? '$currencySymbol${formatCoveAmount(annualPartnerTotal)}'
+                            : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.rowSub.copyWith(
+                          color: annualPartnerTotal > 0
+                              ? cv.textPrimary
+                              : cv.textTertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: _kTotalFlex,
+                      child: Text(
+                        annualGrandTotal > 0
+                            ? '$currencySymbol${formatCoveAmount(annualGrandTotal)}'
+                            : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: CoveType.rowTitle.copyWith(
+                          color: annualGrandTotal > 0
+                              ? cv.accentTint
+                              : cv.textTertiary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Expanded(
-                flex: _kDeltaFlex,
-                child: Text(
-                  '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                ),
-              ),
-              Expanded(
-                flex: _kPersonFlex,
-                child: Text(
-                  annualMineTotal > 0
-                      ? '$currencySymbol${formatCoveAmount(annualMineTotal)}'
-                      : '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.rowSub.copyWith(
-                    color: annualMineTotal > 0
-                        ? cv.textPrimary
-                        : cv.textTertiary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: _kPersonFlex,
-                child: Text(
-                  annualPartnerTotal > 0
-                      ? '$currencySymbol${formatCoveAmount(annualPartnerTotal)}'
-                      : '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.rowSub.copyWith(
-                    color: annualPartnerTotal > 0
-                        ? cv.textPrimary
-                        : cv.textTertiary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: _kTotalFlex,
-                child: Text(
-                  annualGrandTotal > 0
-                      ? '$currencySymbol${formatCoveAmount(annualGrandTotal)}'
-                      : '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: CoveType.rowTitle.copyWith(
-                    color: annualGrandTotal > 0
-                        ? cv.accentTint
-                        : cv.textTertiary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -729,6 +823,7 @@ class _MonthLedgerTable extends StatelessWidget {
     required CoveTokens cv,
     required int month,
     required bool isCurrentMonth,
+    required bool isScaled,
   }) {
     final summary = projections[month]!;
     final monthDate = DateTime(year, month, 1);
@@ -773,112 +868,212 @@ class _MonthLedgerTable extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: CoveSize.row),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: CoveSpace.sm),
-            child: Row(
-              children: [
-                // 1. Month name (gold when current month)
-                SizedBox(
-                  width: _kMonthColWidth,
-                  child: Text(
-                    monthName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowTitle.copyWith(
-                      color: isCurrentMonth ? cv.accentText : cv.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                // 2. ± delta in money.more / money.less with sign
-                Expanded(
-                  flex: _kDeltaFlex,
-                  child: Text(
-                    deltaText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CoveType.rowSub.copyWith(
-                      color: deltaColor,
-                      fontWeight:
-                          delta == 0.0 ? FontWeight.w400 : FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                // 3. Person A share
-                Expanded(
-                  flex: _kPersonFlex,
-                  child: Text(
-                    mineAmount > 0
-                        ? '$currencySymbol${formatCoveAmount(mineAmount)}'
-                        : '—',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: CoveType.rowSub.copyWith(
-                      color: mineAmount > 0 ? personTextColor : cv.textTertiary,
-                    ),
-                  ),
-                ),
-
-                // 4. Person B share
-                Expanded(
-                  flex: _kPersonFlex,
-                  child: Text(
-                    partnerAmount > 0
-                        ? '$currencySymbol${formatCoveAmount(partnerAmount)}'
-                        : '—',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: CoveType.rowSub.copyWith(
-                      color:
-                          partnerAmount > 0 ? personTextColor : cv.textTertiary,
-                    ),
-                  ),
-                ),
-
-                // 5. Total + optional peak ▲ + trailing chevron
-                Expanded(
-                  flex: _kTotalFlex,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+            child: isScaled
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Flexible(
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: CoveSpace.sm,
+                        runSpacing: CoveSpace.xs,
+                        children: [
+                          Wrap(
+                            spacing: CoveSpace.sm,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                monthName,
+                                style: CoveType.rowTitle.copyWith(
+                                  color: isCurrentMonth
+                                      ? cv.accentText
+                                      : cv.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                deltaText,
+                                style: CoveType.rowSub.copyWith(
+                                  color: deltaColor,
+                                  fontWeight: delta == 0.0
+                                      ? FontWeight.w400
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  totalAmount > 0
+                                      ? '$currencySymbol${formatCoveAmount(totalAmount)}'
+                                      : '—',
+                                  style: CoveType.rowTitle.copyWith(
+                                    color: totalAmount > 0
+                                        ? cv.accentTint
+                                        : cv.textTertiary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (isPeak) ...[
+                                const SizedBox(width: 2.0), // (literal)
+                                Text(
+                                  '▲',
+                                  style: CoveType.capsCard.copyWith(
+                                    color: cv.accentText,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(width: 2.0), // (literal)
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: math.min(CoveSpace.md, 12.0),
+                                color: cv.textTertiary,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: CoveSpace.xs),
+                      Wrap(
+                        spacing: CoveSpace.md,
+                        runSpacing: CoveSpace.xs,
+                        children: [
+                          Text(
+                            '$myName: ${mineAmount > 0 ? "$currencySymbol${formatCoveAmount(mineAmount)}" : "—"}',
+                            style: CoveType.rowSub.copyWith(
+                              color: mineAmount > 0
+                                  ? personTextColor
+                                  : cv.textTertiary,
+                            ),
+                          ),
+                          Text(
+                            '$partnerName: ${partnerAmount > 0 ? "$currencySymbol${formatCoveAmount(partnerAmount)}" : "—"}',
+                            style: CoveType.rowSub.copyWith(
+                              color: partnerAmount > 0
+                                  ? personTextColor
+                                  : cv.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // 1. Month name (gold when current month)
+                      SizedBox(
+                        width: _kMonthColWidth,
                         child: Text(
-                          totalAmount > 0
-                              ? '$currencySymbol${formatCoveAmount(totalAmount)}'
+                          monthName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.rowTitle.copyWith(
+                            color: isCurrentMonth
+                                ? cv.accentText
+                                : cv.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      // 2. ± delta in money.more / money.less with sign
+                      Expanded(
+                        flex: _kDeltaFlex,
+                        child: Text(
+                          deltaText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CoveType.rowSub.copyWith(
+                            color: deltaColor,
+                            fontWeight: delta == 0.0
+                                ? FontWeight.w400
+                                : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+
+                      // 3. Person A share
+                      Expanded(
+                        flex: _kPersonFlex,
+                        child: Text(
+                          mineAmount > 0
+                              ? '$currencySymbol${formatCoveAmount(mineAmount)}'
                               : '—',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
-                          style: CoveType.rowTitle.copyWith(
-                            color: totalAmount > 0
-                                ? cv.accentTint
+                          style: CoveType.rowSub.copyWith(
+                            color: mineAmount > 0
+                                ? personTextColor
                                 : cv.textTertiary,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                      if (isPeak) ...[
-                        const SizedBox(width: 2.0), // (literal)
-                        Text(
-                          '▲',
-                          style: CoveType.capsCard.copyWith(
-                            color: cv.accentText,
+
+                      // 4. Person B share
+                      Expanded(
+                        flex: _kPersonFlex,
+                        child: Text(
+                          partnerAmount > 0
+                              ? '$currencySymbol${formatCoveAmount(partnerAmount)}'
+                              : '—',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: CoveType.rowSub.copyWith(
+                            color: partnerAmount > 0
+                                ? personTextColor
+                                : cv.textTertiary,
                           ),
                         ),
-                      ],
-                      const SizedBox(width: 2.0), // (literal)
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: math.min(CoveSpace.md, 12.0),
-                        color: cv.textTertiary,
+                      ),
+
+                      // 5. Total + optional peak ▲ + trailing chevron
+                      Expanded(
+                        flex: _kTotalFlex,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                totalAmount > 0
+                                    ? '$currencySymbol${formatCoveAmount(totalAmount)}'
+                                    : '—',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: CoveType.rowTitle.copyWith(
+                                  color: totalAmount > 0
+                                      ? cv.accentTint
+                                      : cv.textTertiary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (isPeak) ...[
+                              const SizedBox(width: 2.0), // (literal)
+                              Text(
+                                '▲',
+                                style: CoveType.capsCard.copyWith(
+                                  color: cv.accentText,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 2.0), // (literal)
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: math.min(CoveSpace.md, 12.0),
+                              color: cv.textTertiary,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),

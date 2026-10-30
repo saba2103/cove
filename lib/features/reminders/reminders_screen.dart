@@ -25,14 +25,29 @@ class RemindersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cv = context.cv;
     final reminders = ref.watch(checkinRemindersProvider);
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
 
     return Scaffold(
       backgroundColor: cv.surfaceCanvas,
       appBar: AppBar(
-        title: Text(
-          'Check-in Reminders',
-          style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
-        ),
+        toolbarHeight: isScaled
+            ? (kToolbarHeight * textScale).clamp(kToolbarHeight, 112.0)
+            : null,
+        title: isScaled
+            ? DefaultTextStyle.merge(
+                softWrap: true,
+                maxLines: 3,
+                overflow: TextOverflow.visible,
+                child: Text(
+                  'Check-in Reminders',
+                  style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+                ),
+              )
+            : Text(
+                'Check-in Reminders',
+                style: CoveType.slipTitle.copyWith(color: cv.textPrimary),
+              ),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -89,19 +104,37 @@ class RemindersScreen extends ConsumerWidget {
             ),
             const SizedBox(height: CoveSpace.lg),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'SCHEDULED REMINDERS',
-                  style: CoveType.capsPage.copyWith(color: cv.textSecondary),
-                ),
-                Text(
-                  '${reminders.where((r) => r.isEnabled).length} active',
-                  style: CoveType.rowSub.copyWith(color: cv.textTertiary),
-                ),
-              ],
-            ),
+            if (isScaled)
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: CoveSpace.sm,
+                runSpacing: CoveSpace.xs,
+                children: [
+                  Text(
+                    'SCHEDULED REMINDERS',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
+                  Text(
+                    '${reminders.where((r) => r.isEnabled).length} active',
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'SCHEDULED REMINDERS',
+                    style: CoveType.capsPage.copyWith(color: cv.textSecondary),
+                  ),
+                  Text(
+                    '${reminders.where((r) => r.isEnabled).length} active',
+                    style: CoveType.rowSub.copyWith(color: cv.textTertiary),
+                  ),
+                ],
+              ),
             const SizedBox(height: CoveSpace.sm),
 
             if (reminders.isEmpty)
@@ -118,6 +151,64 @@ class RemindersScreen extends ConsumerWidget {
             else ...[
               CoveGroupedCard(
                 children: reminders.map((reminder) {
+                  final timeWidget = Text(
+                    reminder.formattedTime,
+                    style: CoveType.slipTitle.copyWith(
+                      color: reminder.isEnabled
+                          ? cv.accentTint
+                          : cv.textTertiary,
+                    ),
+                  );
+                  final actionsWidget = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Preview Notification',
+                        icon: Icon(
+                          Icons.send_outlined,
+                          size: _kSendIconSize,
+                          color: cv.textSecondary,
+                        ),
+                        onPressed: () {
+                          ref
+                              .read(checkinRemindersProvider.notifier)
+                              .previewNotification(reminder);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Preview sent: "${reminder.message}"',
+                              ),
+                              backgroundColor: cv.surfaceCard,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'Delete Reminder',
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: _kDeleteIconSize,
+                          color: cv.statusAlert,
+                        ),
+                        onPressed: () {
+                          ref
+                              .read(checkinRemindersProvider.notifier)
+                              .deleteReminder(reminder.id);
+                        },
+                      ),
+                      const SizedBox(width: CoveSpace.xs),
+                      CoveToggleSwitch(
+                        value: reminder.isEnabled,
+                        onChanged: (val) {
+                          ref
+                              .read(checkinRemindersProvider.notifier)
+                              .toggleReminder(reminder.id, val);
+                        },
+                      ),
+                    ],
+                  );
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: _kRowHorizontalPadding,
@@ -126,68 +217,22 @@ class RemindersScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              reminder.formattedTime,
-                              style: CoveType.slipTitle.copyWith(
-                                color: reminder.isEnabled
-                                    ? cv.accentTint
-                                    : cv.textTertiary,
-                              ),
+                        if (isScaled)
+                          SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: CoveSpace.sm,
+                              runSpacing: CoveSpace.xs,
+                              children: [timeWidget, actionsWidget],
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Preview Notification',
-                                  icon: Icon(
-                                    Icons.send_outlined,
-                                    size: _kSendIconSize,
-                                    color: cv.textSecondary,
-                                  ),
-                                  onPressed: () {
-                                    ref
-                                        .read(checkinRemindersProvider.notifier)
-                                        .previewNotification(reminder);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Preview sent: "${reminder.message}"',
-                                        ),
-                                        backgroundColor: cv.surfaceCard,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  tooltip: 'Delete Reminder',
-                                  icon: Icon(
-                                    Icons.delete_outline,
-                                    size: _kDeleteIconSize,
-                                    color: cv.statusAlert,
-                                  ),
-                                  onPressed: () {
-                                    ref
-                                        .read(checkinRemindersProvider.notifier)
-                                        .deleteReminder(reminder.id);
-                                  },
-                                ),
-                                const SizedBox(width: CoveSpace.xs),
-                                CoveToggleSwitch(
-                                  value: reminder.isEnabled,
-                                  onChanged: (val) {
-                                    ref
-                                        .read(checkinRemindersProvider.notifier)
-                                        .toggleReminder(reminder.id, val);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          )
+                        else
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [timeWidget, actionsWidget],
+                          ),
                         const SizedBox(height: CoveSpace.sm),
                         Text(
                           reminder.message,
@@ -382,32 +427,67 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
               const SizedBox(height: CoveSpace.gutter),
 
               // Warm Copy Selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'WARM WELCOMING MESSAGE',
-                    style: CoveType.capsCard.copyWith(color: cv.textSecondary),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _useCustom = !_useCustom;
-                        if (_useCustom) {
-                          _customCopyController.text = _selectedPreset;
-                        }
-                      });
-                    },
-                    child: Text(
-                      _useCustom ? 'Pick a preset' : '+ Custom message',
-                      style: CoveType.rowSub.copyWith(
-                        color: cv.accentText,
-                        fontWeight: FontWeight.w600,
+              if (MediaQuery.textScalerOf(context).scale(1.0) > 1.0)
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: CoveSpace.sm,
+                  runSpacing: CoveSpace.xs,
+                  children: [
+                    Text(
+                      'WARM WELCOMING MESSAGE',
+                      style: CoveType.capsCard.copyWith(
+                        color: cv.textSecondary,
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _useCustom = !_useCustom;
+                          if (_useCustom) {
+                            _customCopyController.text = _selectedPreset;
+                          }
+                        });
+                      },
+                      child: Text(
+                        _useCustom ? 'Pick a preset' : '+ Custom message',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'WARM WELCOMING MESSAGE',
+                      style: CoveType.capsCard.copyWith(
+                        color: cv.textSecondary,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _useCustom = !_useCustom;
+                          if (_useCustom) {
+                            _customCopyController.text = _selectedPreset;
+                          }
+                        });
+                      },
+                      child: Text(
+                        _useCustom ? 'Pick a preset' : '+ Custom message',
+                        style: CoveType.rowSub.copyWith(
+                          color: cv.accentText,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: CoveSpace.sm),
 
               if (_useCustom)

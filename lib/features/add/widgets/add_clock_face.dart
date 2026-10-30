@@ -138,68 +138,106 @@ class _AddClockFaceState extends State<AddClockFace> {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final isScaled = textScale > 1.0;
     final hourLabel = _hour12.toString().padLeft(2, '0');
     final minuteLabel = widget.minute.toString().padLeft(2, '0');
     final selectedIndex = _mode == AddClockMode.hour
         ? (_hour12 % 12)
         : _snappedMinuteIndex;
 
+    final digitalPair = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _DigitalBox(
+          label: hourLabel,
+          semanticLabel: 'Hour $hourLabel',
+          active: !widget.isAllDay && _mode == AddClockMode.hour,
+          onTap: () {
+            if (widget.isAllDay) {
+              widget.onAllDayChanged?.call(false);
+            }
+            _setMode(AddClockMode.hour);
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: CoveSpace.sm),
+          child: Text(
+            ':',
+            style: CoveType.title.copyWith(color: cv.textTertiary),
+          ),
+        ),
+        _DigitalBox(
+          label: minuteLabel,
+          semanticLabel: 'Minute $minuteLabel',
+          active: !widget.isAllDay && _mode == AddClockMode.minute,
+          onTap: () {
+            if (widget.isAllDay) {
+              widget.onAllDayChanged?.call(false);
+            }
+            _setMode(AddClockMode.minute);
+          },
+        ),
+      ],
+    );
+
+    final meridiemColumn = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MeridiemButton(
+          label: 'AM',
+          selected: !widget.isAllDay && !_isPm,
+          onTap: () => _setMeridiem(false),
+        ),
+        _MeridiemButton(
+          label: 'PM',
+          selected: !widget.isAllDay && _isPm,
+          onTap: () => _setMeridiem(true),
+        ),
+      ],
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 1. Digital readout: [08] : [00] + AM/PM
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _DigitalBox(
-              label: hourLabel,
-              semanticLabel: 'Hour $hourLabel',
-              active: !widget.isAllDay && _mode == AddClockMode.hour,
-              onTap: () {
-                if (widget.isAllDay) {
-                  widget.onAllDayChanged?.call(false);
-                }
-                _setMode(AddClockMode.hour);
-              },
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: CoveSpace.sm),
-              child: Text(
-                ':',
-                style: CoveType.title.copyWith(color: cv.textTertiary),
+        if (isScaled)
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: CoveSpace.sm,
+            runSpacing: CoveSpace.sm,
+            children: [
+              digitalPair,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _MeridiemButton(
+                    label: 'AM',
+                    selected: !widget.isAllDay && !_isPm,
+                    onTap: () => _setMeridiem(false),
+                  ),
+                  const SizedBox(width: CoveSpace.xs),
+                  _MeridiemButton(
+                    label: 'PM',
+                    selected: !widget.isAllDay && _isPm,
+                    onTap: () => _setMeridiem(true),
+                  ),
+                ],
               ),
-            ),
-            _DigitalBox(
-              label: minuteLabel,
-              semanticLabel: 'Minute $minuteLabel',
-              active: !widget.isAllDay && _mode == AddClockMode.minute,
-              onTap: () {
-                if (widget.isAllDay) {
-                  widget.onAllDayChanged?.call(false);
-                }
-                _setMode(AddClockMode.minute);
-              },
-            ),
-            const SizedBox(width: CoveSpace.sm),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _MeridiemButton(
-                  label: 'AM',
-                  selected: !widget.isAllDay && !_isPm,
-                  onTap: () => _setMeridiem(false),
-                ),
-                _MeridiemButton(
-                  label: 'PM',
-                  selected: !widget.isAllDay && _isPm,
-                  onTap: () => _setMeridiem(true),
-                ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              digitalPair,
+              const SizedBox(width: CoveSpace.sm),
+              meridiemColumn,
+            ],
+          ),
 
         const SizedBox(height: CoveSpace.lg),
 
@@ -330,11 +368,16 @@ class _AddClockFaceState extends State<AddClockFace> {
       semantic = '$m minutes';
     }
 
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final hitExtent = textScale > 1.0
+        ? math.max(CoveSize.hit, (32.0 * textScale).ceilToDouble())
+        : CoveSize.hit;
+
     return Positioned(
-      left: x - CoveSize.hit / 2.0,
-      top: y - CoveSize.hit / 2.0,
-      width: CoveSize.hit,
-      height: CoveSize.hit,
+      left: x - hitExtent / 2.0,
+      top: y - hitExtent / 2.0,
+      width: hitExtent,
+      height: hitExtent,
       child: Semantics(
         container: true,
         button: true,
@@ -435,6 +478,7 @@ class _MeridiemButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cv = context.cv;
+    final isScaled = MediaQuery.textScalerOf(context).scale(1.0) > 1.0;
 
     return Semantics(
       container: true,
@@ -453,9 +497,15 @@ class _MeridiemButton extends StatelessWidget {
             ),
             child: Center(
               child: Container(
-                height: AddClockFace._kMeridiemVisualHeight,
-                padding: const EdgeInsets.symmetric(
+                constraints: isScaled
+                    ? const BoxConstraints(
+                        minHeight: AddClockFace._kMeridiemVisualHeight,
+                      )
+                    : null,
+                height: isScaled ? null : AddClockFace._kMeridiemVisualHeight,
+                padding: EdgeInsets.symmetric(
                   horizontal: CoveSpace.md,
+                  vertical: isScaled ? CoveSpace.xs : 0.0,
                 ),
                 alignment: Alignment.center,
                 decoration: CoveShape.decoration(

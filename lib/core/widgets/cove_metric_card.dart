@@ -121,8 +121,10 @@ class CoveMetricGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final isSingleColumn =
-        MediaQuery.sizeOf(context).width < CoveSize.compactThreshold;
+        (MediaQuery.sizeOf(context).width / textScale) <
+        CoveSize.compactThreshold;
     final rows = <Widget>[];
 
     if (isSingleColumn) {
