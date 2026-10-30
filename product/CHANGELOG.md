@@ -4,6 +4,18 @@ This document tracks all user-facing changes, architectural upgrades, and engine
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Phase 5.0 — Baseline Accessibility Audit Across Every Screen, Sheet & Add Step (`Oct 30, 2026`)**:
+  - *Outcome*:
+    - Added [`test/a11y/`](../test/a11y/) pumping **115 deterministic surfaces** (**36** screen views, **35** sheets/modals/dialogs, and **44** `AddFlow` step states covering every `AddStep` across all 6 `AddKind`s) at `411×914dp` (`CoveWidth.phone`, `TextScaler.linear(1.0)`, `DPR 2.0`) in both `Brightness.light` and `Brightness.dark` with the overflow guard active, and evaluating Flutter's `androidTapTargetGuideline` (`48×48dp`), `labeledTapTargetGuideline`, and `textContrastGuideline` (`690` checks total).
+    - **551 of 690 checks pass immediately** and run actively in `./tool/check.sh`. Recorded all **139** baseline failures by surface and widget in gitignored `build/a11y_baseline.md` and marked them `skip:` in [`test/a11y/a11y_skips.dart`](../test/a11y/a11y_skips.dart) (**18** contrast checks tagged `'5.5'` for the revised Phase `5.5` pass; **121** label, tap-target, and `5.1` chart/avatar/state semantics checks tagged `'launch blocker, deferred'`), with zero production (`lib/`) or visual changes.
+  - *Under the Hood*:
+    - Added [`test/a11y/a11y_harness.dart`](../test/a11y/a11y_harness.dart), [`test/a11y/a11y_fixtures.dart`](../test/a11y/a11y_fixtures.dart), [`test/a11y/a11y_skips.dart`](../test/a11y/a11y_skips.dart), [`test/a11y/screens_a11y_test.dart`](../test/a11y/screens_a11y_test.dart), [`test/a11y/sheets_a11y_test.dart`](../test/a11y/sheets_a11y_test.dart), [`test/a11y/add_flow_a11y_test.dart`](../test/a11y/add_flow_a11y_test.dart), and [`product/PROMPTS-PHASE5-A11Y.md`](./PROMPTS-PHASE5-A11Y.md).
+
+---
+
 ## [v2.0-alpha.1] — 2026-10-28
 
 ### Changed
